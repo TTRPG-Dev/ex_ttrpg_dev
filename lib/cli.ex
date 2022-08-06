@@ -58,8 +58,13 @@ defmodule ExRPG.CLI do
       {[:gen, sub_command], parse_result} ->
         handle_generators(sub_command, parse_result)
 
-      default ->
-        IO.inspect(default)
+      {unhandled, _parse_result} ->
+        str_command = unhandled
+          |> Enum.reduce([], fn x, acc -> [Atom.to_string(x) | acc ] end)
+          |> Enum.reverse()
+          |> Enum.join(" ")
+
+        raise "Unhandled CLI command `#{str_command}`, if you are seeing this error please report the issue"
     end
   end
 
