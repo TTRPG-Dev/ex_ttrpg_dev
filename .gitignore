@@ -24,3 +24,6 @@ ex_rpg-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Ignore built CLI
+ex_rpg
