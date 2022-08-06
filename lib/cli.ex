@@ -1,5 +1,6 @@
 defmodule ExRPG.CLI do
   alias ExRPG.Dice
+  alias ExRPG.DungoneAndDragons5e
   @moduledoc """
   The CLI for the project
   """
@@ -25,7 +26,25 @@ defmodule ExRPG.CLI do
               parser: :string
             ]
           ]
-        ]
+        ],
+        gen: [
+          name: "gen",
+          about: "Used for generating things",
+          subcommands: [
+            stat_block: [
+              name: "stat-block",
+              about: "Generate stat blocks",
+              args: [
+                system: [
+                  value_name: "SYSTEM",
+                  help: "A supported system, e.g. dnd5e",
+                  required: true,
+                  parser: :string
+                ]
+              ]
+            ],
+          ]
+        ],
       ]
     )
 
@@ -36,13 +55,40 @@ defmodule ExRPG.CLI do
       {[:roll], parse_result} ->
         handle_roll(parse_result)
 
-      default ->
-        IO.inspect(default)
+      {[:gen, sub_command], parse_result} ->
+        handle_generators(sub_command, parse_result)
+
+      {unhandled, _parse_result} ->
+        str_command = unhandled
+          |> Enum.reduce([], fn x, acc -> [Atom.to_string(x) | acc ] end)
+          |> Enum.reverse()
+          |> Enum.join(" ")
+
+        raise "Unhandled CLI command `#{str_command}`, if you are seeing this error please report the issue"
     end
   end
 
   def handle_roll(%Optimus.ParseResult{args: %{dice: dice_str}}) do
     Dice.roll(dice_str)
     |> IO.inspect(label: "Results")
+  end
+
+  def handle_generators(subcommand, %Optimus.ParseResult{} = parse_result) do
+    case subcommand do
+      :stat_block ->
+        handle_stat_block(parse_result)
+
+    end
+  end
+
+  def handle_stat_block(%Optimus.ParseResult{args: %{system: system_str}}) do
+    case system_str do
+      "dnd5e" ->
+        DungoneAndDragons5e.Abilities.gen_scores()
+        |> IO.inspect()
+
+      _ ->
+        IO.puts "Stat block generation is not currently supported for #{system_str}"
+    end
   end
 end
