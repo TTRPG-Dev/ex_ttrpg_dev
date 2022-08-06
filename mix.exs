@@ -9,6 +9,10 @@ defmodule ExRPG.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: escript(),
+      description: description(),
+      package: package(),
+      name: "ExRPG",
+      source_url: "https://github.com/QMalcolm/ex_rpg"
     ]
   end
 
@@ -27,8 +31,20 @@ defmodule ExRPG.MixProject do
   defp deps do
     [
       {:optimus, "~> 0.3"},
+      {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+    ]
+  end
+
+  defp description() do
+    "ExRPG is a general utility for tabletop role-playing games."
+  end
+
+  defp package() do
+    [
+      licenses: ["AGPL-3.0-only"],
+      links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"},
     ]
   end
 end
