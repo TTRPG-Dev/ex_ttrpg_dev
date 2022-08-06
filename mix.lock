@@ -1,0 +1,3 @@
+%{
+  "optimus": {:hex, :optimus, "0.3.0", "72754d1a06bab7b4b7f59b05622e442e5ab7909b9db5d8b01dc3d2792559fa9e", [:mix], [], "hexpm", "d0d026fdf068e461e1173c463ea2da15e109942135aa4e2490dd2dc9ef05946c"},
+}
