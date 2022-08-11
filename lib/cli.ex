@@ -1,6 +1,7 @@
 defmodule ExRPG.CLI do
   alias ExRPG.Dice
   alias ExRPG.DungoneAndDragons5e
+  alias ExRPG.Systems
   @moduledoc """
   The CLI for the project
   """
@@ -45,6 +46,10 @@ defmodule ExRPG.CLI do
             ],
           ]
         ],
+        list_systems: [
+          name: "list-systems",
+          about: "List systems that are setup to be used with ExRPG",
+        ],
       ]
     )
 
@@ -57,6 +62,10 @@ defmodule ExRPG.CLI do
 
       {[:gen, sub_command], parse_result} ->
         handle_generators(sub_command, parse_result)
+
+      {[:list_systems], _} ->
+        Systems.list_systems()
+        |> IO.inspect(label: "Configured Systems")
 
       {unhandled, _parse_result} ->
         str_command = unhandled
