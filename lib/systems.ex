@@ -19,4 +19,20 @@ defmodule ExRPG.Systems do
   def list_systems do
     File.ls!(Globals.system_configs_path())
   end
+
+  @doc """
+  Checks if the given system is configured.
+  Returns true if system is configured, otherwise false.
+
+  ## Examples
+      iex> ExRPG.Systems.is_configured?("dnd_5e_srd")
+      true
+
+      iex> ExRPG.Systems.is_configured?("non_existent_system")
+      false
+  """
+  def is_configured?(system) when is_bitstring(system) do
+    list_systems()
+    |> Enum.any?(fn configured_systems -> configured_systems == system end)
+  end
 end
