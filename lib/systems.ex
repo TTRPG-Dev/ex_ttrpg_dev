@@ -35,4 +35,15 @@ defmodule ExRPG.Systems do
     list_systems()
     |> Enum.any?(fn configured_systems -> configured_systems == system end)
   end
+
+  @doc """
+  Returns the path to to the systems config directory
+
+  ## Examples
+      iex> ExRPG.systems.system_path!("dnd_5e_srd")
+      "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
+  """
+  def system_path!(system) when is_bitstring(system) do
+    Path.join([Globals.system_configs_path, system])
+  end
 end
