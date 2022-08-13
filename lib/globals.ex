@@ -4,6 +4,7 @@ defmodule ExRPG.Globals do
   """
   @project_root File.cwd!
   @system_configs_path Path.join(~w(#{@project_root} system_configs))
+  @license_file_name "license.md"
 
   @doc """
   The path to where the project lives on your machine
@@ -29,5 +30,17 @@ defmodule ExRPG.Globals do
   """
   def system_configs_path do
     @system_configs_path
+  end
+
+  @doc """
+  The name for license files
+
+  ## Examples
+    iex> ExRPG.Globals.license_file_name()
+    "license.md"
+
+  """
+  def license_file_name do
+    @license_file_name
   end
 end
