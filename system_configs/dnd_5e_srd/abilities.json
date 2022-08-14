@@ -1,13 +1,17 @@
 { 
   "abilities": {
     "assignment": {
-      "rolling": {
-        "standard": {
+      "rolling": [
+        {
+          "name": "standard",
           "dice": "4d6",
           "special": "drop_lowest"
         },
-        "hard": {"dice": "3d6"}
-      },
+        {
+          "name": "hard",
+          "dice": "3d6"
+        }
+      ],
       "point_buy": {
         "points": 27,
         "score_costs": [
@@ -22,10 +26,12 @@
         ]
       }
     },
-    "modifier_formula_steps": {
-      "1": {"method": "subtract", "value": 10},
-      "2": {"method": "divide", "value": 2},
-      "3": {"method": "round_down"}
+    "modifier_calculation": {
+      "steps": [
+        {"order": 1, "method": "subtract", "value": 10},
+        {"order": 2, "method": "divide", "value": 2},
+        {"order": 3, "method": "round_down"}
+      ]
     },
     "specs": [
       {
