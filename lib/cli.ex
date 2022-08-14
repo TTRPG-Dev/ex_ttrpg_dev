@@ -1,7 +1,7 @@
 defmodule ExRPG.CLI do
   alias ExRPG.Dice
   alias ExRPG.DungoneAndDragons5e
-  alias ExRPG.Systems
+  alias ExRPG.RuleSystems
   @moduledoc """
   The CLI for the project
   """
@@ -50,6 +50,24 @@ defmodule ExRPG.CLI do
           name: "list-systems",
           about: "List systems that are setup to be used with ExRPG",
         ],
+        system: [
+          name: "system",
+          about: "Top level command fo systems",
+          subcommands: [
+            metadata: [
+              name: "metadata",
+              about: "Show system metadata",
+              args: [
+                system: [
+                  value_name: "SYSTEM",
+                  help: "A supported system, e.g. dnd5e",
+                  required: true,
+                  parser: :string
+                ]
+              ]
+            ]
+          ]
+        ],
       ]
     )
 
@@ -64,8 +82,11 @@ defmodule ExRPG.CLI do
         handle_generators(sub_command, parse_result)
 
       {[:list_systems], _} ->
-        Systems.list_systems()
+        RuleSystems.list_systems()
         |> IO.inspect(label: "Configured Systems")
+
+      {[:system, sub_command], parse_result} ->
+        handle_system_subcommands(sub_command, parse_result)
 
       {unhandled, _parse_result} ->
         str_command = unhandled
@@ -98,6 +119,17 @@ defmodule ExRPG.CLI do
 
       _ ->
         IO.puts "Stat block generation is not currently supported for #{system_str}"
+    end
+  end
+
+  def handle_system_subcommands(subcommand, %Optimus.ParseResult{args: %{system: system}}) do
+    loaded_system = RuleSystems.load_system!(system)
+
+    case subcommand do
+      :metadata ->
+        Map.get(loaded_system, :metadata)
+        |> IO.inspect()
+
     end
   end
 end
