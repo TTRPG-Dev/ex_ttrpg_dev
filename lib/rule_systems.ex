@@ -1,5 +1,7 @@
-defmodule ExRPG.Systems do
+defmodule ExRPG.RuleSystems do
   alias ExRPG.Globals
+  alias ExRPG.RuleSystems.Metadata
+  alias ExRPG.RuleSystems.RuleSystem
 
   @moduledoc """
   Module which enables interactions with the varying defined systems in the
@@ -13,7 +15,7 @@ defmodule ExRPG.Systems do
 
   ## Examples
 
-      iex> ExRPG.Systems.list_systems()
+      iex> ExRPG.RuleSystems.list_systems()
       ["dnd_5e_srd"]
   """
   def list_systems do
@@ -25,10 +27,10 @@ defmodule ExRPG.Systems do
   Returns true if system is configured, otherwise false.
 
   ## Examples
-      iex> ExRPG.Systems.is_configured?("dnd_5e_srd")
+      iex> ExRPG.RuleSystems.is_configured?("dnd_5e_srd")
       true
 
-      iex> ExRPG.Systems.is_configured?("non_existent_system")
+      iex> ExRPG.RuleSystems.is_configured?("non_existent_system")
       false
   """
   def is_configured?(system) when is_bitstring(system) do
@@ -40,10 +42,36 @@ defmodule ExRPG.Systems do
   Returns the path to to the systems config directory
 
   ## Examples
-      iex> ExRPG.systems.system_path!("dnd_5e_srd")
+      iex> ExRPG.RuleSystems.system_path!("dnd_5e_srd")
       "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
   """
   def system_path!(system) when is_bitstring(system) do
     Path.join([Globals.system_configs_path, system])
   end
+
+  @doc """
+  Reads in all of the JSON files for the specified and decodes
+  the json into a %Systems{} struct
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.load_system!("dnd_5e_srd")
+      %ExRPG.RuleSystems.RuleSystem{}
+
+  """
+  def load_system!(system) when is_bitstring(system) do
+    system_path = ExRPG.RuleSystems.system_path!(system)
+
+    File.ls!(system_path)
+    |> Enum.filter(fn file_name -> Regex.match?(Globals.json_file_pattern, file_name) end)
+    |> Enum.reduce(%{}, fn file, acc ->
+      Path.join(system_path, file)
+      |> File.read!()
+      |> Poison.decode!()
+      |> Map.merge(acc)
+    end)
+    |> Poison.encode!()
+    |> RuleSystem.from_json!()
+  end
+
 end

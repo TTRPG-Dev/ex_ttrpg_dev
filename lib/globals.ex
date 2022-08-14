@@ -5,6 +5,7 @@ defmodule ExRPG.Globals do
   @project_root File.cwd!
   @system_configs_path Path.join(~w(#{@project_root} system_configs))
   @license_file_name "license.md"
+  @json_file_pattern ~r/.+\.json$/
 
   @doc """
   The path to where the project lives on your machine
@@ -42,5 +43,16 @@ defmodule ExRPG.Globals do
   """
   def license_file_name do
     @license_file_name
+  end
+
+  @doc """
+  The regex pattern for identifying json files
+
+  ## Examples
+    iex> ExRPG.Globals.json_file_name()
+    ~r/.+\\.json$/
+  """
+  def json_file_pattern do
+    @json_file_pattern
   end
 end
