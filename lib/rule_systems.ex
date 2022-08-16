@@ -1,4 +1,5 @@
 defmodule ExRPG.RuleSystems do
+  alias ExRPG.RuleSystems
   alias ExRPG.Globals
   alias ExRPG.RuleSystems.Metadata
   alias ExRPG.RuleSystems.RuleSystem
@@ -36,6 +37,18 @@ defmodule ExRPG.RuleSystems do
   def is_configured?(system) when is_bitstring(system) do
     list_systems()
     |> Enum.any?(fn configured_systems -> configured_systems == system end)
+  end
+
+  @doc """
+  Ensures a system is configured. If the system is configured, the system name
+  is returned. If the system isn't configured, an exception is raised.
+  """
+  def assert_configured!(system) when is_bitstring(system) do
+    if RuleSystems.is_configured?(system) do
+      system
+    else
+      raise "System `#{system}` is not congifured"
+    end
   end
 
   @doc """
