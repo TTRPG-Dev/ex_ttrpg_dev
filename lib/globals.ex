@@ -3,7 +3,7 @@ defmodule ExRPG.Globals do
   Module which defines globals like project paths
   """
   @project_root File.cwd!
-  @system_configs_path Path.join(~w(#{@project_root} system_configs))
+  @system_configs_path Path.join(~w(#{@project_root} priv system_configs))
   @license_file_name "license.md"
   @json_file_pattern ~r/.+\.json$/
 
