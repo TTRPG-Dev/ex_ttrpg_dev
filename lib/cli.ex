@@ -1,6 +1,6 @@
 defmodule ExRPG.CLI do
   alias ExRPG.Dice
-  alias ExRPG.DungoneAndDragons5e
+  alias ExRPG.RuleSystems
   @moduledoc """
   The CLI for the project
   """
@@ -9,7 +9,7 @@ defmodule ExRPG.CLI do
     optimus = Optimus.new!(
       name: "ex_rpg",
       description: "CLI for all things RPG",
-      version: "0.1.0",
+      version: "0.2.0",
       author: "Quigley Malcolm quigley@quigleymalcolm.com",
       about: "Utility for playing tabletop role-playing games.",
       allow_unknown_args: false,
@@ -27,13 +27,17 @@ defmodule ExRPG.CLI do
             ]
           ]
         ],
-        gen: [
-          name: "gen",
-          about: "Used for generating things",
+        list_systems: [
+          name: "list-systems",
+          about: "List systems that are setup to be used with ExRPG",
+        ],
+        system: [
+          name: "system",
+          about: "Top level command fo systems",
           subcommands: [
-            stat_block: [
-              name: "stat-block",
-              about: "Generate stat blocks",
+            metadata: [
+              name: "metadata",
+              about: "Show system metadata",
               args: [
                 system: [
                   value_name: "SYSTEM",
@@ -43,6 +47,24 @@ defmodule ExRPG.CLI do
                 ]
               ]
             ],
+            gen: [
+              name: "gen",
+              about: "Used for generating things for the system",
+              subcommands: [
+                stat_block: [
+                  name: "stat-block",
+                  about: "Generate stat blocks for characters of the system",
+                  args: [
+                    system: [
+                      value_name: "SYSTEM",
+                      help: "A supported system, e.g. dnd5e",
+                      required: true,
+                      parser: :string
+                    ]
+                  ]
+                ],
+              ]
+            ]
           ]
         ],
       ]
@@ -57,6 +79,13 @@ defmodule ExRPG.CLI do
 
       {[:gen, sub_command], parse_result} ->
         handle_generators(sub_command, parse_result)
+
+      {[:list_systems], _} ->
+        RuleSystems.list_systems()
+        |> IO.inspect(label: "Configured Systems")
+
+      {[:system | sub_commands], parse_result} ->
+        handle_system_subcommands(sub_commands, parse_result)
 
       {unhandled, _parse_result} ->
         str_command = unhandled
@@ -89,6 +118,29 @@ defmodule ExRPG.CLI do
 
       _ ->
         IO.puts "Stat block generation is not currently supported for #{system_str}"
+    end
+  end
+
+  def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{args: %{system: system}}) do
+    loaded_system = system
+    |> RuleSystems.assert_configured!()
+    |> RuleSystems.load_system!()
+
+    case command do
+      :metadata ->
+        Map.get(loaded_system, :metadata)
+        |> IO.inspect()
+
+      :gen ->
+        handle_system_generation_subcommands(subcommands, loaded_system)
+    end
+  end
+
+  def handle_system_generation_subcommands([command | _subcommands], %RuleSystems.RuleSystem{} = system) do
+    case command do
+      :stat_block ->
+        RuleSystems.RuleSystem.gen_ability_scores_assigned(system)
+        |> IO.inspect()
     end
   end
 end
