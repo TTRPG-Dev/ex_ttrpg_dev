@@ -46,8 +46,6 @@ defmodule ExRPG.MixProject do
     [
       licenses: ["AGPL-3.0-only"],
       links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"},
-      files: ~w(lib priv system_configs .formatter.exs mix.exs README* readme* LICENSE*
-      license* CHANGELOG* changelog* src),
     ]
   end
 end
