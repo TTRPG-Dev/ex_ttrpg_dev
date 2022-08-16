@@ -80,6 +80,7 @@ defmodule ExRPG.CLI do
       {[:list_systems], _} ->
         RuleSystems.list_systems()
         |> IO.inspect(label: "Configured Systems")
+        # credo:disable-for-previous-line
 
       {[:system | sub_commands], parse_result} ->
         handle_system_subcommands(sub_commands, parse_result)
@@ -97,6 +98,7 @@ defmodule ExRPG.CLI do
   def handle_roll(%Optimus.ParseResult{args: %{dice: dice_str}}) do
     Dice.roll(dice_str)
     |> IO.inspect(label: "Results")
+    # credo:disable-for-previous-line
   end
 
   def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{args: %{system: system}}) do
@@ -108,6 +110,7 @@ defmodule ExRPG.CLI do
       :metadata ->
         Map.get(loaded_system, :metadata)
         |> IO.inspect()
+        # credo:disable-for-previous-line
 
       :gen ->
         handle_system_generation_subcommands(subcommands, loaded_system)
@@ -119,6 +122,7 @@ defmodule ExRPG.CLI do
       :stat_block ->
         RuleSystems.RuleSystem.gen_ability_scores_assigned(system)
         |> IO.inspect()
+        # credo:disable-for-previous-line
     end
   end
 end
