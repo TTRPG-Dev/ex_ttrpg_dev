@@ -1,13 +1,24 @@
 defmodule ExRPG.RuleSystems.Abilities.ModifierCalculation do
   alias ExRPG.RuleSystems.Abilities.ModifierCalculation
 
+  @moduledoc """
+  Module handling calculation of ability modifiers based on ability scores
+  """
+
   defstruct [:steps, :mapping]
 
   defmodule Step do
+    @moduledoc """
+    A step is generally part of a series of step which taken in order
+    can calculate from the modifier from the starting ability score
+    """
     defstruct [:order, :method, :value]
   end
 
   defmodule Mapping do
+    @moduledoc """
+    Defines direct mapping of ability scores to their modifer values
+    """
     defstruct [:ability_value, :modifier_value]
   end
 

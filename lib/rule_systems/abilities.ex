@@ -2,6 +2,11 @@ defmodule ExRPG.RuleSystems.Abilities do
   alias ExRPG.RuleSystems.Abilities
   alias ExRPG.RuleSystems.Abilities.Spec
   alias ExRPG.RuleSystems.Abilities.Assignment
+
+  @moduledoc """
+  Root module for rule system ability tools
+  """
+
   defstruct [:assignment, :modifier_calculation, :specs]
 
   @doc """
