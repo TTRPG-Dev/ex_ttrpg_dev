@@ -65,6 +65,24 @@ defmodule ExRPG.CLI do
                   parser: :string
                 ]
               ]
+            ],
+            gen: [
+              name: "gen",
+              about: "Used for generating things for the system",
+              subcommands: [
+                stat_block: [
+                  name: "stat-block",
+                  about: "Generate stat blocks for characters of the system",
+                  args: [
+                    system: [
+                      value_name: "SYSTEM",
+                      help: "A supported system, e.g. dnd5e",
+                      required: true,
+                      parser: :string
+                    ]
+                  ]
+                ],
+              ]
             ]
           ]
         ],
@@ -85,8 +103,8 @@ defmodule ExRPG.CLI do
         RuleSystems.list_systems()
         |> IO.inspect(label: "Configured Systems")
 
-      {[:system, sub_command], parse_result} ->
-        handle_system_subcommands(sub_command, parse_result)
+      {[:system | sub_commands], parse_result} ->
+        handle_system_subcommands(sub_commands, parse_result)
 
       {unhandled, _parse_result} ->
         str_command = unhandled
@@ -122,14 +140,26 @@ defmodule ExRPG.CLI do
     end
   end
 
-  def handle_system_subcommands(subcommand, %Optimus.ParseResult{args: %{system: system}}) do
-    loaded_system = RuleSystems.load_system!(system)
+  def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{args: %{system: system}}) do
+    loaded_system = system
+    |> RuleSystems.assert_configured!()
+    |> RuleSystems.load_system!()
 
-    case subcommand do
+    case command do
       :metadata ->
         Map.get(loaded_system, :metadata)
         |> IO.inspect()
 
+      :gen ->
+        handle_system_generation_subcommands(subcommands, loaded_system)
+    end
+  end
+
+  def handle_system_generation_subcommands([command | _subcommands], %RuleSystems.RuleSystem{} = system) do
+    case command do
+      :stat_block ->
+        RuleSystems.RuleSystem.gen_ability_scores_assigned(system)
+        |> IO.inspect()
     end
   end
 end
