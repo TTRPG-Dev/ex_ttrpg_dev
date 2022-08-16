@@ -1,4 +1,5 @@
 defmodule ExRPG.RuleSystems.RuleSystem do
+  alias ExRPG.RuleSystems.RuleSystem
   alias ExRPG.RuleSystems.Metadata
   alias ExRPG.RuleSystems.Abilities
 
@@ -33,5 +34,39 @@ defmodule ExRPG.RuleSystems.RuleSystem do
         specs: [%Abilities.Spec{}]
       }
     })
+  end
+
+  @doc """
+  Generates a set of ability scores assigned to the rule systems abilities
+  using the system's default assignment method .
+
+  ## Examples
+
+      iex> RuleSystem.gen_ability_scores()
+      %{
+        charisma: [4, 3, 1],
+        constitution: [5, 6, 3],
+        dexterity: [5, 3, 1],
+        intellegence: [4, 3, 3],
+        strength: [4, 1, 5],
+        wisdom: [1, 5, 6]
+      }
+  """
+  def gen_ability_scores_assigned(%RuleSystem{abilities: %Abilities{} = abilities}) do
+    Abilities.gen_scores(abilities)
+  end
+
+  @doc """
+  Generates an unassigned set of ability scores using the system's default
+  assignment method.
+
+  ## Examples
+
+      iex> RuleSystem.gen_ability_scores(%RuleSystem{})
+      [[1, 6, 6], [3, 3, 2], [3, 6, 3], [4, 2, 1], [6, 5, 1], [6, 4, 6]]
+
+  """
+  def gen_ability_scores_unassigned(%RuleSystem{abilities: %Abilities{} = abilities}) do
+    Abilities.gen_scores_unassigned(abilities)
   end
 end

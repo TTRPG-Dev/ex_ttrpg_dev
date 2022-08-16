@@ -1,11 +1,12 @@
 { 
   "abilities": {
     "assignment": {
-      "rolling": [
+      "rolling_methods": [
         {
           "name": "standard",
           "dice": "4d6",
-          "special": "drop_lowest"
+          "special": "drop_lowest",
+          "default": true
         },
         {
           "name": "hard",
