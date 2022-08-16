@@ -77,9 +77,6 @@ defmodule ExRPG.CLI do
       {[:roll], parse_result} ->
         handle_roll(parse_result)
 
-      {[:gen, sub_command], parse_result} ->
-        handle_generators(sub_command, parse_result)
-
       {[:list_systems], _} ->
         RuleSystems.list_systems()
         |> IO.inspect(label: "Configured Systems")
@@ -100,25 +97,6 @@ defmodule ExRPG.CLI do
   def handle_roll(%Optimus.ParseResult{args: %{dice: dice_str}}) do
     Dice.roll(dice_str)
     |> IO.inspect(label: "Results")
-  end
-
-  def handle_generators(subcommand, %Optimus.ParseResult{} = parse_result) do
-    case subcommand do
-      :stat_block ->
-        handle_stat_block(parse_result)
-
-    end
-  end
-
-  def handle_stat_block(%Optimus.ParseResult{args: %{system: system_str}}) do
-    case system_str do
-      "dnd5e" ->
-        DungoneAndDragons5e.Abilities.gen_scores()
-        |> IO.inspect()
-
-      _ ->
-        IO.puts "Stat block generation is not currently supported for #{system_str}"
-    end
   end
 
   def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{args: %{system: system}}) do
