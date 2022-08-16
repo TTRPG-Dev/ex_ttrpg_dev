@@ -1,6 +1,5 @@
 defmodule ExRPG.CLI do
   alias ExRPG.Dice
-  alias ExRPG.DungoneAndDragons5e
   alias ExRPG.RuleSystems
   @moduledoc """
   The CLI for the project
@@ -26,24 +25,6 @@ defmodule ExRPG.CLI do
               required: true,
               parser: :string
             ]
-          ]
-        ],
-        gen: [
-          name: "gen",
-          about: "Used for generating things",
-          subcommands: [
-            stat_block: [
-              name: "stat-block",
-              about: "Generate stat blocks",
-              args: [
-                system: [
-                  value_name: "SYSTEM",
-                  help: "A supported system, e.g. dnd5e",
-                  required: true,
-                  parser: :string
-                ]
-              ]
-            ],
           ]
         ],
         list_systems: [
