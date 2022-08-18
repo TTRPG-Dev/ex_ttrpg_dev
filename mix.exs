@@ -45,7 +45,7 @@ defmodule ExRPG.MixProject do
 
   defp package() do
     [
-      licenses: ["AGPL-3.0-only"],
+      licenses: ["GPL-3.0-only"],
       links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"},
     ]
   end
