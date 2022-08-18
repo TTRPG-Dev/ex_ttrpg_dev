@@ -1,6 +1,6 @@
 # ExRPG
 
-**TODO: Add description**
+ExRPG is a general tabletop role-playing game utility written in Elixir.
 
 ## Installation
 
