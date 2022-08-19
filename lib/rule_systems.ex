@@ -1,7 +1,6 @@
 defmodule ExRPG.RuleSystems do
   alias ExRPG.RuleSystems
   alias ExRPG.Globals
-  alias ExRPG.RuleSystems.Metadata
   alias ExRPG.RuleSystems.RuleSystem
 
   @moduledoc """
