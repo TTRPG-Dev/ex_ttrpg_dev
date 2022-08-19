@@ -2,74 +2,77 @@
 defmodule ExRPG.CLI do
   alias ExRPG.Dice
   alias ExRPG.RuleSystems
+
   @moduledoc """
   The CLI for the project
   """
 
   def main(argv) do
-    optimus = Optimus.new!(
-      name: "ex_rpg",
-      description: "CLI for all things RPG",
-      version: "0.2.0",
-      author: "Quigley Malcolm quigley@quigleymalcolm.com",
-      about: "Utility for playing tabletop role-playing games.",
-      allow_unknown_args: false,
-      parse_double_dash: true,
-      subcommands: [
-        roll: [
-          name: "roll",
-          about: "Roll some dice",
-          args: [
-            dice: [
-              value_name: "DICE",
-              help: "Dice in the format of xdy wherein x is the number of dice, y is the number of sides the dice should have",
-              required: true,
-              parser: :string
-            ]
-          ]
-        ],
-        list_systems: [
-          name: "list-systems",
-          about: "List systems that are setup to be used with ExRPG",
-        ],
-        system: [
-          name: "system",
-          about: "Top level command fo systems",
-          subcommands: [
-            metadata: [
-              name: "metadata",
-              about: "Show system metadata",
-              args: [
-                system: [
-                  value_name: "SYSTEM",
-                  help: "A supported system, e.g. dnd5e",
-                  required: true,
-                  parser: :string
-                ]
+    optimus =
+      Optimus.new!(
+        name: "ex_rpg",
+        description: "CLI for all things RPG",
+        version: "0.2.0",
+        author: "Quigley Malcolm quigley@quigleymalcolm.com",
+        about: "Utility for playing tabletop role-playing games.",
+        allow_unknown_args: false,
+        parse_double_dash: true,
+        subcommands: [
+          roll: [
+            name: "roll",
+            about: "Roll some dice",
+            args: [
+              dice: [
+                value_name: "DICE",
+                help:
+                  "Dice in the format of xdy wherein x is the number of dice, y is the number of sides the dice should have",
+                required: true,
+                parser: :string
               ]
-            ],
-            gen: [
-              name: "gen",
-              about: "Used for generating things for the system",
-              subcommands: [
-                stat_block: [
-                  name: "stat-block",
-                  about: "Generate stat blocks for characters of the system",
-                  args: [
-                    system: [
-                      value_name: "SYSTEM",
-                      help: "A supported system, e.g. dnd5e",
-                      required: true,
-                      parser: :string
+            ]
+          ],
+          list_systems: [
+            name: "list-systems",
+            about: "List systems that are setup to be used with ExRPG"
+          ],
+          system: [
+            name: "system",
+            about: "Top level command fo systems",
+            subcommands: [
+              metadata: [
+                name: "metadata",
+                about: "Show system metadata",
+                args: [
+                  system: [
+                    value_name: "SYSTEM",
+                    help: "A supported system, e.g. dnd5e",
+                    required: true,
+                    parser: :string
+                  ]
+                ]
+              ],
+              gen: [
+                name: "gen",
+                about: "Used for generating things for the system",
+                subcommands: [
+                  stat_block: [
+                    name: "stat-block",
+                    about: "Generate stat blocks for characters of the system",
+                    args: [
+                      system: [
+                        value_name: "SYSTEM",
+                        help: "A supported system, e.g. dnd5e",
+                        required: true,
+                        parser: :string
+                      ]
                     ]
                   ]
-                ],
+                ]
               ]
             ]
           ]
-        ],
-      ]
-    )
+        ]
+      )
 
     case Optimus.parse!(optimus, argv) do
       %{args: %{}} ->
@@ -86,8 +89,9 @@ defmodule ExRPG.CLI do
         handle_system_subcommands(sub_commands, parse_result)
 
       {unhandled, _parse_result} ->
-        str_command = unhandled
-          |> Enum.reduce([], fn x, acc -> [Atom.to_string(x) | acc ] end)
+        str_command =
+          unhandled
+          |> Enum.reduce([], fn x, acc -> [Atom.to_string(x) | acc] end)
           |> Enum.reverse()
           |> Enum.join(" ")
 
@@ -100,10 +104,13 @@ defmodule ExRPG.CLI do
     |> IO.inspect(label: "Results")
   end
 
-  def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{args: %{system: system}}) do
-    loaded_system = system
-    |> RuleSystems.assert_configured!()
-    |> RuleSystems.load_system!()
+  def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{
+        args: %{system: system}
+      }) do
+    loaded_system =
+      system
+      |> RuleSystems.assert_configured!()
+      |> RuleSystems.load_system!()
 
     case command do
       :metadata ->
@@ -115,7 +122,10 @@ defmodule ExRPG.CLI do
     end
   end
 
-  def handle_system_generation_subcommands([command | _subcommands], %RuleSystems.RuleSystem{} = system) do
+  def handle_system_generation_subcommands(
+        [command | _subcommands],
+        %RuleSystems.RuleSystem{} = system
+      ) do
     case command do
       :stat_block ->
         RuleSystems.RuleSystem.gen_ability_scores_assigned(system)

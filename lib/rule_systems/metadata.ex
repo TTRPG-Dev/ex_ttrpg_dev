@@ -1,6 +1,7 @@
 defmodule ExRPG.RuleSystems.Metadata do
   alias ExRPG.Globals
   alias ExRPG.RuleSystems
+
   @moduledoc """
   Gets the general information for a configured system.
   """
@@ -14,7 +15,7 @@ defmodule ExRPG.RuleSystems.Metadata do
   ## Examples
   """
   def license!(system) when is_bitstring(system) do
-    Path.join([RuleSystems.system_path!(system), Globals.license_file_name])
+    Path.join([RuleSystems.system_path!(system), Globals.license_file_name()])
     |> File.read!()
   end
 end

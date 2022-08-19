@@ -36,7 +36,9 @@ defmodule ExRPG.RuleSystems.Abilities.Assignment do
 
       iex> Assignment.default_assignment()
   """
-  def default_assignment(%Assignment{rolling_methods: [%Assignment.RollingMethod{} = first | _tail] = rolling_methods }) do
+  def default_assignment(%Assignment{
+        rolling_methods: [%Assignment.RollingMethod{} = first | _tail] = rolling_methods
+      }) do
     Enum.find(rolling_methods, first, fn method -> method.default == true end)
   end
 

@@ -41,8 +41,14 @@ defmodule ExRPG.RuleSystems.Abilities do
 
 
   """
-  def gen_scores_unassigned(%Abilities{specs: [%Spec{} | _tail] = specs, assignment: %Assignment{} = assignment}) do
+  def gen_scores_unassigned(%Abilities{
+        specs: [%Spec{} | _tail] = specs,
+        assignment: %Assignment{} = assignment
+      }) do
     default_rolling_method = Assignment.default_assignment(assignment)
-    Enum.reduce(1..length(specs), [], fn _x, acc -> [Assignment.roll_via_method!(default_rolling_method) | acc] end)
+
+    Enum.reduce(1..length(specs), [], fn _x, acc ->
+      [Assignment.roll_via_method!(default_rolling_method) | acc]
+    end)
   end
 end
