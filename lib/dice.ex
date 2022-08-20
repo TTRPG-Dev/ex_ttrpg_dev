@@ -51,10 +51,11 @@ defmodule ExRPG.Dice do
 
   """
   def roll(str) when is_bitstring(str) do
-    [number_of_dice, sides] = str
-    |> validate_dice_str()
-    |> String.split("d")
-    |> Enum.map(fn x -> String.to_integer(x) end)
+    [number_of_dice, sides] =
+      str
+      |> validate_dice_str()
+      |> String.split("d")
+      |> Enum.map(fn x -> String.to_integer(x) end)
 
     roll(number_of_dice, sides)
   end

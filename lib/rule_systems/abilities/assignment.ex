@@ -9,14 +9,23 @@ defmodule ExRPG.RuleSystems.Abilities.Assignment do
   defstruct [:rolling_methods, :point_buy]
 
   defmodule PointBuy do
+    @moduledoc """
+    PointBuy specification for ability score assignment
+    """
     defstruct [:points, :score_costs]
 
     defmodule ScoreCost do
+      @moduledoc """
+      Mapping of specific ability scores to cost for PointBuy ability assignment
+      """
       defstruct [:score, :cost]
     end
   end
 
   defmodule RollingMethod do
+    @moduledoc """
+    Specificiation for different rolling methods for ability assignment
+    """
     defstruct [:name, :dice, :special, :default]
   end
 
@@ -27,7 +36,9 @@ defmodule ExRPG.RuleSystems.Abilities.Assignment do
 
       iex> Assignment.default_assignment()
   """
-  def default_assignment(%Assignment{rolling_methods: [%Assignment.RollingMethod{} = first | _tail] = rolling_methods }) do
+  def default_assignment(%Assignment{
+        rolling_methods: [%Assignment.RollingMethod{} = first | _tail] = rolling_methods
+      }) do
     Enum.find(rolling_methods, first, fn method -> method.default == true end)
   end
 

@@ -18,22 +18,24 @@ defmodule ExRPG.RuleSystems.RuleSystem do
   """
   def from_json!(system_config_json) when is_bitstring(system_config_json) do
     system_config_json
-    |> Poison.decode!(as: %ExRPG.RuleSystems.RuleSystem{
-      metadata: %Metadata{},
-      abilities: %Abilities{
-        assignment: %Abilities.Assignment{
-          rolling_methods: [%Abilities.Assignment.RollingMethod{}],
-          point_buy: %Abilities.Assignment.PointBuy{
-            score_costs: [%Abilities.Assignment.PointBuy.ScoreCost{}]
-          }
-        },
-        modifier_calculation: %Abilities.ModifierCalculation{
-          steps: [%Abilities.ModifierCalculation.Step{}],
-          mapping: [%Abilities.ModifierCalculation.Mapping{}]
-        },
-        specs: [%Abilities.Spec{}]
+    |> Poison.decode!(
+      as: %ExRPG.RuleSystems.RuleSystem{
+        metadata: %Metadata{},
+        abilities: %Abilities{
+          assignment: %Abilities.Assignment{
+            rolling_methods: [%Abilities.Assignment.RollingMethod{}],
+            point_buy: %Abilities.Assignment.PointBuy{
+              score_costs: [%Abilities.Assignment.PointBuy.ScoreCost{}]
+            }
+          },
+          modifier_calculation: %Abilities.ModifierCalculation{
+            steps: [%Abilities.ModifierCalculation.Step{}],
+            mapping: [%Abilities.ModifierCalculation.Mapping{}]
+          },
+          specs: [%Abilities.Spec{}]
+        }
       }
-    })
+    )
   end
 
   @doc """

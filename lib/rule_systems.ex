@@ -1,7 +1,6 @@
 defmodule ExRPG.RuleSystems do
   alias ExRPG.RuleSystems
   alias ExRPG.Globals
-  alias ExRPG.RuleSystems.Metadata
   alias ExRPG.RuleSystems.RuleSystem
 
   @moduledoc """
@@ -59,7 +58,7 @@ defmodule ExRPG.RuleSystems do
       "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
   """
   def system_path!(system) when is_bitstring(system) do
-    Path.join([Globals.system_configs_path, system])
+    Path.join([Globals.system_configs_path(), system])
   end
 
   @doc """
@@ -76,7 +75,7 @@ defmodule ExRPG.RuleSystems do
     system_path = ExRPG.RuleSystems.system_path!(system)
 
     File.ls!(system_path)
-    |> Enum.filter(fn file_name -> Regex.match?(Globals.json_file_pattern, file_name) end)
+    |> Enum.filter(fn file_name -> Regex.match?(Globals.json_file_pattern(), file_name) end)
     |> Enum.reduce(%{}, fn file, acc ->
       Path.join(system_path, file)
       |> File.read!()
@@ -86,5 +85,4 @@ defmodule ExRPG.RuleSystems do
     |> Poison.encode!()
     |> RuleSystem.from_json!()
   end
-
 end

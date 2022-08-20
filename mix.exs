@@ -33,6 +33,7 @@ defmodule ExRPG.MixProject do
       {:optimus, "~> 0.3"},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       {:poison, "~> 5.0"},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
@@ -44,8 +45,8 @@ defmodule ExRPG.MixProject do
 
   defp package() do
     [
-      licenses: ["AGPL-3.0-only"],
-      links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"},
+      licenses: ["GPL-3.0-only"],
+      links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"}
     ]
   end
 end
