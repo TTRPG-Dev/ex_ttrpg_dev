@@ -15,6 +15,9 @@ defmodule ExRPG.Dice do
       iex> ExRPG.Dice.validate_dice_str("3d4")
       "3d4"
 
+      iex> ExRPG.Dice.validate_dice_str("3")
+      ** (RuntimeError) Improper dice format. Dice must be given in xdy where x and y are both integers
+
   """
   def validate_dice_str(str) do
     if not Regex.match?(@dice_regex, str) do
@@ -31,12 +34,14 @@ defmodule ExRPG.Dice do
 
   ## Examples
 
-      iex> ExRPG.Dice.roll(3, 4)
-      [1, 4, 2]
+      # Although not necessary, let's seed the random algorithm
+      iex> :rand.seed(:exsplus, 1337)
+      iex> ExRPG.Dice.roll(3, 8)
+      [4, 8, 5]
 
   """
   def roll(number_of_dice, dice_sides) do
-    Enum.map(1..number_of_dice, fn _ -> roll(dice_sides) end)
+    Enum.map(1..number_of_dice, fn _ -> roll_d(dice_sides) end)
   end
 
   @doc """
@@ -46,8 +51,10 @@ defmodule ExRPG.Dice do
 
   ## Examples
 
+      # Although not necessary, let's seed the random algorithm
+      iex> :rand.seed(:exsplus, 1337)
       iex> ExRPG.Dice.roll("3d4")
-      [1, 4, 2]
+      [4, 4, 1]
 
   """
   def roll(str) when is_bitstring(str) do
@@ -67,11 +74,15 @@ defmodule ExRPG.Dice do
 
   ## Examples
 
-      iex> ExRPG.Dice.roll(4)
-      3
+      # Although not necessary, let's seed the random algorithm
+      iex> :rand.seed(:exsplus, 1337)
+      iex> ExRPG.Dice.roll_d(6)
+      6
+      iex> ExRPG.Dice.roll_d(6)
+      2
 
   """
-  def roll(sides) when is_integer(sides) do
+  def roll_d(sides) when is_integer(sides) do
     :rand.uniform(sides)
   end
 end
