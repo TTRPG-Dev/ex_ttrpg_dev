@@ -47,8 +47,10 @@ defmodule ExRPG.RuleSystems.Abilities.Assignment do
 
   ## Examples
 
-      iex> %Assignment.RollingMethod{dice: "3d6"}
-      [3, 4, 2]
+      # Although not necessary, let's seed the random algorithm
+      iex> :rand.seed(:exsplus, 1337)
+      iex> Assignment.roll_via_method!(%Assignment.RollingMethod{dice: "3d6"})
+      [6, 2, 3]
   """
   def roll_via_method!(%Assignment.RollingMethod{} = method) do
     Dice.roll(method.dice)
