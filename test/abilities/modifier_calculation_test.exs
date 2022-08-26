@@ -51,10 +51,10 @@ defmodule ExRPGTest.RuleSystems.Abilities.ModifierCalculation do
       %ModifierCalculation.Mapping{ability_value: 7, modifier_value: 1},
       %ModifierCalculation.Mapping{ability_value: 8, modifier_value: 1},
       %ModifierCalculation.Mapping{ability_value: 9, modifier_value: 2},
-      %ModifierCalculation.Mapping{ability_value: 10, modifier_value: 2},
+      %ModifierCalculation.Mapping{ability_value: 10, modifier_value: 2}
     ]
+
     mod_calulator = %ModifierCalculation{mapping: mapping}
     assert ModifierCalculation.modifier_for_score(mod_calulator, 5) == -1
   end
-
 end

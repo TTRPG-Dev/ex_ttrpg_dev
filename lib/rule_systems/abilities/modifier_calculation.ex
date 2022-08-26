@@ -22,6 +22,17 @@ defmodule ExRPG.RuleSystems.Abilities.ModifierCalculation do
     defstruct [:ability_value, :modifier_value]
   end
 
+  @doc """
+  Takes in a ModifierCalculation struct and a score, and calculates the scores modifier
+
+  ## Examples
+
+      iex> modifier_for_score(%ModifierCalculation{steps: [%Step{}, %Step{}, ...]}, 13)
+      1
+      modifier_for_score(%ModifierCalculation{mapping: [%Mapping{}, %Mapping, ...], 6)
+      -2
+
+  """
   def modifier_for_score(
         %ModifierCalculation{steps: [%ModifierCalculation.Step{} | _tail] = steps, mapping: nil},
         score
