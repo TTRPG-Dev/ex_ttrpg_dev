@@ -1,3 +1,4 @@
+repos:
 - repo: local
   hooks:
 
@@ -28,8 +29,8 @@
     pass_filenames: false
     files: \.exs*$
 
-- repo: git://github.com/pre-commit/pre-commit-hooks
-  sha: v1.4.0
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v1.4.0
   hooks:
   - id: trailing-whitespace
   - id: check-merge-conflict
