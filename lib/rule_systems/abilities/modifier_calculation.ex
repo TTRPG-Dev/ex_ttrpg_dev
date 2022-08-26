@@ -22,12 +22,23 @@ defmodule ExRPG.RuleSystems.Abilities.ModifierCalculation do
     defstruct [:ability_value, :modifier_value]
   end
 
+  @doc """
+  Takes in a ModifierCalculation struct and a score, and calculates the scores modifier
+
+  ## Examples
+
+      iex> modifier_for_score(%ModifierCalculation{steps: [%Step{}, %Step{}, ...]}, 13)
+      1
+      modifier_for_score(%ModifierCalculation{mapping: [%Mapping{}, %Mapping, ...], 6)
+      -2
+
+  """
   def modifier_for_score(
         %ModifierCalculation{steps: [%ModifierCalculation.Step{} | _tail] = steps, mapping: nil},
         score
       ) do
     steps
-    |> ModifierCalculation.ordered_steps()
+    |> ordered_steps()
     |> Enum.reduce(score, fn step, acc -> ModifierCalculation.modify_score_by_step(step, acc) end)
   end
 
@@ -39,11 +50,11 @@ defmodule ExRPG.RuleSystems.Abilities.ModifierCalculation do
         score
       ) do
     mappings
-    |> ModifierCalculation.map_mappings()
+    |> map_mappings()
     |> Map.get(score)
   end
 
-  def map_mappings([%ModifierCalculation.Mapping{} | _tail] = mappings) do
+  defp map_mappings([%ModifierCalculation.Mapping{} | _tail] = mappings) do
     mappings
     |> Enum.reduce(%{}, fn mapping, acc ->
       Map.put(acc, Map.get(mapping, :ability_value), Map.get(mapping, :modifier_value))
@@ -72,7 +83,7 @@ defmodule ExRPG.RuleSystems.Abilities.ModifierCalculation do
     end
   end
 
-  def ordered_steps([%ModifierCalculation.Step{} | _tail] = steps) do
+  defp ordered_steps([%ModifierCalculation.Step{} | _tail] = steps) do
     steps
     |> Enum.sort(fn a, b -> Map.get(a, :order) <= Map.get(b, :order) end)
   end
