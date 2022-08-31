@@ -19,7 +19,35 @@ defmodule ExRPG.RuleSystems do
       ["dnd_5e_srd"]
   """
   def list_systems do
+    list_bundled_systems() ++ list_local_systems()
+  end
+
+  @doc """
+  List the ExRPG local custom systems available
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.list_bundled_systems()
+      ["dnd_5e_srd"]
+  """
+  def list_bundled_systems do
     File.ls!(Globals.system_configs_path())
+  end
+
+  @doc """
+  List the ExRPG bundled systems available
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.list_local_systems()
+      []
+  """
+  def list_local_systems do
+    if File.exists?(Globals.local_system_configs_path()) do
+      File.ls!(Globals.local_system_configs_path())
+    else
+      []
+    end
   end
 
   @doc """
