@@ -85,4 +85,40 @@ defmodule ExRPG.RuleSystems do
     |> Poison.encode!()
     |> RuleSystem.from_json!()
   end
+
+  @doc """
+  Saves the system specification locally as a JSON file
+
+  ## Examples
+
+      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{})
+      :ok
+
+      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{})
+      :error, :config_already_exists
+
+      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{}, true)
+      :ok
+  """
+  def save_system!(
+        %RuleSystem{metadata: %RuleSystems.Metadata{slug: system_slug}} = system,
+        overwrite \\ false
+      ) do
+    if not is_configured?(system_slug) or overwrite do
+      system_path = system_path!(system_slug)
+
+      # if `overwrite` delete system dir
+      # also... this seems incredibly dangerous
+      if overwrite do
+        File.rm_rf!(system_path)
+      end
+
+      # create the dir if it doesn't exist
+      File.mkdir_p!(system_path)
+      # write the system config to file
+      File.write!(Path.join(system_path, "system.json"), Poison.encode!(system), [:binary])
+    else
+      raise "System already exists"
+    end
+  end
 end
