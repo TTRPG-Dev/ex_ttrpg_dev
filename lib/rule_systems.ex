@@ -51,6 +51,38 @@ defmodule ExRPG.RuleSystems do
   end
 
   @doc """
+  Checks if the given system is a bundled system
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.is_bundled_system?("dnd_5e_srd")
+      true
+
+      iex> ExRPG.RuleSystems.is_bundled_system?("my_custom_rule_system")
+      false
+  """
+  def is_bundled_system?(system) when is_bitstring(system) do
+    list_bundled_systems()
+    |> Enum.any?(fn configured_system -> configured_system == system end)
+  end
+
+  @doc """
+  Checks if the given system is a local system
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.is_local_system?("dnd_5e_srd")
+      false
+
+      iex> ExRPG.RuleSystems.is_local_system?("my_custom_rule_system")
+      true
+  """
+  def is_local_system?(system) when is_bitstring(system) do
+    list_local_systems()
+    |> Enum.any?(fn configured_system -> configured_system == system end)
+  end
+
+  @doc """
   Checks if the given system is configured.
   Returns true if system is configured, otherwise false.
 
