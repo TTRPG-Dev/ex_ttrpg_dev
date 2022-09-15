@@ -151,7 +151,9 @@ defmodule ExRPG.RuleSystems do
   end
 
   @doc """
-  Saves the system specification locally as a JSON file
+  Saves the system specification locally as a JSON file. If a system is a
+  bundled config, an exception is raised. If the system already exists and
+  `overwrite` wasn't specificed as true, an exception is raised.
 
   ## Examples
 
@@ -168,21 +170,26 @@ defmodule ExRPG.RuleSystems do
         %RuleSystem{metadata: %RuleSystems.Metadata{slug: system_slug}} = system,
         overwrite \\ false
       ) do
-    if not is_configured?(system_slug) or overwrite do
-      system_path = system_path!(system_slug)
+    cond do
+      is_bundled_system?(system_slug) ->
+        raise "System `#{system_slug}` is a bundled config. Please change system's name and slug before saving."
 
-      # if `overwrite` delete system dir
-      # also... this seems incredibly dangerous
-      if overwrite do
-        File.rm_rf!(system_path)
-      end
+      not is_local_system?(system_slug) or overwrite ->
+        system_path = system_path!(system_slug)
 
-      # create the dir if it doesn't exist
-      File.mkdir_p!(system_path)
-      # write the system config to file
-      File.write!(Path.join(system_path, "system.json"), Poison.encode!(system), [:binary])
-    else
-      raise "System already exists"
+        # if `overwrite` delete system dir
+        # also... this seems incredibly dangerous
+        if overwrite do
+          File.rm_rf!(system_path)
+        end
+
+        # create the dir if it doesn't exist
+        File.mkdir_p!(system_path)
+        # write the system config to file
+        File.write!(Path.join(system_path, "system.json"), Poison.encode!(system), [:binary])
+
+      true ->
+        raise "System already exists. To overwrite, pass `overwrite` as true"
     end
   end
 end
