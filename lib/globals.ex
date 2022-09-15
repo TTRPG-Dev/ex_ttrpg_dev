@@ -4,6 +4,7 @@ defmodule ExRPG.Globals do
   """
   @project_root File.cwd!()
   @system_configs_path Path.join(~w(#{@project_root} priv system_configs))
+  @local_system_configs_path Path.join(~w(#{@project_root} local_system_configs))
   @license_file_name "license.md"
   @json_file_pattern ~r/.+\.json$/
 
@@ -31,6 +32,19 @@ defmodule ExRPG.Globals do
   """
   def system_configs_path do
     @system_configs_path
+  end
+
+  @doc """
+  The path to where custom rule system configs are stored
+
+  ## Examples
+
+      iex> ExRPG.Globals.local_system_configs_path()
+      "/full/path/to/project/ex_rpg/local_system_configs"
+
+  """
+  def local_system_configs_path do
+    @local_system_configs_path
   end
 
   @doc """

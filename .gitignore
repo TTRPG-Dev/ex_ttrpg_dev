@@ -27,3 +27,6 @@ ex_rpg-*.tar
 
 # Ignore built CLI
 ex_rpg
+
+# Ignore custom/local rule system configs
+/local_system_configs/

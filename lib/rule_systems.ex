@@ -19,7 +19,67 @@ defmodule ExRPG.RuleSystems do
       ["dnd_5e_srd"]
   """
   def list_systems do
+    list_bundled_systems() ++ list_local_systems()
+  end
+
+  @doc """
+  List the ExRPG local custom systems available
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.list_bundled_systems()
+      ["dnd_5e_srd"]
+  """
+  def list_bundled_systems do
     File.ls!(Globals.system_configs_path())
+  end
+
+  @doc """
+  List the ExRPG bundled systems available
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.list_local_systems()
+      []
+  """
+  def list_local_systems do
+    if File.exists?(Globals.local_system_configs_path()) do
+      File.ls!(Globals.local_system_configs_path())
+    else
+      []
+    end
+  end
+
+  @doc """
+  Checks if the given system is a bundled system
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.is_bundled_system?("dnd_5e_srd")
+      true
+
+      iex> ExRPG.RuleSystems.is_bundled_system?("my_custom_rule_system")
+      false
+  """
+  def is_bundled_system?(system) when is_bitstring(system) do
+    list_bundled_systems()
+    |> Enum.any?(fn configured_system -> configured_system == system end)
+  end
+
+  @doc """
+  Checks if the given system is a local system
+
+  ## Examples
+
+      iex> ExRPG.RuleSystems.is_local_system?("dnd_5e_srd")
+      false
+
+      iex> ExRPG.RuleSystems.is_local_system?("my_custom_rule_system")
+      true
+  """
+  def is_local_system?(system) when is_bitstring(system) do
+    list_local_systems()
+    |> Enum.any?(fn configured_system -> configured_system == system end)
   end
 
   @doc """
@@ -58,7 +118,11 @@ defmodule ExRPG.RuleSystems do
       "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
   """
   def system_path!(system) when is_bitstring(system) do
-    Path.join([Globals.system_configs_path(), system])
+    if is_bundled_system?(system) do
+      Path.join([Globals.system_configs_path(), system])
+    else
+      Path.join([Globals.local_system_configs_path(), system])
+    end
   end
 
   @doc """
@@ -84,5 +148,48 @@ defmodule ExRPG.RuleSystems do
     end)
     |> Poison.encode!()
     |> RuleSystem.from_json!()
+  end
+
+  @doc """
+  Saves the system specification locally as a JSON file. If a system is a
+  bundled config, an exception is raised. If the system already exists and
+  `overwrite` wasn't specificed as true, an exception is raised.
+
+  ## Examples
+
+      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{})
+      :ok
+
+      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{})
+      :error, :config_already_exists
+
+      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{}, true)
+      :ok
+  """
+  def save_system!(
+        %RuleSystem{metadata: %RuleSystems.Metadata{slug: system_slug}} = system,
+        overwrite \\ false
+      ) do
+    cond do
+      is_bundled_system?(system_slug) ->
+        raise "System `#{system_slug}` is a bundled config. Please change system's name and slug before saving."
+
+      not is_local_system?(system_slug) or overwrite ->
+        system_path = system_path!(system_slug)
+
+        # if `overwrite` delete system dir
+        # also... this seems incredibly dangerous
+        if overwrite do
+          File.rm_rf!(system_path)
+        end
+
+        # create the dir if it doesn't exist
+        File.mkdir_p!(system_path)
+        # write the system config to file
+        File.write!(Path.join(system_path, "system.json"), Poison.encode!(system), [:binary])
+
+      true ->
+        raise "System already exists. To overwrite, pass `overwrite` as true"
+    end
   end
 end
