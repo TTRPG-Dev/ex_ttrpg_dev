@@ -118,7 +118,11 @@ defmodule ExRPG.RuleSystems do
       "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
   """
   def system_path!(system) when is_bitstring(system) do
-    Path.join([Globals.system_configs_path(), system])
+    if is_bundled_system?(system) do
+      Path.join([Globals.system_configs_path(), system])
+    else
+      Path.join([Globals.local_system_configs_path(), system])
+    end
   end
 
   @doc """
