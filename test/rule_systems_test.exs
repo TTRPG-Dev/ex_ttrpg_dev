@@ -44,6 +44,33 @@ defmodule ExRPGTest.RuleSystems do
     end
   end
 
+  test "load_system!/1 for bundled system" do
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+
+    %RuleSystems.RuleSystem{metadata: %RuleSystems.Metadata{slug: loaded_slug}} =
+      RuleSystems.load_system!(bundled_system_slug)
+
+    assert loaded_slug == bundled_system_slug
+  end
+
+  test "load_system!/1 for custom system" do
+    custom_slug = save_test_system()
+
+    %RuleSystems.RuleSystem{metadata: %RuleSystems.Metadata{slug: loaded_slug}} =
+      RuleSystems.load_system!(custom_slug)
+
+    assert loaded_slug == custom_slug
+
+    delete_test_system(custom_slug)
+  end
+
+  test "load_system!/1 for unconfigured system" do
+    %RuleSystems.RuleSystem{metadata: %RuleSystems.Metadata{slug: custom_slug}} =
+      build_test_system()
+
+    assert_raise File.Error, fn -> RuleSystems.load_system!(custom_slug) end
+  end
+
   test "system_path!/1" do
     [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
 
