@@ -101,6 +101,13 @@ defmodule ExRPG.RuleSystems do
   @doc """
   Ensures a system is configured. If the system is configured, the system name
   is returned. If the system isn't configured, an exception is raised.
+
+  ## Examples
+      iex> ExRPG.RuleSystems.assert_configured!("dnd_5e_srd")
+      "dnd_5e_srd"
+
+      iex> ExRPG.RuleSystems.assert_configured!("not_configured")
+      ** (RuntimeError) System `not_configured` is not congifured
   """
   def assert_configured!(system) when is_bitstring(system) do
     if RuleSystems.is_configured?(system) do
