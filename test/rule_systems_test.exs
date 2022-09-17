@@ -1,6 +1,7 @@
 defmodule ExRPGTest.RuleSystems do
   use ExUnit.Case
   alias ExRPG.RuleSystems
+  alias ExRPG.Globals
 
   doctest ExRPG.RuleSystems,
     except: [
@@ -41,6 +42,18 @@ defmodule ExRPGTest.RuleSystems do
       system_path = RuleSystems.system_path!(system_slug)
       File.rm_rf!(system_path)
     end
+  end
+
+  test "system_path!/1" do
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+
+    assert RuleSystems.system_path!(bundled_system_slug) ==
+             Path.join([Globals.system_configs_path(), bundled_system_slug])
+
+    custom_slug = "custom_system"
+
+    assert RuleSystems.system_path!(custom_slug) ==
+             Path.join([Globals.local_system_configs_path(), custom_slug])
   end
 
   test "is_local_system?/1" do
