@@ -2,6 +2,15 @@ defmodule ExRPGTest.RuleSystems do
   use ExUnit.Case
   alias ExRPG.RuleSystems
 
+  doctest ExRPG.RuleSystems,
+    except: [
+      is_local_system?: 1,
+      system_path!: 1,
+      load_system!: 1,
+      save_system!: 1,
+      save_system!: 2
+    ]
+
   def build_test_system do
     [system_slug | _tail] = RuleSystems.list_systems()
 
