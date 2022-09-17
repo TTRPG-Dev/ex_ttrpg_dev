@@ -34,6 +34,19 @@ defmodule ExRPGTest.RuleSystems do
     end
   end
 
+  test "is_local_system?/1" do
+    assert not RuleSystems.is_local_system?("dnd_5e_srd")
+
+    %RuleSystems.RuleSystem{metadata: %RuleSystems.Metadata{slug: system_slug}} =
+      system = build_test_system()
+
+    assert not RuleSystems.is_local_system?(system_slug)
+
+    RuleSystems.save_system!(system)
+    assert RuleSystems.is_local_system?(system_slug)
+    delete_test_system(system_slug)
+  end
+
   test "saving a system" do
     %RuleSystems.RuleSystem{metadata: %RuleSystems.Metadata{slug: system_slug}} =
       system = build_test_system()
