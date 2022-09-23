@@ -1,7 +1,7 @@
-defmodule ExRPGTest.RuleSystems.Abilities.Spec do
+defmodule ExTTRPGDevTest.RuleSystems.Abilities.Spec do
   use ExUnit.Case
-  alias ExRPG.RuleSystems
-  alias ExRPG.RuleSystems.Abilities.Spec
+  alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.RuleSystems.Abilities.Spec
 
   test "get names from spec list" do
     %RuleSystems.RuleSystem{abilities: %RuleSystems.Abilities{specs: specs}} =

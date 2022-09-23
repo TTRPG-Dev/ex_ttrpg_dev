@@ -1,9 +1,9 @@
-defmodule ExRPGTest.RuleSystems do
+defmodule ExTTRPGDevTest.RuleSystems do
   use ExUnit.Case
-  alias ExRPG.RuleSystems
-  alias ExRPG.Globals
+  alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.Globals
 
-  doctest ExRPG.RuleSystems,
+  doctest ExTTRPGDev.RuleSystems,
     except: [
       is_local_system?: 1,
       system_path!: 1,

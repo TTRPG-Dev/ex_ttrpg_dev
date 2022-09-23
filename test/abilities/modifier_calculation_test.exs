@@ -1,6 +1,6 @@
-defmodule ExRPGTest.RuleSystems.Abilities.ModifierCalculation do
+defmodule ExTTRPGDevTest.RuleSystems.Abilities.ModifierCalculation do
   use ExUnit.Case
-  alias ExRPG.RuleSystems.Abilities.ModifierCalculation
+  alias ExTTRPGDev.RuleSystems.Abilities.ModifierCalculation
 
   @step_add_5 %ModifierCalculation.Step{order: 0, method: "add", value: 5}
   @step_subtract_3 %ModifierCalculation.Step{order: 2, method: "subtract", value: 3}

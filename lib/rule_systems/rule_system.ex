@@ -1,7 +1,7 @@
-defmodule ExRPG.RuleSystems.RuleSystem do
-  alias ExRPG.RuleSystems.RuleSystem
-  alias ExRPG.RuleSystems.Metadata
-  alias ExRPG.RuleSystems.Abilities
+defmodule ExTTRPGDev.RuleSystems.RuleSystem do
+  alias ExTTRPGDev.RuleSystems.RuleSystem
+  alias ExTTRPGDev.RuleSystems.Metadata
+  alias ExTTRPGDev.RuleSystems.Abilities
 
   @moduledoc """
   Module for handling a specific Rule System
@@ -13,13 +13,13 @@ defmodule ExRPG.RuleSystems.RuleSystem do
   Loads a RuleSystem struct from a json string representation
 
   ## Examples
-      iex> ExRPG.RuleSystems.RuleSystem.from_json!("a json string")
-      %ExRPG.RuleSystems.RuleSystem{}
+      iex> ExTTRPGDev.RuleSystems.RuleSystem.from_json!("a json string")
+      %ExTTRPGDev.RuleSystems.RuleSystem{}
   """
   def from_json!(system_config_json) when is_bitstring(system_config_json) do
     system_config_json
     |> Poison.decode!(
-      as: %ExRPG.RuleSystems.RuleSystem{
+      as: %ExTTRPGDev.RuleSystems.RuleSystem{
         metadata: %Metadata{},
         abilities: %Abilities{
           assignment: %Abilities.Assignment{

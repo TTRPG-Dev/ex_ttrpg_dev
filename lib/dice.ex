@@ -1,4 +1,4 @@
-defmodule ExRPG.Dice do
+defmodule ExTTRPGDev.Dice do
   @moduledoc """
   This module deals with the rolling of any and all dice
   """
@@ -12,10 +12,10 @@ defmodule ExRPG.Dice do
 
   ## Examples
 
-      iex> ExRPG.Dice.validate_dice_str("3d4")
+      iex> ExTTRPGDev.Dice.validate_dice_str("3d4")
       "3d4"
 
-      iex> ExRPG.Dice.validate_dice_str("3")
+      iex> ExTTRPGDev.Dice.validate_dice_str("3")
       ** (RuntimeError) Improper dice format. Dice must be given in xdy where x and y are both integers
 
   """
@@ -36,7 +36,7 @@ defmodule ExRPG.Dice do
 
       # Although not necessary, let's seed the random algorithm
       iex> :rand.seed(:exsplus, 1337)
-      iex> ExRPG.Dice.roll(3, 8)
+      iex> ExTTRPGDev.Dice.roll(3, 8)
       [4, 8, 5]
 
   """
@@ -53,7 +53,7 @@ defmodule ExRPG.Dice do
 
       # Although not necessary, let's seed the random algorithm
       iex> :rand.seed(:exsplus, 1337)
-      iex> ExRPG.Dice.roll("3d4")
+      iex> ExTTRPGDev.Dice.roll("3d4")
       [4, 4, 1]
 
   """
@@ -76,9 +76,9 @@ defmodule ExRPG.Dice do
 
       # Although not necessary, let's seed the random algorithm
       iex> :rand.seed(:exsplus, 1337)
-      iex> ExRPG.Dice.roll_d(6)
+      iex> ExTTRPGDev.Dice.roll_d(6)
       6
-      iex> ExRPG.Dice.roll_d(6)
+      iex> ExTTRPGDev.Dice.roll_d(6)
       2
 
   """

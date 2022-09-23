@@ -1,9 +1,9 @@
-defmodule ExRPG.MixProject do
+defmodule ExTTRPGDev.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ex_rpg,
+      app: :ex_ttrpg_dev,
       version: "0.2.1",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
@@ -11,13 +11,13 @@ defmodule ExRPG.MixProject do
       escript: escript(),
       description: description(),
       package: package(),
-      name: "ExRPG",
-      source_url: "https://github.com/QMalcolm/ex_rpg"
+      name: "ExTTRPGDev",
+      source_url: "https://github.com/QMalcolm/ex_ttrpg_dev"
     ]
   end
 
   def escript do
-    [main_module: ExRPG.CLI]
+    [main_module: ExTTRPGDev.CLI]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -40,13 +40,13 @@ defmodule ExRPG.MixProject do
   end
 
   defp description() do
-    "ExRPG is a general utility for tabletop role-playing games."
+    "ExTTRPGDev is a general utility for tabletop role-playing games."
   end
 
   defp package() do
     [
       licenses: ["GPL-3.0-only"],
-      links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"}
+      links: %{"GitHub" => "https://github.com/QMalcolm/ex_ttrpg_dev"}
     ]
   end
 end

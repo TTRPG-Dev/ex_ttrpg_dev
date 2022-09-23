@@ -1,7 +1,7 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
-defmodule ExRPG.CLI do
-  alias ExRPG.Dice
-  alias ExRPG.RuleSystems
+defmodule ExTTRPGDev.CLI do
+  alias ExTTRPGDev.Dice
+  alias ExTTRPGDev.RuleSystems
 
   @moduledoc """
   The CLI for the project
@@ -10,7 +10,7 @@ defmodule ExRPG.CLI do
   def main(argv) do
     optimus =
       Optimus.new!(
-        name: "ex_rpg",
+        name: "ex_ttrpg_dev",
         description: "CLI for all things RPG",
         version: "0.2.0",
         author: "Quigley Malcolm quigley@quigleymalcolm.com",
@@ -33,7 +33,7 @@ defmodule ExRPG.CLI do
           ],
           list_systems: [
             name: "list-systems",
-            about: "List systems that are setup to be used with ExRPG"
+            about: "List systems that are setup to be used with ExTTRPGDev"
           ],
           system: [
             name: "system",

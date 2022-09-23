@@ -1,5 +1,5 @@
-defmodule ExRPG.RuleSystems.Abilities.ModifierCalculation do
-  alias ExRPG.RuleSystems.Abilities.ModifierCalculation
+defmodule ExTTRPGDev.RuleSystems.Abilities.ModifierCalculation do
+  alias ExTTRPGDev.RuleSystems.Abilities.ModifierCalculation
 
   @moduledoc """
   Module handling calculation of ability modifiers based on ability scores

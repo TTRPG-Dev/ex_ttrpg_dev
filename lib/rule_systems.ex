@@ -1,7 +1,7 @@
-defmodule ExRPG.RuleSystems do
-  alias ExRPG.RuleSystems
-  alias ExRPG.Globals
-  alias ExRPG.RuleSystems.RuleSystem
+defmodule ExTTRPGDev.RuleSystems do
+  alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.RuleSystems.RuleSystem
 
   @moduledoc """
   Module which enables interactions with the varying defined systems in the
@@ -15,7 +15,7 @@ defmodule ExRPG.RuleSystems do
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.list_systems()
+      iex> ExTTRPGDev.RuleSystems.list_systems()
       ["dnd_5e_srd"]
   """
   def list_systems do
@@ -23,11 +23,11 @@ defmodule ExRPG.RuleSystems do
   end
 
   @doc """
-  List the ExRPG local custom systems available
+  List the ExTTRPGDev local custom systems available
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.list_bundled_systems()
+      iex> ExTTRPGDev.RuleSystems.list_bundled_systems()
       ["dnd_5e_srd"]
   """
   def list_bundled_systems do
@@ -35,11 +35,11 @@ defmodule ExRPG.RuleSystems do
   end
 
   @doc """
-  List the ExRPG bundled systems available
+  List the ExTTRPGDev bundled systems available
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.list_local_systems()
+      iex> ExTTRPGDev.RuleSystems.list_local_systems()
       []
   """
   def list_local_systems do
@@ -55,10 +55,10 @@ defmodule ExRPG.RuleSystems do
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.is_bundled_system?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.is_bundled_system?("dnd_5e_srd")
       true
 
-      iex> ExRPG.RuleSystems.is_bundled_system?("my_custom_rule_system")
+      iex> ExTTRPGDev.RuleSystems.is_bundled_system?("my_custom_rule_system")
       false
   """
   def is_bundled_system?(system) when is_bitstring(system) do
@@ -71,10 +71,10 @@ defmodule ExRPG.RuleSystems do
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.is_local_system?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.is_local_system?("dnd_5e_srd")
       false
 
-      iex> ExRPG.RuleSystems.is_local_system?("my_custom_rule_system")
+      iex> ExTTRPGDev.RuleSystems.is_local_system?("my_custom_rule_system")
       true
   """
   def is_local_system?(system) when is_bitstring(system) do
@@ -87,10 +87,10 @@ defmodule ExRPG.RuleSystems do
   Returns true if system is configured, otherwise false.
 
   ## Examples
-      iex> ExRPG.RuleSystems.is_configured?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.is_configured?("dnd_5e_srd")
       true
 
-      iex> ExRPG.RuleSystems.is_configured?("non_existent_system")
+      iex> ExTTRPGDev.RuleSystems.is_configured?("non_existent_system")
       false
   """
   def is_configured?(system) when is_bitstring(system) do
@@ -103,10 +103,10 @@ defmodule ExRPG.RuleSystems do
   is returned. If the system isn't configured, an exception is raised.
 
   ## Examples
-      iex> ExRPG.RuleSystems.assert_configured!("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.assert_configured!("dnd_5e_srd")
       "dnd_5e_srd"
 
-      iex> ExRPG.RuleSystems.assert_configured!("not_configured")
+      iex> ExTTRPGDev.RuleSystems.assert_configured!("not_configured")
       ** (RuntimeError) System `not_configured` is not congifured
   """
   def assert_configured!(system) when is_bitstring(system) do
@@ -121,8 +121,8 @@ defmodule ExRPG.RuleSystems do
   Returns the path to to the systems config directory
 
   ## Examples
-      iex> ExRPG.RuleSystems.system_path!("dnd_5e_srd")
-      "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
+      iex> ExTTRPGDev.RuleSystems.system_path!("dnd_5e_srd")
+      "/full/path/to/project/ex_ttrpg_dev/system_configs/dnd_5e_srd"
   """
   def system_path!(system) when is_bitstring(system) do
     if is_bundled_system?(system) do
@@ -138,12 +138,12 @@ defmodule ExRPG.RuleSystems do
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.load_system!("dnd_5e_srd")
-      %ExRPG.RuleSystems.RuleSystem{}
+      iex> ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd")
+      %ExTTRPGDev.RuleSystems.RuleSystem{}
 
   """
   def load_system!(system) when is_bitstring(system) do
-    system_path = ExRPG.RuleSystems.system_path!(system)
+    system_path = ExTTRPGDev.RuleSystems.system_path!(system)
 
     File.ls!(system_path)
     |> Enum.filter(fn file_name -> Regex.match?(Globals.json_file_pattern(), file_name) end)
@@ -164,13 +164,13 @@ defmodule ExRPG.RuleSystems do
 
   ## Examples
 
-      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{})
+      iex> ExTTRPGDev>RuleSystems.save_system!(%ExTTRPGDev.RuleSystems.RuleSystem{})
       :ok
 
-      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{})
+      iex> ExTTRPGDev>RuleSystems.save_system!(%ExTTRPGDev.RuleSystems.RuleSystem{})
       :error, :config_already_exists
 
-      iex> ExRPG>RuleSystems.save_system!(%ExRPG.RuleSystems.RuleSystem{}, true)
+      iex> ExTTRPGDev>RuleSystems.save_system!(%ExTTRPGDev.RuleSystems.RuleSystem{}, true)
       :ok
   """
   def save_system!(

@@ -1,6 +1,6 @@
-defmodule ExRPG.RuleSystems.Abilities.Assignment do
-  alias ExRPG.RuleSystems.Abilities.Assignment
-  alias ExRPG.Dice
+defmodule ExTTRPGDev.RuleSystems.Abilities.Assignment do
+  alias ExTTRPGDev.RuleSystems.Abilities.Assignment
+  alias ExTTRPGDev.Dice
 
   @moduledoc """
   This module handles the different ways of assigning ability scores
