@@ -122,7 +122,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   ## Examples
       iex> ExTTRPGDev.RuleSystems.system_path!("dnd_5e_srd")
-      "/full/path/to/project/ex_rpg/system_configs/dnd_5e_srd"
+      "/full/path/to/project/ex_ttrpg_dev/system_configs/dnd_5e_srd"
   """
   def system_path!(system) when is_bitstring(system) do
     if is_bundled_system?(system) do

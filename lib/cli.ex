@@ -10,7 +10,7 @@ defmodule ExTTRPGDev.CLI do
   def main(argv) do
     optimus =
       Optimus.new!(
-        name: "ex_rpg",
+        name: "ex_ttrpg_dev",
         description: "CLI for all things RPG",
         version: "0.2.0",
         author: "Quigley Malcolm quigley@quigleymalcolm.com",

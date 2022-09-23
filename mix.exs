@@ -3,7 +3,7 @@ defmodule ExTTRPGDev.MixProject do
 
   def project do
     [
-      app: :ex_rpg,
+      app: :ex_ttrpg_dev,
       version: "0.2.1",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
@@ -12,7 +12,7 @@ defmodule ExTTRPGDev.MixProject do
       description: description(),
       package: package(),
       name: "ExTTRPGDev",
-      source_url: "https://github.com/QMalcolm/ex_rpg"
+      source_url: "https://github.com/QMalcolm/ex_ttrpg_dev"
     ]
   end
 
@@ -46,7 +46,7 @@ defmodule ExTTRPGDev.MixProject do
   defp package() do
     [
       licenses: ["GPL-3.0-only"],
-      links: %{"GitHub" => "https://github.com/QMalcolm/ex_rpg"}
+      links: %{"GitHub" => "https://github.com/QMalcolm/ex_ttrpg_dev"}
     ]
   end
 end

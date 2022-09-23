@@ -20,13 +20,13 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-ex_rpg-*.tar
+ex_ttrpg_dev-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
 
 # Ignore built CLI
-ex_rpg
+ex_ttrpg_dev
 
 # Ignore custom/local rule system configs
 /local_system_configs/

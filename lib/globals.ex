@@ -14,7 +14,7 @@ defmodule ExTTRPGDev.Globals do
   ## Examples
 
       iex> ExTTRPGDev.Globals.project_root()
-      "/full/path/to/project/ex_rpg"
+      "/full/path/to/project/ex_ttrpg_dev"
 
   """
   def project_root do
@@ -27,7 +27,7 @@ defmodule ExTTRPGDev.Globals do
   ## Examples
 
       iex> ExTTRPGDev.Globals.system_configs_path()
-      "/full/path/to/project/ex_rpg/system_configs"
+      "/full/path/to/project/ex_ttrpg_dev/system_configs"
 
   """
   def system_configs_path do
@@ -40,7 +40,7 @@ defmodule ExTTRPGDev.Globals do
   ## Examples
 
       iex> ExTTRPGDev.Globals.local_system_configs_path()
-      "/full/path/to/project/ex_rpg/local_system_configs"
+      "/full/path/to/project/ex_ttrpg_dev/local_system_configs"
 
   """
   def local_system_configs_path do
