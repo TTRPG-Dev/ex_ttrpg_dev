@@ -1,6 +1,6 @@
-defmodule ExRPGTest.RuleSystems.Abilities.Assignment do
+defmodule ExTTRPGDevTest.RuleSystems.Abilities.Assignment do
   use ExUnit.Case
-  alias ExRPG.RuleSystems.Abilities.Assignment
+  alias ExTTRPGDev.RuleSystems.Abilities.Assignment
 
   doctest Assignment, except: [default_assignment: 1]
 

@@ -1,6 +1,6 @@
-defmodule ExRPG do
+defmodule ExTTRPGDev do
   @moduledoc """
-  Documentation for `ExRPG`.
+  Documentation for `ExTTRPGDev`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule ExRPG do
 
   ## Examples
 
-      iex> ExRPG.hello()
+      iex> ExTTRPGDev.hello()
       :world
 
   """

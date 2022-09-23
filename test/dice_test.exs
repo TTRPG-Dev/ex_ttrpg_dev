@@ -1,5 +1,5 @@
-defmodule ExRPGTest.Dice do
+defmodule ExTTRPGDevTest.Dice do
   use ExUnit.Case
 
-  doctest ExRPG.Dice
+  doctest ExTTRPGDev.Dice
 end

@@ -1,4 +1,4 @@
-defmodule ExRPG.Globals do
+defmodule ExTTRPGDev.Globals do
   @moduledoc """
   Module which defines globals like project paths
   """
@@ -13,7 +13,7 @@ defmodule ExRPG.Globals do
 
   ## Examples
 
-      iex> ExRPG.Globals.project_root()
+      iex> ExTTRPGDev.Globals.project_root()
       "/full/path/to/project/ex_rpg"
 
   """
@@ -26,7 +26,7 @@ defmodule ExRPG.Globals do
 
   ## Examples
 
-      iex> ExRPG.Globals.system_configs_path()
+      iex> ExTTRPGDev.Globals.system_configs_path()
       "/full/path/to/project/ex_rpg/system_configs"
 
   """
@@ -39,7 +39,7 @@ defmodule ExRPG.Globals do
 
   ## Examples
 
-      iex> ExRPG.Globals.local_system_configs_path()
+      iex> ExTTRPGDev.Globals.local_system_configs_path()
       "/full/path/to/project/ex_rpg/local_system_configs"
 
   """
@@ -51,7 +51,7 @@ defmodule ExRPG.Globals do
   The name for license files
 
   ## Examples
-    iex> ExRPG.Globals.license_file_name()
+    iex> ExTTRPGDev.Globals.license_file_name()
     "license.md"
 
   """
@@ -63,7 +63,7 @@ defmodule ExRPG.Globals do
   The regex pattern for identifying json files
 
   ## Examples
-    iex> ExRPG.Globals.json_file_name()
+    iex> ExTTRPGDev.Globals.json_file_name()
     ~r/.+\\.json$/
   """
   def json_file_pattern do

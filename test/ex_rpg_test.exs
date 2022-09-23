@@ -1,8 +1,8 @@
-defmodule ExRPGTest do
+defmodule ExTTRPGDevTest do
   use ExUnit.Case
-  doctest ExRPG
+  doctest ExTTRPGDev
 
   test "greets the world" do
-    assert ExRPG.hello() == :world
+    assert ExTTRPGDev.hello() == :world
   end
 end

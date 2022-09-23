@@ -1,4 +1,4 @@
-defmodule ExRPG.MixProject do
+defmodule ExTTRPGDev.MixProject do
   use Mix.Project
 
   def project do
@@ -11,13 +11,13 @@ defmodule ExRPG.MixProject do
       escript: escript(),
       description: description(),
       package: package(),
-      name: "ExRPG",
+      name: "ExTTRPGDev",
       source_url: "https://github.com/QMalcolm/ex_rpg"
     ]
   end
 
   def escript do
-    [main_module: ExRPG.CLI]
+    [main_module: ExTTRPGDev.CLI]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -40,7 +40,7 @@ defmodule ExRPG.MixProject do
   end
 
   defp description() do
-    "ExRPG is a general utility for tabletop role-playing games."
+    "ExTTRPGDev is a general utility for tabletop role-playing games."
   end
 
   defp package() do

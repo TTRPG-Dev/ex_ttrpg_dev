@@ -1,6 +1,6 @@
-defmodule ExRPG.RuleSystems.Metadata do
-  alias ExRPG.Globals
-  alias ExRPG.RuleSystems
+defmodule ExTTRPGDev.RuleSystems.Metadata do
+  alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.RuleSystems
 
   @moduledoc """
   Gets the general information for a configured system.

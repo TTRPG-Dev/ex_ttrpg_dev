@@ -1,4 +1,4 @@
-# ExRPG
+# ExTTRPGDev
 
 ![GitHub watchers](https://img.shields.io/github/watchers/qmalcolm/ex_rpg?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/qmalcolm/ex_rpg?style=social)
@@ -9,11 +9,11 @@
 [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ex_rpg)
 [![Hex.pm](https://img.shields.io/hexpm/l/ex_rpg)](https://github.com/QMalcolm/ex_rpg/blob/main/LICENSE)
 
-ExRPG is a general tabletop role-playing game utility written in Elixir.
+ExTTRPGDev is a general tabletop role-playing game utility written in Elixir.
 
 ## Installation
 
-ExRPG is [available in Hex](https://hex.pm/packages/ex_rpg), the package can be installed
+ExTTRPGDev is [available in Hex](https://hex.pm/packages/ex_rpg), the package can be installed
 by adding `ex_rpg` to your list of dependencies in `mix.exs`:
 
 ```elixir
@@ -23,4 +23,3 @@ def deps do
   ]
 end
 ```
-

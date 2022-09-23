@@ -1,5 +1,5 @@
-defmodule ExRPG.RuleSystems.Abilities.Spec do
-  alias ExRPG.RuleSystems.Abilities.Spec
+defmodule ExTTRPGDev.RuleSystems.Abilities.Spec do
+  alias ExTTRPGDev.RuleSystems.Abilities.Spec
 
   @moduledoc """
   A spec is the base definition of an ability, defining its name, abbreviation,
@@ -14,7 +14,7 @@ defmodule ExRPG.RuleSystems.Abilities.Spec do
 
   ## Examples
 
-      iex> ExRPG.RuleSystems.Abilities.Spec.get_names(list_of_specs)
+      iex> ExTTRPGDev.RuleSystems.Abilities.Spec.get_names(list_of_specs)
       ["names", "of", "specs]
   """
   def get_names([%Spec{} | _tail] = specs) do
