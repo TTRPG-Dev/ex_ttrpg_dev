@@ -51,10 +51,10 @@ Commit messages should be clear, as we additionally recommend (but don't require
 
 [asdf]: https://asdf-vm.com/
 [asdf-setup]: https://asdf-vm.com/guide/getting-started.html
-[bugs]: https://github.com/QMalcolm/ex_ttrpg_dev/issues/new?assignees=&labels=&template=bug_report.md
+[bugs]: https://github.com/TTRPG-Dev/ex_ttrpg_dev/issues/new?assignees=&labels=&template=bug_report.md
 [conduct]: CODE_OF_CONDUCT.md
 [egghead]: https://app.egghead.io/playlists/how-to-contribute-to-an-open-source-project-on-github
 [elixir-install]: https://elixir-lang.org/install.html
-[feature-request]: https://github.com/QMalcolm/ex_ttrpg_dev/issues/new?assignees=&labels=&template=feature_request.md
-[new-pr]: https://github.com/QMalcolm/ex_ttrpg_dev/compare
+[feature-request]: https://github.com/TTRPG-Dev/ex_ttrpg_dev/issues/new?assignees=&labels=&template=feature_request.md
+[new-pr]: https://github.com/TTRPG-Dev/ex_ttrpg_dev/compare
 [tool-versions]: .tool-versions
