@@ -1,0 +1,97 @@
+{
+    "skills":
+        [
+            {
+                "name": "Acrobatics",
+                "modifying_stat": "dexterity",
+                "description": ""
+            },
+            {
+                "name": "Animal Handling",
+                "modifying_stat": "wisdom",
+                "description": ""
+            },
+            {
+                "name": "Arcana",
+                "modifying_stat": "intellegence",
+                "description": ""
+            },
+            {
+                "name": "Athletics",
+                "modifying_stat": "strength",
+                "description": ""
+            },
+            {
+                "name": "Deception",
+                "modifying_stat": "charisma",
+                "description": ""
+            },
+            {
+                "name": "History",
+                "modifying_stat": "intellegence",
+                "description": ""
+            },
+            {
+                "name": "Insight",
+                "modifying_stat": "wisdom",
+                "description": ""
+            },
+            {
+                "name": "Intimidation",
+                "modifying_stat": "charisma",
+                "description": ""
+            },
+            {
+                "name": "Investigation",
+                "modifying_stat": "intellegence",
+                "description": ""
+            },
+            {
+                "name": "Medicine",
+                "modifying_stat": "wisdom",
+                "description": ""
+            },
+            {
+                "name": "Nature",
+                "modifying_stat": "intellegence",
+                "description": ""
+            },
+            {
+                "name": "Percepption",
+                "modifying_stat": "wisdom",
+                "description": ""
+            },
+            {
+                "name": "Preformance",
+                "modifying_stat": "charisma",
+                "description": ""
+            },
+            {
+                "name": "Persuasion",
+                "modifying_stat": "charisma",
+                "description": ""
+            },
+            {
+                "name": "Religion",
+                "modifying_stat": "intellegence",
+                "description": ""
+            },
+            {
+                "name": "Sleight of Hand",
+                "modifying_stat": "dexterity",
+                "description": ""
+            },
+            {
+                "name": "Stealth",
+                "modifying_stat": "dexterity",
+                "description": ""
+            },
+            {
+                "name": "Survival",
+                "modifying_stat": "wisdom",
+                "description": ""
+            },
+
+
+        ]
+}
