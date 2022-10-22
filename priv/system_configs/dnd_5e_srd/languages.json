@@ -1,0 +1,20 @@
+{
+    "languages": [
+        {"name": "Common", "script": "Common"},
+        {"name": "Dwarvish", "script": "Dwarvish"},
+        {"name": "Elvish", "script": "Elvish"},
+        {"name": "Giant", "script": "Dwarvish"},
+        {"name": "Gnomish", "script": "Dwarvish"},
+        {"name": "Goblin", "script": "Dwarvish"},
+        {"name": "Halfling", "script": "Common"},
+        {"name": "Orc", "script": "Dwarvish"},
+        {"name": "Abyssal", "script": "Infernal"},
+        {"name": "Celestial", "script": "Celestial"},
+        {"name": "Draconic", "script": "Draconic"},
+        {"name": "Deep Speech"},
+        {"name": "Infernal", "script": "Infernal"},
+        {"name": "Primordial", "script": "Dwarvish"},
+        {"name": "Sylvan", "script": "Elvish"},
+        {"name": "Undercommon", "script": "Elvish"}
+    ]
+}
