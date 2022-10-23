@@ -3,12 +3,13 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
   alias ExTTRPGDev.RuleSystems.Metadata
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Skills
+  alias ExTTRPGDev.RuleSystems.Languages
 
   @moduledoc """
   Module for handling a specific Rule System
   """
 
-  defstruct [:metadata, :abilities, :skills]
+  defstruct [:metadata, :abilities, :skills, :languages]
 
   @doc """
   Loads a RuleSystem struct from a json string representation
@@ -35,7 +36,8 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
           },
           specs: [%Abilities.Spec{}]
         },
-        skills: [%Skills.Skill{}]
+        skills: [%Skills.Skill{}],
+        languages: [%Languages.Language{}]
       }
     )
   end
