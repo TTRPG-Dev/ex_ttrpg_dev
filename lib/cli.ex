@@ -2,6 +2,7 @@
 defmodule ExTTRPGDev.CLI do
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.RuleSystems.Languages
 
   @moduledoc """
   The CLI for the project
@@ -68,6 +69,24 @@ defmodule ExTTRPGDev.CLI do
                     ]
                   ]
                 ]
+              ],
+              show: [
+                name: "show",
+                about: "Used for showing information about the rule system",
+                subcommands: [
+                  languages: [
+                    name: "languages",
+                    about: "Show the rule systems languages",
+                    args: [
+                      system: [
+                        value_name: "SYSTEM",
+                        help: "A supported system, e.g. dnd5e",
+                        required: true,
+                        parser: :string
+                      ]
+                    ]
+                  ]
+                ]
               ]
             ]
           ]
@@ -119,6 +138,9 @@ defmodule ExTTRPGDev.CLI do
 
       :gen ->
         handle_system_generation_subcommands(subcommands, loaded_system)
+
+      :show ->
+        handle_system_show_subcommands(subcommands, loaded_system)
     end
   end
 
@@ -131,5 +153,21 @@ defmodule ExTTRPGDev.CLI do
         RuleSystems.RuleSystem.gen_ability_scores_assigned(system)
         |> IO.inspect()
     end
+  end
+
+  def handle_system_show_subcommands(
+        [command | _subcommands],
+        %RuleSystems.RuleSystem{} = system
+      ) do
+    case command do
+      :languages ->
+        show_languages(system)
+    end
+  end
+
+  def show_languages(%RuleSystems.RuleSystem{languages: languages}) do
+    Enum.each(languages, fn %Languages.Language{name: name, script: script} ->
+      IO.puts("Name: #{name}, Script: #{script}")
+    end)
   end
 end
