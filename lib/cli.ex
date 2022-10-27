@@ -15,7 +15,7 @@ defmodule ExTTRPGDev.CLI do
       Optimus.new!(
         name: "ex_ttrpg_dev",
         description: "CLI for all things RPG",
-        version: "0.2.0",
+        version: "0.3.0",
         author: "Quigley Malcolm quigley@quigleymalcolm.com",
         about: "Utility for playing tabletop role-playing games.",
         allow_unknown_args: false,
