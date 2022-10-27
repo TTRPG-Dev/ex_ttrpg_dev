@@ -75,4 +75,17 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
   def gen_ability_scores_unassigned(%RuleSystem{abilities: %Abilities{} = abilities}) do
     Abilities.gen_scores_unassigned(abilities)
   end
+
+  @doc """
+  Returns the spec for the given spec name
+
+  ## Examples
+
+      iex> ExTTRPGDev.RuleSystems.get_spec_by_name(rule_system, spec_name)
+      %Spec{}
+  """
+  def get_spec_by_name(%RuleSystem{abilities: abilities}, spec_name)
+      when is_bitstring(spec_name) do
+    Abilities.get_spec_by_name(abilities, spec_name)
+  end
 end

@@ -51,4 +51,16 @@ defmodule ExTTRPGDev.RuleSystems.Abilities do
       [Assignment.roll_via_method!(default_rolling_method) | acc]
     end)
   end
+
+  @doc """
+  Returns the spec for the given spec name
+
+  ## Examples
+
+      iex> ExTTRPGDev.RuleSystems.Abilities.get_spec_by_name(abilities, spec_name)
+      %Spec{}
+  """
+  def get_spec_by_name(%Abilities{specs: specs}, spec_name) when is_bitstring(spec_name) do
+    Spec.get_spec_by_name(specs, spec_name)
+  end
 end
