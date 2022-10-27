@@ -40,18 +40,6 @@ defmodule ExTTRPGDev.CLI do
             name: "system",
             about: "Top level command fo systems",
             subcommands: [
-              metadata: [
-                name: "metadata",
-                about: "Show system metadata",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
-              ],
               gen: [
                 name: "gen",
                 about: "Used for generating things for the system",
@@ -77,6 +65,18 @@ defmodule ExTTRPGDev.CLI do
                   languages: [
                     name: "languages",
                     about: "Show the rule systems languages",
+                    args: [
+                      system: [
+                        value_name: "SYSTEM",
+                        help: "A supported system, e.g. dnd5e",
+                        required: true,
+                        parser: :string
+                      ]
+                    ]
+                  ],
+                  metadata: [
+                    name: "metadata",
+                    about: "Show system metadata",
                     args: [
                       system: [
                         value_name: "SYSTEM",
@@ -132,10 +132,6 @@ defmodule ExTTRPGDev.CLI do
       |> RuleSystems.load_system!()
 
     case command do
-      :metadata ->
-        Map.get(loaded_system, :metadata)
-        |> IO.inspect()
-
       :gen ->
         handle_system_generation_subcommands(subcommands, loaded_system)
 
@@ -162,6 +158,10 @@ defmodule ExTTRPGDev.CLI do
     case command do
       :languages ->
         show_languages(system)
+
+      :metadata ->
+        Map.get(system, :metadata)
+        |> IO.inspect()
     end
   end
 
