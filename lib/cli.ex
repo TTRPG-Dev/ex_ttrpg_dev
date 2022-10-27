@@ -4,6 +4,7 @@ defmodule ExTTRPGDev.CLI do
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
+  alias ExTTRPGDev.RuleSystems.Skills
 
   @moduledoc """
   The CLI for the project
@@ -98,6 +99,18 @@ defmodule ExTTRPGDev.CLI do
                         parser: :string
                       ]
                     ]
+                  ],
+                  skills: [
+                    name: "skills",
+                    about: "Show rule system skills",
+                    args: [
+                      system: [
+                        value_name: "SYSTEM",
+                        help: "A supported system, e.g. dnd5e",
+                        required: true,
+                        parser: :string
+                      ]
+                    ]
                   ]
                 ]
               ]
@@ -178,6 +191,9 @@ defmodule ExTTRPGDev.CLI do
       :metadata ->
         Map.get(system, :metadata)
         |> IO.inspect()
+
+      :skills ->
+        show_skills(system)
     end
   end
 
@@ -190,6 +206,15 @@ defmodule ExTTRPGDev.CLI do
   def show_languages(%RuleSystems.RuleSystem{languages: languages}) do
     Enum.each(languages, fn %Languages.Language{name: name, script: script} ->
       IO.puts("Name: #{name}, Script: #{script}")
+    end)
+  end
+
+  def show_skills(%RuleSystems.RuleSystem{skills: skills} = system) do
+    Enum.each(skills, fn %Skills.Skill{name: name, modifying_stat: mod_stat} ->
+      %Abilities.Spec{abbreviation: abbr} =
+        RuleSystems.RuleSystem.get_spec_by_name(system, mod_stat)
+
+      IO.puts("(#{abbr}) #{name}")
     end)
   end
 end
