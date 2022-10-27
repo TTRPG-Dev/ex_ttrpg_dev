@@ -19,4 +19,13 @@ defmodule ExTTRPGDevTest.RuleSystems.Abilities.Spec do
                "charisma"
              ])
   end
+
+  test "get spec from specs by name" do
+    %RuleSystems.RuleSystem{abilities: %RuleSystems.Abilities{specs: specs}} =
+      RuleSystems.load_system!("dnd_5e_srd")
+
+    %Spec{name: name} = spec = Enum.random(specs)
+    found_spec = Spec.get_spec_by_name(specs, name)
+    assert spec == found_spec
+  end
 end
