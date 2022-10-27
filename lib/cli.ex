@@ -2,6 +2,7 @@
 defmodule ExTTRPGDev.CLI do
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
 
   @moduledoc """
@@ -62,6 +63,18 @@ defmodule ExTTRPGDev.CLI do
                 name: "show",
                 about: "Used for showing information about the rule system",
                 subcommands: [
+                  abilities: [
+                    name: "abilities",
+                    about: "Show the rule systems character abilities",
+                    args: [
+                      system: [
+                        value_name: "SYSTEM",
+                        help: "A supported system, e.g. dnd5e",
+                        required: true,
+                        parser: :string
+                      ]
+                    ]
+                  ],
                   languages: [
                     name: "languages",
                     about: "Show the rule systems languages",
@@ -156,6 +169,9 @@ defmodule ExTTRPGDev.CLI do
         %RuleSystems.RuleSystem{} = system
       ) do
     case command do
+      :abilities ->
+        show_abilities(system)
+
       :languages ->
         show_languages(system)
 
@@ -163,6 +179,12 @@ defmodule ExTTRPGDev.CLI do
         Map.get(system, :metadata)
         |> IO.inspect()
     end
+  end
+
+  def show_abilities(%RuleSystems.RuleSystem{abilities: %Abilities{specs: specs}}) do
+    Enum.each(specs, fn %Abilities.Spec{name: name, abbreviation: abbr} ->
+      IO.puts("(#{abbr}) #{name}")
+    end)
   end
 
   def show_languages(%RuleSystems.RuleSystem{languages: languages}) do
