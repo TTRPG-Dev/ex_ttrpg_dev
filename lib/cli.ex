@@ -5,6 +5,7 @@ defmodule ExTTRPGDev.CLI do
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
   alias ExTTRPGDev.RuleSystems.Skills
+  alias ExTTRPGDev.CustomParsers
 
   @moduledoc """
   The CLI for the project
@@ -30,7 +31,7 @@ defmodule ExTTRPGDev.CLI do
                 help:
                   "Dice in the format of xdy wherein x is the number of dice, y is the number of sides the dice should have",
                 required: true,
-                parser: :string
+                parser: &CustomParsers.dice_parser(&1)
               ]
             ]
           ],
@@ -144,9 +145,10 @@ defmodule ExTTRPGDev.CLI do
     end
   end
 
-  def handle_roll(%Optimus.ParseResult{args: %{dice: dice_str}}) do
-    Dice.roll(dice_str)
-    |> IO.inspect(label: "Results")
+  def handle_roll(%Optimus.ParseResult{args: %{dice: dice}}) do
+    dice
+    |> Enum.map(fn dice_spec -> {dice_spec, Dice.roll(dice_spec)} end)
+    |> Enum.each(fn {dice_spec, results} -> IO.inspect(results, label: dice_spec) end)
   end
 
   def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{
