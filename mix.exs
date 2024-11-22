@@ -5,7 +5,7 @@ defmodule ExTTRPGDev.MixProject do
     [
       app: :ex_ttrpg_dev,
       version: "0.3.0",
-      elixir: "~> 1.13",
+      elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: escript(),
@@ -30,10 +30,10 @@ defmodule ExTTRPGDev.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:optimus, "~> 0.3"},
-      {:ex_doc, "~> 0.27", only: :dev, runtime: false},
-      {:poison, "~> 5.0"},
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
+      {:optimus, "~> 0.5"},
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false},
+      {:poison, "~> 6.0"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
