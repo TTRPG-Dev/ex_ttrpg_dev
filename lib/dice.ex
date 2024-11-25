@@ -62,27 +62,27 @@ defmodule ExTTRPGDev.Dice do
       iex> ExTTRPGDev.Dice.roll(3, 8)
       [4, 8, 5]
 
-  """
-  def roll(number_of_dice, dice_sides) do
-    Enum.map(1..number_of_dice, fn _ -> roll_d(dice_sides) end)
-  end
-
-  @doc """
-  Roll dice defined by the input string
-
-  Returns: List of die roll results
-
-  ## Examples
-
-      # Although not necessary, let's seed the random algorithm
       iex> :rand.seed(:exsplus, 1337)
-      iex> ExTTRPGDev.Dice.roll("3d4")
-      [4, 4, 1]
+      iex> ExTTRPGDev.Dice.roll({3, 8})
+      [4, 8, 5]
+
+      iex> :rand.seed(:exsplus, 1337)
+      iex> ExTTRPGDev.Dice.roll("3d8")
+      [4, 8, 5]
+
+      iex> ExTTRPGDev.Dice.roll("bad_input")
+      ** (RuntimeError) Improper dice format. Dice must be given in xdy where x and y are both integers
 
   """
   def roll(str) when is_bitstring(str) do
     {number_of_dice, sides} = parse_roll_spec!(str)
     roll(number_of_dice, sides)
+  end
+
+  def roll({number_of_dice, sides}), do: roll(number_of_dice, sides)
+
+  def roll(number_of_dice, dice_sides) do
+    Enum.map(1..number_of_dice, fn _ -> roll_d(dice_sides) end)
   end
 
   @doc """
@@ -95,6 +95,10 @@ defmodule ExTTRPGDev.Dice do
       iex> :rand.seed(:exsplus, 1337)
       iex> ExTTRPGDev.Dice.multi_roll!(["3d4", "4d8", "2d20"])
       [{"3d4", [4, 4, 1]}, {"4d8", [1, 3, 5, 6]}, {"2d20", [5, 12]}]
+
+      iex> :rand.seed(:exsplus, 1337)
+      iex> ExTTRPGDev.Dice.multi_roll!([{3, 4}, {4, 8}, {2, 20}])
+      [{{3, 4}, [4, 4, 1]}, {{4, 8}, [1, 3, 5, 6]}, {{2, 20}, [5, 12]}]
 
       iex> ExTTRPGDev.Dice.multi_roll!(["bad_spec", "oh_no!", "3d4"])
       ** (RuntimeError) Improper dice format. Dice must be given in xdy where x and y are both integers
