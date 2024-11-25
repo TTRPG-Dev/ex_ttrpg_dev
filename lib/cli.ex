@@ -147,7 +147,7 @@ defmodule ExTTRPGDev.CLI do
 
   def handle_roll(%Optimus.ParseResult{args: %{dice: dice}}) do
     dice
-    |> Enum.map(fn dice_spec -> {dice_spec, Dice.roll(dice_spec)} end)
+    |> Dice.multi_roll!()
     |> Enum.each(fn {dice_spec, results} -> IO.inspect(results, label: dice_spec) end)
   end
 
