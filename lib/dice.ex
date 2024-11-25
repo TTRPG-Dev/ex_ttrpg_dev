@@ -28,6 +28,29 @@ defmodule ExTTRPGDev.Dice do
   end
 
   @doc """
+  Tries to parse a given dice spec string into it's component parts
+
+  Returns: a tuple where the first item is the number of times to roll the die and the second indicates the  number or sides the die has
+
+  ## Examples
+
+      iex> ExTTRPGDev.Dice.parse_roll_spec!("3d4")
+      {3, 4}
+
+      iex> ExTTRPGDev.Dice.parse_roll_spec!("3")
+      ** (RuntimeError) Improper dice format. Dice must be given in xdy where x and y are both integers
+
+  """
+
+  def parse_roll_spec!(roll_spec) when is_bitstring(roll_spec) do
+    roll_spec
+    |> validate_dice_str()
+    |> String.split("d")
+    |> Enum.map(fn x -> String.to_integer(x) end)
+    |> List.to_tuple()
+  end
+
+  @doc """
   Rolls the a number of multisided dice
 
   Returns: List of die roll results
@@ -58,12 +81,7 @@ defmodule ExTTRPGDev.Dice do
 
   """
   def roll(str) when is_bitstring(str) do
-    [number_of_dice, sides] =
-      str
-      |> validate_dice_str()
-      |> String.split("d")
-      |> Enum.map(fn x -> String.to_integer(x) end)
-
+    {number_of_dice, sides} = parse_roll_spec!(str)
     roll(number_of_dice, sides)
   end
 
