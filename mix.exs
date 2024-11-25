@@ -4,7 +4,7 @@ defmodule ExTTRPGDev.MixProject do
   def project do
     [
       app: :ex_ttrpg_dev,
-      version: "0.4.0",
+      version: "0.5.0",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
