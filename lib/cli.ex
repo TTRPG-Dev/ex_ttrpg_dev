@@ -116,6 +116,16 @@ defmodule ExTTRPGDev.CLI do
                 ]
               ]
             ]
+          ],
+          gen: [
+            name: "gen",
+            about: "system agnostic generation helpers",
+            subcommands: [
+              name: [
+                name: "name",
+                about: "Generate a random name"
+              ]
+            ]
           ]
         ]
       )
@@ -133,6 +143,9 @@ defmodule ExTTRPGDev.CLI do
 
       {[:system | sub_commands], parse_result} ->
         handle_system_subcommands(sub_commands, parse_result)
+
+      {[:gen | sub_commands], _} ->
+        handle_generate_subcommands(sub_commands)
 
       {unhandled, _parse_result} ->
         str_command =
@@ -198,6 +211,13 @@ defmodule ExTTRPGDev.CLI do
 
       :skills ->
         show_skills(system)
+    end
+  end
+
+  def handle_generate_subcommands([command | _subcommands]) do
+    case command do
+      :name ->
+        IO.inspect(Faker.Person.name())
     end
   end
 
