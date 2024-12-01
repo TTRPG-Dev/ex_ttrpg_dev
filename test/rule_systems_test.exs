@@ -9,7 +9,8 @@ defmodule ExTTRPGDevTest.RuleSystems do
       system_path!: 1,
       load_system!: 1,
       save_system!: 1,
-      save_system!: 2
+      save_system!: 2,
+      gen_character!: 1
     ]
 
   def build_test_system do
@@ -133,5 +134,20 @@ defmodule ExTTRPGDevTest.RuleSystems do
     [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
     bundled_system = RuleSystems.load_system!(bundled_system_slug)
     assert_raise RuntimeError, fn -> RuleSystems.save_system!(bundled_system) end
+  end
+
+  test "gen_character!/1" do
+    dnd_5e_srd = RuleSystems.load_system!("dnd_5e_srd")
+    generated_character = RuleSystems.RuleSystem.gen_character!(dnd_5e_srd)
+
+    assert generated_character.name != nil
+    assert generated_character.rule_system == dnd_5e_srd.metadata
+
+    # Assert that each ability spec is found within the generated character's ability_scores
+    dnd_5e_srd.abilities.specs
+    |> Enum.each(fn spec ->
+      score = Map.get(generated_character.ability_scores, spec.name)
+      assert score != nil, "Could not find ability #{spec.name} on generated character"
+    end)
   end
 end
