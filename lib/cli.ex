@@ -58,6 +58,18 @@ defmodule ExTTRPGDev.CLI do
                         parser: :string
                       ]
                     ]
+                  ],
+                  character: [
+                    name: "character",
+                    about: "Generate characters for system",
+                    args: [
+                      system: [
+                        value_name: "SYSTEM",
+                        help: "A supported system, e.g. dnd5e",
+                        required: true,
+                        parser: :string
+                      ]
+                    ]
                   ]
                 ]
               ],
@@ -191,6 +203,14 @@ defmodule ExTTRPGDev.CLI do
       :stat_block ->
         RuleSystems.RuleSystem.gen_ability_scores_assigned(system)
         |> IO.inspect()
+
+      :character ->
+        character = RuleSystems.RuleSystem.gen_character!(system)
+        IO.puts("-- Name: #{character.name}")
+
+        Enum.each(character.ability_scores, fn {ability, scores} ->
+          IO.puts("#{ability}: #{Enum.sum(scores)}")
+        end)
     end
   end
 
