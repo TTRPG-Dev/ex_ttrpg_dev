@@ -3,6 +3,7 @@ defmodule ExTTRPGDev.Globals do
   Module which defines globals like project paths
   """
   @project_root File.cwd!()
+  @characters_path Path.join(~w(#{@project_root} local_characters))
   @system_configs_path Path.join(~w(#{@project_root} priv system_configs))
   @local_system_configs_path Path.join(~w(#{@project_root} local_system_configs))
   @license_file_name "license.md"
@@ -19,6 +20,19 @@ defmodule ExTTRPGDev.Globals do
   """
   def project_root do
     @project_root
+  end
+
+  @doc """
+  The path to where characters are stored on your machine
+
+  ## Examples
+
+      iex> ExTTRPGDev.Globals.characters_path()
+      "/full/path/to/project/ex_ttrpg_dev/priv/characters"
+
+  """
+  def characters_path do
+    @characters_path
   end
 
   @doc """
