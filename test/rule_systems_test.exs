@@ -141,7 +141,9 @@ defmodule ExTTRPGDevTest.RuleSystems do
     generated_character = RuleSystems.RuleSystem.gen_character!(dnd_5e_srd)
 
     assert generated_character.name != nil
-    assert generated_character.rule_system == dnd_5e_srd.metadata
+    assert generated_character.metadata.slug != nil
+    assert not String.contains?(generated_character.metadata.slug, " ")
+    assert generated_character.metadata.rule_system == dnd_5e_srd.metadata
 
     # Assert that each ability spec is found within the generated character's ability_scores
     dnd_5e_srd.abilities.specs
