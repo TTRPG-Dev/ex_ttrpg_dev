@@ -9,7 +9,9 @@ defmodule ExTTRPGDevTest.Characters do
       character_file_path!: 1,
       character_exists?: 1,
       save_character!: 1,
-      save_character!: 2
+      save_character!: 2,
+      list_characters!: 0,
+      load_character!: 1
     ]
 
   def build_test_character do
@@ -64,6 +66,25 @@ defmodule ExTTRPGDevTest.Characters do
     assert Characters.character_exists?(character)
 
     # cleanup
+    delete_test_character(character)
+  end
+
+  test "list_characters!/0" do
+    characters_list_first = Characters.list_characters!()
+    character = save_test_character()
+    characters_list_second = Characters.list_characters!()
+    assert Enum.count(characters_list_first) < Enum.count(characters_list_second)
+    assert Enum.member?(characters_list_second, character.metadata.slug)
+
+    # cleanup
+    delete_test_character(character)
+  end
+
+  test "load_character/1" do
+    character = save_test_character()
+    loaded_character = Characters.load_character!(character.metadata.slug)
+    assert character == loaded_character
+
     delete_test_character(character)
   end
 end
