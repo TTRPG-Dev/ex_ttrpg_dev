@@ -106,7 +106,7 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
     %Characters.Character{
       name: name,
       ability_scores: Abilities.gen_scores(abilities),
-      metadata: %Characters.CharacterMetadata{
+      metadata: %ExTTRPGDev.Characters.Metadata{
         slug:
           name
           |> String.downcase()

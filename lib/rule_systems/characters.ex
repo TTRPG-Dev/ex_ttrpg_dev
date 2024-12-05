@@ -4,13 +4,6 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
   """
   alias ExTTRPGDev.Globals
 
-  defmodule CharacterMetadata do
-    @moduledoc """
-    Metadata for an individual charater
-    """
-    defstruct [:slug, :rule_system]
-  end
-
   defmodule Character do
     @moduledoc """
     Definition of an individual character
@@ -22,7 +15,7 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
     character_json
     |> Poison.decode!(
       as: %Character{
-        metadata: %CharacterMetadata{
+        metadata: %ExTTRPGDev.Characters.Metadata{
           rule_system: %ExTTRPGDev.RuleSystems.Metadata{}
         }
       }
@@ -34,10 +27,10 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
 
   ## Examples
 
-      iex> Characters.character_file_path!(%Character{metadata: %CharacterMetadata{slug: "mr_whiskers"}})
+      iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
       "mr_whiskers.json"
   """
-  def character_file_path!(%Character{metadata: %CharacterMetadata{slug: slug}}),
+  def character_file_path!(%Character{metadata: %ExTTRPGDev.Characters.Metadata{slug: slug}}),
     do: character_file_path!(slug)
 
   def character_file_path!(character_slug) when is_bitstring(character_slug) do
