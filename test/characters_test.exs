@@ -1,11 +1,11 @@
 defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
+  alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
-  alias ExTTRPGDev.RuleSystems.Characters
-  alias ExTTRPGDev.RuleSystems.RuleSystem
   alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.RuleSystems.RuleSystem
 
-  doctest ExTTRPGDev.RuleSystems.Characters,
+  doctest ExTTRPGDev.Characters,
     except: [
       character_file_path!: 1,
       character_exists?: 1,

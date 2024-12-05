@@ -1,7 +1,9 @@
-defmodule ExTTRPGDev.RuleSystems.Characters do
+defmodule ExTTRPGDev.Characters do
   @moduledoc """
-  This module handles the definition of rule system characters, and what they do
+  This module handles handles character operations
   """
+  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Globals
 
   @doc """
@@ -12,10 +14,9 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
       iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
       "mr_whiskers.json"
   """
-  def character_file_path!(%ExTTRPGDev.Characters.Character{
-        metadata: %ExTTRPGDev.Characters.Metadata{slug: slug}
-      }),
-      do: character_file_path!(slug)
+  def character_file_path!(%Character{metadata: %Metadata{slug: slug}}) do
+    character_file_path!(slug)
+  end
 
   def character_file_path!(character_slug) when is_bitstring(character_slug) do
     Path.join(Globals.characters_path(), "#{character_slug}.json")
@@ -32,7 +33,7 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
       iex> Characters.Character_exists?(%Characters.Character{name: "This character doesn't exist})
       false
   """
-  def character_exists?(%ExTTRPGDev.Characters.Character{} = character) do
+  def character_exists?(%Character{} = character) do
     character
     |> character_file_path!
     |> File.exists?()
@@ -53,7 +54,7 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
       :ok
   """
   def save_character!(
-        %ExTTRPGDev.Characters.Character{} = character,
+        %Character{} = character,
         overwrite \\ false
       ) do
     if character_exists?(character) and not overwrite do
@@ -89,6 +90,6 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
   def load_character!(character_slug) do
     character_file_path!(character_slug)
     |> File.read!()
-    |> ExTTRPGDev.Characters.Character.from_json!()
+    |> Character.from_json!()
   end
 end
