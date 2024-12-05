@@ -1,6 +1,7 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI do
   alias ExTTRPGDev.Dice
+  alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
@@ -205,7 +206,7 @@ defmodule ExTTRPGDev.CLI do
         |> IO.inspect()
 
       :character ->
-        character = RuleSystems.RuleSystem.gen_character!(system)
+        character = Character.gen_character!(system)
         IO.puts("-- Name: #{character.name}")
 
         Enum.each(character.ability_scores, fn {ability, scores} ->

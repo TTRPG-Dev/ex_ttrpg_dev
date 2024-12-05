@@ -88,31 +88,4 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
       when is_bitstring(spec_name) do
     Abilities.get_spec_by_name(abilities, spec_name)
   end
-
-  @doc """
-  Returns an auto generated character for the system
-
-  ## Examples
-    iex> ExTTRPGDev.RuleSystems.gen_character(rule_system)
-    %Characters.Character{}
-  """
-  def gen_character!(%RuleSystem{
-        abilities: %Abilities{} = abilities,
-        metadata: %Metadata{} = metadata
-      }) do
-    name = Faker.Person.name()
-
-    %ExTTRPGDev.Characters.Character{
-      name: name,
-      ability_scores: Abilities.gen_scores(abilities),
-      metadata: %ExTTRPGDev.Characters.Metadata{
-        slug:
-          name
-          |> String.downcase()
-          |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
-          |> String.replace(" ", "_"),
-        rule_system: metadata
-      }
-    }
-  end
 end

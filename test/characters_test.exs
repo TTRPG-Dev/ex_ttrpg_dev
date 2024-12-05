@@ -3,7 +3,6 @@ defmodule ExTTRPGDevTest.Characters do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
-  alias ExTTRPGDev.RuleSystems.RuleSystem
 
   doctest ExTTRPGDev.Characters,
     except: [
@@ -19,7 +18,7 @@ defmodule ExTTRPGDevTest.Characters do
     RuleSystems.list_systems()
     |> List.first()
     |> RuleSystems.load_system!()
-    |> RuleSystem.gen_character!()
+    |> Character.gen_character!()
   end
 
   def save_test_character do
