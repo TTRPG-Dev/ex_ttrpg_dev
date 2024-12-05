@@ -1,5 +1,6 @@
 defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
+  alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems.Characters
   alias ExTTRPGDev.RuleSystems.RuleSystem
   alias ExTTRPGDev.RuleSystems
@@ -27,7 +28,7 @@ defmodule ExTTRPGDevTest.Characters do
     character
   end
 
-  def delete_test_character(%Characters.Character{} = character) do
+  def delete_test_character(%Character{} = character) do
     File.rm(Characters.character_file_path!(character))
   end
 

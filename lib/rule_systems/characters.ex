@@ -4,24 +4,6 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
   """
   alias ExTTRPGDev.Globals
 
-  defmodule Character do
-    @moduledoc """
-    Definition of an individual character
-    """
-    defstruct [:name, :ability_scores, :metadata]
-  end
-
-  def from_json!(character_json) when is_bitstring(character_json) do
-    character_json
-    |> Poison.decode!(
-      as: %Character{
-        metadata: %ExTTRPGDev.Characters.Metadata{
-          rule_system: %ExTTRPGDev.RuleSystems.Metadata{}
-        }
-      }
-    )
-  end
-
   @doc """
   Get the file path for a character
 
@@ -30,8 +12,10 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
       iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
       "mr_whiskers.json"
   """
-  def character_file_path!(%Character{metadata: %ExTTRPGDev.Characters.Metadata{slug: slug}}),
-    do: character_file_path!(slug)
+  def character_file_path!(%ExTTRPGDev.Characters.Character{
+        metadata: %ExTTRPGDev.Characters.Metadata{slug: slug}
+      }),
+      do: character_file_path!(slug)
 
   def character_file_path!(character_slug) when is_bitstring(character_slug) do
     Path.join(Globals.characters_path(), "#{character_slug}.json")
@@ -48,7 +32,7 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
       iex> Characters.Character_exists?(%Characters.Character{name: "This character doesn't exist})
       false
   """
-  def character_exists?(%Character{} = character) do
+  def character_exists?(%ExTTRPGDev.Characters.Character{} = character) do
     character
     |> character_file_path!
     |> File.exists?()
@@ -69,7 +53,7 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
       :ok
   """
   def save_character!(
-        %Character{} = character,
+        %ExTTRPGDev.Characters.Character{} = character,
         overwrite \\ false
       ) do
     if character_exists?(character) and not overwrite do
@@ -105,6 +89,6 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
   def load_character!(character_slug) do
     character_file_path!(character_slug)
     |> File.read!()
-    |> from_json!()
+    |> ExTTRPGDev.Characters.Character.from_json!()
   end
 end

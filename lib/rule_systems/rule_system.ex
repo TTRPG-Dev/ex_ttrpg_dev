@@ -4,7 +4,6 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Skills
   alias ExTTRPGDev.RuleSystems.Languages
-  alias ExTTRPGDev.RuleSystems.Characters
 
   @moduledoc """
   Module for handling a specific Rule System
@@ -103,7 +102,7 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
       }) do
     name = Faker.Person.name()
 
-    %Characters.Character{
+    %ExTTRPGDev.Characters.Character{
       name: name,
       ability_scores: Abilities.gen_scores(abilities),
       metadata: %ExTTRPGDev.Characters.Metadata{
