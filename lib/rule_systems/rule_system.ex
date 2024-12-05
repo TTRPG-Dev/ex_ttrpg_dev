@@ -101,10 +101,19 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
         abilities: %Abilities{} = abilities,
         metadata: %Metadata{} = metadata
       }) do
+    name = Faker.Person.name()
+
     %Characters.Character{
-      name: Faker.Person.name(),
+      name: name,
       ability_scores: Abilities.gen_scores(abilities),
-      rule_system: metadata
+      metadata: %Characters.CharacterMetadata{
+        slug:
+          name
+          |> String.downcase()
+          |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
+          |> String.replace(" ", "_"),
+        rule_system: metadata
+      }
     }
   end
 end
