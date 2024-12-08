@@ -1,5 +1,6 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI do
+  alias ExTTRPGDev.CLI.Generate
   alias ExTTRPGDev.CLI.Roll
   alias ExTTRPGDev.CLI.RuleSystems
 
@@ -20,18 +21,7 @@ defmodule ExTTRPGDev.CLI do
         subcommands:
           Roll.commands() ++
             RuleSystems.commands() ++
-            [
-              gen: [
-                name: "gen",
-                about: "system agnostic generation helpers",
-                subcommands: [
-                  name: [
-                    name: "name",
-                    about: "Generate a random name"
-                  ]
-                ]
-              ]
-            ]
+            Generate.commands()
       )
 
     case Optimus.parse!(optimus, argv) do
@@ -48,7 +38,7 @@ defmodule ExTTRPGDev.CLI do
         RuleSystems.handle_system_subcommands(sub_commands, parse_result)
 
       {[:gen | sub_commands], _} ->
-        handle_generate_subcommands(sub_commands)
+        Generate.handle_generate_subcommands(sub_commands)
 
       {unhandled, _parse_result} ->
         str_command =
@@ -58,13 +48,6 @@ defmodule ExTTRPGDev.CLI do
           |> Enum.join(" ")
 
         raise "Unhandled CLI command `#{str_command}`, if you are seeing this error please report the issue"
-    end
-  end
-
-  def handle_generate_subcommands([command | _subcommands]) do
-    case command do
-      :name ->
-        IO.inspect(Faker.Person.name())
     end
   end
 end
