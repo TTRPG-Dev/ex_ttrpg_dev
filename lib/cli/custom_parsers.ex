@@ -1,4 +1,4 @@
-defmodule ExTTRPGDev.CustomParsers do
+defmodule ExTTRPGDev.CLI.CustomParsers do
   @moduledoc """
   Custom parsers to be used with Optimus args :parse
   """
@@ -8,7 +8,7 @@ defmodule ExTTRPGDev.CustomParsers do
 
   ## Examples
 
-      iex> ExTTRPGDev.CustomParsers.dice_parser("3d4, 1d10,2d20")
+      iex> ExTTRPGDev.CLI.CustomParsers.dice_parser("3d4, 1d10,2d20")
       {:ok, ["3d4", "1d10", "2d20"]}
   """
   def dice_parser(arg) when is_bitstring(arg) do

@@ -4,7 +4,6 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Skills
   alias ExTTRPGDev.RuleSystems.Languages
-  alias ExTTRPGDev.RuleSystems.Characters
 
   @moduledoc """
   Module for handling a specific Rule System
@@ -88,32 +87,5 @@ defmodule ExTTRPGDev.RuleSystems.RuleSystem do
   def get_spec_by_name(%RuleSystem{abilities: abilities}, spec_name)
       when is_bitstring(spec_name) do
     Abilities.get_spec_by_name(abilities, spec_name)
-  end
-
-  @doc """
-  Returns an auto generated character for the system
-
-  ## Examples
-    iex> ExTTRPGDev.RuleSystems.gen_character(rule_system)
-    %Characters.Character{}
-  """
-  def gen_character!(%RuleSystem{
-        abilities: %Abilities{} = abilities,
-        metadata: %Metadata{} = metadata
-      }) do
-    name = Faker.Person.name()
-
-    %Characters.Character{
-      name: name,
-      ability_scores: Abilities.gen_scores(abilities),
-      metadata: %Characters.CharacterMetadata{
-        slug:
-          name
-          |> String.downcase()
-          |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
-          |> String.replace(" ", "_"),
-        rule_system: metadata
-      }
-    }
   end
 end

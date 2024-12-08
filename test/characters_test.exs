@@ -1,10 +1,10 @@
 defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
-  alias ExTTRPGDev.RuleSystems.Characters
-  alias ExTTRPGDev.RuleSystems.RuleSystem
+  alias ExTTRPGDev.Characters
+  alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
 
-  doctest ExTTRPGDev.RuleSystems.Characters,
+  doctest ExTTRPGDev.Characters,
     except: [
       character_file_path!: 1,
       character_exists?: 1,
@@ -18,7 +18,7 @@ defmodule ExTTRPGDevTest.Characters do
     RuleSystems.list_systems()
     |> List.first()
     |> RuleSystems.load_system!()
-    |> RuleSystem.gen_character!()
+    |> Character.gen_character!()
   end
 
   def save_test_character do
@@ -27,7 +27,7 @@ defmodule ExTTRPGDevTest.Characters do
     character
   end
 
-  def delete_test_character(%Characters.Character{} = character) do
+  def delete_test_character(%Character{} = character) do
     File.rm(Characters.character_file_path!(character))
   end
 

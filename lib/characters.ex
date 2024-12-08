@@ -1,44 +1,22 @@
-defmodule ExTTRPGDev.RuleSystems.Characters do
+defmodule ExTTRPGDev.Characters do
   @moduledoc """
-  This module handles the definition of rule system characters, and what they do
+  This module handles handles character operations
   """
+  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Globals
-
-  defmodule CharacterMetadata do
-    @moduledoc """
-    Metadata for an individual charater
-    """
-    defstruct [:slug, :rule_system]
-  end
-
-  defmodule Character do
-    @moduledoc """
-    Definition of an individual character
-    """
-    defstruct [:name, :ability_scores, :metadata]
-  end
-
-  def from_json!(character_json) when is_bitstring(character_json) do
-    character_json
-    |> Poison.decode!(
-      as: %Character{
-        metadata: %CharacterMetadata{
-          rule_system: %ExTTRPGDev.RuleSystems.Metadata{}
-        }
-      }
-    )
-  end
 
   @doc """
   Get the file path for a character
 
   ## Examples
 
-      iex> Characters.character_file_path!(%Character{metadata: %CharacterMetadata{slug: "mr_whiskers"}})
+      iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
       "mr_whiskers.json"
   """
-  def character_file_path!(%Character{metadata: %CharacterMetadata{slug: slug}}),
-    do: character_file_path!(slug)
+  def character_file_path!(%Character{metadata: %Metadata{slug: slug}}) do
+    character_file_path!(slug)
+  end
 
   def character_file_path!(character_slug) when is_bitstring(character_slug) do
     Path.join(Globals.characters_path(), "#{character_slug}.json")
@@ -112,6 +90,6 @@ defmodule ExTTRPGDev.RuleSystems.Characters do
   def load_character!(character_slug) do
     character_file_path!(character_slug)
     |> File.read!()
-    |> from_json!()
+    |> Character.from_json!()
   end
 end
