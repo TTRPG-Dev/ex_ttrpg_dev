@@ -4,7 +4,7 @@ defmodule ExTTRPGDev.CLI.Roll do
   Defintions for dealing with the CLI `roll` commond
   """
   alias ExTTRPGDev.Dice
-  alias ExTTRPGDev.CustomParsers
+  alias ExTTRPGDev.CLI.CustomParsers
 
   @doc """
   Command specifications for CLI `roll` command
