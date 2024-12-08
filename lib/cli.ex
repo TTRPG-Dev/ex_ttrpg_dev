@@ -1,12 +1,11 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI do
-  alias ExTTRPGDev.Dice
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
   alias ExTTRPGDev.RuleSystems.Skills
-  alias ExTTRPGDev.CustomParsers
+  alias ExTTRPGDev.CLI.Roll
 
   @moduledoc """
   The CLI for the project
@@ -22,125 +21,114 @@ defmodule ExTTRPGDev.CLI do
         about: "Utility for playing tabletop role-playing games.",
         allow_unknown_args: false,
         parse_double_dash: true,
-        subcommands: [
-          roll: [
-            name: "roll",
-            about: "Roll some dice",
-            args: [
-              dice: [
-                value_name: "DICE",
-                help:
-                  "Dice in the format of xdy wherein x is the number of dice, y is the number of sides the dice should have",
-                required: true,
-                parser: &CustomParsers.dice_parser(&1)
-              ]
-            ]
-          ],
-          list_systems: [
-            name: "list-systems",
-            about: "List systems that are setup to be used with ExTTRPGDev"
-          ],
-          system: [
-            name: "system",
-            about: "Top level command fo systems",
-            subcommands: [
-              gen: [
-                name: "gen",
-                about: "Used for generating things for the system",
+        subcommands:
+          Roll.commands() ++
+            [
+              list_systems: [
+                name: "list-systems",
+                about: "List systems that are setup to be used with ExTTRPGDev"
+              ],
+              system: [
+                name: "system",
+                about: "Top level command fo systems",
                 subcommands: [
-                  stat_block: [
-                    name: "stat-block",
-                    about: "Generate stat blocks for characters of the system",
-                    args: [
-                      system: [
-                        value_name: "SYSTEM",
-                        help: "A supported system, e.g. dnd5e",
-                        required: true,
-                        parser: :string
+                  gen: [
+                    name: "gen",
+                    about: "Used for generating things for the system",
+                    subcommands: [
+                      stat_block: [
+                        name: "stat-block",
+                        about: "Generate stat blocks for characters of the system",
+                        args: [
+                          system: [
+                            value_name: "SYSTEM",
+                            help: "A supported system, e.g. dnd5e",
+                            required: true,
+                            parser: :string
+                          ]
+                        ]
+                      ],
+                      character: [
+                        name: "character",
+                        about: "Generate characters for system",
+                        args: [
+                          system: [
+                            value_name: "SYSTEM",
+                            help: "A supported system, e.g. dnd5e",
+                            required: true,
+                            parser: :string
+                          ]
+                        ]
                       ]
                     ]
                   ],
-                  character: [
-                    name: "character",
-                    about: "Generate characters for system",
-                    args: [
-                      system: [
-                        value_name: "SYSTEM",
-                        help: "A supported system, e.g. dnd5e",
-                        required: true,
-                        parser: :string
+                  show: [
+                    name: "show",
+                    about: "Used for showing information about the rule system",
+                    subcommands: [
+                      abilities: [
+                        name: "abilities",
+                        about: "Show the rule systems character abilities",
+                        args: [
+                          system: [
+                            value_name: "SYSTEM",
+                            help: "A supported system, e.g. dnd5e",
+                            required: true,
+                            parser: :string
+                          ]
+                        ]
+                      ],
+                      languages: [
+                        name: "languages",
+                        about: "Show the rule systems languages",
+                        args: [
+                          system: [
+                            value_name: "SYSTEM",
+                            help: "A supported system, e.g. dnd5e",
+                            required: true,
+                            parser: :string
+                          ]
+                        ]
+                      ],
+                      metadata: [
+                        name: "metadata",
+                        about: "Show system metadata",
+                        args: [
+                          system: [
+                            value_name: "SYSTEM",
+                            help: "A supported system, e.g. dnd5e",
+                            required: true,
+                            parser: :string
+                          ]
+                        ]
+                      ],
+                      skills: [
+                        name: "skills",
+                        about: "Show rule system skills",
+                        args: [
+                          system: [
+                            value_name: "SYSTEM",
+                            help: "A supported system, e.g. dnd5e",
+                            required: true,
+                            parser: :string
+                          ]
+                        ]
                       ]
                     ]
                   ]
                 ]
               ],
-              show: [
-                name: "show",
-                about: "Used for showing information about the rule system",
+              gen: [
+                name: "gen",
+                about: "system agnostic generation helpers",
                 subcommands: [
-                  abilities: [
-                    name: "abilities",
-                    about: "Show the rule systems character abilities",
-                    args: [
-                      system: [
-                        value_name: "SYSTEM",
-                        help: "A supported system, e.g. dnd5e",
-                        required: true,
-                        parser: :string
-                      ]
-                    ]
-                  ],
-                  languages: [
-                    name: "languages",
-                    about: "Show the rule systems languages",
-                    args: [
-                      system: [
-                        value_name: "SYSTEM",
-                        help: "A supported system, e.g. dnd5e",
-                        required: true,
-                        parser: :string
-                      ]
-                    ]
-                  ],
-                  metadata: [
-                    name: "metadata",
-                    about: "Show system metadata",
-                    args: [
-                      system: [
-                        value_name: "SYSTEM",
-                        help: "A supported system, e.g. dnd5e",
-                        required: true,
-                        parser: :string
-                      ]
-                    ]
-                  ],
-                  skills: [
-                    name: "skills",
-                    about: "Show rule system skills",
-                    args: [
-                      system: [
-                        value_name: "SYSTEM",
-                        help: "A supported system, e.g. dnd5e",
-                        required: true,
-                        parser: :string
-                      ]
-                    ]
+                  name: [
+                    name: "name",
+                    about: "Generate a random name"
                   ]
                 ]
               ]
             ]
-          ],
-          gen: [
-            name: "gen",
-            about: "system agnostic generation helpers",
-            subcommands: [
-              name: [
-                name: "name",
-                about: "Generate a random name"
-              ]
-            ]
-          ]
-        ]
       )
 
     case Optimus.parse!(optimus, argv) do
@@ -148,7 +136,7 @@ defmodule ExTTRPGDev.CLI do
         Optimus.parse!(optimus, ["--help"])
 
       {[:roll], parse_result} ->
-        handle_roll(parse_result)
+        Roll.handle(parse_result)
 
       {[:list_systems], _} ->
         RuleSystems.list_systems()
@@ -169,14 +157,6 @@ defmodule ExTTRPGDev.CLI do
 
         raise "Unhandled CLI command `#{str_command}`, if you are seeing this error please report the issue"
     end
-  end
-
-  def handle_roll(%Optimus.ParseResult{args: %{dice: dice}}) do
-    dice
-    |> Dice.multi_roll!()
-    |> Enum.each(fn {dice_spec, results} ->
-      IO.inspect(results, label: dice_spec, charlists: :as_lists)
-    end)
   end
 
   def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{
