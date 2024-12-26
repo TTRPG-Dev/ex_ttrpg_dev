@@ -34,8 +34,8 @@ defmodule ExTTRPGDev.CLI do
       {[:list_systems], _} ->
         RuleSystems.handle_list_systems()
 
-      {[:system | sub_commands], parse_result} ->
-        RuleSystems.handle_system_subcommands(sub_commands, parse_result)
+      {[:systems | sub_commands], parse_result} ->
+        RuleSystems.handle_systems_subcommands(sub_commands, parse_result)
 
       {[:gen | sub_commands], _} ->
         Generate.handle_generate_subcommands(sub_commands)

@@ -18,8 +18,8 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
         name: "list-systems",
         about: "List systems that are setup to be used with ExTTRPGDev"
       ],
-      system: [
-        name: "system",
+      systems: [
+        name: "systems",
         about: "Top level command fo systems",
         subcommands: [
           gen: [
@@ -120,9 +120,9 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   @doc """
-  Handle `system` CLI command and sub commands
+  Handle `systems` CLI command and sub commands
   """
-  def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{
+  def handle_systems_subcommands([command | subcommands], %Optimus.ParseResult{
         args: %{system: system}
       }) do
     loaded_system =
