@@ -1,5 +1,6 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI do
+  alias ExTTRPGDev.CLI.Characters
   alias ExTTRPGDev.CLI.Generate
   alias ExTTRPGDev.CLI.Roll
   alias ExTTRPGDev.CLI.RuleSystems
@@ -21,7 +22,8 @@ defmodule ExTTRPGDev.CLI do
         subcommands:
           Roll.commands() ++
             RuleSystems.commands() ++
-            Generate.commands()
+            Generate.commands() ++
+            Characters.commands()
       )
 
     case Optimus.parse!(optimus, argv) do
@@ -33,6 +35,9 @@ defmodule ExTTRPGDev.CLI do
 
       {[:systems | sub_commands], parse_result} ->
         RuleSystems.handle_systems_subcommands(sub_commands, parse_result)
+
+      {[:characters | sub_commands], parse_result} ->
+        Characters.handle_characters_subcommands(sub_commands, parse_result)
 
       {[:gen | sub_commands], _} ->
         Generate.handle_generate_subcommands(sub_commands)

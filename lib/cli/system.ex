@@ -3,7 +3,6 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   @moduledoc """
   Defintions for dealing with rule system CLI commands
   """
-  alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
   alias ExTTRPGDev.RuleSystems.RuleSystem
@@ -29,18 +28,6 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
               stat_block: [
                 name: "stat-block",
                 about: "Generate stat blocks for characters of the system",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
-              ],
-              character: [
-                name: "character",
-                about: "Generate characters for system",
                 args: [
                   system: [
                     value_name: "SYSTEM",
@@ -147,14 +134,6 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
       :stat_block ->
         RuleSystem.gen_ability_scores_assigned(system)
         |> IO.inspect()
-
-      :character ->
-        character = Character.gen_character!(system)
-        IO.puts("-- Name: #{character.name}")
-
-        Enum.each(character.ability_scores, fn {ability, scores} ->
-          IO.puts("#{ability}: #{Enum.sum(scores)}")
-        end)
     end
   end
 
