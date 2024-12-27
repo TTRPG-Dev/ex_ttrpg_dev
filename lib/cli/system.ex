@@ -14,14 +14,14 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   """
   def commands do
     [
-      list_systems: [
-        name: "list-systems",
-        about: "List systems that are setup to be used with ExTTRPGDev"
-      ],
       systems: [
         name: "systems",
         about: "Top level command fo systems",
         subcommands: [
+          list: [
+            name: "list",
+            about: "List systems that ex_ttrpg_dev knows about"
+          ],
           gen: [
             name: "gen",
             about: "Used for generating things for the system",
@@ -112,16 +112,13 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   @doc """
-  Handle list-systems CLI command
+  Handle `systems` CLI command and sub commands
   """
-  def handle_list_systems() do
+  def handle_systems_subcommands([:list], _) do
     ExTTRPGDev.RuleSystems.list_systems()
     |> IO.inspect(label: "Configured Systems")
   end
 
-  @doc """
-  Handle `systems` CLI command and sub commands
-  """
   def handle_systems_subcommands([command | subcommands], %Optimus.ParseResult{
         args: %{system: system}
       }) do

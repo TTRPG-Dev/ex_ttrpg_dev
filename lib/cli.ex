@@ -31,9 +31,6 @@ defmodule ExTTRPGDev.CLI do
       {[:roll], parse_result} ->
         Roll.handle(parse_result)
 
-      {[:list_systems], _} ->
-        RuleSystems.handle_list_systems()
-
       {[:systems | sub_commands], parse_result} ->
         RuleSystems.handle_systems_subcommands(sub_commands, parse_result)
 
