@@ -61,34 +61,21 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
     |> IO.inspect(label: "Configured Systems")
   end
 
-  def handle_systems_subcommands([command | subcommands], %Optimus.ParseResult{
+  def handle_systems_subcommands([:show | subcommands], %Optimus.ParseResult{
         args: %{system: system}
       }) do
-    case command do
-      :show ->
-        handle_system_show_subcommands(subcommands, system)
-    end
-  end
-
-  @doc """
-  Hand showing a rule system's components
-  """
-  def handle_system_show_subcommands(
-        [command | _subcommands],
-        %RuleSystem{} = system
-      ) do
-    case command do
-      :abilities ->
+    case subcommands do
+      [:abilities] ->
         show_abilities(system)
 
-      :languages ->
+      [:languages] ->
         show_languages(system)
 
-      :metadata ->
+      [:metadata] ->
         Map.get(system, :metadata)
         |> IO.inspect()
 
-      :skills ->
+      [:skills] ->
         show_skills(system)
     end
   end
