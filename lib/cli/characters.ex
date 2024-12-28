@@ -4,6 +4,7 @@ defmodule ExTTRPGDev.CLI.Characters do
   Defintions for dealing with character CLI commands
   """
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.CLI.Args
 
   @doc """
   Command specifications for character CLI commands
@@ -17,14 +18,7 @@ defmodule ExTTRPGDev.CLI.Characters do
           gen: [
             name: "gen",
             about: "Generate a character for a system",
-            args: [
-              system: [
-                value_name: "SYSTEM",
-                help: "A supported system, e.g. basic_fantasy_4e",
-                required: true,
-                parser: :string
-              ]
-            ]
+            args: Args.system()
           ]
         ]
       ]

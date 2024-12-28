@@ -3,6 +3,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   @moduledoc """
   Defintions for dealing with rule system CLI commands
   """
+  alias ExTTRPGDev.CLI.Args
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
   alias ExTTRPGDev.RuleSystems.RuleSystem
@@ -28,14 +29,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
               stat_block: [
                 name: "stat-block",
                 about: "Generate stat blocks for characters of the system",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ]
             ]
           ],
@@ -46,50 +40,22 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
               abilities: [
                 name: "abilities",
                 about: "Show the rule systems character abilities",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ],
               languages: [
                 name: "languages",
                 about: "Show the rule systems languages",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ],
               metadata: [
                 name: "metadata",
                 about: "Show system metadata",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ],
               skills: [
                 name: "skills",
                 about: "Show rule system skills",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ]
             ]
           ]
