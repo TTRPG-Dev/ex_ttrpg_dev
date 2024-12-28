@@ -28,9 +28,13 @@ defmodule ExTTRPGDev.CLI.CustomParsers do
       {:ok, %ExTTRPGDev.RuleSystems.RuleSystem{}}
   """
   def system_parser(system) when is_bitstring(system) do
-    system
-    |> RuleSystems.assert_configured!()
-    |> RuleSystems.load_system!()
-    |> Kernel.then(fn result -> {:ok, result} end)
+    if RuleSystems.is_configured?(system) do
+      system
+      |> RuleSystems.load_system!()
+      |> Kernel.then(fn result -> {:ok, result} end)
+    else
+      {:error,
+       "\"#{system}\" is not configured, run `ex_ttrpg_dev systems list` to list configured systems"}
+    end
   end
 end
