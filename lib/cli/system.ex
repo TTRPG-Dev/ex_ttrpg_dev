@@ -3,7 +3,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   @moduledoc """
   Defintions for dealing with rule system CLI commands
   """
-  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.CLI.Args
   alias ExTTRPGDev.RuleSystems.Abilities
   alias ExTTRPGDev.RuleSystems.Languages
   alias ExTTRPGDev.RuleSystems.RuleSystem
@@ -14,43 +14,13 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   """
   def commands do
     [
-      list_systems: [
-        name: "list-systems",
-        about: "List systems that are setup to be used with ExTTRPGDev"
-      ],
-      system: [
-        name: "system",
+      systems: [
+        name: "systems",
         about: "Top level command fo systems",
         subcommands: [
-          gen: [
-            name: "gen",
-            about: "Used for generating things for the system",
-            subcommands: [
-              stat_block: [
-                name: "stat-block",
-                about: "Generate stat blocks for characters of the system",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
-              ],
-              character: [
-                name: "character",
-                about: "Generate characters for system",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
-              ]
-            ]
+          list: [
+            name: "list",
+            about: "List systems that ex_ttrpg_dev knows about"
           ],
           show: [
             name: "show",
@@ -59,50 +29,22 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
               abilities: [
                 name: "abilities",
                 about: "Show the rule systems character abilities",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ],
               languages: [
                 name: "languages",
                 about: "Show the rule systems languages",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ],
               metadata: [
                 name: "metadata",
                 about: "Show system metadata",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ],
               skills: [
                 name: "skills",
                 about: "Show rule system skills",
-                args: [
-                  system: [
-                    value_name: "SYSTEM",
-                    help: "A supported system, e.g. dnd5e",
-                    required: true,
-                    parser: :string
-                  ]
-                ]
+                args: Args.system()
               ]
             ]
           ]
@@ -112,74 +54,28 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   @doc """
-  Handle list-systems CLI command
+  Handle `systems` CLI command and sub commands
   """
-  def handle_list_systems() do
+  def handle_systems_subcommands([:list], _) do
     ExTTRPGDev.RuleSystems.list_systems()
     |> IO.inspect(label: "Configured Systems")
   end
 
-  @doc """
-  Handle `system` CLI command and sub commands
-  """
-  def handle_system_subcommands([command | subcommands], %Optimus.ParseResult{
+  def handle_systems_subcommands([:show | subcommands], %Optimus.ParseResult{
         args: %{system: system}
       }) do
-    loaded_system =
-      system
-      |> ExTTRPGDev.RuleSystems.assert_configured!()
-      |> ExTTRPGDev.RuleSystems.load_system!()
-
-    case command do
-      :gen ->
-        handle_system_generation_subcommands(subcommands, loaded_system)
-
-      :show ->
-        handle_system_show_subcommands(subcommands, loaded_system)
-    end
-  end
-
-  @doc """
-  Handle generation commands for a rule system
-  """
-  def handle_system_generation_subcommands(
-        [command | _subcommands],
-        %RuleSystem{} = system
-      ) do
-    case command do
-      :stat_block ->
-        RuleSystem.gen_ability_scores_assigned(system)
-        |> IO.inspect()
-
-      :character ->
-        character = Character.gen_character!(system)
-        IO.puts("-- Name: #{character.name}")
-
-        Enum.each(character.ability_scores, fn {ability, scores} ->
-          IO.puts("#{ability}: #{Enum.sum(scores)}")
-        end)
-    end
-  end
-
-  @doc """
-  Hand showing a rule system's components
-  """
-  def handle_system_show_subcommands(
-        [command | _subcommands],
-        %RuleSystem{} = system
-      ) do
-    case command do
-      :abilities ->
+    case subcommands do
+      [:abilities] ->
         show_abilities(system)
 
-      :languages ->
+      [:languages] ->
         show_languages(system)
 
-      :metadata ->
+      [:metadata] ->
         Map.get(system, :metadata)
         |> IO.inspect()
 
-      :skills ->
+      [:skills] ->
         show_skills(system)
     end
   end
