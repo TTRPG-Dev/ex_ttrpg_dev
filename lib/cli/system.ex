@@ -22,17 +22,6 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
             name: "list",
             about: "List systems that ex_ttrpg_dev knows about"
           ],
-          gen: [
-            name: "gen",
-            about: "Used for generating things for the system",
-            subcommands: [
-              stat_block: [
-                name: "stat-block",
-                about: "Generate stat blocks for characters of the system",
-                args: Args.system()
-              ]
-            ]
-          ],
           show: [
             name: "show",
             about: "Used for showing information about the rule system",
@@ -76,25 +65,8 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
         args: %{system: system}
       }) do
     case command do
-      :gen ->
-        handle_system_generation_subcommands(subcommands, system)
-
       :show ->
         handle_system_show_subcommands(subcommands, system)
-    end
-  end
-
-  @doc """
-  Handle generation commands for a rule system
-  """
-  def handle_system_generation_subcommands(
-        [command | _subcommands],
-        %RuleSystem{} = system
-      ) do
-    case command do
-      :stat_block ->
-        RuleSystem.gen_ability_scores_assigned(system)
-        |> IO.inspect()
     end
   end
 

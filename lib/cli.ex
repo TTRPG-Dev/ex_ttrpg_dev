@@ -39,8 +39,8 @@ defmodule ExTTRPGDev.CLI do
       {[:characters | sub_commands], parse_result} ->
         Characters.handle_characters_subcommands(sub_commands, parse_result)
 
-      {[:gen | sub_commands], _} ->
-        Generate.handle_generate_subcommands(sub_commands)
+      {[:gen | sub_commands], parse_result} ->
+        Generate.handle_generate_subcommands(sub_commands, parse_result)
 
       {unhandled, _parse_result} ->
         str_command =
