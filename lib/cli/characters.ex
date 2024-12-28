@@ -31,11 +31,7 @@ defmodule ExTTRPGDev.CLI.Characters do
   def handle_characters_subcommands([:gen | _subcommands], %Optimus.ParseResult{
         args: %{system: system}
       }) do
-    character =
-      system
-      |> ExTTRPGDev.RuleSystems.assert_configured!()
-      |> ExTTRPGDev.RuleSystems.load_system!()
-      |> Character.gen_character!()
+    character = system |> Character.gen_character!()
 
     IO.puts("-- Name: #{character.name}")
 

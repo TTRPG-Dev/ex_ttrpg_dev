@@ -75,17 +75,12 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   def handle_systems_subcommands([command | subcommands], %Optimus.ParseResult{
         args: %{system: system}
       }) do
-    loaded_system =
-      system
-      |> ExTTRPGDev.RuleSystems.assert_configured!()
-      |> ExTTRPGDev.RuleSystems.load_system!()
-
     case command do
       :gen ->
-        handle_system_generation_subcommands(subcommands, loaded_system)
+        handle_system_generation_subcommands(subcommands, system)
 
       :show ->
-        handle_system_show_subcommands(subcommands, loaded_system)
+        handle_system_show_subcommands(subcommands, system)
     end
   end
 
