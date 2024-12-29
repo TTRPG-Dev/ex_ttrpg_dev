@@ -19,7 +19,15 @@ defmodule ExTTRPGDev.CLI.Characters do
           gen: [
             name: "gen",
             about: "Generate a character for a system",
-            args: Args.system()
+            args: Args.system(),
+            flags: [
+              save: [
+                short: "-s",
+                long: "--save",
+                help: "If specidied, saves the character",
+                multiple: false
+              ]
+            ]
           ]
         ]
       ]
@@ -30,7 +38,8 @@ defmodule ExTTRPGDev.CLI.Characters do
   Handle `characters` CLI command and sub commands
   """
   def handle_characters_subcommands([:gen | _subcommands], %Optimus.ParseResult{
-        args: %{system: system}
+        args: %{system: system},
+        flags: %{save: save_character_flag}
       }) do
     character = system |> Character.gen_character!()
 
@@ -40,7 +49,7 @@ defmodule ExTTRPGDev.CLI.Characters do
       IO.puts("#{ability}: #{Enum.sum(scores)}")
     end)
 
-    if Inputs.get_yes_no!("Would you like to save this character?") do
+    if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
       ExTTRPGDev.Characters.save_character!(character)
     end
   end
