@@ -5,6 +5,7 @@ defmodule ExTTRPGDev.CLI.Characters do
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
+  alias ExTTRPGDev.CLI.Inputs
 
   @doc """
   Command specifications for character CLI commands
@@ -38,5 +39,9 @@ defmodule ExTTRPGDev.CLI.Characters do
     Enum.each(character.ability_scores, fn {ability, scores} ->
       IO.puts("#{ability}: #{Enum.sum(scores)}")
     end)
+
+    if Inputs.get_yes_no!("Would you like to save this character?") do
+      ExTTRPGDev.Characters.save_character!(character)
+    end
   end
 end
