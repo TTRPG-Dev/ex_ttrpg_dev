@@ -28,6 +28,10 @@ defmodule ExTTRPGDev.CLI.Characters do
                 multiple: false
               ]
             ]
+          ],
+          list: [
+            name: "list",
+            about: "List saved characters"
           ]
         ]
       ]
@@ -51,6 +55,17 @@ defmodule ExTTRPGDev.CLI.Characters do
 
     if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
       ExTTRPGDev.Characters.save_character!(character)
+    end
+  end
+
+  def handle_characters_subcommands([:list | _subcommands], _args_options_flags) do
+    case ExTTRPGDev.Characters.list_characters!() do
+      [] ->
+        IO.puts("No saved characters found!")
+
+      characters ->
+        IO.puts("Saved Characters:")
+        Enum.each(characters, fn character -> IO.puts("- #{character}") end)
     end
   end
 end
