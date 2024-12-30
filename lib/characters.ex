@@ -30,10 +30,16 @@ defmodule ExTTRPGDev.Characters do
       iex> Characters.character_exists?(%Characters.Character{name: "This Character exists"})
       true
 
+      iex> Characters.character_exists?("this_character_exists")
+      true
+
       iex> Characters.Character_exists?(%Characters.Character{name: "This character doesn't exist})
       false
+
+      iex> Characters.Character_exists?("this_character_doesnt_exist")
+      false
   """
-  def character_exists?(%Character{} = character) do
+  def character_exists?(character) do
     character
     |> character_file_path!
     |> File.exists?()

@@ -34,9 +34,11 @@ defmodule ExTTRPGDevTest.Characters do
   test "character_exists?/1" do
     character = build_test_character()
     assert not Characters.character_exists?(character)
+    assert not Characters.character_exists?(character.metadata.slug)
 
     Characters.save_character!(character)
     assert Characters.character_exists?(character)
+    assert Characters.character_exists?(character.metadata.slug)
 
     # cleanup
     delete_test_character(character)

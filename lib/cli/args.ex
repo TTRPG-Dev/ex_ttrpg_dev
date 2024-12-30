@@ -17,4 +17,15 @@ defmodule ExTTRPGDev.CLI.Args do
       ]
     ]
   end
+
+  def character do
+    [
+      character: [
+        value_name: "CHARACTER",
+        help: "A saved character, e.g. misu_park",
+        required: true,
+        parser: &CustomParsers.character_parser(&1)
+      ]
+    ]
+  end
 end
