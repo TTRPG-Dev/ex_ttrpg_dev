@@ -32,6 +32,11 @@ defmodule ExTTRPGDev.CLI.Characters do
           list: [
             name: "list",
             about: "List saved characters"
+          ],
+          show: [
+            name: "show",
+            about: "Show information for a character",
+            args: Args.character()
           ]
         ]
       ]
@@ -67,5 +72,11 @@ defmodule ExTTRPGDev.CLI.Characters do
         IO.puts("Saved Characters:")
         Enum.each(characters, fn character -> IO.puts("- #{character}") end)
     end
+  end
+
+  def handle_characters_subcommands([:show | _subcommands], %Optimus.ParseResult{
+        args: %{character: character}
+      }) do
+    IO.inspect(character)
   end
 end
