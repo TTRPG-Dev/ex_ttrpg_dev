@@ -80,9 +80,12 @@ defmodule ExTTRPGDev.Characters do
       [%Character{}, %Character{}, ...]
   """
   def list_characters!() do
-    Globals.characters_path()
-    |> File.ls!()
-    |> Enum.map(fn x -> String.trim_trailing(x, ".json") end)
+    if File.exists?(Globals.characters_path()) do
+      File.ls!(Globals.characters_path())
+      |> Enum.map(fn x -> String.trim_trailing(x, ".json") end)
+    else
+      []
+    end
   end
 
   @doc """
