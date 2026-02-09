@@ -30,8 +30,8 @@ defmodule ExTTRPGDev.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:optimus, "~> 0.5"},
-      {:ex_doc, "~> 0.35", only: :dev, runtime: false},
+      {:optimus, "~> 0.6"},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:poison, "~> 6.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:faker, "~> 0.18"}
