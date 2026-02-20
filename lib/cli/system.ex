@@ -1,13 +1,11 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI.RuleSystems do
   @moduledoc """
-  Defintions for dealing with rule system CLI commands
+  Definitions for dealing with rule system CLI commands
   """
   alias ExTTRPGDev.CLI.Args
-  alias ExTTRPGDev.RuleSystems.Abilities
-  alias ExTTRPGDev.RuleSystems.Languages
-  alias ExTTRPGDev.RuleSystems.RuleSystem
-  alias ExTTRPGDev.RuleSystems.Skills
+  alias ExTTRPGDev.RuleSystem.Expression
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
   Command specifications for rule system CLI commands
@@ -16,7 +14,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
     [
       systems: [
         name: "systems",
-        about: "Top level command fo systems",
+        about: "Top level command for systems",
         subcommands: [
           list: [
             name: "list",
@@ -65,48 +63,52 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
         args: %{system: system}
       }) do
     case subcommands do
-      [:abilities] ->
-        show_abilities(system)
-
-      [:languages] ->
-        show_languages(system)
-
-      [:metadata] ->
-        Map.get(system, :metadata)
-        |> IO.inspect()
-
-      [:skills] ->
-        show_skills(system)
+      [:abilities] -> show_abilities(system)
+      [:languages] -> show_languages(system)
+      [:metadata] -> IO.inspect(system.package)
+      [:skills] -> show_skills(system)
     end
   end
 
-  @doc """
-  Show a rule system's abilities
-  """
-  def show_abilities(%RuleSystem{abilities: %Abilities{specs: specs}}) do
-    Enum.each(specs, fn %Abilities.Spec{name: name, abbreviation: abbr} ->
-      IO.puts("(#{abbr}) #{name}")
+  @doc "Show a rule system's abilities"
+  def show_abilities(%LoadedSystem{entity_metadata: meta}) do
+    meta
+    |> Enum.filter(fn {{type, _id}, _} -> type == "attr" end)
+    |> Enum.sort_by(fn {{_type, id}, _} -> id end)
+    |> Enum.each(fn {{_type, _id}, fields} ->
+      IO.puts("(#{fields["abbreviation"]}) #{fields["name"]}")
     end)
   end
 
-  @doc """
-  Show a rule system's languages
-  """
-  def show_languages(%RuleSystem{languages: languages}) do
-    Enum.each(languages, fn %Languages.Language{name: name, script: script} ->
-      IO.puts("Name: #{name}, Script: #{script}")
+  @doc "Show a rule system's languages"
+  def show_languages(%LoadedSystem{entity_metadata: meta}) do
+    meta
+    |> Enum.filter(fn {{type, _id}, _} -> type == "language" end)
+    |> Enum.sort_by(fn {{_type, _id}, fields} -> fields["name"] end)
+    |> Enum.each(fn {{_type, _id}, fields} ->
+      script = Map.get(fields, "script", "none")
+      IO.puts("#{fields["name"]} (script: #{script})")
     end)
   end
 
-  @doc """
-  Show a rule system's skills
-  """
-  def show_skills(%RuleSystem{skills: skills} = system) do
-    Enum.each(skills, fn %Skills.Skill{name: name, modifying_stat: mod_stat} ->
-      %Abilities.Spec{abbreviation: abbr} =
-        RuleSystem.get_spec_by_name(system, mod_stat)
+  @doc "Show a rule system's skills"
+  def show_skills(%LoadedSystem{entity_metadata: meta, nodes: nodes}) do
+    nodes
+    |> Enum.filter(fn {{type, _id, field}, _} -> type == "skill" and field == "modifier" end)
+    |> Enum.sort_by(fn {{_type, id, _field}, _} -> id end)
+    |> Enum.each(fn {{_type, skill_id, _field}, %{formula: formula}} ->
+      skill_name = get_in(meta, [{"skill", skill_id}, "name"]) || skill_id
 
-      IO.puts("(#{abbr}) #{name}")
+      abbr =
+        case Expression.extract_refs(formula) do
+          [{attr_type, attr_id, _} | _] ->
+            get_in(meta, [{attr_type, attr_id}, "abbreviation"]) || attr_id
+
+          [] ->
+            "?"
+        end
+
+      IO.puts("(#{abbr}) #{skill_name}")
     end)
   end
 end

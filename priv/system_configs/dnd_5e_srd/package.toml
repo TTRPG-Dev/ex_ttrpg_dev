@@ -1,0 +1,23 @@
+[package]
+name = "Dungeons and Dragons 5th Edition SRD"
+slug = "dnd_5e_srd"
+version = "1.0.0"
+family = "dungeons_and_dragons"
+series = "dungeons_and_dragons_5e"
+publisher = "Wizards of the Coast, Inc."
+
+[[entity_type]]
+id = "attr"
+name = "Attribute"
+
+[[entity_type]]
+id = "skill"
+name = "Skill"
+
+[[entity_type]]
+id = "rolling_method"
+name = "Rolling Method"
+
+[[entity_type]]
+id = "language"
+name = "Language"

@@ -1,11 +1,12 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI.Characters do
   @moduledoc """
-  Defintions for dealing with character CLI commands
+  Definitions for dealing with character CLI commands
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
   alias ExTTRPGDev.CLI.Inputs
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
   Command specifications for character CLI commands
@@ -24,7 +25,7 @@ defmodule ExTTRPGDev.CLI.Characters do
               save: [
                 short: "-s",
                 long: "--save",
-                help: "If specidied, saves the character",
+                help: "If specified, saves the character",
                 multiple: false
               ]
             ]
@@ -47,15 +48,16 @@ defmodule ExTTRPGDev.CLI.Characters do
   Handle `characters` CLI command and sub commands
   """
   def handle_characters_subcommands([:gen | _subcommands], %Optimus.ParseResult{
-        args: %{system: system},
+        args: %{system: %LoadedSystem{} = system},
         flags: %{save: save_character_flag}
       }) do
-    character = system |> Character.gen_character!()
+    character = Character.gen_character!(system)
 
     IO.puts("-- Name: #{character.name}")
 
-    Enum.each(character.ability_scores, fn {ability, scores} ->
-      IO.puts("#{ability}: #{Enum.sum(scores)}")
+    Enum.each(character.generated_values, fn {{type, id, _field}, value} ->
+      name = get_in(system.entity_metadata, [{type, id}, "name"]) || id
+      IO.puts("#{name}: #{value}")
     end)
 
     if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
