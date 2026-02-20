@@ -73,6 +73,21 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     assert total_idx < mod_idx
   end
 
+  test "build/1 returns error for undefined contribution target" do
+    data = %{
+      nodes: %{
+        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"}
+      },
+      rolling_methods: %{},
+      entity_metadata: %{},
+      contributions: [
+        %{source: {"item", "ring", nil}, target: {"attr", "strength", "nonexistent"}, value: 2}
+      ]
+    }
+
+    assert {:error, {:undefined_contribution_target, _}} = Graph.build(data)
+  end
+
   test "integration: build succeeds for full dnd_5e_srd" do
     {:ok, loader_data} = Loader.load(dnd_path())
     assert {:ok, system} = Graph.build(loader_data)

@@ -48,4 +48,26 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert restored.generated_values == original.generated_values
     assert restored.active_contributions == original.active_contributions
   end
+
+  test "to_json_map/1 and from_json!/1 round-trip preserves active_contributions" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    original = Character.gen_character!(system)
+
+    original = %{
+      original
+      | active_contributions: [
+          %{target: {"attr", "strength", "total_score"}, value: 2},
+          %{target: {"attr", "dexterity", "total_score"}, value: -1}
+        ]
+    }
+
+    json = original |> Character.to_json_map() |> Poison.encode!()
+    restored = Character.from_json!(json)
+
+    assert length(restored.active_contributions) == 2
+
+    assert %{target: {"attr", "strength", "total_score"}, value: 2} in restored.active_contributions
+
+    assert %{target: {"attr", "dexterity", "total_score"}, value: -1} in restored.active_contributions
+  end
 end

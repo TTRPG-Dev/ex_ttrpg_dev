@@ -72,6 +72,63 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert Map.has_key?(data.entity_metadata, {"language", "common"})
   end
 
+  test "load!/1 raises for non-existent path" do
+    assert_raise RuntimeError, ~r/Failed to load rule system/, fn ->
+      Loader.load!("/nonexistent/path")
+    end
+  end
+
+  test "load/1 parses contributes entries into the contributions list" do
+    dir =
+      System.tmp_dir!() |> Path.join("ex_ttrpg_loader_test_#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(dir)
+
+    File.write!(Path.join(dir, "package.toml"), """
+    [package]
+    name = "Test System"
+    slug = "test_system"
+    version = "0.0.1"
+    publisher = "Test"
+
+    [[entity_type]]
+    id = "attr"
+    name = "Attribute"
+
+    [[entity_type]]
+    id = "feat"
+    name = "Feat"
+    """)
+
+    File.write!(Path.join(dir, "attributes.toml"), """
+    [attr.strength]
+    name = "Strength"
+    base_score.type = "generated"
+    base_score.method = "standard"
+    total_score.type = "accumulator"
+    total_score.base = "attr('strength').base_score"
+    """)
+
+    File.write!(Path.join(dir, "feats.toml"), """
+    [feat.toughness]
+    name = "Toughness"
+
+    [[feat.toughness.contributes]]
+    target = "attr('strength').total_score"
+    value = 2
+    """)
+
+    try do
+      assert {:ok, data} = Loader.load(dir)
+      assert length(data.contributions) == 1
+      [contrib] = data.contributions
+      assert contrib.target == {"attr", "strength", "total_score"}
+      assert contrib.value == 2
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
   test "load/1 returns 18 skill nodes" do
     {:ok, data} = Loader.load(dnd_path())
 

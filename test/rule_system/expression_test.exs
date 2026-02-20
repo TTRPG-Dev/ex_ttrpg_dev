@@ -75,5 +75,11 @@ defmodule ExTTRPGDev.RuleSystem.ExpressionTest do
     test "returns error on unresolvable formula" do
       assert {:error, _} = Expression.evaluate("attr('dexterity').total_score", %{})
     end
+
+    test "returns error when expression raises at eval time" do
+      # Formula has no refs, so substitution is a no-op, but it calls an undefined function
+      assert {:error, {:eval_error, _, _}} =
+               Expression.evaluate("undefined_function_xyz()", %{})
+    end
   end
 end

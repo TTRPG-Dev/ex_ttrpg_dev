@@ -45,8 +45,11 @@ defmodule ExTTRPGDev.Globals do
   The regex pattern for identifying toml files
 
   ## Examples
-    iex> ExTTRPGDev.Globals.toml_file_pattern()
-    ~r/.+\\.toml$/
+    iex> "system_config.toml" =~ ExTTRPGDev.Globals.toml_file_pattern()
+    true
+
+    iex> "not_a_toml" =~ ExTTRPGDev.Globals.toml_file_pattern()
+    false
   """
   def toml_file_pattern do
     @toml_file_pattern

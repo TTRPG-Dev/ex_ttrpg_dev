@@ -62,6 +62,14 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert {:error, {:missing_generated_value, _}} = Evaluator.evaluate(system, %{})
   end
 
+  test "evaluate!/3 raises on error" do
+    system = minimal_system()
+    # Missing generated value triggers an error, which evaluate! should raise
+    assert_raise RuntimeError, ~r/Evaluation failed/, fn ->
+      Evaluator.evaluate!(system, %{})
+    end
+  end
+
   test "integration: evaluate full dnd_5e_srd with known scores" do
     {:ok, loader_data} = Loader.load(dnd_path())
     {:ok, system} = Graph.build(loader_data)

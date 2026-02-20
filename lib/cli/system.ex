@@ -55,8 +55,14 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   Handle `systems` CLI command and sub commands
   """
   def handle_systems_subcommands([:list], _) do
-    ExTTRPGDev.RuleSystems.list_systems()
-    |> IO.inspect(label: "Configured Systems")
+    case ExTTRPGDev.RuleSystems.list_systems() do
+      [] ->
+        IO.puts("No configured systems found.")
+
+      systems ->
+        IO.puts("Configured Systems:")
+        Enum.each(systems, &IO.puts("- #{&1}"))
+    end
   end
 
   def handle_systems_subcommands([:show | subcommands], %Optimus.ParseResult{
