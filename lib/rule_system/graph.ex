@@ -95,7 +95,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
 
     missing =
       Enum.find(refs, fn ref_key ->
-        not Map.has_key?(nodes, Tuple.to_list(ref_key) |> List.to_tuple())
+        not Map.has_key?(nodes, ref_key)
       end)
 
     case missing do
