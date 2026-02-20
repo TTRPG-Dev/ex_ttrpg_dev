@@ -5,6 +5,7 @@ defmodule ExTTRPGDev.CLI.Generate do
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
+  alias ExTTRPGDev.CLI.CharacterDisplay
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
@@ -40,12 +41,6 @@ defmodule ExTTRPGDev.CLI.Generate do
         args: %{system: %LoadedSystem{} = system}
       }) do
     character = Character.gen_character!(system)
-
-    IO.puts("-- Stat Block --")
-
-    Enum.each(character.generated_values, fn {{type, id, _field}, value} ->
-      name = get_in(system.entity_metadata, [{type, id}, "name"]) || id
-      IO.puts("#{name}: #{value}")
-    end)
+    CharacterDisplay.print(system, character)
   end
 end

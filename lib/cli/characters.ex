@@ -1,11 +1,12 @@
-# credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI.Characters do
   @moduledoc """
   Definitions for dealing with character CLI commands
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
+  alias ExTTRPGDev.CLI.CharacterDisplay
   alias ExTTRPGDev.CLI.Inputs
+  alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
@@ -53,12 +54,7 @@ defmodule ExTTRPGDev.CLI.Characters do
       }) do
     character = Character.gen_character!(system)
 
-    IO.puts("-- Name: #{character.name}")
-
-    Enum.each(character.generated_values, fn {{type, id, _field}, value} ->
-      name = get_in(system.entity_metadata, [{type, id}, "name"]) || id
-      IO.puts("#{name}: #{value}")
-    end)
+    CharacterDisplay.print(system, character)
 
     if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
       ExTTRPGDev.Characters.save_character!(character)
@@ -79,6 +75,7 @@ defmodule ExTTRPGDev.CLI.Characters do
   def handle_characters_subcommands([:show | _subcommands], %Optimus.ParseResult{
         args: %{character: character}
       }) do
-    IO.inspect(character)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    CharacterDisplay.print(system, character)
   end
 end
