@@ -4,15 +4,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
   alias ExTTRPGDev.RuleSystems.LoadedSystem
   alias ExTTRPGDev.Globals
 
-  doctest ExTTRPGDev.RuleSystems,
-    except: [
-      is_local_system?: 1,
-      system_path!: 1,
-      load_system!: 1,
-      list_systems: 0,
-      list_bundled_systems: 0,
-      list_local_systems: 0
-    ]
+  doctest ExTTRPGDev.RuleSystems
 
   test "load_system!/1 for bundled system returns a LoadedSystem" do
     [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
@@ -38,8 +30,24 @@ defmodule ExTTRPGDevTest.RuleSystems do
              Path.join([Globals.local_system_configs_path(), custom_slug])
   end
 
+  test "is_bundled_system?/1 returns true for bundled system" do
+    assert RuleSystems.is_bundled_system?("dnd_5e_srd")
+  end
+
+  test "is_bundled_system?/1 returns false for unknown system" do
+    refute RuleSystems.is_bundled_system?("unknown_system_xyz")
+  end
+
   test "is_local_system?/1 returns false for bundled system" do
     assert not RuleSystems.is_local_system?("dnd_5e_srd")
+  end
+
+  test "list_local_systems/0 returns a list" do
+    assert is_list(RuleSystems.list_local_systems())
+  end
+
+  test "list_systems/0 includes bundled systems" do
+    assert "dnd_5e_srd" in RuleSystems.list_systems()
   end
 
   test "list_bundled_systems/0 includes dnd_5e_srd" do

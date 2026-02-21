@@ -17,7 +17,7 @@ defmodule ExTTRPGDev.MixProject do
   end
 
   def escript do
-    [main_module: ExTTRPGDev.CLI]
+    [main_module: ExTTRPGDev.CLI, include_priv: [:ex_ttrpg_dev]]
   end
 
   # Run "mix help compile.app" to learn about applications.

@@ -10,7 +10,15 @@ defmodule ExTTRPGDev.Globals do
   Resolved at runtime using the application's priv directory.
   """
   def system_configs_path do
-    Application.app_dir(:ex_ttrpg_dev, "priv/system_configs")
+    cwd_path = Path.join(File.cwd!(), "priv/system_configs")
+
+    if File.exists?(cwd_path) do
+      cwd_path
+    else
+      :code.priv_dir(:ex_ttrpg_dev)
+      |> to_string()
+      |> Path.join("system_configs")
+    end
   end
 
   @doc """
