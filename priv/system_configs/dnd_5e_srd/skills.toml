@@ -1,0 +1,89 @@
+[skill.acrobatics]
+name = "Acrobatics"
+description = "Your Dexterity (Acrobatics) check covers your attempt to stay on your feet in a tricky situation, such as when you're trying to run across a sheet of ice, balance on a tightrope, or stay upright on a rocking ship's deck."
+modifier.formula = "attr('dexterity').modifier"
+
+[skill.animal_handling]
+name = "Animal Handling"
+description = "When there is any question whether you can calm down a domesticated animal, keep a mount from getting spooked, or intuit an animal's intentions, the GM might call for a Wisdom (Animal Handling) check."
+modifier.formula = "attr('wisdom').modifier"
+
+[skill.arcana]
+name = "Arcana"
+description = "Your Intelligence (Arcana) check measures your ability to recall lore about spells, magic items, eldritch symbols, magical traditions, the planes of existence, and the inhabitants of those planes."
+modifier.formula = "attr('intelligence').modifier"
+
+[skill.athletics]
+name = "Athletics"
+description = "Your Strength (Athletics) check covers difficult situations you encounter while climbing, jumping, or swimming."
+modifier.formula = "attr('strength').modifier"
+
+[skill.deception]
+name = "Deception"
+description = "Your Charisma (Deception) check determines whether you can convincingly hide the truth, either verbally or through your actions."
+modifier.formula = "attr('charisma').modifier"
+
+[skill.history]
+name = "History"
+description = "Your Intelligence (History) check measures your ability to recall lore about historical events, legendary people, ancient kingdoms, past disputes, recent wars, and lost civilizations."
+modifier.formula = "attr('intelligence').modifier"
+
+[skill.insight]
+name = "Insight"
+description = "Your Wisdom (Insight) check decides whether you can determine the true intentions of a creature, such as when searching out a lie or predicting someone's next move."
+modifier.formula = "attr('wisdom').modifier"
+
+[skill.intimidation]
+name = "Intimidation"
+description = "When you attempt to influence someone through overt threats, hostile actions, and physical violence, the GM might ask you to make a Charisma (Intimidation) check."
+modifier.formula = "attr('charisma').modifier"
+
+[skill.investigation]
+name = "Investigation"
+description = "When you look around for clues and make deductions based on those clues, you make an Intelligence (Investigation) check."
+modifier.formula = "attr('intelligence').modifier"
+
+[skill.medicine]
+name = "Medicine"
+description = "A Wisdom (Medicine) check lets you try to stabilize a dying companion or diagnose an illness."
+modifier.formula = "attr('wisdom').modifier"
+
+[skill.nature]
+name = "Nature"
+description = "Your Intelligence (Nature) check measures your ability to recall lore about terrain, plants and animals, the weather, and natural cycles."
+modifier.formula = "attr('intelligence').modifier"
+
+[skill.perception]
+name = "Perception"
+description = "Your Wisdom (Perception) check lets you spot, hear, or otherwise detect the presence of something. It measures your general awareness of your surroundings and the keenness of your senses."
+modifier.formula = "attr('wisdom').modifier"
+
+[skill.performance]
+name = "Performance"
+description = "Your Charisma (Performance) check determines how well you can delight an audience with music, dance, acting, storytelling, or some other form of entertainment."
+modifier.formula = "attr('charisma').modifier"
+
+[skill.persuasion]
+name = "Persuasion"
+description = "When you attempt to influence someone or a group of people with tact, social graces, or good nature, the GM might ask you to make a Charisma (Persuasion) check."
+modifier.formula = "attr('charisma').modifier"
+
+[skill.religion]
+name = "Religion"
+description = "Your Intelligence (Religion) check measures your ability to recall lore about deities, rites and prayers, religious hierarchies, holy symbols, and the practices of secret cults."
+modifier.formula = "attr('intelligence').modifier"
+
+[skill.sleight_of_hand]
+name = "Sleight of Hand"
+description = "Whenever you attempt an act of legerdemain or manual trickery, such as planting something on someone else or concealing an object on your person, make a Dexterity (Sleight of Hand) check."
+modifier.formula = "attr('dexterity').modifier"
+
+[skill.stealth]
+name = "Stealth"
+description = "Make a Dexterity (Stealth) check when you attempt to conceal yourself from enemies, slink past guards, slip away without being noticed, or sneak up on someone without being seen or heard."
+modifier.formula = "attr('dexterity').modifier"
+
+[skill.survival]
+name = "Survival"
+description = "The GM might ask you to make a Wisdom (Survival) check to follow tracks, hunt wild game, guide your group through frozen wastelands, identify signs that owlbears live nearby, predict the weather, or avoid quicksand and other natural hazards."
+modifier.formula = "attr('wisdom').modifier"

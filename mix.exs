@@ -4,7 +4,7 @@ defmodule ExTTRPGDev.MixProject do
   def project do
     [
       app: :ex_ttrpg_dev,
-      version: "0.5.0",
+      version: "0.6.0",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -17,7 +17,7 @@ defmodule ExTTRPGDev.MixProject do
   end
 
   def escript do
-    [main_module: ExTTRPGDev.CLI]
+    [main_module: ExTTRPGDev.CLI, include_priv: [:ex_ttrpg_dev]]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -34,9 +34,10 @@ defmodule ExTTRPGDev.MixProject do
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:poison, "~> 6.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:faker, "~> 0.18"}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:faker, "~> 0.18"},
+      {:toml_elixir, "~> 3.1"},
+      {:abacus, "~> 2.1"},
+      {:libgraph, "~> 0.16"}
     ]
   end
 

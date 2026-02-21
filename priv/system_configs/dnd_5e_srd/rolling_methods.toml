@@ -1,0 +1,9 @@
+[rolling_method.standard]
+name = "Standard"
+dice = "4d6"
+drop = "lowest"
+default = true
+
+[rolling_method.hard]
+name = "Hard"
+dice = "3d6"

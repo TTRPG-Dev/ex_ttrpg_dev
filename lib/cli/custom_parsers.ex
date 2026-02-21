@@ -21,12 +21,7 @@ defmodule ExTTRPGDev.CLI.CustomParsers do
   end
 
   @doc """
-  Loads the rule system for the given system name
-
-  ## Examples
-
-      iex> ExTTRPGDev.CLI.CustomParsers.system_parser("dnd_5e_srd")
-      {:ok, %ExTTRPGDev.RuleSystems.RuleSystem{}}
+  Loads the rule system for the given system name, returning a %LoadedSystem{}.
   """
   def system_parser(system) when is_bitstring(system) do
     if RuleSystems.is_configured?(system) do
