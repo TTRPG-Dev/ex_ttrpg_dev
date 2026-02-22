@@ -8,6 +8,11 @@ defmodule ExTTRPGDev.Globals do
   @doc """
   The path to where bundled system configs are stored.
   Resolved at runtime using the application's priv directory.
+
+  ## Examples
+    iex> ExTTRPGDev.Globals.system_configs_path() |> String.ends_with?("system_configs")
+    true
+
   """
   def system_configs_path do
     cwd_path = Path.join(File.cwd!(), "priv/system_configs")
@@ -24,6 +29,11 @@ defmodule ExTTRPGDev.Globals do
   @doc """
   The path to where custom (local) rule system configs are stored.
   Resolved at runtime relative to the current working directory.
+
+  ## Examples
+    iex> ExTTRPGDev.Globals.local_system_configs_path() |> String.ends_with?("local_system_configs")
+    true
+
   """
   def local_system_configs_path do
     Path.join(File.cwd!(), "local_system_configs")
@@ -32,6 +42,11 @@ defmodule ExTTRPGDev.Globals do
   @doc """
   The path to where characters are stored.
   Resolved at runtime relative to the current working directory.
+
+  ## Examples
+    iex> ExTTRPGDev.Globals.characters_path() |> String.ends_with?("local_characters")
+    true
+
   """
   def characters_path do
     Path.join(File.cwd!(), "local_characters")
