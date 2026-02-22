@@ -78,7 +78,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
 
     character = %{
       character
-      | active_contributions: [
+      | effects: [
           %{target: {"attr", "dexterity", "total_score"}, value: 2}
         ]
     }

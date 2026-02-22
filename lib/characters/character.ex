@@ -8,10 +8,10 @@ defmodule ExTTRPGDev.Characters.Character do
   Definition of an individual character.
 
   - `generated_values` — map of `{type_id, entity_id, field_name} => integer` for leaf nodes
-  - `active_contributions` — list of `%{target: {type_id, entity_id, field_name}, value: integer}`
+  - `effects` — list of `%{target: {type_id, entity_id, field_name}, value: integer}`
     for currently active items, feats, statuses etc. (defaults to [])
   """
-  defstruct [:name, :generated_values, :active_contributions, :metadata]
+  defstruct [:name, :generated_values, :effects, :metadata]
 
   @doc """
   Generates a character for the given loaded rule system.
@@ -30,7 +30,7 @@ defmodule ExTTRPGDev.Characters.Character do
     %Character{
       name: character_name,
       generated_values: generated_values,
-      active_contributions: [],
+      effects: [],
       metadata: %Metadata{
         slug: slugify(character_name),
         rule_system: system.package.slug
@@ -49,8 +49,8 @@ defmodule ExTTRPGDev.Characters.Character do
         Map.new(char.generated_values, fn {{type, id, field}, value} ->
           {"#{type}:#{id}:#{field}", value}
         end),
-      "active_contributions" =>
-        Enum.map(char.active_contributions, fn %{target: {type, id, field}, value: v} ->
+      "effects" =>
+        Enum.map(char.effects, fn %{target: {type, id, field}, value: v} ->
           %{"target" => "#{type}:#{id}:#{field}", "value" => v}
         end),
       "metadata" => %{
@@ -73,7 +73,7 @@ defmodule ExTTRPGDev.Characters.Character do
       end)
 
     contributions =
-      Enum.map(map["active_contributions"] || [], fn %{"target" => target, "value" => v} ->
+      Enum.map(map["effects"] || [], fn %{"target" => target, "value" => v} ->
         [type, id, field] = String.split(target, ":", parts: 3)
         %{target: {type, id, field}, value: v}
       end)
@@ -81,7 +81,7 @@ defmodule ExTTRPGDev.Characters.Character do
     %Character{
       name: map["name"],
       generated_values: generated_values,
-      active_contributions: contributions,
+      effects: contributions,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
         rule_system: map["metadata"]["rule_system"]

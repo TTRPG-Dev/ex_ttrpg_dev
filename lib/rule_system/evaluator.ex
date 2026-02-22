@@ -14,15 +14,15 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   - `system` — output of `Graph.build/1`
   - `generated_values` — map of `{type_id, entity_id, field_name} => number` for generated nodes
-  - `active_contributions` — list of `%{target: {type_id, entity_id, field_name}, value: number}`
+  - `effects` — list of `%{target: {type_id, entity_id, field_name}, value: number}`
 
   Returns `{:ok, resolved_map}` or `{:error, reason}`.
   """
-  def evaluate(system, generated_values, active_contributions \\ []) do
+  def evaluate(system, generated_values, effects \\ []) do
     order = Graph.topological_order(system)
 
     Enum.reduce_while(order, {:ok, generated_values}, fn node_key, {:ok, resolved} ->
-      case evaluate_node(node_key, system.nodes, resolved, active_contributions) do
+      case evaluate_node(node_key, system.nodes, resolved, effects) do
         {:ok, value} -> {:cont, {:ok, Map.put(resolved, node_key, value)}}
         {:error, _} = err -> {:halt, err}
       end
@@ -30,14 +30,14 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   end
 
   @doc "Same as `evaluate/3` but raises on error."
-  def evaluate!(system, generated_values, active_contributions \\ []) do
-    case evaluate(system, generated_values, active_contributions) do
+  def evaluate!(system, generated_values, effects \\ []) do
+    case evaluate(system, generated_values, effects) do
       {:ok, resolved} -> resolved
       {:error, reason} -> raise "Evaluation failed: #{inspect(reason)}"
     end
   end
 
-  defp evaluate_node(node_key, nodes, resolved, active_contributions) do
+  defp evaluate_node(node_key, nodes, resolved, effects) do
     case Map.fetch(nodes, node_key) do
       {:ok, %{type: :generated}} ->
         fetch_generated(resolved, node_key)
@@ -46,17 +46,17 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
         Expression.evaluate(formula, resolved)
 
       {:ok, %{type: :accumulator, base: base_formula}} ->
-        evaluate_accumulator(base_formula, node_key, resolved, active_contributions)
+        evaluate_accumulator(base_formula, node_key, resolved, effects)
 
       :error ->
         {:error, {:unknown_node, node_key}}
     end
   end
 
-  defp evaluate_accumulator(base_formula, node_key, resolved, active_contributions) do
+  defp evaluate_accumulator(base_formula, node_key, resolved, effects) do
     with {:ok, base_value} <- Expression.evaluate(base_formula, resolved) do
       contrib_total =
-        active_contributions
+        effects
         |> Enum.filter(fn %{target: target} -> target == node_key end)
         |> Enum.map(fn %{value: v} -> v end)
         |> Enum.sum()

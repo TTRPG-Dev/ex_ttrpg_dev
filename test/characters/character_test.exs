@@ -18,7 +18,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert character.metadata.slug != nil
     refute String.contains?(character.metadata.slug, " ")
     assert character.metadata.rule_system == "dnd_5e_srd"
-    assert character.active_contributions == []
+    assert character.effects == []
   end
 
   test "gen_character!/1 generates all six attribute base scores" do
@@ -46,16 +46,16 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert restored.metadata.slug == original.metadata.slug
     assert restored.metadata.rule_system == original.metadata.rule_system
     assert restored.generated_values == original.generated_values
-    assert restored.active_contributions == original.active_contributions
+    assert restored.effects == original.effects
   end
 
-  test "to_json_map/1 and from_json!/1 round-trip preserves active_contributions" do
+  test "to_json_map/1 and from_json!/1 round-trip preserves effects" do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)
 
     original = %{
       original
-      | active_contributions: [
+      | effects: [
           %{target: {"attr", "strength", "total_score"}, value: 2},
           %{target: {"attr", "dexterity", "total_score"}, value: -1}
         ]
@@ -64,10 +64,10 @@ defmodule ExTTRPGDevTest.Characters.Character do
     json = original |> Character.to_json_map() |> Poison.encode!()
     restored = Character.from_json!(json)
 
-    assert length(restored.active_contributions) == 2
+    assert length(restored.effects) == 2
 
-    assert %{target: {"attr", "strength", "total_score"}, value: 2} in restored.active_contributions
+    assert %{target: {"attr", "strength", "total_score"}, value: 2} in restored.effects
 
-    assert %{target: {"attr", "dexterity", "total_score"}, value: -1} in restored.active_contributions
+    assert %{target: {"attr", "dexterity", "total_score"}, value: -1} in restored.effects
   end
 end

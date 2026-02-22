@@ -14,7 +14,7 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
   types that have no DAG nodes (e.g. pure-metadata types like languages).
   """
   def print(%LoadedSystem{} = system, %Character{} = character) do
-    contributions = system.contributions ++ character.active_contributions
+    contributions = system.contributions ++ character.effects
 
     resolved =
       Evaluator.evaluate!(system, character.generated_values, contributions)
