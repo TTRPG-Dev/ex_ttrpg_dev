@@ -69,7 +69,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert output =~ ~r/modifier: -\d+/
   end
 
-  test "print/2 applies active contributions to total_score", %{
+  test "print/2 applies active effects to total_score", %{
     system: system,
     character: character
   } do
@@ -87,7 +87,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "total_score: #{expected_total}")
   end
 
-  test "print/2 merges system-level contributions with character contributions", %{
+  test "print/2 merges system-level effects with character effects", %{
     system: system,
     character: character
   } do
@@ -96,7 +96,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
 
     system_with_contrib = %{
       system
-      | contributions: [
+      | effects: [
           %{
             source: {"feat", "tough", nil},
             target: {"attr", "strength", "total_score"},

@@ -14,13 +14,13 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   Returns `{:ok, system_map}` where `system_map` contains:
   - `:graph` — the libgraph `Graph.t()`
   - `:nodes` — node registry from the loader
-  - `:rolling_methods`, `:concept_metadata`, `:contributions` — passed through
+  - `:rolling_methods`, `:concept_metadata`, `:effects` — passed through
 
   Returns `{:error, reason}` if any references are undefined.
   Raises if the graph contains cycles.
   """
   def build(loader_data) do
-    %{nodes: nodes, contributions: contributions} = loader_data
+    %{nodes: nodes, effects: effects} = loader_data
 
     graph =
       nodes
@@ -29,7 +29,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
 
     with {:ok, graph} <- add_formula_edges(graph, nodes),
          {:ok, graph} <- add_accumulator_edges(graph, nodes),
-         {:ok, graph} <- add_contribution_edges(graph, nodes, contributions) do
+         {:ok, graph} <- add_effect_edges(graph, nodes, effects) do
       if Graph.is_acyclic?(graph) do
         {:ok,
          %{
@@ -37,7 +37,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
            nodes: nodes,
            rolling_methods: loader_data.rolling_methods,
            concept_metadata: loader_data.concept_metadata,
-           contributions: loader_data.contributions
+           effects: loader_data.effects
          }}
       else
         {:error, {:cycle_detected, "The rule system contains circular dependencies"}}
@@ -76,13 +76,13 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     end)
   end
 
-  defp add_contribution_edges(graph, nodes, contributions) do
-    Enum.reduce_while(contributions, {:ok, graph}, fn
+  defp add_effect_edges(graph, nodes, effects) do
+    Enum.reduce_while(effects, {:ok, graph}, fn
       %{target: target_key}, {:ok, g} when is_tuple(target_key) ->
         if Map.has_key?(nodes, target_key) do
           {:cont, {:ok, g}}
         else
-          {:halt, {:error, {:undefined_contribution_target, target_key}}}
+          {:halt, {:error, {:undefined_effect_target, target_key}}}
         end
 
       _, acc ->

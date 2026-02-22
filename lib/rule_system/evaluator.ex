@@ -3,7 +3,7 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   Evaluates a rule system DAG for a given character state.
 
   Takes the loaded system, a map of generated (base) values, and an optional
-  list of active contributions (from equipped items, active feats, etc.),
+  list of active effects (from equipped items, active feats, etc.),
   and produces a fully-resolved map of all node values.
   """
 

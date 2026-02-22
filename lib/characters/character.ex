@@ -72,7 +72,7 @@ defmodule ExTTRPGDev.Characters.Character do
         {{type, id, field}, value}
       end)
 
-    contributions =
+    effects =
       Enum.map(map["effects"] || [], fn %{"target" => target, "value" => v} ->
         [type, id, field] = String.split(target, ":", parts: 3)
         %{target: {type, id, field}, value: v}
@@ -81,7 +81,7 @@ defmodule ExTTRPGDev.Characters.Character do
     %Character{
       name: map["name"],
       generated_values: generated_values,
-      effects: contributions,
+      effects: effects,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
         rule_system: map["metadata"]["rule_system"]

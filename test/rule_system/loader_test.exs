@@ -78,7 +78,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end
   end
 
-  test "load/1 parses contributes entries into the contributions list" do
+  test "load/1 parses contributes entries into the effects list" do
     dir =
       System.tmp_dir!() |> Path.join("ex_ttrpg_loader_test_#{System.unique_integer([:positive])}")
 
@@ -120,10 +120,10 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     try do
       assert {:ok, data} = Loader.load(dir)
-      assert length(data.contributions) == 1
-      [contrib] = data.contributions
-      assert contrib.target == {"attr", "strength", "total_score"}
-      assert contrib.value == 2
+      assert length(data.effects) == 1
+      [effect] = data.effects
+      assert effect.target == {"attr", "strength", "total_score"}
+      assert effect.value == 2
     after
       File.rm_rf!(dir)
     end

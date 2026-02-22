@@ -14,10 +14,10 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
   types that have no DAG nodes (e.g. pure-metadata types like languages).
   """
   def print(%LoadedSystem{} = system, %Character{} = character) do
-    contributions = system.contributions ++ character.effects
+    effects = system.effects ++ character.effects
 
     resolved =
-      Evaluator.evaluate!(system, character.generated_values, contributions)
+      Evaluator.evaluate!(system, character.generated_values, effects)
 
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
 

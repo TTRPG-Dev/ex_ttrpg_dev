@@ -19,7 +19,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       },
       rolling_methods: %{},
       concept_metadata: %{},
-      contributions: []
+      effects: []
     }
 
     {:ok, system} = Graph.build(loader_data)
@@ -46,13 +46,13 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"attr", "strength", "modifier"}] == -1
   end
 
-  test "evaluate/3 applies active contributions to accumulator" do
+  test "evaluate/3 applies active effects to accumulator" do
     system = minimal_system()
     generated = %{{"attr", "strength", "base_score"} => 16}
 
-    contributions = [%{target: {"attr", "strength", "total_score"}, value: 2}]
+    effects = [%{target: {"attr", "strength", "total_score"}, value: 2}]
 
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated, contributions)
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
     # total_score = 16 + 2 = 18, modifier = floor((18-10)/2) = 4
     assert resolved[{"attr", "strength", "total_score"}] == 18
     assert resolved[{"attr", "strength", "modifier"}] == 4

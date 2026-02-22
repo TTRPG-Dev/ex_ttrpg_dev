@@ -10,7 +10,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     nodes: %{{type_id, concept_id, field_name} => node_map},
     rolling_methods: %{method_id => method_map},
     concept_metadata: %{{type_id, concept_id} => metadata_map},
-    contributions: [contribution_map]
+    effects: [effect_map]
   }
   ```
   """
@@ -49,7 +49,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp load_concept_files(path, package) do
     type_ids = Package.concept_type_ids(package)
 
-    initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, contributions: []}
+    initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, effects: []}
 
     path
     |> File.ls!()
@@ -93,31 +93,31 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp process_concept(type_id, concept_id, fields, acc) when is_map(fields) do
-    {nodes, metadata, contributions} = parse_concept_fields(type_id, concept_id, fields)
+    {nodes, metadata, effects} = parse_concept_fields(type_id, concept_id, fields)
 
     %{
       acc
       | nodes: Map.merge(acc.nodes, nodes),
         concept_metadata: Map.put(acc.concept_metadata, {type_id, concept_id}, metadata),
-        contributions: acc.contributions ++ contributions
+        effects: acc.effects ++ effects
     }
   end
 
   defp parse_concept_fields(type_id, concept_id, fields) do
-    Enum.reduce(fields, {%{}, %{}, []}, fn {field_name, value}, {nodes, meta, contribs} ->
+    Enum.reduce(fields, {%{}, %{}, []}, fn {field_name, value}, {nodes, meta, effects} ->
       cond do
         field_name == "contributes" and is_list(value) ->
-          new_contribs =
-            Enum.map(value, &parse_contribution({type_id, concept_id}, &1))
+          new_effects =
+            Enum.map(value, &parse_effect({type_id, concept_id}, &1))
 
-          {nodes, meta, contribs ++ new_contribs}
+          {nodes, meta, effects ++ new_effects}
 
         is_map(value) and (Map.has_key?(value, "type") or Map.has_key?(value, "formula")) ->
           node_key = {type_id, concept_id, field_name}
-          {Map.put(nodes, node_key, parse_node(value)), meta, contribs}
+          {Map.put(nodes, node_key, parse_node(value)), meta, effects}
 
         true ->
-          {nodes, Map.put(meta, field_name, value), contribs}
+          {nodes, Map.put(meta, field_name, value), effects}
       end
     end)
   end
@@ -143,7 +143,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     }
   end
 
-  defp parse_contribution(source, %{"target" => target, "value" => value}) do
+  defp parse_effect(source, %{"target" => target, "value" => value}) do
     parsed_target =
       case Regex.run(~r/(\w+)\('([^']+)'\)\.(\w+)/, target) do
         [_, type_id, concept_id, field_name] -> {type_id, concept_id, field_name}
