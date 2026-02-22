@@ -71,7 +71,10 @@ defmodule ExTTRPGDev.CLI.Characters do
 
         Enum.each(character_slugs, fn character_slug ->
           character = ExTTRPGDev.Characters.load_character!(character_slug)
-          IO.puts("- #{character.name} [#{character.metadata.rule_system}]")
+
+          IO.puts(
+            "- #{character.metadata.slug}: #{character.name} [#{character.metadata.rule_system}]"
+          )
         end)
     end
   end
