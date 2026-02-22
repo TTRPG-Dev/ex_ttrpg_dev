@@ -17,6 +17,15 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: number}`
 
   Returns `{:ok, resolved_map}` or `{:error, reason}`.
+
+  ## Examples
+      iex> system = ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd")
+      iex> attrs = ~w[strength dexterity constitution wisdom intelligence charisma]
+      iex> generated = Map.new(attrs, &{{"attr", &1, "base_score"}, 10})
+      iex> {:ok, resolved} = ExTTRPGDev.RuleSystem.Evaluator.evaluate(system, generated)
+      iex> resolved[{"attr", "strength", "modifier"}]
+      0
+
   """
   def evaluate(system, generated_values, effects \\ []) do
     order = Graph.topological_order(system)

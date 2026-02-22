@@ -2,6 +2,8 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.RuleSystem.{Evaluator, Graph, Loader}
 
+  doctest ExTTRPGDev.RuleSystem.Evaluator
+
   defp minimal_system do
     loader_data = %{
       nodes: %{
