@@ -33,7 +33,7 @@ defmodule ExTTRPGDev.Characters.Character do
       effects: [],
       metadata: %Metadata{
         slug: slugify(character_name),
-        rule_system: system.package.slug
+        rule_system: system.module.slug
       }
     }
   end

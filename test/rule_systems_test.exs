@@ -9,9 +9,9 @@ defmodule ExTTRPGDevTest.RuleSystems do
   test "load_system!/1 for bundled system returns a LoadedSystem" do
     [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
 
-    %LoadedSystem{package: package} = RuleSystems.load_system!(bundled_system_slug)
+    %LoadedSystem{module: rule_module} = RuleSystems.load_system!(bundled_system_slug)
 
-    assert package.slug == bundled_system_slug
+    assert rule_module.slug == bundled_system_slug
   end
 
   test "load_system!/1 for unconfigured system raises" do

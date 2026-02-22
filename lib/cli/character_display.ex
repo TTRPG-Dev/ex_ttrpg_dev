@@ -23,7 +23,7 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
 
     IO.puts("-- #{character.name} --")
 
-    Enum.each(system.package.concept_types, fn concept_type ->
+    Enum.each(system.module.concept_types, fn concept_type ->
       print_concept_type(concept_type, system.concept_metadata, resolved_by_concept)
     end)
   end

@@ -71,7 +71,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
     case subcommands do
       [:abilities] -> show_abilities(system)
       [:languages] -> show_languages(system)
-      [:metadata] -> IO.inspect(system.package)
+      [:metadata] -> IO.inspect(system.module)
       [:skills] -> show_skills(system)
     end
   end

@@ -1,10 +1,10 @@
-defmodule ExTTRPGDev.RuleSystem.Package do
+defmodule ExTTRPGDev.RuleSystem.RuleModule do
   @moduledoc """
-  Represents the parsed contents of a rule system's `package.toml` manifest.
+  Represents the parsed contents of a rule system's `module.toml` manifest.
   """
 
   defmodule ConceptType do
-    @moduledoc "A declared concept type within a rule system package."
+    @moduledoc "A declared concept type within a rule system module."
     defstruct [:id, :name]
   end
 
@@ -13,12 +13,12 @@ defmodule ExTTRPGDev.RuleSystem.Package do
   @required_keys ["name", "slug", "version"]
 
   @doc """
-  Builds a Package struct from a decoded TOML map.
+  Builds a RuleModule struct from a decoded TOML map.
 
-  Returns `{:ok, %Package{}}` on success or `{:error, reason}` on failure.
+  Returns `{:ok, %RuleModule{}}` on success or `{:error, reason}` on failure.
   """
-  def from_map(%{"package" => package_map} = map) do
-    missing = Enum.find(@required_keys, fn key -> not Map.has_key?(package_map, key) end)
+  def from_map(%{"module" => module_map} = map) do
+    missing = Enum.find(@required_keys, fn key -> not Map.has_key?(module_map, key) end)
 
     if missing do
       {:error, {:missing_required_key, missing}}
@@ -30,18 +30,18 @@ defmodule ExTTRPGDev.RuleSystem.Package do
 
       {:ok,
        %__MODULE__{
-         name: package_map["name"],
-         slug: package_map["slug"],
-         version: package_map["version"],
-         family: package_map["family"],
-         series: package_map["series"],
-         publisher: package_map["publisher"],
+         name: module_map["name"],
+         slug: module_map["slug"],
+         version: module_map["version"],
+         family: module_map["family"],
+         series: module_map["series"],
+         publisher: module_map["publisher"],
          concept_types: concept_types
        }}
     end
   end
 
-  def from_map(_), do: {:error, {:missing_required_key, "package"}}
+  def from_map(_), do: {:error, {:missing_required_key, "module"}}
 
   @doc """
   Returns a MapSet of declared concept type id strings.

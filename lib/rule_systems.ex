@@ -4,7 +4,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   Rule systems are defined as directories of TOML files under `priv/system_configs/`
   (bundled) or `local_system_configs/` (user-defined). Each system directory must
-  contain a `package.toml` manifest.
+  contain a `module.toml` manifest.
   """
 
   alias ExTTRPGDev.Globals
@@ -37,7 +37,7 @@ defmodule ExTTRPGDev.RuleSystems do
     File.ls!(base)
     |> Enum.filter(fn name ->
       File.dir?(Path.join(base, name)) and
-        File.exists?(Path.join([base, name, "package.toml"]))
+        File.exists?(Path.join([base, name, "module.toml"]))
     end)
   end
 
@@ -56,7 +56,7 @@ defmodule ExTTRPGDev.RuleSystems do
       File.ls!(base)
       |> Enum.filter(fn name ->
         File.dir?(Path.join(base, name)) and
-          File.exists?(Path.join([base, name, "package.toml"]))
+          File.exists?(Path.join([base, name, "module.toml"]))
       end)
     else
       []
@@ -144,7 +144,7 @@ defmodule ExTTRPGDev.RuleSystems do
   @doc """
   Loads, parses, and validates a rule system by slug.
 
-  Returns a `%LoadedSystem{}` containing the parsed package, validated DAG,
+  Returns a `%LoadedSystem{}` containing the parsed module, validated DAG,
   and all supporting data needed for evaluation.
 
   ## Examples
@@ -159,7 +159,7 @@ defmodule ExTTRPGDev.RuleSystems do
     case Graph.build(loader_data) do
       {:ok, system_map} ->
         %LoadedSystem{
-          package: loader_data.package,
+          module: loader_data.module,
           graph: system_map.graph,
           nodes: system_map.nodes,
           rolling_methods: loader_data.rolling_methods,

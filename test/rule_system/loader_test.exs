@@ -1,6 +1,6 @@
 defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Loader, Package}
+  alias ExTTRPGDev.RuleSystem.{Loader, RuleModule}
 
   defp dnd_path do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
@@ -8,7 +8,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   test "load/1 succeeds for dnd_5e_srd" do
     assert {:ok, data} = Loader.load(dnd_path())
-    assert %Package{slug: "dnd_5e_srd"} = data.package
+    assert %RuleModule{slug: "dnd_5e_srd"} = data.module
   end
 
   test "load/1 returns error for non-existent path" do
@@ -84,8 +84,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     File.mkdir_p!(dir)
 
-    File.write!(Path.join(dir, "package.toml"), """
-    [package]
+    File.write!(Path.join(dir, "module.toml"), """
+    [module]
     name = "Test System"
     slug = "test_system"
     version = "0.0.1"

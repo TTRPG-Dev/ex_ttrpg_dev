@@ -6,7 +6,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   The output map has the shape:
   ```
   %{
-    package: %Package{},
+    module: %RuleModule{},
     nodes: %{{type_id, concept_id, field_name} => node_map},
     rolling_methods: %{method_id => method_map},
     concept_metadata: %{{type_id, concept_id} => metadata_map},
@@ -15,15 +15,15 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   ```
   """
 
-  alias ExTTRPGDev.RuleSystem.Package
+  alias ExTTRPGDev.RuleSystem.RuleModule
 
-  @package_file "package.toml"
+  @module_file "module.toml"
 
   @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
   def load(path) do
-    with {:ok, package} <- load_package(path),
-         {:ok, data} <- load_concept_files(path, package) do
-      {:ok, Map.put(data, :package, package)}
+    with {:ok, rule_module} <- load_module(path),
+         {:ok, data} <- load_concept_files(path, rule_module) do
+      {:ok, Map.put(data, :module, rule_module)}
     end
   end
 
@@ -35,26 +35,26 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end
   end
 
-  defp load_package(path) do
-    package_path = Path.join(path, @package_file)
+  defp load_module(path) do
+    module_path = Path.join(path, @module_file)
 
-    with {:ok, contents} <- File.read(package_path),
+    with {:ok, contents} <- File.read(module_path),
          {:ok, map} <- TomlElixir.decode(contents) do
-      Package.from_map(map)
+      RuleModule.from_map(map)
     else
-      {:error, reason} -> {:error, {:package_parse_error, reason}}
+      {:error, reason} -> {:error, {:module_parse_error, reason}}
     end
   end
 
-  defp load_concept_files(path, package) do
-    type_ids = Package.concept_type_ids(package)
+  defp load_concept_files(path, rule_module) do
+    type_ids = RuleModule.concept_type_ids(rule_module)
 
     initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, effects: []}
 
     path
     |> File.ls!()
     |> Enum.filter(&String.ends_with?(&1, ".toml"))
-    |> Enum.reject(&(&1 == @package_file))
+    |> Enum.reject(&(&1 == @module_file))
     |> Enum.reduce_while({:ok, initial}, fn file, {:ok, acc} ->
       file_path = Path.join(path, file)
 

@@ -1,4 +1,4 @@
-[package]
+[module]
 name = "Dungeons and Dragons 5th Edition SRD"
 slug = "dnd_5e_srd"
 version = "1.0.0"
