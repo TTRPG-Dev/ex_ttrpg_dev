@@ -10,7 +10,7 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
   @doc """
   Evaluates `character` against `system` and prints a formatted character sheet.
 
-  Groups resolved values by entity type (in declaration order) and skips entity
+  Groups resolved values by concept type (in declaration order) and skips concept
   types that have no DAG nodes (e.g. pure-metadata types like languages).
   """
   def print(%LoadedSystem{} = system, %Character{} = character) do
@@ -19,36 +19,36 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     resolved =
       Evaluator.evaluate!(system, character.generated_values, contributions)
 
-    resolved_by_entity = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
+    resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
 
     IO.puts("-- #{character.name} --")
 
-    Enum.each(system.package.entity_types, fn entity_type ->
-      print_entity_type(entity_type, system.entity_metadata, resolved_by_entity)
+    Enum.each(system.package.concept_types, fn concept_type ->
+      print_concept_type(concept_type, system.concept_metadata, resolved_by_concept)
     end)
   end
 
-  defp print_entity_type(%{id: type_id, name: type_name}, entity_metadata, resolved_by_entity) do
-    entities =
-      entity_metadata
+  defp print_concept_type(%{id: type_id, name: type_name}, concept_metadata, resolved_by_concept) do
+    concepts =
+      concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == type_id end)
       |> Enum.sort_by(fn {{_type, id}, _} -> id end)
-      |> Enum.filter(fn {{type, id}, _} -> Map.has_key?(resolved_by_entity, {type, id}) end)
+      |> Enum.filter(fn {{type, id}, _} -> Map.has_key?(resolved_by_concept, {type, id}) end)
 
-    if entities != [] do
+    if concepts != [] do
       IO.puts("\n#{type_name}s:")
 
-      Enum.each(entities, fn {{type, id}, meta} ->
-        print_entity(type, id, meta, resolved_by_entity)
+      Enum.each(concepts, fn {{type, id}, meta} ->
+        print_concept(type, id, meta, resolved_by_concept)
       end)
     end
   end
 
-  defp print_entity(type, id, meta, resolved_by_entity) do
+  defp print_concept(type, id, meta, resolved_by_concept) do
     name = meta["name"] || id
 
     field_str =
-      resolved_by_entity[{type, id}]
+      resolved_by_concept[{type, id}]
       |> Enum.sort_by(fn {{_t, _i, field}, _} -> field end)
       |> Enum.map_join("  ", fn {{_t, _i, field}, value} ->
         "#{field}: #{format_value(field, value)}"

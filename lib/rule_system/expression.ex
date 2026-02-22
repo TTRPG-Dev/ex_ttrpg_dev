@@ -2,7 +2,7 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   @moduledoc """
   Handles the expression sub-language used in rule system formula nodes.
 
-  Formulas use the syntax `entity_type('entity_id').field` to reference other nodes.
+  Formulas use the syntax `type('concept_id').field` to reference other nodes.
   For example: `floor((attr('dexterity').total_score - 10) / 2)`
 
   These references create edges in the DAG. When evaluating, all references are
@@ -12,9 +12,9 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   @ref_pattern ~r/(\w+)\('([^']+)'\)\.(\w+)/
 
   @doc """
-  Extracts all entity references from a formula string.
+  Extracts all concept references from a formula string.
 
-  Returns a list of `{type_id, entity_id, field_name}` tuples representing
+  Returns a list of `{type_id, concept_id, field_name}` tuples representing
   DAG dependencies declared by the formula.
 
   ## Examples
@@ -32,8 +32,8 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   def extract_refs(formula) do
     @ref_pattern
     |> Regex.scan(formula)
-    |> Enum.map(fn [_full, type_id, entity_id, field_name] ->
-      {type_id, entity_id, field_name}
+    |> Enum.map(fn [_full, type_id, concept_id, field_name] ->
+      {type_id, concept_id, field_name}
     end)
     |> Enum.uniq()
   end
@@ -64,12 +64,12 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
     missing = Enum.find(refs, fn ref -> not Map.has_key?(bindings, ref) end)
 
     if missing do
-      {type_id, entity_id, field_name} = missing
-      {:error, {:missing_binding, "#{type_id}('#{entity_id}').#{field_name}"}}
+      {type_id, concept_id, field_name} = missing
+      {:error, {:missing_binding, "#{type_id}('#{concept_id}').#{field_name}"}}
     else
       processed =
-        Enum.reduce(bindings, formula, fn {{type_id, entity_id, field_name}, value}, acc ->
-          ref_str = "#{type_id}('#{entity_id}').#{field_name}"
+        Enum.reduce(bindings, formula, fn {{type_id, concept_id, field_name}, value}, acc ->
+          ref_str = "#{type_id}('#{concept_id}').#{field_name}"
           String.replace(acc, ref_str, to_string(value))
         end)
 

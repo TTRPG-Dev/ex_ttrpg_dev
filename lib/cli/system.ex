@@ -77,7 +77,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   @doc "Show a rule system's abilities"
-  def show_abilities(%LoadedSystem{entity_metadata: meta}) do
+  def show_abilities(%LoadedSystem{concept_metadata: meta}) do
     meta
     |> Enum.filter(fn {{type, _id}, _} -> type == "attr" end)
     |> Enum.sort_by(fn {{_type, id}, _} -> id end)
@@ -87,7 +87,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   @doc "Show a rule system's languages"
-  def show_languages(%LoadedSystem{entity_metadata: meta}) do
+  def show_languages(%LoadedSystem{concept_metadata: meta}) do
     meta
     |> Enum.filter(fn {{type, _id}, _} -> type == "language" end)
     |> Enum.sort_by(fn {{_type, _id}, fields} -> fields["name"] end)
@@ -98,7 +98,7 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   @doc "Show a rule system's skills"
-  def show_skills(%LoadedSystem{entity_metadata: meta, nodes: nodes}) do
+  def show_skills(%LoadedSystem{concept_metadata: meta, nodes: nodes}) do
     nodes
     |> Enum.filter(fn {{type, _id, field}, _} -> type == "skill" and field == "modifier" end)
     |> Enum.sort_by(fn {{_type, id, _field}, _} -> id end)

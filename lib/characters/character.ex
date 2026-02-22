@@ -7,8 +7,8 @@ defmodule ExTTRPGDev.Characters.Character do
   @moduledoc """
   Definition of an individual character.
 
-  - `generated_values` — map of `{type_id, entity_id, field_name} => integer` for leaf nodes
-  - `effects` — list of `%{target: {type_id, entity_id, field_name}, value: integer}`
+  - `generated_values` — map of `{type_id, concept_id, field_name} => integer` for leaf nodes
+  - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: integer}`
     for currently active items, feats, statuses etc. (defaults to [])
   """
   defstruct [:name, :generated_values, :effects, :metadata]

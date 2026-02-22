@@ -16,7 +16,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
         }
       },
       rolling_methods: %{},
-      entity_metadata: %{},
+      concept_metadata: %{},
       contributions: []
     }
 

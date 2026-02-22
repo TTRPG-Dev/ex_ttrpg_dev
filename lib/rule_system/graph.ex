@@ -2,7 +2,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   @moduledoc """
   Builds and validates the dependency DAG for a rule system.
 
-  Each node in the DAG is identified by a `{type_id, entity_id, field_name}` 3-tuple.
+  Each node in the DAG is identified by a `{type_id, concept_id, field_name}` 3-tuple.
   Directed edges flow from dependency to dependent (e.g. `base_score` → `total_score`).
   """
 
@@ -14,7 +14,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   Returns `{:ok, system_map}` where `system_map` contains:
   - `:graph` — the libgraph `Graph.t()`
   - `:nodes` — node registry from the loader
-  - `:rolling_methods`, `:entity_metadata`, `:contributions` — passed through
+  - `:rolling_methods`, `:concept_metadata`, `:contributions` — passed through
 
   Returns `{:error, reason}` if any references are undefined.
   Raises if the graph contains cycles.
@@ -36,7 +36,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
            graph: graph,
            nodes: nodes,
            rolling_methods: loader_data.rolling_methods,
-           entity_metadata: loader_data.entity_metadata,
+           concept_metadata: loader_data.concept_metadata,
            contributions: loader_data.contributions
          }}
       else
@@ -99,10 +99,10 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
       end)
 
     case missing do
-      {type_id, entity_id, field_name} ->
+      {type_id, concept_id, field_name} ->
         {:error,
          {:undefined_ref,
-          "#{type_id}('#{entity_id}').#{field_name} referenced but not defined " <>
+          "#{type_id}('#{concept_id}').#{field_name} referenced but not defined " <>
             "(depended on by #{inspect(dependent_key)})"}}
 
       nil ->

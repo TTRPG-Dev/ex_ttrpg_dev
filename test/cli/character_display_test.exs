@@ -35,7 +35,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "Skills:")
   end
 
-  test "print/2 skips entity types with no DAG nodes (languages)", %{
+  test "print/2 skips concept types with no DAG nodes (languages)", %{
     system: system,
     character: character
   } do

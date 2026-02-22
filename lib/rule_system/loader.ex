@@ -7,9 +7,9 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   ```
   %{
     package: %Package{},
-    nodes: %{{type_id, entity_id, field_name} => node_map},
+    nodes: %{{type_id, concept_id, field_name} => node_map},
     rolling_methods: %{method_id => method_map},
-    entity_metadata: %{{type_id, entity_id} => metadata_map},
+    concept_metadata: %{{type_id, concept_id} => metadata_map},
     contributions: [contribution_map]
   }
   ```
@@ -22,7 +22,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
   def load(path) do
     with {:ok, package} <- load_package(path),
-         {:ok, data} <- load_entity_files(path, package) do
+         {:ok, data} <- load_concept_files(path, package) do
       {:ok, Map.put(data, :package, package)}
     end
   end
@@ -46,10 +46,10 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end
   end
 
-  defp load_entity_files(path, package) do
-    entity_type_ids = Package.entity_type_ids(package)
+  defp load_concept_files(path, package) do
+    type_ids = Package.concept_type_ids(package)
 
-    initial = %{nodes: %{}, rolling_methods: %{}, entity_metadata: %{}, contributions: []}
+    initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, contributions: []}
 
     path
     |> File.ls!()
@@ -60,60 +60,60 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
       with {:ok, contents} <- File.read(file_path),
            {:ok, toml_map} <- TomlElixir.decode(contents) do
-        {:cont, {:ok, process_toml_map(toml_map, acc, entity_type_ids)}}
+        {:cont, {:ok, process_toml_map(toml_map, acc, type_ids)}}
       else
         {:error, reason} -> {:halt, {:error, {:file_parse_error, file, reason}}}
       end
     end)
   end
 
-  defp process_toml_map(toml_map, acc, entity_type_ids) do
-    Enum.reduce(toml_map, acc, fn {type_id, entities}, acc ->
-      if MapSet.member?(entity_type_ids, type_id) and is_map(entities) do
-        process_entity_type(type_id, entities, acc)
+  defp process_toml_map(toml_map, acc, type_ids) do
+    Enum.reduce(toml_map, acc, fn {type_id, concepts}, acc ->
+      if MapSet.member?(type_ids, type_id) and is_map(concepts) do
+        process_type(type_id, concepts, acc)
       else
         acc
       end
     end)
   end
 
-  defp process_entity_type("rolling_method", entities, acc) do
+  defp process_type("rolling_method", concepts, acc) do
     rolling_methods =
-      Enum.reduce(entities, acc.rolling_methods, fn {id, fields}, rm ->
+      Enum.reduce(concepts, acc.rolling_methods, fn {id, fields}, rm ->
         Map.put(rm, id, parse_rolling_method(fields))
       end)
 
     %{acc | rolling_methods: rolling_methods}
   end
 
-  defp process_entity_type(type_id, entities, acc) do
-    Enum.reduce(entities, acc, fn {entity_id, fields}, acc ->
-      process_entity(type_id, entity_id, fields, acc)
+  defp process_type(type_id, concepts, acc) do
+    Enum.reduce(concepts, acc, fn {concept_id, fields}, acc ->
+      process_concept(type_id, concept_id, fields, acc)
     end)
   end
 
-  defp process_entity(type_id, entity_id, fields, acc) when is_map(fields) do
-    {nodes, metadata, contributions} = parse_entity_fields(type_id, entity_id, fields)
+  defp process_concept(type_id, concept_id, fields, acc) when is_map(fields) do
+    {nodes, metadata, contributions} = parse_concept_fields(type_id, concept_id, fields)
 
     %{
       acc
       | nodes: Map.merge(acc.nodes, nodes),
-        entity_metadata: Map.put(acc.entity_metadata, {type_id, entity_id}, metadata),
+        concept_metadata: Map.put(acc.concept_metadata, {type_id, concept_id}, metadata),
         contributions: acc.contributions ++ contributions
     }
   end
 
-  defp parse_entity_fields(type_id, entity_id, fields) do
+  defp parse_concept_fields(type_id, concept_id, fields) do
     Enum.reduce(fields, {%{}, %{}, []}, fn {field_name, value}, {nodes, meta, contribs} ->
       cond do
         field_name == "contributes" and is_list(value) ->
           new_contribs =
-            Enum.map(value, &parse_contribution({type_id, entity_id}, &1))
+            Enum.map(value, &parse_contribution({type_id, concept_id}, &1))
 
           {nodes, meta, contribs ++ new_contribs}
 
         is_map(value) and (Map.has_key?(value, "type") or Map.has_key?(value, "formula")) ->
-          node_key = {type_id, entity_id, field_name}
+          node_key = {type_id, concept_id, field_name}
           {Map.put(nodes, node_key, parse_node(value)), meta, contribs}
 
         true ->
@@ -146,7 +146,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp parse_contribution(source, %{"target" => target, "value" => value}) do
     parsed_target =
       case Regex.run(~r/(\w+)\('([^']+)'\)\.(\w+)/, target) do
-        [_, type_id, entity_id, field_name] -> {type_id, entity_id, field_name}
+        [_, type_id, concept_id, field_name] -> {type_id, concept_id, field_name}
         _ -> target
       end
 

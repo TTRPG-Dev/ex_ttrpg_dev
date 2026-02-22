@@ -122,7 +122,7 @@ defmodule ExTTRPGDev.RuleSystems do
           graph: system_map.graph,
           nodes: system_map.nodes,
           rolling_methods: loader_data.rolling_methods,
-          entity_metadata: loader_data.entity_metadata,
+          concept_metadata: loader_data.concept_metadata,
           contributions: loader_data.contributions
         }
 

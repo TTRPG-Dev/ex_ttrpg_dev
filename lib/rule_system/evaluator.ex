@@ -13,8 +13,8 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   Evaluates all nodes in the DAG in topological order.
 
   - `system` — output of `Graph.build/1`
-  - `generated_values` — map of `{type_id, entity_id, field_name} => number` for generated nodes
-  - `effects` — list of `%{target: {type_id, entity_id, field_name}, value: number}`
+  - `generated_values` — map of `{type_id, concept_id, field_name} => number` for generated nodes
+  - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: number}`
 
   Returns `{:ok, resolved_map}` or `{:error, reason}`.
   """

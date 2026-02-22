@@ -60,16 +60,16 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert data.rolling_methods["standard"].default == true
   end
 
-  test "load/1 returns entity metadata for attributes" do
+  test "load/1 returns concept metadata for attributes" do
     {:ok, data} = Loader.load(dnd_path())
-    dex_meta = data.entity_metadata[{"attr", "dexterity"}]
+    dex_meta = data.concept_metadata[{"attr", "dexterity"}]
     assert dex_meta["name"] == "Dexterity"
     assert dex_meta["abbreviation"] == "DEX"
   end
 
-  test "load/1 returns entity metadata for languages" do
+  test "load/1 returns concept metadata for languages" do
     {:ok, data} = Loader.load(dnd_path())
-    assert Map.has_key?(data.entity_metadata, {"language", "common"})
+    assert Map.has_key?(data.concept_metadata, {"language", "common"})
   end
 
   test "load!/1 raises for non-existent path" do
@@ -91,11 +91,11 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     version = "0.0.1"
     publisher = "Test"
 
-    [[entity_type]]
+    [[concept_type]]
     id = "attr"
     name = "Attribute"
 
-    [[entity_type]]
+    [[concept_type]]
     id = "feat"
     name = "Feat"
     """)

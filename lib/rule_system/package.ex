@@ -3,12 +3,12 @@ defmodule ExTTRPGDev.RuleSystem.Package do
   Represents the parsed contents of a rule system's `package.toml` manifest.
   """
 
-  defmodule EntityType do
-    @moduledoc "A declared entity type within a rule system package."
+  defmodule ConceptType do
+    @moduledoc "A declared concept type within a rule system package."
     defstruct [:id, :name]
   end
 
-  defstruct [:name, :slug, :version, :family, :series, :publisher, :entity_types]
+  defstruct [:name, :slug, :version, :family, :series, :publisher, :concept_types]
 
   @required_keys ["name", "slug", "version"]
 
@@ -23,10 +23,10 @@ defmodule ExTTRPGDev.RuleSystem.Package do
     if missing do
       {:error, {:missing_required_key, missing}}
     else
-      entity_types =
+      concept_types =
         map
-        |> Map.get("entity_type", [])
-        |> Enum.map(fn et -> %EntityType{id: et["id"], name: et["name"]} end)
+        |> Map.get("concept_type", [])
+        |> Enum.map(fn et -> %ConceptType{id: et["id"], name: et["name"]} end)
 
       {:ok,
        %__MODULE__{
@@ -36,7 +36,7 @@ defmodule ExTTRPGDev.RuleSystem.Package do
          family: package_map["family"],
          series: package_map["series"],
          publisher: package_map["publisher"],
-         entity_types: entity_types
+         concept_types: concept_types
        }}
     end
   end
@@ -44,10 +44,10 @@ defmodule ExTTRPGDev.RuleSystem.Package do
   def from_map(_), do: {:error, {:missing_required_key, "package"}}
 
   @doc """
-  Returns a MapSet of declared entity type id strings.
+  Returns a MapSet of declared concept type id strings.
   """
-  def entity_type_ids(%__MODULE__{entity_types: entity_types}) do
-    entity_types
+  def concept_type_ids(%__MODULE__{concept_types: concept_types}) do
+    concept_types
     |> Enum.map(& &1.id)
     |> MapSet.new()
   end

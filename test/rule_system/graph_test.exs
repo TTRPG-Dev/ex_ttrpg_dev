@@ -16,7 +16,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
         }
       },
       rolling_methods: %{},
-      entity_metadata: %{},
+      concept_metadata: %{},
       contributions: []
     }
   end
@@ -40,7 +40,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
         }
       },
       rolling_methods: %{},
-      entity_metadata: %{},
+      concept_metadata: %{},
       contributions: []
     }
 
@@ -54,7 +54,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
         {"attr", "b", "val"} => %{type: :formula, formula: "attr('a').val"}
       },
       rolling_methods: %{},
-      entity_metadata: %{},
+      concept_metadata: %{},
       contributions: []
     }
 
@@ -79,7 +79,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
         {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"}
       },
       rolling_methods: %{},
-      entity_metadata: %{},
+      concept_metadata: %{},
       contributions: [
         %{source: {"item", "ring", nil}, target: {"attr", "strength", "nonexistent"}, value: 2}
       ]
