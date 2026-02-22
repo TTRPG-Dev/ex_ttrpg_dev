@@ -13,6 +13,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   @doc """
   Lists all available systems (bundled + local).
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.list_systems() |> Enum.member?("dnd_5e_srd")
+      true
+
   """
   def list_systems do
     list_bundled_systems() ++ list_local_systems()
@@ -20,6 +25,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   @doc """
   Lists bundled systems shipped with the library.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.list_bundled_systems() |> Enum.member?("dnd_5e_srd")
+      true
+
   """
   def list_bundled_systems do
     base = Globals.system_configs_path()
@@ -33,6 +43,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   @doc """
   Lists user-defined local systems.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.list_local_systems() |> is_list()
+      true
+
   """
   def list_local_systems do
     base = Globals.local_system_configs_path()
@@ -50,6 +65,14 @@ defmodule ExTTRPGDev.RuleSystems do
 
   @doc """
   Returns true if the system is a bundled system.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.is_bundled_system?("dnd_5e_srd")
+      true
+
+      iex> ExTTRPGDev.RuleSystems.is_bundled_system?("non_existent_system")
+      false
+
   """
   def is_bundled_system?(system) when is_bitstring(system) do
     Enum.any?(list_bundled_systems(), &(&1 == system))
@@ -57,6 +80,14 @@ defmodule ExTTRPGDev.RuleSystems do
 
   @doc """
   Returns true if the system is a user-defined local system.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.is_local_system?("dnd_5e_srd")
+      false
+
+      iex> ExTTRPGDev.RuleSystems.is_local_system?("non_existent_system")
+      false
+
   """
   def is_local_system?(system) when is_bitstring(system) do
     Enum.any?(list_local_systems(), &(&1 == system))
@@ -96,6 +127,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   @doc """
   Returns the filesystem path to the given system's directory.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.system_path!("dnd_5e_srd") |> String.ends_with?("dnd_5e_srd")
+      true
+
   """
   def system_path!(system) when is_bitstring(system) do
     if is_bundled_system?(system) do
@@ -110,6 +146,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   Returns a `%LoadedSystem{}` containing the parsed package, validated DAG,
   and all supporting data needed for evaluation.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd") |> is_struct(ExTTRPGDev.RuleSystems.LoadedSystem)
+      true
+
   """
   def load_system!(system) when is_bitstring(system) do
     path = system_path!(system)
