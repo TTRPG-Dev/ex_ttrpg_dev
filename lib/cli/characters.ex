@@ -66,11 +66,11 @@ defmodule ExTTRPGDev.CLI.Characters do
       [] ->
         IO.puts("No saved characters found!")
 
-      slugs ->
+      character_slugs ->
         IO.puts("Saved Characters:")
 
-        Enum.each(slugs, fn slug ->
-          character = ExTTRPGDev.Characters.load_character!(slug)
+        Enum.each(character_slugs, fn character_slug ->
+          character = ExTTRPGDev.Characters.load_character!(character_slug)
           IO.puts("- #{character.name} [#{character.metadata.rule_system}]")
         end)
     end
