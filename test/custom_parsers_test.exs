@@ -9,7 +9,7 @@ defmodule ExTTRPGDevTest.CLI.CustomParsers do
 
   doctest ExTTRPGDev.CLI.CustomParsers,
     except: [
-      system_parser: 1
+      character_parser: 1
     ]
 
   def build_test_character do
