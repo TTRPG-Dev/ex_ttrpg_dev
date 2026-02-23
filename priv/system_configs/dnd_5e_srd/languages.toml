@@ -1,0 +1,62 @@
+[language.common]
+name = "Common"
+script = "Common"
+
+[language.dwarvish]
+name = "Dwarvish"
+script = "Dwarvish"
+
+[language.elvish]
+name = "Elvish"
+script = "Elvish"
+
+[language.giant]
+name = "Giant"
+script = "Dwarvish"
+
+[language.gnomish]
+name = "Gnomish"
+script = "Dwarvish"
+
+[language.goblin]
+name = "Goblin"
+script = "Dwarvish"
+
+[language.halfling]
+name = "Halfling"
+script = "Common"
+
+[language.orc]
+name = "Orc"
+script = "Dwarvish"
+
+[language.abyssal]
+name = "Abyssal"
+script = "Infernal"
+
+[language.celestial]
+name = "Celestial"
+script = "Celestial"
+
+[language.draconic]
+name = "Draconic"
+script = "Draconic"
+
+[language.deep_speech]
+name = "Deep Speech"
+
+[language.infernal]
+name = "Infernal"
+script = "Infernal"
+
+[language.primordial]
+name = "Primordial"
+script = "Dwarvish"
+
+[language.sylvan]
+name = "Sylvan"
+script = "Elvish"
+
+[language.undercommon]
+name = "Undercommon"
+script = "Elvish"

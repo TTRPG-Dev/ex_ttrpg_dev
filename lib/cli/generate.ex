@@ -1,10 +1,12 @@
 # credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI.Generate do
   @moduledoc """
-  Definitions for dealing with genenerate CLI commands
+  Definitions for dealing with generate CLI commands
   """
+  alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
-  alias ExTTRPGDev.RuleSystems.RuleSystem
+  alias ExTTRPGDev.CLI.CharacterDisplay
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
   Command specifications for generate commands
@@ -36,9 +38,9 @@ defmodule ExTTRPGDev.CLI.Generate do
     do: IO.inspect(Faker.Person.name())
 
   def handle_generate_subcommands([:stat_block | _subcommands], %Optimus.ParseResult{
-        args: %{system: system}
+        args: %{system: %LoadedSystem{} = system}
       }) do
-    RuleSystem.gen_ability_scores_assigned(system)
-    |> IO.inspect()
+    character = Character.gen_character!(system)
+    CharacterDisplay.print(system, character)
   end
 end

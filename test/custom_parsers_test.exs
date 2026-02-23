@@ -5,11 +5,11 @@ defmodule ExTTRPGDevTest.CLI.CustomParsers do
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.CustomParsers
   alias ExTTRPGDev.RuleSystems
-  alias ExTTRPGDev.RuleSystems.RuleSystem
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   doctest ExTTRPGDev.CLI.CustomParsers,
     except: [
-      system_parser: 1
+      character_parser: 1
     ]
 
   def build_test_character do
@@ -29,25 +29,23 @@ defmodule ExTTRPGDevTest.CLI.CustomParsers do
     File.rm(Characters.character_file_path!(character))
   end
 
-  def system_parser_test do
-    # If no error was raised, then all is good
-    {:ok, %RuleSystem{}} = CustomParsers.system_parser("dnd_5e_srd")
-
-    # Should raise an error
-    assert_raise RuntimeError, CustomParsers.system_parser("unknown_system")
+  test "system_parser/1 returns ok with LoadedSystem for valid system" do
+    assert {:ok, %LoadedSystem{}} = CustomParsers.system_parser("dnd_5e_srd")
   end
 
-  def character_parser_test do
+  test "system_parser/1 returns error for unknown system" do
+    assert {:error, _message} = CustomParsers.system_parser("unknown_system_xyz")
+  end
+
+  test "character_parser/1 returns ok with Character for existing character" do
     character = save_test_character()
 
-    {:ok, %Character{}} = CustomParsers.character_parser(character.metadata.slug)
+    assert {:ok, %Character{}} = CustomParsers.character_parser(character.metadata.slug)
 
-    # cleanup
     delete_test_character(character)
+  end
 
-    # should raise an error
-    assert_raise RuntimeError, CustomParsers.character_parser(character.metadata.slug)
-
-    assert False
+  test "character_parser/1 returns error for non-existent character" do
+    assert {:error, _message} = CustomParsers.character_parser("nonexistent_character_xyz")
   end
 end

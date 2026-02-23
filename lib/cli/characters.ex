@@ -1,11 +1,13 @@
-# credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI.Characters do
   @moduledoc """
-  Defintions for dealing with character CLI commands
+  Definitions for dealing with character CLI commands
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
+  alias ExTTRPGDev.CLI.CharacterDisplay
   alias ExTTRPGDev.CLI.Inputs
+  alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
   Command specifications for character CLI commands
@@ -24,7 +26,7 @@ defmodule ExTTRPGDev.CLI.Characters do
               save: [
                 short: "-s",
                 long: "--save",
-                help: "If specidied, saves the character",
+                help: "If specified, saves the character",
                 multiple: false
               ]
             ]
@@ -47,16 +49,12 @@ defmodule ExTTRPGDev.CLI.Characters do
   Handle `characters` CLI command and sub commands
   """
   def handle_characters_subcommands([:gen | _subcommands], %Optimus.ParseResult{
-        args: %{system: system},
+        args: %{system: %LoadedSystem{} = system},
         flags: %{save: save_character_flag}
       }) do
-    character = system |> Character.gen_character!()
+    character = Character.gen_character!(system)
 
-    IO.puts("-- Name: #{character.name}")
-
-    Enum.each(character.ability_scores, fn {ability, scores} ->
-      IO.puts("#{ability}: #{Enum.sum(scores)}")
-    end)
+    CharacterDisplay.print(system, character)
 
     if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
       ExTTRPGDev.Characters.save_character!(character)
@@ -68,15 +66,23 @@ defmodule ExTTRPGDev.CLI.Characters do
       [] ->
         IO.puts("No saved characters found!")
 
-      characters ->
+      character_slugs ->
         IO.puts("Saved Characters:")
-        Enum.each(characters, fn character -> IO.puts("- #{character}") end)
+
+        Enum.each(character_slugs, fn character_slug ->
+          character = ExTTRPGDev.Characters.load_character!(character_slug)
+
+          IO.puts(
+            "- #{character.metadata.slug}: #{character.name} [#{character.metadata.rule_system}]"
+          )
+        end)
     end
   end
 
   def handle_characters_subcommands([:show | _subcommands], %Optimus.ParseResult{
         args: %{character: character}
       }) do
-    IO.inspect(character)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    CharacterDisplay.print(system, character)
   end
 end

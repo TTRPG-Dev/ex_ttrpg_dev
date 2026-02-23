@@ -31,3 +31,6 @@ ex_ttrpg_dev
 # Ignore custom/local rule system configs
 /local_system_configs/
 /local_characters/
+
+# Local notes
+TODO.txt

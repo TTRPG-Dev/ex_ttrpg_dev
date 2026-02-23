@@ -2,63 +2,54 @@ defmodule ExTTRPGDev.Globals do
   @moduledoc """
   Module which defines globals like project paths
   """
-  @project_root File.cwd!()
-  @characters_path Path.join(~w(#{@project_root} local_characters))
-  @system_configs_path Path.join(~w(#{@project_root} priv system_configs))
-  @local_system_configs_path Path.join(~w(#{@project_root} local_system_configs))
   @license_file_name "license.md"
-  @json_file_pattern ~r/.+\.json$/
+  @toml_file_pattern ~r/.+\.toml$/
 
   @doc """
-  The path to where the project lives on your machine
+  The path to where bundled system configs are stored.
+  Resolved at runtime using the application's priv directory.
 
   ## Examples
-
-      iex> ExTTRPGDev.Globals.project_root()
-      "/full/path/to/project/ex_ttrpg_dev"
-
-  """
-  def project_root do
-    @project_root
-  end
-
-  @doc """
-  The path to where characters are stored on your machine
-
-  ## Examples
-
-      iex> ExTTRPGDev.Globals.characters_path()
-      "/full/path/to/project/ex_ttrpg_dev/priv/characters"
-
-  """
-  def characters_path do
-    @characters_path
-  end
-
-  @doc """
-  The path to where system configs are stored
-
-  ## Examples
-
-      iex> ExTTRPGDev.Globals.system_configs_path()
-      "/full/path/to/project/ex_ttrpg_dev/system_configs"
+    iex> ExTTRPGDev.Globals.system_configs_path() |> String.ends_with?("system_configs")
+    true
 
   """
   def system_configs_path do
-    @system_configs_path
+    cwd_path = Path.join(File.cwd!(), "priv/system_configs")
+
+    if File.exists?(cwd_path) do
+      cwd_path
+    else
+      :code.priv_dir(:ex_ttrpg_dev)
+      |> to_string()
+      |> Path.join("system_configs")
+    end
   end
 
   @doc """
-  The path to where custom rule system configs are stored
+  The path to where custom (local) rule system configs are stored.
+  Resolved at runtime relative to the current working directory.
 
   ## Examples
-
-      iex> ExTTRPGDev.Globals.local_system_configs_path()
-      "/full/path/to/project/ex_ttrpg_dev/local_system_configs"
+    iex> ExTTRPGDev.Globals.local_system_configs_path() |> String.ends_with?("local_system_configs")
+    true
 
   """
   def local_system_configs_path do
-    @local_system_configs_path
+    Path.join(File.cwd!(), "local_system_configs")
+  end
+
+  @doc """
+  The path to where characters are stored.
+  Resolved at runtime relative to the current working directory.
+
+  ## Examples
+    iex> ExTTRPGDev.Globals.characters_path() |> String.ends_with?("local_characters")
+    true
+
+  """
+  def characters_path do
+    Path.join(File.cwd!(), "local_characters")
   end
 
   @doc """
@@ -74,13 +65,16 @@ defmodule ExTTRPGDev.Globals do
   end
 
   @doc """
-  The regex pattern for identifying json files
+  The regex pattern for identifying toml files
 
   ## Examples
-    iex> ExTTRPGDev.Globals.json_file_name()
-    ~r/.+\\.json$/
+    iex> "system_config.toml" =~ ExTTRPGDev.Globals.toml_file_pattern()
+    true
+
+    iex> "not_a_toml" =~ ExTTRPGDev.Globals.toml_file_pattern()
+    false
   """
-  def json_file_pattern do
-    @json_file_pattern
+  def toml_file_pattern do
+    @toml_file_pattern
   end
 end

@@ -67,7 +67,11 @@ defmodule ExTTRPGDev.Characters do
       raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
     else
       File.mkdir_p!(Globals.characters_path())
-      File.write!(character_file_path!(character), Poison.encode!(character))
+
+      File.write!(
+        character_file_path!(character),
+        Poison.encode!(Character.to_json_map(character))
+      )
     end
   end
 

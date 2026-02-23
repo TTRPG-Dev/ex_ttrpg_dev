@@ -1,0 +1,59 @@
+[attr.strength]
+name = "Strength"
+abbreviation = "STR"
+description = "measuring physical power"
+base_score.type = "generated"
+base_score.method = "standard"
+total_score.type = "accumulator"
+total_score.base = "attr('strength').base_score"
+modifier.formula = "floor((attr('strength').total_score - 10) / 2)"
+
+[attr.dexterity]
+name = "Dexterity"
+abbreviation = "DEX"
+description = "measuring agility"
+base_score.type = "generated"
+base_score.method = "standard"
+total_score.type = "accumulator"
+total_score.base = "attr('dexterity').base_score"
+modifier.formula = "floor((attr('dexterity').total_score - 10) / 2)"
+
+[attr.constitution]
+name = "Constitution"
+abbreviation = "CON"
+description = "measuring endurance"
+base_score.type = "generated"
+base_score.method = "standard"
+total_score.type = "accumulator"
+total_score.base = "attr('constitution').base_score"
+modifier.formula = "floor((attr('constitution').total_score - 10) / 2)"
+
+[attr.wisdom]
+name = "Wisdom"
+abbreviation = "WIS"
+description = "measuring perception and insight"
+base_score.type = "generated"
+base_score.method = "standard"
+total_score.type = "accumulator"
+total_score.base = "attr('wisdom').base_score"
+modifier.formula = "floor((attr('wisdom').total_score - 10) / 2)"
+
+[attr.intelligence]
+name = "Intelligence"
+abbreviation = "INT"
+description = "measuring reasoning and memory"
+base_score.type = "generated"
+base_score.method = "standard"
+total_score.type = "accumulator"
+total_score.base = "attr('intelligence').base_score"
+modifier.formula = "floor((attr('intelligence').total_score - 10) / 2)"
+
+[attr.charisma]
+name = "Charisma"
+abbreviation = "CHA"
+description = "measuring force of personality"
+base_score.type = "generated"
+base_score.method = "standard"
+total_score.type = "accumulator"
+total_score.base = "attr('charisma').base_score"
+modifier.formula = "floor((attr('charisma').total_score - 10) / 2)"

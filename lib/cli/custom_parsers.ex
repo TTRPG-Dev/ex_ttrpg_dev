@@ -21,12 +21,12 @@ defmodule ExTTRPGDev.CLI.CustomParsers do
   end
 
   @doc """
-  Loads the rule system for the given system name
+  Loads the rule system for the given system name, returning a %LoadedSystem{}.
 
   ## Examples
 
-      iex> ExTTRPGDev.CLI.CustomParsers.system_parser("dnd_5e_srd")
-      {:ok, %ExTTRPGDev.RuleSystems.RuleSystem{}}
+      iex> {:ok, %ExTTRPGDev.RuleSystems.LoadedSystem{}} = ExTTRPGDev.CLI.CustomParsers.system_parser("dnd_5e_srd")
+      iex> {:error, _error_message} = ExTTRPGDev.CLI.CustomParsers.system_parser("this_system_doesnt_exist")
   """
   def system_parser(system) when is_bitstring(system) do
     if RuleSystems.is_configured?(system) do
@@ -38,6 +38,15 @@ defmodule ExTTRPGDev.CLI.CustomParsers do
        "\"#{system}\" is not configured, run `ex_ttrpg_dev systems list` to list configured systems"}
     end
   end
+
+  @doc """
+  Loads the character associated with the passed character slug, returning a %Character{}.
+
+  ## Examples
+
+      iex> {:ok, %ExTTRPGDev.Characters.Character{}} = ExTTRPGDev.CLI.CustomParsers.character_parser("bilbo_baggins")
+      iex> {:error, _error_message} = ExTTRPGDev.CLI.CustomParsers.character_parser("character_doesnt_exist")
+  """
 
   def character_parser(character_slug) when is_bitstring(character_slug) do
     if Characters.character_exists?(character_slug) do

@@ -5,24 +5,69 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
   doctest ExTTRPGDev.Characters.Character,
     except: [
-      to_json!: 1,
-      gen_character!: 1
+      gen_character!: 1,
+      from_json!: 1,
+      to_json_map: 1
     ]
 
-  test "gen_character!/1" do
-    dnd_5e_srd = RuleSystems.load_system!("dnd_5e_srd")
-    generated_character = Character.gen_character!(dnd_5e_srd)
+  test "gen_character!/1 produces a valid character" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    character = Character.gen_character!(system)
 
-    assert generated_character.name != nil
-    assert generated_character.metadata.slug != nil
-    assert not String.contains?(generated_character.metadata.slug, " ")
-    assert generated_character.metadata.rule_system == dnd_5e_srd.metadata
+    assert character.name != nil
+    assert character.metadata.slug != nil
+    refute String.contains?(character.metadata.slug, " ")
+    assert character.metadata.rule_system == "dnd_5e_srd"
+    assert character.effects == []
+  end
 
-    # Assert that each ability spec is found within the generated character's ability_scores
-    dnd_5e_srd.abilities.specs
-    |> Enum.each(fn spec ->
-      score = Map.get(generated_character.ability_scores, spec.name)
-      assert score != nil, "Could not find ability #{spec.name} on generated character"
-    end)
+  test "gen_character!/1 generates all six attribute base scores" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    character = Character.gen_character!(system)
+
+    attrs = ~w(strength dexterity constitution wisdom intelligence charisma)
+
+    for attr <- attrs do
+      key = {"attr", attr, "base_score"}
+      score = Map.get(character.generated_values, key)
+      assert is_integer(score), "Missing or non-integer base_score for #{attr}"
+      assert score >= 3 and score <= 18, "Score #{score} for #{attr} out of expected range"
+    end
+  end
+
+  test "to_json_map/1 and from_json!/1 round-trip correctly" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    original = Character.gen_character!(system)
+
+    json = original |> Character.to_json_map() |> Poison.encode!()
+    restored = Character.from_json!(json)
+
+    assert restored.name == original.name
+    assert restored.metadata.slug == original.metadata.slug
+    assert restored.metadata.rule_system == original.metadata.rule_system
+    assert restored.generated_values == original.generated_values
+    assert restored.effects == original.effects
+  end
+
+  test "to_json_map/1 and from_json!/1 round-trip preserves effects" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    original = Character.gen_character!(system)
+
+    original = %{
+      original
+      | effects: [
+          %{target: {"attr", "strength", "total_score"}, value: 2},
+          %{target: {"attr", "dexterity", "total_score"}, value: -1}
+        ]
+    }
+
+    json = original |> Character.to_json_map() |> Poison.encode!()
+    restored = Character.from_json!(json)
+
+    assert length(restored.effects) == 2
+
+    assert %{target: {"attr", "strength", "total_score"}, value: 2} in restored.effects
+
+    assert %{target: {"attr", "dexterity", "total_score"}, value: -1} in restored.effects
   end
 end
