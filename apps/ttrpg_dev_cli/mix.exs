@@ -17,9 +17,13 @@ defmodule TtrpgDevCli.MixProject do
   end
 
   def application do
-    [
-      extra_applications: [:logger]
-    ]
+    base = [extra_applications: [:logger]]
+
+    if Mix.env() == :prod do
+      Keyword.put(base, :mod, {TtrpgDevCli.Application, []})
+    else
+      base
+    end
   end
 
   defp deps do
