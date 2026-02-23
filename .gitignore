@@ -26,7 +26,7 @@ ex_ttrpg_dev-*.tar
 /tmp/
 
 # Ignore built CLI
-ex_ttrpg_dev
+apps/ttrpg_dev_cli/ttrpg_dev_cli
 
 # Ignore custom/local rule system configs
 /local_system_configs/
