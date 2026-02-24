@@ -185,9 +185,9 @@ jobs:
         run: |
           git archive \
             --format=tar.gz \
-            --prefix=ex_ttrpg_dev-${{ needs.version-bump.outputs.cli_version }}/ \
+            --prefix=ex_ttrpg_dev-${{ needs.version-bump.outputs.lib_version }}/ \
             HEAD \
-            > ex_ttrpg_dev-${{ needs.version-bump.outputs.cli_version }}-source.tar.gz
+            > ex_ttrpg_dev-${{ needs.version-bump.outputs.lib_version }}-source.tar.gz
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
