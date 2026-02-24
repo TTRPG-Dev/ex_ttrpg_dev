@@ -176,8 +176,6 @@ jobs:
         run: mix deps.get --only prod
 
       - name: Build Burrito binaries (all targets)
-        env:
-          BURRITO_TARGET: linux,macos,macos_arm,windows
         run: MIX_ENV=prod mix release
 
       - name: Create source archive
