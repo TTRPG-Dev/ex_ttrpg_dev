@@ -181,13 +181,31 @@ jobs:
       - name: Build Burrito binaries (all targets)
         run: MIX_ENV=prod mix release
 
+      - name: Package binaries for release
+        run: |
+          mkdir -p release_packages
+          for binary in burrito_out/ttrpg_dev_cli_*; do
+            name=$(basename "$binary")
+            target="${name#ttrpg_dev_cli_}"
+            if [[ "$target" == *windows* ]]; then
+              cp "$binary" "ttrpg-dev.exe"
+              zip "release_packages/${name}.zip" "ttrpg-dev.exe"
+              rm "ttrpg-dev.exe"
+            else
+              cp "$binary" "ttrpg-dev"
+              chmod +x "ttrpg-dev"
+              tar -czf "release_packages/${name}.tar.gz" "ttrpg-dev"
+              rm "ttrpg-dev"
+            fi
+          done
+
       - name: Create source archive
         run: |
           git archive \
             --format=tar.gz \
-            --prefix=ex_ttrpg_dev-${{ needs.version-bump.outputs.cli_version }}/ \
+            --prefix=ex_ttrpg_dev-${{ needs.version-bump.outputs.lib_version }}/ \
             HEAD \
-            > ex_ttrpg_dev-${{ needs.version-bump.outputs.cli_version }}-source.tar.gz
+            > ex_ttrpg_dev-${{ needs.version-bump.outputs.lib_version }}-source.tar.gz
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -195,5 +213,5 @@ jobs:
           tag_name: v${{ needs.version-bump.outputs.cli_version }}
           generate_release_notes: true
           files: |
-            burrito_out/*
+            release_packages/*
             ex_ttrpg_dev-*-source.tar.gz
