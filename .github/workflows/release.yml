@@ -1,0 +1,194 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      cli_bump:
+        description: 'Version bump for ttrpg_dev_cli'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      lib_bump:
+        description: 'Version bump for ex_ttrpg_dev (none = skip Hex.pm release)'
+        required: true
+        type: choice
+        options:
+          - none
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  version-bump:
+    name: Bump versions, commit, and tag
+    runs-on: ubuntu-latest
+    outputs:
+      cli_version: ${{ steps.bump.outputs.cli_version }}
+      lib_version: ${{ steps.bump.outputs.lib_version }}
+      lib_changed: ${{ steps.bump.outputs.lib_changed }}
+      sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute and apply version bumps
+        id: bump
+        run: |
+          bump_version() {
+            local version="$1" bump="$2"
+            IFS='.' read -r major minor patch <<< "$version"
+            case "$bump" in
+              major) echo "$((major + 1)).0.0" ;;
+              minor) echo "$major.$((minor + 1)).0" ;;
+              patch) echo "$major.$minor.$((patch + 1))" ;;
+            esac
+          }
+
+          # ---- CLI ----
+          CLI_CURRENT=$(grep -m1 'version:' apps/ttrpg_dev_cli/mix.exs | sed 's/.*version: "//;s/".*//')
+          CLI_NEW=$(bump_version "$CLI_CURRENT" "${{ inputs.cli_bump }}")
+          sed -i "0,/version: \"${CLI_CURRENT}\"/s/version: \"${CLI_CURRENT}\"/version: \"${CLI_NEW}\"/" apps/ttrpg_dev_cli/mix.exs
+
+          # ---- Root umbrella (tracks CLI version) ----
+          ROOT_CURRENT=$(grep -m1 'version:' mix.exs | sed 's/.*version: "//;s/".*//')
+          sed -i "0,/version: \"${ROOT_CURRENT}\"/s/version: \"${ROOT_CURRENT}\"/version: \"${CLI_NEW}\"/" mix.exs
+
+          # ---- Library ----
+          LIB_CURRENT=$(grep -m1 'version:' apps/ex_ttrpg_dev/mix.exs | sed 's/.*version: "//;s/".*//')
+          LIB_NEW="$LIB_CURRENT"
+          LIB_CHANGED="false"
+
+          if [ "${{ inputs.lib_bump }}" != "none" ]; then
+            LIB_NEW=$(bump_version "$LIB_CURRENT" "${{ inputs.lib_bump }}")
+            sed -i "0,/version: \"${LIB_CURRENT}\"/s/version: \"${LIB_CURRENT}\"/version: \"${LIB_NEW}\"/" apps/ex_ttrpg_dev/mix.exs
+            LIB_CHANGED="true"
+          fi
+
+          echo "cli_version=$CLI_NEW" >> "$GITHUB_OUTPUT"
+          echo "lib_version=$LIB_NEW" >> "$GITHUB_OUTPUT"
+          echo "lib_changed=$LIB_CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push version bumps
+        id: commit
+        run: |
+          git add mix.exs apps/ttrpg_dev_cli/mix.exs
+
+          if [ "${{ steps.bump.outputs.lib_changed }}" == "true" ]; then
+            git add apps/ex_ttrpg_dev/mix.exs
+            MSG="chore: release ttrpg_dev_cli v${{ steps.bump.outputs.cli_version }}, ex_ttrpg_dev v${{ steps.bump.outputs.lib_version }}"
+          else
+            MSG="chore: release ttrpg_dev_cli v${{ steps.bump.outputs.cli_version }}"
+          fi
+
+          git commit -m "$MSG"
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push release tags
+        run: |
+          git tag "v${{ steps.bump.outputs.cli_version }}"
+
+          if [ "${{ steps.bump.outputs.lib_changed }}" == "true" ]; then
+            git tag "lib/v${{ steps.bump.outputs.lib_version }}"
+          fi
+
+          git push --tags
+
+  publish-hex:
+    name: Publish ex_ttrpg_dev to Hex.pm
+    needs: version-bump
+    if: needs.version-bump.outputs.lib_changed == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.sha }}
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.19.5'
+          otp-version: '28.3.1'
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Publish to Hex.pm
+        working-directory: apps/ex_ttrpg_dev
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes
+
+  github-release:
+    name: Build Burrito binaries and publish GitHub release
+    needs: version-bump
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.sha }}
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.19.5'
+          otp-version: '28.3.1'
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 'latest'
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-prod-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-prod-
+
+      - name: Install dependencies
+        run: mix deps.get --only prod
+
+      - name: Build Burrito binaries (all targets)
+        env:
+          BURRITO_TARGET: linux,macos,macos_arm,windows
+        run: MIX_ENV=prod mix release
+
+      - name: Create source archive
+        run: |
+          git archive \
+            --format=tar.gz \
+            --prefix=ex_ttrpg_dev-${{ needs.version-bump.outputs.cli_version }}/ \
+            HEAD \
+            > ex_ttrpg_dev-${{ needs.version-bump.outputs.cli_version }}-source.tar.gz
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version-bump.outputs.cli_version }}
+          generate_release_notes: true
+          files: |
+            burrito_out/*
+            ex_ttrpg_dev-*-source.tar.gz

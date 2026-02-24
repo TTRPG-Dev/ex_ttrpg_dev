@@ -17,15 +17,20 @@ defmodule TtrpgDevCli.MixProject do
   end
 
   def application do
-    [
-      extra_applications: [:logger]
-    ]
+    base = [extra_applications: [:logger]]
+
+    if Mix.env() == :prod do
+      Keyword.put(base, :mod, {TtrpgDevCli.Application, []})
+    else
+      base
+    end
   end
 
   defp deps do
     [
       {:ex_ttrpg_dev, in_umbrella: true},
       {:optimus, "~> 0.6"},
+      {:burrito, "~> 1.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
