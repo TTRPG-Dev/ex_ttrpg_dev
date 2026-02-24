@@ -19,6 +19,9 @@ defmodule ExTtrpgDevUmbrella.MixProject do
         applications: [ttrpg_dev_cli: :permanent],
         steps: [:assemble, &Burrito.wrap/1],
         burrito: [
+          # Set BURRITO_DEBUG=1 at build time to force a clean unpack on
+          # every run (used by scripts/build_cli.sh for local testing).
+          debug: System.get_env("BURRITO_DEBUG") == "1",
           targets: [
             linux: [os: :linux, cpu: :x86_64],
             macos: [os: :darwin, cpu: :x86_64],

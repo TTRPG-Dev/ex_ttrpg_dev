@@ -2,9 +2,13 @@
 # Build ttrpg_dev_cli as a standalone Burrito binary for local testing.
 #
 # Usage:
-#   ./scripts/build_cli.sh          # build for the current platform only
-#   ./scripts/build_cli.sh all      # cross-compile all release targets
-#   ./scripts/build_cli.sh linux    # build a specific target by name
+#   ./scripts/build_cli.sh          # build for the current platform (debug mode)
+#   ./scripts/build_cli.sh all      # cross-compile all production release targets
+#   ./scripts/build_cli.sh linux    # build a specific named target (production mode)
+#
+# The no-argument form sets BURRITO_DEBUG=1, which forces Burrito to unpack a
+# fresh copy of the release on every run. This ensures rebuilds are always
+# reflected immediately without needing to bump the version number.
 #
 # Targets: linux | macos | macos_arm | windows
 #
@@ -31,13 +35,16 @@ detect_target() {
 
 # ---- Resolve target argument ----------------------------------------
 ARG="${1:-}"
+DEBUG_BUILD=0
 
 if [ -z "$ARG" ]; then
   TARGET=$(detect_target)
-  echo "No target specified — building for current platform: $TARGET"
+  DEBUG_BUILD=1
+  echo "No target specified — building debug binary for current platform: $TARGET"
+  echo "(BURRITO_DEBUG=1: fresh unpack on every run)"
 elif [ "$ARG" = "all" ]; then
   TARGET="linux,macos,macos_arm,windows"
-  echo "Building all targets: $TARGET"
+  echo "Building all production targets: $TARGET"
 else
   TARGET="$ARG"
   echo "Building target: $TARGET"
@@ -63,7 +70,7 @@ mix deps.get --only prod
 
 echo ""
 echo "Building Burrito release..."
-BURRITO_TARGET="$TARGET" MIX_ENV=prod mix release
+BURRITO_DEBUG="$DEBUG_BUILD" BURRITO_TARGET="$TARGET" MIX_ENV=prod mix release --overwrite
 
 # ---- Summary --------------------------------------------------------
 echo ""
