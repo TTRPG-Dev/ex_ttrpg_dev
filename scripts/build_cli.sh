@@ -2,13 +2,18 @@
 # Build ttrpg_dev_cli as a standalone Burrito binary for local testing.
 #
 # Usage:
-#   ./scripts/build_cli.sh          # build for the current platform (debug mode)
+#   ./scripts/build_cli.sh          # build for the current platform
 #   ./scripts/build_cli.sh all      # cross-compile all production release targets
-#   ./scripts/build_cli.sh linux    # build a specific named target (production mode)
+#   ./scripts/build_cli.sh linux    # build a specific named target
 #
-# The no-argument form sets BURRITO_DEBUG=1, which forces Burrito to unpack a
-# fresh copy of the release on every run. This ensures rebuilds are always
-# reflected immediately without needing to bump the version number.
+# By default the binary is built in production mode (quiet startup).
+# Set TTRPG_DEV_DEBUG=true to bake verbose Burrito startup output into the binary:
+#
+#   TTRPG_DEV_DEBUG=true ./scripts/build_cli.sh
+#
+# For single-target builds the script clears the Burrito install cache before
+# building so the newly built binary is always used on next run, even when the
+# version number has not changed.
 #
 # Targets: linux | macos | macos_arm | windows
 #
@@ -33,21 +38,41 @@ detect_target() {
   esac
 }
 
+# ---- Clear Burrito install cache ------------------------------------
+# Uses the existing binary's `maintenance directory` command (Zig-only, no
+# BEAM startup) to locate and delete the cached install directory.  Running
+# this before rebuilding ensures the next invocation always extracts fresh.
+clear_install_cache() {
+  local binary="$1"
+  if [ ! -f "$binary" ]; then
+    return 0
+  fi
+  local install_dir
+  install_dir=$("$binary" maintenance directory 2>/dev/null || true)
+  if [ -n "$install_dir" ] && [ -d "$install_dir" ]; then
+    rm -rf "$install_dir"
+    echo "Cleared install cache: $install_dir"
+  fi
+}
+
 # ---- Resolve target argument ----------------------------------------
 ARG="${1:-}"
-DEBUG_BUILD=0
 
 if [ -z "$ARG" ]; then
   TARGET=$(detect_target)
-  DEBUG_BUILD=1
-  echo "No target specified — building debug binary for current platform: $TARGET"
-  echo "(BURRITO_DEBUG=1: fresh unpack on every run)"
+  echo "No target specified — building for current platform: $TARGET"
 elif [ "$ARG" = "all" ]; then
   TARGET="linux,macos,macos_arm,windows"
   echo "Building all production targets: $TARGET"
 else
   TARGET="$ARG"
   echo "Building target: $TARGET"
+fi
+
+# ---- Clear install cache before building ----------------------------
+# Skip for multi-target builds since binary paths are ambiguous.
+if [ "$TARGET" != "linux,macos,macos_arm,windows" ]; then
+  clear_install_cache "./burrito_out/ttrpg_dev_cli_${TARGET}"
 fi
 
 # ---- Preflight checks -----------------------------------------------
@@ -70,7 +95,7 @@ mix deps.get --only prod
 
 echo ""
 echo "Building Burrito release..."
-BURRITO_DEBUG="$DEBUG_BUILD" BURRITO_TARGET="$TARGET" MIX_ENV=prod mix release --overwrite
+BURRITO_TARGET="$TARGET" MIX_ENV=prod mix release --overwrite
 
 # ---- Summary --------------------------------------------------------
 echo ""
