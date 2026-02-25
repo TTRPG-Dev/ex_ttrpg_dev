@@ -28,6 +28,11 @@ defmodule ExTTRPGDev.CLI.Characters do
                 long: "--save",
                 help: "If specified, saves the character",
                 multiple: false
+              ],
+              stat_block_only: [
+                long: "--stat-block-only",
+                help: "If specified, only prints the stat block without prompting to save",
+                multiple: false
               ]
             ]
           ],
@@ -50,14 +55,16 @@ defmodule ExTTRPGDev.CLI.Characters do
   """
   def handle_characters_subcommands([:gen | _subcommands], %Optimus.ParseResult{
         args: %{system: %LoadedSystem{} = system},
-        flags: %{save: save_character_flag}
+        flags: %{save: save_character_flag, stat_block_only: stat_block_only_flag}
       }) do
     character = Character.gen_character!(system)
 
     CharacterDisplay.print(system, character)
 
-    if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
-      ExTTRPGDev.Characters.save_character!(character)
+    unless stat_block_only_flag do
+      if save_character_flag or Inputs.get_yes_no!("Would you like to save this character?") do
+        ExTTRPGDev.Characters.save_character!(character)
+      end
     end
   end
 

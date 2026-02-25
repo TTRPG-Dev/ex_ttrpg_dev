@@ -38,16 +38,14 @@ defmodule ExTTRPGDev.CLI.Shell do
   defp handle_input("help", _optimus) do
     IO.puts("""
     Commands (same syntax as the CLI):
-      roll <dice>              Roll dice, e.g. roll 3d6
-      systems list             List configured rule systems
-      systems show <cmd>       Show system info (abilities/languages/metadata/skills)
-      gen name                 Generate a random name
-      gen stat-block <system>  Generate a stat block
-      characters gen <system>  Generate a character
-      characters list          List saved characters
-      characters show <slug>   Show a saved character
-      help                     Show this help
-      exit / quit              Exit the shell
+      roll <dice>                                Roll dice, e.g. roll 3d6
+      systems list                               List configured rule systems
+      systems show <cmd>                         Show system info (abilities/languages/metadata/skills)
+      characters gen <system>                    Generate a character
+      characters list                            List saved characters
+      characters show <slug>                     Show a saved character
+      help                                       Show this help
+      exit / quit                                Exit the shell
     """)
 
     :continue
