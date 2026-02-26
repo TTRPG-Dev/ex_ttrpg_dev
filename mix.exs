@@ -4,7 +4,7 @@ defmodule ExTtrpgDevUmbrella.MixProject do
   def project do
     [
       apps_path: "apps",
-      version: "0.6.3",
+      version: "0.7.0",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
