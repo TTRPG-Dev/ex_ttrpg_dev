@@ -12,7 +12,8 @@ defmodule ExTTRPGDev.MixProject do
       package: package(),
       name: "ExTTRPGDev",
       source_url: "https://github.com/TTRPG-Dev/ex_ttrpg_dev",
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      dialyzer: [plt_file: {:no_warn, "priv/plts/dialyzer.plt"}]
     ]
   end
 
@@ -37,6 +38,7 @@ defmodule ExTTRPGDev.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:poison, "~> 6.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
