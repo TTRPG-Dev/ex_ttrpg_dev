@@ -22,7 +22,15 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
           show: [
             name: "show",
             about: "Show metadata and concept types for a rule system",
-            args: Args.system()
+            args: Args.system(),
+            options: [
+              concept_type: [
+                value_name: "CONCEPT_TYPE",
+                help: "Show all concepts belonging to the given concept type",
+                long: "--concept-type",
+                required: false
+              ]
+            ]
           ]
         ]
       ]
@@ -44,9 +52,13 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   end
 
   def handle_systems_subcommands([:show], %Optimus.ParseResult{
-        args: %{system: system}
+        args: %{system: system},
+        options: options
       }) do
-    show_system(system)
+    case Map.get(options, :concept_type) do
+      nil -> show_system(system)
+      concept_type -> show_concepts(system, concept_type)
+    end
   end
 
   defp show_system(%LoadedSystem{module: mod}) do
@@ -62,5 +74,21 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
     Enum.each(mod.concept_types, fn ct ->
       IO.puts("  #{ct.id}: #{ct.name}")
     end)
+  end
+
+  defp show_concepts(%LoadedSystem{concept_metadata: meta}, concept_type) do
+    concepts =
+      meta
+      |> Enum.filter(fn {{type, _id}, _} -> type == concept_type end)
+      |> Enum.sort_by(fn {{_type, id}, _} -> id end)
+
+    if concepts == [] do
+      IO.puts("No concepts found for concept type \"#{concept_type}\".")
+    else
+      Enum.each(concepts, fn {{_type, id}, fields} ->
+        name = Map.get(fields, "name", id)
+        IO.puts("#{id}: #{name}")
+      end)
+    end
   end
 end
