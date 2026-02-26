@@ -4,7 +4,6 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
   Definitions for dealing with rule system CLI commands
   """
   alias ExTTRPGDev.CLI.Args
-  alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
@@ -22,29 +21,8 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
           ],
           show: [
             name: "show",
-            about: "Used for showing information about the rule system",
-            subcommands: [
-              abilities: [
-                name: "abilities",
-                about: "Show the rule systems character abilities",
-                args: Args.system()
-              ],
-              languages: [
-                name: "languages",
-                about: "Show the rule systems languages",
-                args: Args.system()
-              ],
-              metadata: [
-                name: "metadata",
-                about: "Show system metadata",
-                args: Args.system()
-              ],
-              skills: [
-                name: "skills",
-                about: "Show rule system skills",
-                args: Args.system()
-              ]
-            ]
+            about: "Show metadata and concept types for a rule system",
+            args: Args.system()
           ]
         ]
       ]
@@ -65,56 +43,24 @@ defmodule ExTTRPGDev.CLI.RuleSystems do
     end
   end
 
-  def handle_systems_subcommands([:show | subcommands], %Optimus.ParseResult{
+  def handle_systems_subcommands([:show], %Optimus.ParseResult{
         args: %{system: system}
       }) do
-    case subcommands do
-      [:abilities] -> show_abilities(system)
-      [:languages] -> show_languages(system)
-      [:metadata] -> IO.inspect(system.module)
-      [:skills] -> show_skills(system)
-    end
+    show_system(system)
   end
 
-  @doc "Show a rule system's abilities"
-  def show_abilities(%LoadedSystem{concept_metadata: meta}) do
-    meta
-    |> Enum.filter(fn {{type, _id}, _} -> type == "attr" end)
-    |> Enum.sort_by(fn {{_type, id}, _} -> id end)
-    |> Enum.each(fn {{_type, _id}, fields} ->
-      IO.puts("(#{fields["abbreviation"]}) #{fields["name"]}")
-    end)
-  end
+  defp show_system(%LoadedSystem{module: mod}) do
+    IO.puts("Name: #{mod.name}")
+    IO.puts("Slug: #{mod.slug}")
+    IO.puts("Version: #{mod.version}")
+    if mod.publisher, do: IO.puts("Publisher: #{mod.publisher}")
+    if mod.family, do: IO.puts("Family: #{mod.family}")
+    if mod.series, do: IO.puts("Series: #{mod.series}")
 
-  @doc "Show a rule system's languages"
-  def show_languages(%LoadedSystem{concept_metadata: meta}) do
-    meta
-    |> Enum.filter(fn {{type, _id}, _} -> type == "language" end)
-    |> Enum.sort_by(fn {{_type, _id}, fields} -> fields["name"] end)
-    |> Enum.each(fn {{_type, _id}, fields} ->
-      script = Map.get(fields, "script", "none")
-      IO.puts("#{fields["name"]} (script: #{script})")
-    end)
-  end
+    IO.puts("\nConcept Types:")
 
-  @doc "Show a rule system's skills"
-  def show_skills(%LoadedSystem{concept_metadata: meta, nodes: nodes}) do
-    nodes
-    |> Enum.filter(fn {{type, _id, field}, _} -> type == "skill" and field == "modifier" end)
-    |> Enum.sort_by(fn {{_type, id, _field}, _} -> id end)
-    |> Enum.each(fn {{_type, skill_id, _field}, %{formula: formula}} ->
-      skill_name = get_in(meta, [{"skill", skill_id}, "name"]) || skill_id
-
-      abbr =
-        case Expression.extract_refs(formula) do
-          [{attr_type, attr_id, _} | _] ->
-            get_in(meta, [{attr_type, attr_id}, "abbreviation"]) || attr_id
-
-          [] ->
-            "?"
-        end
-
-      IO.puts("(#{abbr}) #{skill_name}")
+    Enum.each(mod.concept_types, fn ct ->
+      IO.puts("  #{ct.id}: #{ct.name}")
     end)
   end
 end
