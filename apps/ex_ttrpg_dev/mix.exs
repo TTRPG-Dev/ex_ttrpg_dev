@@ -11,7 +11,20 @@ defmodule ExTTRPGDev.MixProject do
       description: description(),
       package: package(),
       name: "ExTTRPGDev",
-      source_url: "https://github.com/TTRPG-Dev/ex_ttrpg_dev"
+      source_url: "https://github.com/TTRPG-Dev/ex_ttrpg_dev",
+      test_coverage: [tool: ExCoveralls]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.github": :test
+      ]
     ]
   end
 
@@ -26,6 +39,7 @@ defmodule ExTTRPGDev.MixProject do
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:poison, "~> 6.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test},
       {:faker, "~> 0.18"},
       {:toml_elixir, "~> 3.1"},
       {:abacus, "~> 2.1"},
