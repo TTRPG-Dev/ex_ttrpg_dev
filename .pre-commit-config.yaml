@@ -7,27 +7,27 @@ repos:
     entry: mix test
     language: system
     pass_filenames: false
-    files: \.exs*$
+    files: \.exs?$
 
   - id: mix-format
     name: 'elixir: mix format'
     entry: mix format --check-formatted
     language: system
-    files: \.exs*$
+    files: \.exs?$
 
   - id: mix-compile
     name: 'elixir: mix compile'
     entry: mix compile --force --warnings-as-errors
     language: system
     pass_filenames: false
-    files: \.ex$
+    files: \.exs?$
 
   - id: mix-credo
     name: 'elixir: mix credo'
     entry: mix credo
     language: system
     pass_filenames: false
-    files: \.exs*$
+    files: \.exs?$
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v1.4.0
