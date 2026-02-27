@@ -38,7 +38,15 @@ defmodule ExTTRPGDev.CLI.Characters do
           ],
           list: [
             name: "list",
-            about: "List saved characters"
+            about: "List saved characters",
+            options: [
+              system: [
+                value_name: "SYSTEM",
+                help: "Show all characters belonging to specific system",
+                long: "--system",
+                required: false
+              ]
+            ]
           ],
           show: [
             name: "show",
@@ -68,17 +76,31 @@ defmodule ExTTRPGDev.CLI.Characters do
     end
   end
 
-  def handle_characters_subcommands([:list | _subcommands], _args_options_flags) do
-    case ExTTRPGDev.Characters.list_characters!() do
-      [] ->
+  def handle_characters_subcommands([:list | _subcommands], %Optimus.ParseResult{
+        options: options
+      }) do
+    system = Map.get(options, :system)
+
+    loaded_characters =
+      ExTTRPGDev.Characters.list_characters!()
+      |> Enum.map(fn character_slug -> ExTTRPGDev.Characters.load_character!(character_slug) end)
+
+    filtered_characters =
+      loaded_characters
+      |> Enum.filter(fn character ->
+        system == nil or character.metadata.rule_system == system
+      end)
+
+    cond do
+      loaded_characters == [] ->
         IO.puts("No saved characters found!")
 
-      character_slugs ->
-        IO.puts("Saved Characters:")
+      filtered_characters == [] ->
+        IO.puts("No saved characters found for system `#{system}`!")
 
-        Enum.each(character_slugs, fn character_slug ->
-          character = ExTTRPGDev.Characters.load_character!(character_slug)
-
+      true ->
+        filtered_characters
+        |> Enum.each(fn character ->
           IO.puts(
             "- #{character.metadata.slug}: #{character.name} [#{character.metadata.rule_system}]"
           )
