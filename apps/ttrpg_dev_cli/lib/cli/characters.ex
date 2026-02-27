@@ -44,7 +44,8 @@ defmodule ExTTRPGDev.CLI.Characters do
                 value_name: "SYSTEM",
                 help: "Show all characters belonging to specific system",
                 long: "--system",
-                required: false
+                required: false,
+                parser: &ExTTRPGDev.CLI.CustomParsers.system_parser(&1)
               ]
             ]
           ],
