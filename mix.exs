@@ -9,7 +9,20 @@ defmodule ExTtrpgDevUmbrella.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      releases: releases()
+      releases: releases(),
+      test_coverage: [tool: ExCoveralls]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.github": :test
+      ]
     ]
   end
 
@@ -41,7 +54,8 @@ defmodule ExTtrpgDevUmbrella.MixProject do
 
   defp deps do
     [
-      {:burrito, "~> 1.0"}
+      {:burrito, "~> 1.0"},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 end
