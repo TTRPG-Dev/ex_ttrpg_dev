@@ -89,7 +89,7 @@ defmodule ExTTRPGDev.CLI.Characters do
     filtered_characters =
       loaded_characters
       |> Enum.filter(fn character ->
-        system == nil or character.metadata.rule_system == system
+        system == nil or character.metadata.rule_system == system.module.slug
       end)
 
     cond do
