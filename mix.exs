@@ -11,7 +11,13 @@ defmodule ExTtrpgDevUmbrella.MixProject do
       aliases: aliases(),
       releases: releases(),
       test_coverage: [tool: ExCoveralls],
-      dialyzer: [plt_file: {:no_warn, "priv/plts/dialyzer.plt"}]
+      dialyzer: [
+        plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+        paths: [
+          "_build/dev/lib/ex_ttrpg_dev/ebin",
+          "_build/dev/lib/ttrpg_dev_cli/ebin"
+        ]
+      ]
     ]
   end
 
