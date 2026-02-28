@@ -37,3 +37,6 @@ TODO.txt
 
 # Local burrito builds
 burrito_out
+
+# Dialyzer PLT files
+/apps/ex_ttrpg_dev/priv/plts/
