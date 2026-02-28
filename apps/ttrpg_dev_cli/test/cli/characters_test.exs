@@ -24,37 +24,34 @@ defmodule ExTTRPGDevTest.CLI.Characters do
     File.rm!(Characters.character_file_path!(character))
   end
 
-  describe "characters gen" do
-    test "--stat-block-only prints the character sheet", %{optimus: optimus, halt_fn: halt_fn} do
+  describe "characters gen --stat-block-only" do
+    setup %{optimus: optimus, halt_fn: halt_fn} do
+      before_slugs = MapSet.new(Characters.list_characters!())
+
       output =
         capture_io(fn ->
           CLI.dispatch(["characters", "gen", "dnd_5e_srd", "--stat-block-only"], optimus, halt_fn)
         end)
 
+      after_slugs = MapSet.new(Characters.list_characters!())
+      {:ok, output: output, before_slugs: before_slugs, after_slugs: after_slugs}
+    end
+
+    test "prints the character sheet", %{output: output} do
       assert output =~ "Attributes:"
     end
 
-    test "--stat-block-only does not prompt to save", %{optimus: optimus, halt_fn: halt_fn} do
-      output =
-        capture_io(fn ->
-          CLI.dispatch(["characters", "gen", "dnd_5e_srd", "--stat-block-only"], optimus, halt_fn)
-        end)
-
+    test "does not prompt to save", %{output: output} do
       refute output =~ "Would you like to save"
     end
 
-    test "--stat-block-only does not save a character", %{optimus: optimus, halt_fn: halt_fn} do
-      before_slugs = MapSet.new(Characters.list_characters!())
-
-      capture_io(fn ->
-        CLI.dispatch(["characters", "gen", "dnd_5e_srd", "--stat-block-only"], optimus, halt_fn)
-      end)
-
-      after_slugs = MapSet.new(Characters.list_characters!())
+    test "does not save a character", %{before_slugs: before_slugs, after_slugs: after_slugs} do
       assert MapSet.equal?(before_slugs, after_slugs)
     end
+  end
 
-    test "--save prints the character sheet", %{optimus: optimus, halt_fn: halt_fn} do
+  describe "characters gen --save" do
+    setup %{optimus: optimus, halt_fn: halt_fn} do
       before_slugs = MapSet.new(Characters.list_characters!())
 
       output =
@@ -62,114 +59,93 @@ defmodule ExTTRPGDevTest.CLI.Characters do
           CLI.dispatch(["characters", "gen", "dnd_5e_srd", "--save"], optimus, halt_fn)
         end)
 
-      assert output =~ "Attributes:"
-
-      # Cleanup
       after_slugs = MapSet.new(Characters.list_characters!())
       [new_slug] = MapSet.to_list(MapSet.difference(after_slugs, before_slugs))
-      delete_test_character(Characters.load_character!(new_slug))
+      character = Characters.load_character!(new_slug)
+      on_exit(fn -> File.rm!(Characters.character_file_path!(character)) end)
+
+      {:ok,
+       output: output,
+       new_character_count: MapSet.size(MapSet.difference(after_slugs, before_slugs))}
     end
 
-    test "--save persists the character to disk", %{optimus: optimus, halt_fn: halt_fn} do
-      before_slugs = MapSet.new(Characters.list_characters!())
+    test "prints the character sheet", %{output: output} do
+      assert output =~ "Attributes:"
+    end
 
-      capture_io(fn ->
-        CLI.dispatch(["characters", "gen", "dnd_5e_srd", "--save"], optimus, halt_fn)
-      end)
-
-      after_slugs = MapSet.new(Characters.list_characters!())
-      new_slugs = MapSet.difference(after_slugs, before_slugs)
-      assert MapSet.size(new_slugs) == 1
-
-      # Cleanup
-      [new_slug] = MapSet.to_list(new_slugs)
-      delete_test_character(Characters.load_character!(new_slug))
+    test "persists exactly one new character to disk", %{new_character_count: count} do
+      assert count == 1
     end
   end
 
   describe "characters list" do
+    setup do
+      character = save_test_character()
+      on_exit(fn -> delete_test_character(character) end)
+      {:ok, character: character}
+    end
+
     test "--system filters to only characters belonging to that system", %{
       optimus: optimus,
-      halt_fn: halt_fn
+      halt_fn: halt_fn,
+      character: character
     } do
-      character = save_test_character()
-
       output =
         capture_io(fn ->
           CLI.dispatch(["characters", "list", "--system", "dnd_5e_srd"], optimus, halt_fn)
         end)
 
       assert output =~ character.metadata.slug
-
-      delete_test_character(character)
     end
 
     test "shows a saved character's slug, name, and system", %{
       optimus: optimus,
-      halt_fn: halt_fn
+      halt_fn: halt_fn,
+      character: character
     } do
-      character = save_test_character()
-
-      output =
-        capture_io(fn -> CLI.dispatch(["characters", "list"], optimus, halt_fn) end)
-
+      output = capture_io(fn -> CLI.dispatch(["characters", "list"], optimus, halt_fn) end)
       assert output =~ character.metadata.slug
       assert output =~ character.name
       assert output =~ "dnd_5e_srd"
-
-      delete_test_character(character)
     end
 
     test "output entry format is '- slug: Name [system]'", %{
       optimus: optimus,
-      halt_fn: halt_fn
+      halt_fn: halt_fn,
+      character: character
     } do
-      character = save_test_character()
-
-      output =
-        capture_io(fn -> CLI.dispatch(["characters", "list"], optimus, halt_fn) end)
+      output = capture_io(fn -> CLI.dispatch(["characters", "list"], optimus, halt_fn) end)
 
       assert output =~
                "- #{character.metadata.slug}: #{character.name} [#{character.metadata.rule_system}]"
-
-      delete_test_character(character)
     end
   end
 
   describe "characters show" do
-    test "prints the character sheet for a saved character", %{
-      optimus: optimus,
-      halt_fn: halt_fn
-    } do
+    setup %{optimus: optimus, halt_fn: halt_fn} do
       character = save_test_character()
+      on_exit(fn -> delete_test_character(character) end)
 
       output =
         capture_io(fn ->
           CLI.dispatch(["characters", "show", character.metadata.slug], optimus, halt_fn)
         end)
 
-      assert output =~ character.name
-      assert output =~ "Attributes:"
-
-      delete_test_character(character)
+      {:ok, character: character, output: output}
     end
 
-    test "shows all six D&D attributes for a saved character", %{
-      optimus: optimus,
-      halt_fn: halt_fn
+    test "prints the character sheet for a saved character", %{
+      output: output,
+      character: character
     } do
-      character = save_test_character()
+      assert output =~ character.name
+      assert output =~ "Attributes:"
+    end
 
-      output =
-        capture_io(fn ->
-          CLI.dispatch(["characters", "show", character.metadata.slug], optimus, halt_fn)
-        end)
-
+    test "shows all six D&D attributes for a saved character", %{output: output} do
       for name <- ~w(Strength Dexterity Constitution Wisdom Intelligence Charisma) do
         assert output =~ name, "Expected #{name} in output"
       end
-
-      delete_test_character(character)
     end
   end
 end
