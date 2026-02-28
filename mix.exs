@@ -10,7 +10,8 @@ defmodule ExTtrpgDevUmbrella.MixProject do
       deps: deps(),
       aliases: aliases(),
       releases: releases(),
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      dialyzer: [plt_file: {:no_warn, "priv/plts/dialyzer.plt"}]
     ]
   end
 
