@@ -88,6 +88,22 @@ defmodule ExTTRPGDevTest.CLI.Characters do
   end
 
   describe "characters list" do
+    test "--system filters to only characters belonging to that system", %{
+      optimus: optimus,
+      halt_fn: halt_fn
+    } do
+      character = save_test_character()
+
+      output =
+        capture_io(fn ->
+          CLI.dispatch(["characters", "list", "--system", "dnd_5e_srd"], optimus, halt_fn)
+        end)
+
+      assert output =~ character.metadata.slug
+
+      delete_test_character(character)
+    end
+
     test "shows a saved character's slug, name, and system", %{
       optimus: optimus,
       halt_fn: halt_fn
