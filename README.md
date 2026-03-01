@@ -14,11 +14,33 @@ ExTTRPGDev is a general tabletop role-playing game utility written in Elixir.
 
 ## Table of Contents
 
-- [CLI Installation](#cli-installation)
-- [Usage](#usage)
-- [Development Setup](#development-setup)
-- [Contributing](#contributing)
-- [Library Installation](#library-installation)
+- [ExTTRPGDev](#exttrpgdev)
+  - [Table of Contents](#table-of-contents)
+  - [Library Installation](#library-installation)
+  - [CLI Installation](#cli-installation)
+    - [Linux](#linux)
+    - [macOS (Intel)](#macos-intel)
+    - [macOS (Apple Silicon)](#macos-apple-silicon)
+    - [Windows](#windows)
+  - [Usage](#usage)
+    - [Rolling dice](#rolling-dice)
+    - [Rule systems](#rule-systems)
+    - [Characters](#characters)
+  - [Development Setup](#development-setup)
+  - [Contributing](#contributing)
+
+## Library Installation
+
+ExTTRPGDev is [available in Hex](https://hex.pm/packages/ex_ttrpg_dev), the package can be installed
+by adding `ex_ttrpg_dev` to your list of dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:ex_ttrpg_dev, "~> 0.2.1"}
+  ]
+end
+```
 
 ## CLI Installation
 
@@ -132,16 +154,3 @@ mix escript
 4. Run the test suite: `mix test --umbrella`
 5. Run the linter: `mix credo --umbrella`
 6. Submit a pull request against `main`
-
-## Library Installation
-
-ExTTRPGDev is [available in Hex](https://hex.pm/packages/ex_ttrpg_dev), the package can be installed
-by adding `ex_ttrpg_dev` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:ex_ttrpg_dev, "~> 0.2.1"}
-  ]
-end
-```
