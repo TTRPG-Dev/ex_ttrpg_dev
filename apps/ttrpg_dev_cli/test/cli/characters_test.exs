@@ -121,6 +121,40 @@ defmodule ExTTRPGDevTest.CLI.Characters do
     end
   end
 
+  describe "characters roll" do
+    setup %{optimus: optimus, halt_fn: halt_fn} do
+      character = save_test_character()
+      on_exit(fn -> delete_test_character(character) end)
+
+      output =
+        capture_io(fn ->
+          CLI.dispatch(
+            ["characters", "roll", character.metadata.slug, "skill", "acrobatics"],
+            optimus,
+            halt_fn
+          )
+        end)
+
+      {:ok, output: output}
+    end
+
+    test "shows the concept name", %{output: output} do
+      assert output =~ "Acrobatics"
+    end
+
+    test "shows the dice spec", %{output: output} do
+      assert output =~ "1d20:"
+    end
+
+    test "shows the bonus", %{output: output} do
+      assert output =~ "bonus:"
+    end
+
+    test "shows the total result labeled as a check", %{output: output} do
+      assert output =~ "check:"
+    end
+  end
+
   describe "characters show" do
     setup %{optimus: optimus, halt_fn: halt_fn} do
       character = save_test_character()

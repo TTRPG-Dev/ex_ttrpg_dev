@@ -2,6 +2,7 @@ defmodule ExTTRPGDev.CLI.Characters do
   @moduledoc """
   Definitions for dealing with character CLI commands
   """
+  alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.CLI.Args
   alias ExTTRPGDev.CLI.CharacterDisplay
@@ -53,6 +54,26 @@ defmodule ExTTRPGDev.CLI.Characters do
             name: "show",
             about: "Show information for a character",
             args: Args.character()
+          ],
+          roll: [
+            name: "roll",
+            about: "Roll for a concept of a saved character",
+            args:
+              Args.character() ++
+                [
+                  type: [
+                    value_name: "TYPE",
+                    help: "The concept type to roll for, e.g. skill",
+                    required: true,
+                    parser: :string
+                  ],
+                  concept: [
+                    value_name: "CONCEPT",
+                    help: "The concept to roll for, e.g. acrobatics",
+                    required: true,
+                    parser: :string
+                  ]
+                ]
           ]
         ]
       ]
@@ -114,5 +135,24 @@ defmodule ExTTRPGDev.CLI.Characters do
       }) do
     system = RuleSystems.load_system!(character.metadata.rule_system)
     CharacterDisplay.print(system, character)
+  end
+
+  def handle_characters_subcommands([:roll | _subcommands], %Optimus.ParseResult{
+        args: %{character: character, type: type_id, concept: concept_id}
+      }) do
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    result = Characters.concept_roll!(system, character, type_id, concept_id)
+
+    concept_name =
+      case Map.get(system.concept_metadata, {type_id, concept_id}) do
+        nil -> concept_id
+        meta -> meta["name"] || concept_id
+      end
+
+    bonus_str = if result.bonus >= 0, do: "+#{result.bonus}", else: "#{result.bonus}"
+
+    IO.puts(
+      "#{concept_name} check: #{result.total} (#{result.dice}: #{Enum.sum(result.rolls)}, bonus: #{bonus_str})"
+    )
   end
 end

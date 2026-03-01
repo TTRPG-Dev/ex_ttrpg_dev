@@ -4,7 +4,10 @@ defmodule ExTTRPGDev.Characters do
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
+  alias ExTTRPGDev.Dice
   alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.RuleSystem.Evaluator
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
   Get the file path for a character
@@ -104,5 +107,53 @@ defmodule ExTTRPGDev.Characters do
     character_file_path!(character_slug)
     |> File.read!()
     |> Character.from_json!()
+  end
+
+  @doc """
+  Rolls for a concept using the roll definition attached to its type in the system config.
+
+  Looks up a roll definition (from the system's `roll` concept type) whose `target_type`
+  matches `type_id`, then rolls the specified dice and adds the resolved value of
+  `bonus_field` for the given concept.
+
+  Returns a map with `:type_id`, `:concept_id`, `:dice` (spec string), `:rolls` (list of
+  individual die results), `:bonus`, and `:total`.
+
+  Raises if no roll is defined for the given concept type, or if the bonus field cannot
+  be resolved for the concept.
+  """
+  def concept_roll!(%LoadedSystem{} = system, %Character{} = character, type_id, concept_id) do
+    roll_def =
+      system.concept_metadata
+      |> Enum.find(fn {{type, _id}, meta} ->
+        type == "roll" and meta["target_type"] == type_id
+      end)
+
+    unless roll_def do
+      raise "No roll defined for concept type \"#{type_id}\" in system \"#{system.module.slug}\""
+    end
+
+    {_key, %{"dice" => dice_str, "bonus_field" => bonus_field}} = roll_def
+
+    effects = system.effects ++ character.effects
+    resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+
+    bonus_key = {type_id, concept_id, bonus_field}
+
+    unless Map.has_key?(resolved, bonus_key) do
+      raise "Concept \"#{type_id}('#{concept_id}')\" not found in system \"#{system.module.slug}\""
+    end
+
+    bonus = resolved[bonus_key]
+    rolls = Dice.roll(dice_str)
+
+    %{
+      type_id: type_id,
+      concept_id: concept_id,
+      dice: dice_str,
+      rolls: rolls,
+      bonus: bonus,
+      total: Enum.sum(rolls) + bonus
+    }
   end
 end

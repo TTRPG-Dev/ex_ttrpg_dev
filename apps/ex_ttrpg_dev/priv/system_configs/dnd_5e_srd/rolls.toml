@@ -1,0 +1,5 @@
+[roll.skill_check]
+name = "Skill Check"
+dice = "1d20"
+target_type = "skill"
+bonus_field = "modifier"

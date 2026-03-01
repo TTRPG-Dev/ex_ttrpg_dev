@@ -21,3 +21,7 @@ name = "Rolling Method"
 [[concept_type]]
 id = "language"
 name = "Language"
+
+[[concept_type]]
+id = "roll"
+name = "Roll"
