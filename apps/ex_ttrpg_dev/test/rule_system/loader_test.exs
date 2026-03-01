@@ -144,9 +144,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   test "load/1 registers equipment and currency concept types" do
     {:ok, data} = Loader.load(dnd_path())
 
-    concept_type_ids =
-      data.module.concept_types
-      |> Enum.map(& &1.id)
+    concept_type_ids = Enum.map(data.module.concept_types, & &1.id)
 
     assert "equipment" in concept_type_ids
     assert "currency" in concept_type_ids
@@ -154,14 +152,13 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   test "load/1 returns all 5 currencies with correct conversion rates" do
     {:ok, data} = Loader.load(dnd_path())
+    currency_meta = fn id -> data.concept_metadata[{"currency", id}] end
 
-    assert data.concept_metadata[{"currency", "copper"}]["in_copper"] == 1
-    assert data.concept_metadata[{"currency", "silver"}]["in_copper"] == 10
-    assert data.concept_metadata[{"currency", "electrum"}]["in_copper"] == 50
-    assert data.concept_metadata[{"currency", "gold"}]["in_copper"] == 100
-    assert data.concept_metadata[{"currency", "platinum"}]["in_copper"] == 1000
+    for {id, rate} <- [copper: 1, silver: 10, electrum: 50, gold: 100, platinum: 1000] do
+      assert currency_meta.(to_string(id))["in_copper"] == rate
+    end
 
-    assert data.concept_metadata[{"currency", "gold"}]["abbreviation"] == "gp"
+    assert currency_meta.("gold")["abbreviation"] == "gp"
   end
 
   test "load/1 returns concept metadata for armor" do
@@ -169,16 +166,19 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "plate"})
     plate = data.concept_metadata[{"equipment", "plate"}]
-    assert plate["name"] == "Plate"
-    assert plate["category"] == "armor"
-    assert plate["armor_type"] == "heavy"
-    assert plate["ac_base"] == 18
-    assert plate["ac_dex_bonus"] == false
-    assert plate["strength_requirement"] == 15
-    assert plate["stealth_disadvantage"] == true
-    assert plate["cost"]["amount"] == 1500
-    assert plate["cost"]["currency"] == "gp"
-    assert plate["weight"] == 65
+
+    assert %{
+             "name" => "Plate",
+             "category" => "armor",
+             "armor_type" => "heavy",
+             "ac_base" => 18,
+             "ac_dex_bonus" => false,
+             "strength_requirement" => 15,
+             "stealth_disadvantage" => true,
+             "weight" => 65
+           } = plate
+
+    assert_cost(plate, 1500, "gp")
 
     shield = data.concept_metadata[{"equipment", "shield"}]
     assert shield["armor_type"] == "shield"
@@ -190,17 +190,20 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "dagger"})
     dagger = data.concept_metadata[{"equipment", "dagger"}]
-    assert dagger["name"] == "Dagger"
-    assert dagger["category"] == "weapon"
-    assert dagger["weapon_category"] == "simple"
-    assert dagger["weapon_type"] == "melee"
-    assert dagger["cost"]["amount"] == 2
-    assert dagger["cost"]["currency"] == "gp"
-    assert dagger["damage"] == "1d4"
-    assert dagger["damage_type"] == "piercing"
-    assert dagger["properties"] == ["finesse", "light", "thrown"]
-    assert dagger["range_normal"] == 20
-    assert dagger["range_long"] == 60
+
+    assert %{
+             "name" => "Dagger",
+             "category" => "weapon",
+             "weapon_category" => "simple",
+             "weapon_type" => "melee",
+             "damage" => "1d4",
+             "damage_type" => "piercing",
+             "properties" => ["finesse", "light", "thrown"],
+             "range_normal" => 20,
+             "range_long" => 60
+           } = dagger
+
+    assert_cost(dagger, 2, "gp")
 
     longsword = data.concept_metadata[{"equipment", "longsword"}]
     assert longsword["weapon_category"] == "martial"
@@ -212,11 +215,9 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "torch"})
     torch = data.concept_metadata[{"equipment", "torch"}]
-    assert torch["name"] == "Torch"
-    assert torch["category"] == "adventuring_gear"
-    assert torch["cost"]["amount"] == 1
-    assert torch["cost"]["currency"] == "cp"
-    assert torch["weight"] == 1
+
+    assert %{"name" => "Torch", "category" => "adventuring_gear", "weight" => 1} = torch
+    assert_cost(torch, 1, "cp")
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "spyglass"})
     assert Map.has_key?(data.concept_metadata, {"equipment", "arrows"})
@@ -224,28 +225,12 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   test "load/1 returns all 13 armor items" do
     {:ok, data} = Loader.load(dnd_path())
-
-    armor_ids =
-      data.concept_metadata
-      |> Enum.filter(fn {{type, _id}, meta} ->
-        type == "equipment" and meta["category"] == "armor"
-      end)
-      |> Enum.map(fn {{_type, id}, _} -> id end)
-
-    assert length(armor_ids) == 13
+    assert count_equipment_by_category(data, "armor") == 13
   end
 
   test "load/1 returns all 37 weapon items" do
     {:ok, data} = Loader.load(dnd_path())
-
-    weapon_ids =
-      data.concept_metadata
-      |> Enum.filter(fn {{type, _id}, meta} ->
-        type == "equipment" and meta["category"] == "weapon"
-      end)
-      |> Enum.map(fn {{_type, id}, _} -> id end)
-
-    assert length(weapon_ids) == 37
+    assert count_equipment_by_category(data, "weapon") == 37
   end
 
   test "load/1 returns concept metadata for tools" do
@@ -253,30 +238,19 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "thieves_tools"})
     thieves_tools = data.concept_metadata[{"equipment", "thieves_tools"}]
-    assert thieves_tools["name"] == "Thieves' Tools"
-    assert thieves_tools["category"] == "tool"
-    assert thieves_tools["tool_type"] == "kit"
-    assert thieves_tools["cost"]["amount"] == 25
-    assert thieves_tools["cost"]["currency"] == "gp"
 
-    lute = data.concept_metadata[{"equipment", "lute"}]
-    assert lute["tool_type"] == "musical_instrument"
+    assert %{"name" => "Thieves' Tools", "category" => "tool", "tool_type" => "kit"} =
+             thieves_tools
 
-    smiths = data.concept_metadata[{"equipment", "smiths_tools"}]
-    assert smiths["tool_type"] == "artisans_tool"
+    assert_cost(thieves_tools, 25, "gp")
+
+    assert data.concept_metadata[{"equipment", "lute"}]["tool_type"] == "musical_instrument"
+    assert data.concept_metadata[{"equipment", "smiths_tools"}]["tool_type"] == "artisans_tool"
   end
 
-  test "load/1 returns all 36 tool items" do
+  test "load/1 returns all 35 tool items" do
     {:ok, data} = Loader.load(dnd_path())
-
-    tool_ids =
-      data.concept_metadata
-      |> Enum.filter(fn {{type, _id}, meta} ->
-        type == "equipment" and meta["category"] == "tool"
-      end)
-      |> Enum.map(fn {{_type, id}, _} -> id end)
-
-    assert length(tool_ids) == 35
+    assert count_equipment_by_category(data, "tool") == 35
   end
 
   test "load/1 returns concept metadata for trade goods" do
@@ -284,24 +258,26 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "platinum"})
     platinum = data.concept_metadata[{"equipment", "platinum"}]
-    assert platinum["name"] == "Platinum (1 lb.)"
-    assert platinum["category"] == "trade_good"
-    assert platinum["cost"]["amount"] == 500
-    assert platinum["cost"]["currency"] == "gp"
+
+    assert %{"name" => "Platinum (1 lb.)", "category" => "trade_good"} = platinum
+    assert_cost(platinum, 500, "gp")
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "wheat"})
   end
 
   test "load/1 returns all 23 trade good items" do
     {:ok, data} = Loader.load(dnd_path())
+    assert count_equipment_by_category(data, "trade_good") == 23
+  end
 
-    trade_good_ids =
-      data.concept_metadata
-      |> Enum.filter(fn {{type, _id}, meta} ->
-        type == "equipment" and meta["category"] == "trade_good"
-      end)
-      |> Enum.map(fn {{_type, id}, _} -> id end)
+  defp assert_cost(item, amount, currency) do
+    assert item["cost"]["amount"] == amount
+    assert item["cost"]["currency"] == currency
+  end
 
-    assert length(trade_good_ids) == 23
+  defp count_equipment_by_category(data, category) do
+    Enum.count(data.concept_metadata, fn {{type, _id}, meta} ->
+      type == "equipment" and meta["category"] == category
+    end)
   end
 end
