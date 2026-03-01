@@ -25,3 +25,11 @@ name = "Language"
 [[concept_type]]
 id = "roll"
 name = "Roll"
+
+[[concept_type]]
+id = "equipment"
+name = "Equipment"
+
+[[concept_type]]
+id = "currency"
+name = "Currency"
