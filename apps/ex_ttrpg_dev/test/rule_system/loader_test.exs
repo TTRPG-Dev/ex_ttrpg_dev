@@ -141,7 +141,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert skill_nodes == 18
   end
 
-  test "load/1 registers equipment concept type" do
+  test "load/1 registers equipment and currency concept types" do
     {:ok, data} = Loader.load(dnd_path())
 
     concept_type_ids =
@@ -149,6 +149,19 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
       |> Enum.map(& &1.id)
 
     assert "equipment" in concept_type_ids
+    assert "currency" in concept_type_ids
+  end
+
+  test "load/1 returns all 5 currencies with correct conversion rates" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert data.concept_metadata[{"currency", "copper"}]["in_copper"] == 1
+    assert data.concept_metadata[{"currency", "silver"}]["in_copper"] == 10
+    assert data.concept_metadata[{"currency", "electrum"}]["in_copper"] == 50
+    assert data.concept_metadata[{"currency", "gold"}]["in_copper"] == 100
+    assert data.concept_metadata[{"currency", "platinum"}]["in_copper"] == 1000
+
+    assert data.concept_metadata[{"currency", "gold"}]["abbreviation"] == "gp"
   end
 
   test "load/1 returns concept metadata for armor" do
@@ -163,7 +176,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert plate["ac_dex_bonus"] == false
     assert plate["strength_requirement"] == 15
     assert plate["stealth_disadvantage"] == true
-    assert plate["cost"] == "1500 gp"
+    assert plate["cost"]["amount"] == 1500
+    assert plate["cost"]["currency"] == "gp"
     assert plate["weight"] == 65
 
     shield = data.concept_metadata[{"equipment", "shield"}]
@@ -180,6 +194,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert dagger["category"] == "weapon"
     assert dagger["weapon_category"] == "simple"
     assert dagger["weapon_type"] == "melee"
+    assert dagger["cost"]["amount"] == 2
+    assert dagger["cost"]["currency"] == "gp"
     assert dagger["damage"] == "1d4"
     assert dagger["damage_type"] == "piercing"
     assert dagger["properties"] == ["finesse", "light", "thrown"]
@@ -198,7 +214,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     torch = data.concept_metadata[{"equipment", "torch"}]
     assert torch["name"] == "Torch"
     assert torch["category"] == "adventuring_gear"
-    assert torch["cost"] == "1 cp"
+    assert torch["cost"]["amount"] == 1
+    assert torch["cost"]["currency"] == "cp"
     assert torch["weight"] == 1
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "spyglass"})
@@ -239,7 +256,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert thieves_tools["name"] == "Thieves' Tools"
     assert thieves_tools["category"] == "tool"
     assert thieves_tools["tool_type"] == "kit"
-    assert thieves_tools["cost"] == "25 gp"
+    assert thieves_tools["cost"]["amount"] == 25
+    assert thieves_tools["cost"]["currency"] == "gp"
 
     lute = data.concept_metadata[{"equipment", "lute"}]
     assert lute["tool_type"] == "musical_instrument"
@@ -268,7 +286,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     platinum = data.concept_metadata[{"equipment", "platinum"}]
     assert platinum["name"] == "Platinum (1 lb.)"
     assert platinum["category"] == "trade_good"
-    assert platinum["cost"] == "500 gp"
+    assert platinum["cost"]["amount"] == 500
+    assert platinum["cost"]["currency"] == "gp"
 
     assert Map.has_key?(data.concept_metadata, {"equipment", "wheat"})
   end

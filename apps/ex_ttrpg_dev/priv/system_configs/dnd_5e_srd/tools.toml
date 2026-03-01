@@ -4,119 +4,136 @@
 name = "Alchemist's Supplies"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "50 gp"
+cost.amount = 50
+cost.currency = "gp"
 weight = 8
 
 [equipment.brewers_supplies]
 name = "Brewer's Supplies"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "20 gp"
+cost.amount = 20
+cost.currency = "gp"
 weight = 9
 
 [equipment.calligraphers_supplies]
 name = "Calligrapher's Supplies"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "10 gp"
+cost.amount = 10
+cost.currency = "gp"
 weight = 5
 
 [equipment.carpenters_tools]
 name = "Carpenter's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "8 gp"
+cost.amount = 8
+cost.currency = "gp"
 weight = 6
 
 [equipment.cartographers_tools]
 name = "Cartographer's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "15 gp"
+cost.amount = 15
+cost.currency = "gp"
 weight = 6
 
 [equipment.cobblers_tools]
 name = "Cobbler's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "5 gp"
+cost.amount = 5
+cost.currency = "gp"
 weight = 5
 
 [equipment.cooks_utensils]
 name = "Cook's Utensils"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "1 gp"
+cost.amount = 1
+cost.currency = "gp"
 weight = 8
 
 [equipment.glassblowers_tools]
 name = "Glassblower's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "30 gp"
+cost.amount = 30
+cost.currency = "gp"
 weight = 5
 
 [equipment.jewelers_tools]
 name = "Jeweler's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "25 gp"
+cost.amount = 25
+cost.currency = "gp"
 weight = 2
 
 [equipment.leatherworkers_tools]
 name = "Leatherworker's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "5 gp"
+cost.amount = 5
+cost.currency = "gp"
 weight = 5
 
 [equipment.masons_tools]
 name = "Mason's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "10 gp"
+cost.amount = 10
+cost.currency = "gp"
 weight = 8
 
 [equipment.painters_supplies]
 name = "Painter's Supplies"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "10 gp"
+cost.amount = 10
+cost.currency = "gp"
 weight = 5
 
 [equipment.potters_tools]
 name = "Potter's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "10 gp"
+cost.amount = 10
+cost.currency = "gp"
 weight = 3
 
 [equipment.smiths_tools]
 name = "Smith's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "20 gp"
+cost.amount = 20
+cost.currency = "gp"
 weight = 8
 
 [equipment.tinkers_tools]
 name = "Tinker's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "50 gp"
+cost.amount = 50
+cost.currency = "gp"
 weight = 10
 
 [equipment.weavers_tools]
 name = "Weaver's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "1 gp"
+cost.amount = 1
+cost.currency = "gp"
 weight = 5
 
 [equipment.woodcarvers_tools]
 name = "Woodcarver's Tools"
 category = "tool"
 tool_type = "artisans_tool"
-cost = "1 gp"
+cost.amount = 1
+cost.currency = "gp"
 weight = 5
 
 # Gaming Sets
@@ -125,13 +142,15 @@ weight = 5
 name = "Dice Set"
 category = "tool"
 tool_type = "gaming_set"
-cost = "1 sp"
+cost.amount = 1
+cost.currency = "sp"
 
 [equipment.playing_card_set]
 name = "Playing Card Set"
 category = "tool"
 tool_type = "gaming_set"
-cost = "5 sp"
+cost.amount = 5
+cost.currency = "sp"
 
 # Musical Instruments
 
@@ -139,70 +158,80 @@ cost = "5 sp"
 name = "Bagpipes"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "30 gp"
+cost.amount = 30
+cost.currency = "gp"
 weight = 6
 
 [equipment.drum]
 name = "Drum"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "6 gp"
+cost.amount = 6
+cost.currency = "gp"
 weight = 3
 
 [equipment.dulcimer]
 name = "Dulcimer"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "25 gp"
+cost.amount = 25
+cost.currency = "gp"
 weight = 10
 
 [equipment.flute]
 name = "Flute"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "2 gp"
+cost.amount = 2
+cost.currency = "gp"
 weight = 1
 
 [equipment.lute]
 name = "Lute"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "35 gp"
+cost.amount = 35
+cost.currency = "gp"
 weight = 2
 
 [equipment.lyre]
 name = "Lyre"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "30 gp"
+cost.amount = 30
+cost.currency = "gp"
 weight = 2
 
 [equipment.horn]
 name = "Horn"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "3 gp"
+cost.amount = 3
+cost.currency = "gp"
 weight = 2
 
 [equipment.pan_flute]
 name = "Pan Flute"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "12 gp"
+cost.amount = 12
+cost.currency = "gp"
 weight = 2
 
 [equipment.shawm]
 name = "Shawm"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "2 gp"
+cost.amount = 2
+cost.currency = "gp"
 weight = 1
 
 [equipment.viol]
 name = "Viol"
 category = "tool"
 tool_type = "musical_instrument"
-cost = "30 gp"
+cost.amount = 30
+cost.currency = "gp"
 weight = 1
 
 # Other Tools
@@ -211,7 +240,8 @@ weight = 1
 name = "Disguise Kit"
 category = "tool"
 tool_type = "kit"
-cost = "25 gp"
+cost.amount = 25
+cost.currency = "gp"
 weight = 3
 description = "This pouch of cosmetics, hair dye, and small props lets you create disguises that change your physical appearance."
 
@@ -219,7 +249,8 @@ description = "This pouch of cosmetics, hair dye, and small props lets you creat
 name = "Forgery Kit"
 category = "tool"
 tool_type = "kit"
-cost = "15 gp"
+cost.amount = 15
+cost.currency = "gp"
 weight = 5
 description = "A forgery kit includes several different types of ink, a variety of parchments and papers, several quills, seals and sealing wax, gold and silver leaf, and other supplies necessary to create convincing forgeries of physical documents."
 
@@ -227,7 +258,8 @@ description = "A forgery kit includes several different types of ink, a variety 
 name = "Herbalism Kit"
 category = "tool"
 tool_type = "kit"
-cost = "5 gp"
+cost.amount = 5
+cost.currency = "gp"
 weight = 3
 description = "This kit contains a variety of instruments such as clippers, mortar and pestle, and pouches and vials used by herbalists to create remedies and potions."
 
@@ -235,7 +267,8 @@ description = "This kit contains a variety of instruments such as clippers, mort
 name = "Navigator's Tools"
 category = "tool"
 tool_type = "kit"
-cost = "25 gp"
+cost.amount = 25
+cost.currency = "gp"
 weight = 2
 description = "This set of instruments is used for navigation at sea. Proficiency with navigator's tools lets you chart a ship's course and follow navigation charts."
 
@@ -243,7 +276,8 @@ description = "This set of instruments is used for navigation at sea. Proficienc
 name = "Poisoner's Kit"
 category = "tool"
 tool_type = "kit"
-cost = "50 gp"
+cost.amount = 50
+cost.currency = "gp"
 weight = 2
 description = "A poisoner's kit includes the vials, chemicals, and other equipment necessary for the creation of poisons."
 
@@ -251,6 +285,7 @@ description = "A poisoner's kit includes the vials, chemicals, and other equipme
 name = "Thieves' Tools"
 category = "tool"
 tool_type = "kit"
-cost = "25 gp"
+cost.amount = 25
+cost.currency = "gp"
 weight = 1
 description = "This set of tools includes a small file, a set of lock picks, a small mirror mounted on a metal handle, a set of narrow-bladed scissors, and a pair of pliers."

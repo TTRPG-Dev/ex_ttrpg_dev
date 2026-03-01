@@ -1,0 +1,24 @@
+[currency.copper]
+name = "Copper Piece"
+abbreviation = "cp"
+in_copper = 1
+
+[currency.silver]
+name = "Silver Piece"
+abbreviation = "sp"
+in_copper = 10
+
+[currency.electrum]
+name = "Electrum Piece"
+abbreviation = "ep"
+in_copper = 50
+
+[currency.gold]
+name = "Gold Piece"
+abbreviation = "gp"
+in_copper = 100
+
+[currency.platinum]
+name = "Platinum Piece"
+abbreviation = "pp"
+in_copper = 1000

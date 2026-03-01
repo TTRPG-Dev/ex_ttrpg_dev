@@ -3,114 +3,137 @@
 [equipment.wheat]
 name = "Wheat (1 lb.)"
 category = "trade_good"
-cost = "1 cp"
+cost.amount = 1
+cost.currency = "cp"
 
 [equipment.flour]
 name = "Flour (1 lb.)"
 category = "trade_good"
-cost = "2 cp"
+cost.amount = 2
+cost.currency = "cp"
 
 [equipment.chicken]
 name = "Chicken (one)"
 category = "trade_good"
-cost = "2 cp"
+cost.amount = 2
+cost.currency = "cp"
 
 [equipment.salt]
 name = "Salt (1 lb.)"
 category = "trade_good"
-cost = "5 cp"
+cost.amount = 5
+cost.currency = "cp"
 
 [equipment.iron]
 name = "Iron (1 lb.)"
 category = "trade_good"
-cost = "1 sp"
+cost.amount = 1
+cost.currency = "sp"
 
 [equipment.canvas]
 name = "Canvas (1 sq. yd.)"
 category = "trade_good"
-cost = "1 sp"
+cost.amount = 1
+cost.currency = "sp"
 
 [equipment.copper]
 name = "Copper (1 lb.)"
 category = "trade_good"
-cost = "5 sp"
+cost.amount = 5
+cost.currency = "sp"
 
 [equipment.cotton_cloth]
 name = "Cotton Cloth (1 sq. yd.)"
 category = "trade_good"
-cost = "5 sp"
+cost.amount = 5
+cost.currency = "sp"
 
 [equipment.ginger]
 name = "Ginger (1 lb.)"
 category = "trade_good"
-cost = "1 gp"
+cost.amount = 1
+cost.currency = "gp"
 
 [equipment.goat]
 name = "Goat (one)"
 category = "trade_good"
-cost = "1 gp"
+cost.amount = 1
+cost.currency = "gp"
 
 [equipment.cinnamon]
 name = "Cinnamon (1 lb.)"
 category = "trade_good"
-cost = "2 gp"
+cost.amount = 2
+cost.currency = "gp"
 
 [equipment.pepper]
 name = "Pepper (1 lb.)"
 category = "trade_good"
-cost = "2 gp"
+cost.amount = 2
+cost.currency = "gp"
 
 [equipment.sheep]
 name = "Sheep (one)"
 category = "trade_good"
-cost = "2 gp"
+cost.amount = 2
+cost.currency = "gp"
 
 [equipment.cloves]
 name = "Cloves (1 lb.)"
 category = "trade_good"
-cost = "3 gp"
+cost.amount = 3
+cost.currency = "gp"
 
 [equipment.pig]
 name = "Pig (one)"
 category = "trade_good"
-cost = "3 gp"
+cost.amount = 3
+cost.currency = "gp"
 
 [equipment.silver]
 name = "Silver (1 lb.)"
 category = "trade_good"
-cost = "5 gp"
+cost.amount = 5
+cost.currency = "gp"
 
 [equipment.linen]
 name = "Linen (1 sq. yd.)"
 category = "trade_good"
-cost = "5 gp"
+cost.amount = 5
+cost.currency = "gp"
 
 [equipment.silk]
 name = "Silk (1 sq. yd.)"
 category = "trade_good"
-cost = "10 gp"
+cost.amount = 10
+cost.currency = "gp"
 
 [equipment.cow]
 name = "Cow (one)"
 category = "trade_good"
-cost = "10 gp"
+cost.amount = 10
+cost.currency = "gp"
 
 [equipment.saffron]
 name = "Saffron (1 lb.)"
 category = "trade_good"
-cost = "15 gp"
+cost.amount = 15
+cost.currency = "gp"
 
 [equipment.ox]
 name = "Ox (one)"
 category = "trade_good"
-cost = "15 gp"
+cost.amount = 15
+cost.currency = "gp"
 
 [equipment.gold]
 name = "Gold (1 lb.)"
 category = "trade_good"
-cost = "50 gp"
+cost.amount = 50
+cost.currency = "gp"
 
 [equipment.platinum]
 name = "Platinum (1 lb.)"
 category = "trade_good"
-cost = "500 gp"
+cost.amount = 500
+cost.currency = "gp"
