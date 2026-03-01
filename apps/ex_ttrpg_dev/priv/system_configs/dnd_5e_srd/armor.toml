@@ -1,0 +1,144 @@
+# Light Armor
+
+[equipment.padded_armor]
+name = "Padded"
+category = "armor"
+armor_type = "light"
+cost = "5 gp"
+ac_base = 11
+ac_dex_bonus = true
+stealth_disadvantage = true
+weight = 8
+
+[equipment.leather_armor]
+name = "Leather"
+category = "armor"
+armor_type = "light"
+cost = "10 gp"
+ac_base = 11
+ac_dex_bonus = true
+stealth_disadvantage = false
+weight = 10
+
+[equipment.studded_leather_armor]
+name = "Studded Leather"
+category = "armor"
+armor_type = "light"
+cost = "45 gp"
+ac_base = 12
+ac_dex_bonus = true
+stealth_disadvantage = false
+weight = 13
+
+# Medium Armor
+
+[equipment.hide_armor]
+name = "Hide"
+category = "armor"
+armor_type = "medium"
+cost = "10 gp"
+ac_base = 12
+ac_dex_bonus = true
+ac_dex_max = 2
+stealth_disadvantage = false
+weight = 12
+
+[equipment.chain_shirt]
+name = "Chain Shirt"
+category = "armor"
+armor_type = "medium"
+cost = "50 gp"
+ac_base = 13
+ac_dex_bonus = true
+ac_dex_max = 2
+stealth_disadvantage = false
+weight = 20
+
+[equipment.scale_mail]
+name = "Scale Mail"
+category = "armor"
+armor_type = "medium"
+cost = "50 gp"
+ac_base = 14
+ac_dex_bonus = true
+ac_dex_max = 2
+stealth_disadvantage = true
+weight = 45
+
+[equipment.breastplate]
+name = "Breastplate"
+category = "armor"
+armor_type = "medium"
+cost = "400 gp"
+ac_base = 14
+ac_dex_bonus = true
+ac_dex_max = 2
+stealth_disadvantage = false
+weight = 20
+
+[equipment.half_plate]
+name = "Half Plate"
+category = "armor"
+armor_type = "medium"
+cost = "750 gp"
+ac_base = 15
+ac_dex_bonus = true
+ac_dex_max = 2
+stealth_disadvantage = true
+weight = 40
+
+# Heavy Armor
+
+[equipment.ring_mail]
+name = "Ring Mail"
+category = "armor"
+armor_type = "heavy"
+cost = "30 gp"
+ac_base = 14
+ac_dex_bonus = false
+stealth_disadvantage = true
+weight = 40
+
+[equipment.chain_mail]
+name = "Chain Mail"
+category = "armor"
+armor_type = "heavy"
+cost = "75 gp"
+ac_base = 16
+ac_dex_bonus = false
+strength_requirement = 13
+stealth_disadvantage = true
+weight = 55
+
+[equipment.splint]
+name = "Splint"
+category = "armor"
+armor_type = "heavy"
+cost = "200 gp"
+ac_base = 17
+ac_dex_bonus = false
+strength_requirement = 15
+stealth_disadvantage = true
+weight = 60
+
+[equipment.plate]
+name = "Plate"
+category = "armor"
+armor_type = "heavy"
+cost = "1500 gp"
+ac_base = 18
+ac_dex_bonus = false
+strength_requirement = 15
+stealth_disadvantage = true
+weight = 65
+
+# Shields
+
+[equipment.shield]
+name = "Shield"
+category = "armor"
+armor_type = "shield"
+cost = "10 gp"
+ac_bonus = 2
+stealth_disadvantage = false
+weight = 6

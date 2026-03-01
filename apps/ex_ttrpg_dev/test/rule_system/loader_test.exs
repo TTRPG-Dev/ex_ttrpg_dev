@@ -140,4 +140,94 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert skill_nodes == 18
   end
+
+  test "load/1 registers equipment concept type" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    concept_type_ids =
+      data.module.concept_types
+      |> Enum.map(& &1.id)
+
+    assert "equipment" in concept_type_ids
+  end
+
+  test "load/1 returns concept metadata for armor" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "plate"})
+    plate = data.concept_metadata[{"equipment", "plate"}]
+    assert plate["name"] == "Plate"
+    assert plate["category"] == "armor"
+    assert plate["armor_type"] == "heavy"
+    assert plate["ac_base"] == 18
+    assert plate["ac_dex_bonus"] == false
+    assert plate["strength_requirement"] == 15
+    assert plate["stealth_disadvantage"] == true
+    assert plate["cost"] == "1500 gp"
+    assert plate["weight"] == 65
+
+    shield = data.concept_metadata[{"equipment", "shield"}]
+    assert shield["armor_type"] == "shield"
+    assert shield["ac_bonus"] == 2
+  end
+
+  test "load/1 returns concept metadata for weapons" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "dagger"})
+    dagger = data.concept_metadata[{"equipment", "dagger"}]
+    assert dagger["name"] == "Dagger"
+    assert dagger["category"] == "weapon"
+    assert dagger["weapon_category"] == "simple"
+    assert dagger["weapon_type"] == "melee"
+    assert dagger["damage"] == "1d4"
+    assert dagger["damage_type"] == "piercing"
+    assert dagger["properties"] == ["finesse", "light", "thrown"]
+    assert dagger["range_normal"] == 20
+    assert dagger["range_long"] == 60
+
+    longsword = data.concept_metadata[{"equipment", "longsword"}]
+    assert longsword["weapon_category"] == "martial"
+    assert longsword["versatile_damage"] == "1d10"
+  end
+
+  test "load/1 returns concept metadata for adventuring gear" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "torch"})
+    torch = data.concept_metadata[{"equipment", "torch"}]
+    assert torch["name"] == "Torch"
+    assert torch["category"] == "adventuring_gear"
+    assert torch["cost"] == "1 cp"
+    assert torch["weight"] == 1
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "spyglass"})
+    assert Map.has_key?(data.concept_metadata, {"equipment", "arrows"})
+  end
+
+  test "load/1 returns all 13 armor items" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    armor_ids =
+      data.concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "equipment" and meta["category"] == "armor"
+      end)
+      |> Enum.map(fn {{_type, id}, _} -> id end)
+
+    assert length(armor_ids) == 13
+  end
+
+  test "load/1 returns all 37 weapon items" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    weapon_ids =
+      data.concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "equipment" and meta["category"] == "weapon"
+      end)
+      |> Enum.map(fn {{_type, id}, _} -> id end)
+
+    assert length(weapon_ids) == 37
+  end
 end

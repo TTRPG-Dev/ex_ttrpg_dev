@@ -1,0 +1,447 @@
+# Simple Melee Weapons
+
+[equipment.club]
+name = "Club"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "1 sp"
+damage = "1d4"
+damage_type = "bludgeoning"
+weight = 2
+properties = ["light"]
+
+[equipment.dagger]
+name = "Dagger"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "2 gp"
+damage = "1d4"
+damage_type = "piercing"
+weight = 1
+properties = ["finesse", "light", "thrown"]
+range_normal = 20
+range_long = 60
+
+[equipment.greatclub]
+name = "Greatclub"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "2 sp"
+damage = "1d8"
+damage_type = "bludgeoning"
+weight = 10
+properties = ["two-handed"]
+
+[equipment.handaxe]
+name = "Handaxe"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "5 gp"
+damage = "1d6"
+damage_type = "slashing"
+weight = 2
+properties = ["light", "thrown"]
+range_normal = 20
+range_long = 60
+
+[equipment.javelin]
+name = "Javelin"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "5 sp"
+damage = "1d6"
+damage_type = "piercing"
+weight = 2
+properties = ["thrown"]
+range_normal = 30
+range_long = 120
+
+[equipment.light_hammer]
+name = "Light Hammer"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "2 gp"
+damage = "1d4"
+damage_type = "bludgeoning"
+weight = 2
+properties = ["light", "thrown"]
+range_normal = 20
+range_long = 60
+
+[equipment.mace]
+name = "Mace"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "5 gp"
+damage = "1d6"
+damage_type = "bludgeoning"
+weight = 4
+properties = []
+
+[equipment.quarterstaff]
+name = "Quarterstaff"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "2 sp"
+damage = "1d6"
+damage_type = "bludgeoning"
+weight = 4
+properties = ["versatile"]
+versatile_damage = "1d8"
+
+[equipment.sickle]
+name = "Sickle"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "1 gp"
+damage = "1d4"
+damage_type = "slashing"
+weight = 2
+properties = ["light"]
+
+[equipment.spear]
+name = "Spear"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "melee"
+cost = "1 gp"
+damage = "1d6"
+damage_type = "piercing"
+weight = 3
+properties = ["thrown", "versatile"]
+range_normal = 20
+range_long = 60
+versatile_damage = "1d8"
+
+# Simple Ranged Weapons
+
+[equipment.light_crossbow]
+name = "Crossbow, Light"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "ranged"
+cost = "25 gp"
+damage = "1d8"
+damage_type = "piercing"
+weight = 5
+properties = ["ammunition", "loading", "two-handed"]
+range_normal = 80
+range_long = 320
+
+[equipment.dart]
+name = "Dart"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "ranged"
+cost = "5 cp"
+damage = "1d4"
+damage_type = "piercing"
+weight = 0.25
+properties = ["finesse", "thrown"]
+range_normal = 20
+range_long = 60
+
+[equipment.shortbow]
+name = "Shortbow"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "ranged"
+cost = "25 gp"
+damage = "1d6"
+damage_type = "piercing"
+weight = 2
+properties = ["ammunition", "two-handed"]
+range_normal = 80
+range_long = 320
+
+[equipment.sling]
+name = "Sling"
+category = "weapon"
+weapon_category = "simple"
+weapon_type = "ranged"
+cost = "1 sp"
+damage = "1d4"
+damage_type = "bludgeoning"
+properties = ["ammunition"]
+range_normal = 30
+range_long = 120
+
+# Martial Melee Weapons
+
+[equipment.battleaxe]
+name = "Battleaxe"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "10 gp"
+damage = "1d8"
+damage_type = "slashing"
+weight = 4
+properties = ["versatile"]
+versatile_damage = "1d10"
+
+[equipment.flail]
+name = "Flail"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "10 gp"
+damage = "1d8"
+damage_type = "bludgeoning"
+weight = 2
+properties = []
+
+[equipment.glaive]
+name = "Glaive"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "20 gp"
+damage = "1d10"
+damage_type = "slashing"
+weight = 6
+properties = ["heavy", "reach", "two-handed"]
+
+[equipment.greataxe]
+name = "Greataxe"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "30 gp"
+damage = "1d12"
+damage_type = "slashing"
+weight = 7
+properties = ["heavy", "two-handed"]
+
+[equipment.greatsword]
+name = "Greatsword"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "50 gp"
+damage = "2d6"
+damage_type = "slashing"
+weight = 6
+properties = ["heavy", "two-handed"]
+
+[equipment.halberd]
+name = "Halberd"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "20 gp"
+damage = "1d10"
+damage_type = "slashing"
+weight = 6
+properties = ["heavy", "reach", "two-handed"]
+
+[equipment.lance]
+name = "Lance"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "10 gp"
+damage = "1d12"
+damage_type = "piercing"
+weight = 6
+properties = ["reach", "special"]
+
+[equipment.longsword]
+name = "Longsword"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "15 gp"
+damage = "1d8"
+damage_type = "slashing"
+weight = 3
+properties = ["versatile"]
+versatile_damage = "1d10"
+
+[equipment.maul]
+name = "Maul"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "10 gp"
+damage = "2d6"
+damage_type = "bludgeoning"
+weight = 10
+properties = ["heavy", "two-handed"]
+
+[equipment.morningstar]
+name = "Morningstar"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "15 gp"
+damage = "1d8"
+damage_type = "piercing"
+weight = 4
+properties = []
+
+[equipment.pike]
+name = "Pike"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "5 gp"
+damage = "1d10"
+damage_type = "piercing"
+weight = 18
+properties = ["heavy", "reach", "two-handed"]
+
+[equipment.rapier]
+name = "Rapier"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "25 gp"
+damage = "1d8"
+damage_type = "piercing"
+weight = 2
+properties = ["finesse"]
+
+[equipment.scimitar]
+name = "Scimitar"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "25 gp"
+damage = "1d6"
+damage_type = "slashing"
+weight = 3
+properties = ["finesse", "light"]
+
+[equipment.shortsword]
+name = "Shortsword"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "10 gp"
+damage = "1d6"
+damage_type = "piercing"
+weight = 2
+properties = ["finesse", "light"]
+
+[equipment.trident]
+name = "Trident"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "5 gp"
+damage = "1d6"
+damage_type = "piercing"
+weight = 4
+properties = ["thrown", "versatile"]
+range_normal = 20
+range_long = 60
+versatile_damage = "1d8"
+
+[equipment.war_pick]
+name = "War Pick"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "5 gp"
+damage = "1d8"
+damage_type = "piercing"
+weight = 2
+properties = []
+
+[equipment.warhammer]
+name = "Warhammer"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "15 gp"
+damage = "1d8"
+damage_type = "bludgeoning"
+weight = 2
+properties = ["versatile"]
+versatile_damage = "1d10"
+
+[equipment.whip]
+name = "Whip"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "melee"
+cost = "2 gp"
+damage = "1d4"
+damage_type = "slashing"
+weight = 3
+properties = ["finesse", "reach"]
+
+# Martial Ranged Weapons
+
+[equipment.blowgun]
+name = "Blowgun"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "ranged"
+cost = "10 gp"
+damage = "1"
+damage_type = "piercing"
+weight = 1
+properties = ["ammunition", "loading"]
+range_normal = 25
+range_long = 100
+
+[equipment.hand_crossbow]
+name = "Crossbow, Hand"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "ranged"
+cost = "75 gp"
+damage = "1d6"
+damage_type = "piercing"
+weight = 3
+properties = ["ammunition", "light", "loading"]
+range_normal = 30
+range_long = 120
+
+[equipment.heavy_crossbow]
+name = "Crossbow, Heavy"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "ranged"
+cost = "50 gp"
+damage = "1d10"
+damage_type = "piercing"
+weight = 18
+properties = ["ammunition", "heavy", "loading", "two-handed"]
+range_normal = 100
+range_long = 400
+
+[equipment.longbow]
+name = "Longbow"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "ranged"
+cost = "50 gp"
+damage = "1d8"
+damage_type = "piercing"
+weight = 2
+properties = ["ammunition", "heavy", "two-handed"]
+range_normal = 150
+range_long = 600
+
+[equipment.net]
+name = "Net"
+category = "weapon"
+weapon_category = "martial"
+weapon_type = "ranged"
+cost = "1 gp"
+weight = 3
+properties = ["thrown", "special"]
+range_normal = 5
+range_long = 15
