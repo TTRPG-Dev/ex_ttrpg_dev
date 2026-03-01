@@ -91,6 +91,31 @@ ttrpg-dev characters roll misu_park skill acrobatics
 # Acrobatics check: 18 (1d20: 14, bonus: +4)
 ```
 
+## Development Setup
+
+**Prerequisites**: [asdf](https://asdf-vm.com/) with the `erlang`, `elixir`, and `zig` plugins.
+
+```bash
+git clone https://github.com/TTRPG-Dev/ex_ttrpg_dev.git
+cd ex_ttrpg_dev
+asdf install        # installs Erlang, Elixir, and Zig from .tool-versions
+mix deps.get
+```
+
+**Run the CLI locally** (no Zig required):
+
+```bash
+mix escript
+./ttrpg-dev
+```
+
+**Build Burrito binaries** (requires Zig):
+
+```bash
+./scripts/build_cli.sh
+./burrito_out/ttrpg_dev_cli_linux
+```
+
 ## Contributing
 
 1. Fork the repo and create a branch from `main`
