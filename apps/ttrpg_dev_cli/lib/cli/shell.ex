@@ -33,7 +33,7 @@ defmodule ExTTRPGDev.CLI.Shell do
 
   defp handle_input("", _optimus), do: :continue
 
-  defp handle_input(cmd, _optimus) when cmd in ["exit", "quit"], do: :exit
+  defp handle_input(cmd, _optimus) when cmd in ["exit", "quit", "exit()"], do: :exit
 
   defp handle_input("help", _optimus) do
     IO.puts("""
