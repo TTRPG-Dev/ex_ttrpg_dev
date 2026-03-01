@@ -12,6 +12,14 @@
 
 ExTTRPGDev is a general tabletop role-playing game utility written in Elixir.
 
+## Table of Contents
+
+- [CLI Installation](#cli-installation)
+- [Usage](#usage)
+- [Development Setup](#development-setup)
+- [Contributing](#contributing)
+- [Library Installation](#library-installation)
+
 ## CLI Installation
 
 Pre-built binaries are available on the [releases page](https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases).
