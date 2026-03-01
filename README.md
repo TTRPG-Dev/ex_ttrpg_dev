@@ -91,6 +91,15 @@ ttrpg-dev characters roll misu_park skill acrobatics
 # Acrobatics check: 18 (1d20: 14, bonus: +4)
 ```
 
+## Contributing
+
+1. Fork the repo and create a branch from `main`
+2. Install dependencies: `mix deps.get`
+3. Make your changes and add tests
+4. Run the test suite: `mix test --umbrella`
+5. Run the linter: `mix credo --umbrella`
+6. Submit a pull request against `main`
+
 ## Library Installation
 
 ExTTRPGDev is [available in Hex](https://hex.pm/packages/ex_ttrpg_dev), the package can be installed
