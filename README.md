@@ -12,7 +12,36 @@
 
 ExTTRPGDev is a general tabletop role-playing game utility written in Elixir.
 
-## Installation
+## CLI Installation
+
+Pre-built binaries are available on the [releases page](https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases).
+
+### Linux
+
+```bash
+curl -fsSL https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases/latest/download/ttrpg_dev_cli_linux.tar.gz | tar -xz
+sudo mv ttrpg-dev /usr/local/bin/
+```
+
+### macOS (Intel)
+
+```bash
+curl -fsSL https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases/latest/download/ttrpg_dev_cli_macos.tar.gz | tar -xz
+sudo mv ttrpg-dev /usr/local/bin/
+```
+
+### macOS (Apple Silicon)
+
+```bash
+curl -fsSL https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases/latest/download/ttrpg_dev_cli_macos_arm.tar.gz | tar -xz
+sudo mv ttrpg-dev /usr/local/bin/
+```
+
+### Windows
+
+Download `ttrpg_dev_cli_windows.zip` from the [releases page](https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases), extract it, and add `ttrpg-dev.exe` to your `PATH`.
+
+## Library Installation
 
 ExTTRPGDev is [available in Hex](https://hex.pm/packages/ex_ttrpg_dev), the package can be installed
 by adding `ex_ttrpg_dev` to your list of dependencies in `mix.exs`:
