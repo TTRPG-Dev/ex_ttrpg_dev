@@ -8,6 +8,7 @@
 [![Hex.pm](https://img.shields.io/hexpm/dt/ex_ttrpg_dev)](https://hex.pm/packages/ex_ttrpg_dev)
 [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ex_ttrpg_dev)
 [![Hex.pm](https://img.shields.io/hexpm/l/ex_ttrpg_dev)](https://github.com/TTRPG-Dev/ex_ttrpg_dev/blob/main/LICENSE)
+[![Coverage Status](https://coveralls.io/repos/github/TTRPG-Dev/ex_ttrpg_dev/badge.svg?branch=main)](https://coveralls.io/github/TTRPG-Dev/ex_ttrpg_dev?branch=main)
 
 ExTTRPGDev is a general tabletop role-playing game utility written in Elixir.
 
