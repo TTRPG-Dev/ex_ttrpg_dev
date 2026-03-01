@@ -38,7 +38,7 @@ defmodule ExTTRPGDevTest.CLI.Characters do
     end
 
     test "prints the character sheet", %{output: output} do
-      assert output =~ "Attributes:"
+      assert output =~ "Abilities:"
     end
 
     test "does not prompt to save", %{output: output} do
@@ -70,7 +70,7 @@ defmodule ExTTRPGDevTest.CLI.Characters do
     end
 
     test "prints the character sheet", %{output: output} do
-      assert output =~ "Attributes:"
+      assert output =~ "Abilities:"
     end
 
     test "persists exactly one new character to disk", %{new_character_count: count} do
@@ -173,7 +173,7 @@ defmodule ExTTRPGDevTest.CLI.Characters do
       character: character
     } do
       assert output =~ character.name
-      assert output =~ "Attributes:"
+      assert output =~ "Abilities:"
     end
 
     test "shows all six D&D attributes for a saved character", %{output: output} do

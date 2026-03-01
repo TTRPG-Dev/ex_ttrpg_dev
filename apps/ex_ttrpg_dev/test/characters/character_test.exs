@@ -28,7 +28,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     attrs = ~w(strength dexterity constitution wisdom intelligence charisma)
 
     for attr <- attrs do
-      key = {"attr", attr, "base_score"}
+      key = {"ability", attr, "base_score"}
       score = Map.get(character.generated_values, key)
       assert is_integer(score), "Missing or non-integer base_score for #{attr}"
       assert score >= 3 and score <= 18, "Score #{score} for #{attr} out of expected range"
@@ -56,8 +56,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
     original = %{
       original
       | effects: [
-          %{target: {"attr", "strength", "total_score"}, value: 2},
-          %{target: {"attr", "dexterity", "total_score"}, value: -1}
+          %{target: {"ability", "strength", "total_score"}, value: 2},
+          %{target: {"ability", "dexterity", "total_score"}, value: -1}
         ]
     }
 
@@ -66,8 +66,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
     assert length(restored.effects) == 2
 
-    assert %{target: {"attr", "strength", "total_score"}, value: 2} in restored.effects
+    assert %{target: {"ability", "strength", "total_score"}, value: 2} in restored.effects
 
-    assert %{target: {"attr", "dexterity", "total_score"}, value: -1} in restored.effects
+    assert %{target: {"ability", "dexterity", "total_score"}, value: -1} in restored.effects
   end
 end

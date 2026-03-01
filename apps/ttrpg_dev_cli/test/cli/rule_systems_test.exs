@@ -57,14 +57,14 @@ defmodule ExTTRPGDevTest.CLI.RuleSystems do
     end
 
     test "lists known concept type ids", %{output: output} do
-      assert output =~ "attr"
+      assert output =~ "ability"
       assert output =~ "skill"
     end
   end
 
   describe "systems show --concept-type" do
-    test "attr lists attribute concepts", %{optimus: optimus, halt_fn: halt_fn} do
-      output = dispatch_show_concepts(optimus, halt_fn, "attr")
+    test "ability lists ability concepts", %{optimus: optimus, halt_fn: halt_fn} do
+      output = dispatch_show_concepts(optimus, halt_fn, "ability")
       assert output =~ "strength"
       assert output =~ "dexterity"
       assert output =~ "constitution"

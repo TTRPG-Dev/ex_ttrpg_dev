@@ -7,8 +7,8 @@ series = "dungeons_and_dragons_5e"
 publisher = "Wizards of the Coast, Inc."
 
 [[concept_type]]
-id = "attr"
-name = "Attribute"
+id = "ability"
+name = "Ability"
 
 [[concept_type]]
 id = "skill"

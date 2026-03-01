@@ -36,11 +36,19 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
       |> Enum.filter(fn {{type, id}, _} -> Map.has_key?(resolved_by_concept, {type, id}) end)
 
     if concepts != [] do
-      IO.puts("\n#{type_name}s:")
+      IO.puts("\n#{pluralize(type_name)}:")
 
       Enum.each(concepts, fn {{type, id}, meta} ->
         print_concept(type, id, meta, resolved_by_concept)
       end)
+    end
+  end
+
+  defp pluralize(word) do
+    if String.ends_with?(word, "y") do
+      String.slice(word, 0..-2//1) <> "ies"
+    else
+      word <> "s"
     end
   end
 

@@ -77,25 +77,25 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     {:ok, system} = Graph.build(loader_data)
 
     generated = %{
-      {"attr", "strength", "base_score"} => 16,
-      {"attr", "dexterity", "base_score"} => 14,
-      {"attr", "constitution", "base_score"} => 14,
-      {"attr", "wisdom", "base_score"} => 12,
-      {"attr", "intelligence", "base_score"} => 10,
-      {"attr", "charisma", "base_score"} => 8
+      {"ability", "strength", "base_score"} => 16,
+      {"ability", "dexterity", "base_score"} => 14,
+      {"ability", "constitution", "base_score"} => 14,
+      {"ability", "wisdom", "base_score"} => 12,
+      {"ability", "intelligence", "base_score"} => 10,
+      {"ability", "charisma", "base_score"} => 8
     }
 
     assert {:ok, resolved} = Evaluator.evaluate(system, generated)
 
     # Verify modifiers: floor((score - 10) / 2)
-    assert resolved[{"attr", "strength", "modifier"}] == 3
-    assert resolved[{"attr", "dexterity", "modifier"}] == 2
-    assert resolved[{"attr", "constitution", "modifier"}] == 2
-    assert resolved[{"attr", "wisdom", "modifier"}] == 1
-    assert resolved[{"attr", "intelligence", "modifier"}] == 0
-    assert resolved[{"attr", "charisma", "modifier"}] == -1
+    assert resolved[{"ability", "strength", "modifier"}] == 3
+    assert resolved[{"ability", "dexterity", "modifier"}] == 2
+    assert resolved[{"ability", "constitution", "modifier"}] == 2
+    assert resolved[{"ability", "wisdom", "modifier"}] == 1
+    assert resolved[{"ability", "intelligence", "modifier"}] == 0
+    assert resolved[{"ability", "charisma", "modifier"}] == -1
 
-    # Verify skills inherit their attribute modifier
+    # Verify skills inherit their ability modifier
     assert resolved[{"skill", "athletics", "modifier"}] == 3
     assert resolved[{"skill", "acrobatics", "modifier"}] == 2
     assert resolved[{"skill", "arcana", "modifier"}] == 0

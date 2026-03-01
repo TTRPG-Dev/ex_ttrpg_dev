@@ -95,7 +95,7 @@ defmodule ExTTRPGDevTest.Characters do
     setup do
       system = RuleSystems.load_system!("dnd_5e_srd")
       attrs = ~w[strength dexterity constitution wisdom intelligence charisma]
-      generated = Map.new(attrs, &{{"attr", &1, "base_score"}, 10})
+      generated = Map.new(attrs, &{{"ability", &1, "base_score"}, 10})
 
       character = %Character{
         name: "Test Character",
@@ -126,7 +126,7 @@ defmodule ExTTRPGDevTest.Characters do
       character: character
     } do
       assert_raise RuntimeError, ~r/No roll defined/, fn ->
-        Characters.concept_roll!(system, character, "attr", "strength")
+        Characters.concept_roll!(system, character, "ability", "strength")
       end
     end
 
