@@ -230,4 +230,59 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert length(weapon_ids) == 37
   end
+
+  test "load/1 returns concept metadata for tools" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "thieves_tools"})
+    thieves_tools = data.concept_metadata[{"equipment", "thieves_tools"}]
+    assert thieves_tools["name"] == "Thieves' Tools"
+    assert thieves_tools["category"] == "tool"
+    assert thieves_tools["tool_type"] == "kit"
+    assert thieves_tools["cost"] == "25 gp"
+
+    lute = data.concept_metadata[{"equipment", "lute"}]
+    assert lute["tool_type"] == "musical_instrument"
+
+    smiths = data.concept_metadata[{"equipment", "smiths_tools"}]
+    assert smiths["tool_type"] == "artisans_tool"
+  end
+
+  test "load/1 returns all 36 tool items" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    tool_ids =
+      data.concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "equipment" and meta["category"] == "tool"
+      end)
+      |> Enum.map(fn {{_type, id}, _} -> id end)
+
+    assert length(tool_ids) == 35
+  end
+
+  test "load/1 returns concept metadata for trade goods" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "platinum"})
+    platinum = data.concept_metadata[{"equipment", "platinum"}]
+    assert platinum["name"] == "Platinum (1 lb.)"
+    assert platinum["category"] == "trade_good"
+    assert platinum["cost"] == "500 gp"
+
+    assert Map.has_key?(data.concept_metadata, {"equipment", "wheat"})
+  end
+
+  test "load/1 returns all 23 trade good items" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    trade_good_ids =
+      data.concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "equipment" and meta["category"] == "trade_good"
+      end)
+      |> Enum.map(fn {{_type, id}, _} -> id end)
+
+    assert length(trade_good_ids) == 23
+  end
 end

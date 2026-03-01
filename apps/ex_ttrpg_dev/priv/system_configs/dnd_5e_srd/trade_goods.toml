@@ -1,0 +1,116 @@
+# Trade Goods
+
+[equipment.wheat]
+name = "Wheat (1 lb.)"
+category = "trade_good"
+cost = "1 cp"
+
+[equipment.flour]
+name = "Flour (1 lb.)"
+category = "trade_good"
+cost = "2 cp"
+
+[equipment.chicken]
+name = "Chicken (one)"
+category = "trade_good"
+cost = "2 cp"
+
+[equipment.salt]
+name = "Salt (1 lb.)"
+category = "trade_good"
+cost = "5 cp"
+
+[equipment.iron]
+name = "Iron (1 lb.)"
+category = "trade_good"
+cost = "1 sp"
+
+[equipment.canvas]
+name = "Canvas (1 sq. yd.)"
+category = "trade_good"
+cost = "1 sp"
+
+[equipment.copper]
+name = "Copper (1 lb.)"
+category = "trade_good"
+cost = "5 sp"
+
+[equipment.cotton_cloth]
+name = "Cotton Cloth (1 sq. yd.)"
+category = "trade_good"
+cost = "5 sp"
+
+[equipment.ginger]
+name = "Ginger (1 lb.)"
+category = "trade_good"
+cost = "1 gp"
+
+[equipment.goat]
+name = "Goat (one)"
+category = "trade_good"
+cost = "1 gp"
+
+[equipment.cinnamon]
+name = "Cinnamon (1 lb.)"
+category = "trade_good"
+cost = "2 gp"
+
+[equipment.pepper]
+name = "Pepper (1 lb.)"
+category = "trade_good"
+cost = "2 gp"
+
+[equipment.sheep]
+name = "Sheep (one)"
+category = "trade_good"
+cost = "2 gp"
+
+[equipment.cloves]
+name = "Cloves (1 lb.)"
+category = "trade_good"
+cost = "3 gp"
+
+[equipment.pig]
+name = "Pig (one)"
+category = "trade_good"
+cost = "3 gp"
+
+[equipment.silver]
+name = "Silver (1 lb.)"
+category = "trade_good"
+cost = "5 gp"
+
+[equipment.linen]
+name = "Linen (1 sq. yd.)"
+category = "trade_good"
+cost = "5 gp"
+
+[equipment.silk]
+name = "Silk (1 sq. yd.)"
+category = "trade_good"
+cost = "10 gp"
+
+[equipment.cow]
+name = "Cow (one)"
+category = "trade_good"
+cost = "10 gp"
+
+[equipment.saffron]
+name = "Saffron (1 lb.)"
+category = "trade_good"
+cost = "15 gp"
+
+[equipment.ox]
+name = "Ox (one)"
+category = "trade_good"
+cost = "15 gp"
+
+[equipment.gold]
+name = "Gold (1 lb.)"
+category = "trade_good"
+cost = "50 gp"
+
+[equipment.platinum]
+name = "Platinum (1 lb.)"
+category = "trade_good"
+cost = "500 gp"

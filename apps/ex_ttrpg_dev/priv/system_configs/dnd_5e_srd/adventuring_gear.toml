@@ -598,3 +598,25 @@ name = "Sling Bullets (20)"
 category = "adventuring_gear"
 cost = "4 cp"
 weight = 1.5
+
+# Kits
+
+[equipment.climbers_kit]
+name = "Climber's Kit"
+category = "adventuring_gear"
+cost = "25 gp"
+weight = 12
+description = "A climber's kit includes special pitons, boot tips, gloves, and a harness. You can use the climber's kit as an action to anchor yourself; when you do, you can't fall more than 25 feet from the point where you anchored yourself, and you can't climb more than 25 feet away from that point without undoing the anchor."
+
+[equipment.healers_kit]
+name = "Healer's Kit"
+category = "adventuring_gear"
+cost = "5 gp"
+weight = 3
+description = "This kit is a leather pouch containing bandages, salves, and splints. The kit has ten uses. As an action, you can expend one use of the kit to stabilize a creature that has 0 hit points, without needing to make a Wisdom (Medicine) check."
+
+[equipment.fishing_tackle]
+name = "Fishing Tackle"
+category = "adventuring_gear"
+cost = "1 gp"
+weight = 4
