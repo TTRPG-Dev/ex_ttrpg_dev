@@ -52,17 +52,14 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, effects: []}
 
     path
-    |> File.ls!()
-    |> Enum.filter(&String.ends_with?(&1, ".toml"))
-    |> Enum.reject(&(&1 == @module_file))
-    |> Enum.reduce_while({:ok, initial}, fn file, {:ok, acc} ->
-      file_path = Path.join(path, file)
-
+    |> Path.join("concepts/**/*.toml")
+    |> Path.wildcard()
+    |> Enum.reduce_while({:ok, initial}, fn file_path, {:ok, acc} ->
       with {:ok, contents} <- File.read(file_path),
            {:ok, toml_map} <- TomlElixir.decode(contents) do
         {:cont, {:ok, process_toml_map(toml_map, acc, type_ids)}}
       else
-        {:error, reason} -> {:halt, {:error, {:file_parse_error, file, reason}}}
+        {:error, reason} -> {:halt, {:error, {:file_parse_error, file_path, reason}}}
       end
     end)
   end

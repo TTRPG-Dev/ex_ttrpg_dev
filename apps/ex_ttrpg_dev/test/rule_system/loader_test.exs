@@ -82,7 +82,8 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     dir =
       System.tmp_dir!() |> Path.join("ex_ttrpg_loader_test_#{System.unique_integer([:positive])}")
 
-    File.mkdir_p!(dir)
+    File.mkdir_p!(Path.join([dir, "concepts", "attr"]))
+    File.mkdir_p!(Path.join([dir, "concepts", "feat"]))
 
     File.write!(Path.join(dir, "module.toml"), """
     [module]
@@ -100,7 +101,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     name = "Feat"
     """)
 
-    File.write!(Path.join(dir, "attributes.toml"), """
+    File.write!(Path.join([dir, "concepts", "attr", "attributes.toml"]), """
     [attr.strength]
     name = "Strength"
     base_score.type = "generated"
@@ -109,7 +110,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     total_score.base = "attr('strength').base_score"
     """)
 
-    File.write!(Path.join(dir, "feats.toml"), """
+    File.write!(Path.join([dir, "concepts", "feat", "feats.toml"]), """
     [feat.toughness]
     name = "Toughness"
 
