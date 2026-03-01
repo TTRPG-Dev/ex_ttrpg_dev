@@ -41,6 +41,56 @@ sudo mv ttrpg-dev /usr/local/bin/
 
 Download `ttrpg_dev_cli_windows.zip` from the [releases page](https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases), extract it, and add `ttrpg-dev.exe` to your `PATH`.
 
+## Usage
+
+`ttrpg-dev` can be used as a one-shot command or as an interactive shell (run with no arguments):
+
+```
+ttrpg-dev
+```
+```
+TTRPG Dev — interactive shell
+Type `help` for available commands, `exit` to quit.
+ttrpg-dev> _
+```
+
+### Rolling dice
+
+```
+ttrpg-dev roll 3d6
+# 3d6: [2, 4, 5]
+
+ttrpg-dev roll 2d6,1d10
+# 2d6: [3, 6]
+# 1d10: [7]
+```
+
+### Rule systems
+
+```
+ttrpg-dev systems list
+ttrpg-dev systems show dnd_5e_srd
+ttrpg-dev systems show dnd_5e_srd --concept-type skill
+```
+
+### Characters
+
+```
+# Generate a character (prompts to save)
+ttrpg-dev characters gen dnd_5e_srd
+
+# Generate and save immediately
+ttrpg-dev characters gen dnd_5e_srd --save
+
+# List and inspect saved characters
+ttrpg-dev characters list
+ttrpg-dev characters show misu_park
+
+# Roll a skill or attribute check for a character
+ttrpg-dev characters roll misu_park skill acrobatics
+# Acrobatics check: 18 (1d20: 14, bonus: +4)
+```
+
 ## Library Installation
 
 ExTTRPGDev is [available in Hex](https://hex.pm/packages/ex_ttrpg_dev), the package can be installed
