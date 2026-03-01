@@ -17,9 +17,9 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, character.name)
   end
 
-  test "print/2 shows Attributes section", %{system: system, character: character} do
+  test "print/2 shows Abilities section", %{system: system, character: character} do
     output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "Attributes:")
+    assert String.contains?(output, "Abilities:")
   end
 
   test "print/2 shows all six D&D attributes", %{system: system, character: character} do
@@ -48,7 +48,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     character: character
   } do
     # Force a character with a known positive modifier (score 12 → mod +1)
-    dex_key = {"attr", "dexterity", "base_score"}
+    dex_key = {"ability", "dexterity", "base_score"}
     character = %{character | generated_values: Map.put(character.generated_values, dex_key, 12)}
 
     output = capture_io(fn -> CharacterDisplay.print(system, character) end)
@@ -73,13 +73,13 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     system: system,
     character: character
   } do
-    dex_base = character.generated_values[{"attr", "dexterity", "base_score"}]
+    dex_base = character.generated_values[{"ability", "dexterity", "base_score"}]
     expected_total = dex_base + 2
 
     character = %{
       character
       | effects: [
-          %{target: {"attr", "dexterity", "total_score"}, value: 2}
+          %{target: {"ability", "dexterity", "total_score"}, value: 2}
         ]
     }
 
@@ -91,7 +91,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     system: system,
     character: character
   } do
-    str_base = character.generated_values[{"attr", "strength", "base_score"}]
+    str_base = character.generated_values[{"ability", "strength", "base_score"}]
     expected_total = str_base + 4
 
     system_with_contrib = %{
@@ -99,7 +99,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       | effects: [
           %{
             source: {"feat", "tough", nil},
-            target: {"attr", "strength", "total_score"},
+            target: {"ability", "strength", "total_score"},
             value: 4
           }
         ]

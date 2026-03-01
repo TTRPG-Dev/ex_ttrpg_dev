@@ -1,59 +1,59 @@
-[attr.strength]
+[ability.strength]
 name = "Strength"
 abbreviation = "STR"
 description = "measuring physical power"
 base_score.type = "generated"
 base_score.method = "standard"
 total_score.type = "accumulator"
-total_score.base = "attr('strength').base_score"
-modifier.formula = "floor((attr('strength').total_score - 10) / 2)"
+total_score.base = "ability('strength').base_score"
+modifier.formula = "floor((ability('strength').total_score - 10) / 2)"
 
-[attr.dexterity]
+[ability.dexterity]
 name = "Dexterity"
 abbreviation = "DEX"
 description = "measuring agility"
 base_score.type = "generated"
 base_score.method = "standard"
 total_score.type = "accumulator"
-total_score.base = "attr('dexterity').base_score"
-modifier.formula = "floor((attr('dexterity').total_score - 10) / 2)"
+total_score.base = "ability('dexterity').base_score"
+modifier.formula = "floor((ability('dexterity').total_score - 10) / 2)"
 
-[attr.constitution]
+[ability.constitution]
 name = "Constitution"
 abbreviation = "CON"
 description = "measuring endurance"
 base_score.type = "generated"
 base_score.method = "standard"
 total_score.type = "accumulator"
-total_score.base = "attr('constitution').base_score"
-modifier.formula = "floor((attr('constitution').total_score - 10) / 2)"
+total_score.base = "ability('constitution').base_score"
+modifier.formula = "floor((ability('constitution').total_score - 10) / 2)"
 
-[attr.wisdom]
+[ability.wisdom]
 name = "Wisdom"
 abbreviation = "WIS"
 description = "measuring perception and insight"
 base_score.type = "generated"
 base_score.method = "standard"
 total_score.type = "accumulator"
-total_score.base = "attr('wisdom').base_score"
-modifier.formula = "floor((attr('wisdom').total_score - 10) / 2)"
+total_score.base = "ability('wisdom').base_score"
+modifier.formula = "floor((ability('wisdom').total_score - 10) / 2)"
 
-[attr.intelligence]
+[ability.intelligence]
 name = "Intelligence"
 abbreviation = "INT"
 description = "measuring reasoning and memory"
 base_score.type = "generated"
 base_score.method = "standard"
 total_score.type = "accumulator"
-total_score.base = "attr('intelligence').base_score"
-modifier.formula = "floor((attr('intelligence').total_score - 10) / 2)"
+total_score.base = "ability('intelligence').base_score"
+modifier.formula = "floor((ability('intelligence').total_score - 10) / 2)"
 
-[attr.charisma]
+[ability.charisma]
 name = "Charisma"
 abbreviation = "CHA"
 description = "measuring force of personality"
 base_score.type = "generated"
 base_score.method = "standard"
 total_score.type = "accumulator"
-total_score.base = "attr('charisma').base_score"
-modifier.formula = "floor((attr('charisma').total_score - 10) / 2)"
+total_score.base = "ability('charisma').base_score"
+modifier.formula = "floor((ability('charisma').total_score - 10) / 2)"

@@ -21,9 +21,9 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   ## Examples
       iex> system = ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd")
       iex> attrs = ~w[strength dexterity constitution wisdom intelligence charisma]
-      iex> generated = Map.new(attrs, &{{"attr", &1, "base_score"}, 10})
+      iex> generated = Map.new(attrs, &{{"ability", &1, "base_score"}, 10})
       iex> {:ok, resolved} = ExTTRPGDev.RuleSystem.Evaluator.evaluate(system, generated)
-      iex> resolved[{"attr", "strength", "modifier"}]
+      iex> resolved[{"ability", "strength", "modifier"}]
       0
 
   """
