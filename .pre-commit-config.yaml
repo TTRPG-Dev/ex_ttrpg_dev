@@ -36,6 +36,12 @@ repos:
     pass_filenames: false
     files: mix\.lock$
 
+  - id: codescene
+    name: 'codescene: delta'
+    entry: sh -c 'if [ -z "$CS_ACCESS_TOKEN" ] || ! command -v cs > /dev/null 2>&1; then exit 0; fi; cs delta --git-hook --staged'
+    language: system
+    pass_filenames: false
+
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v1.4.0
   hooks:
