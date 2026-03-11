@@ -3,3 +3,9 @@ name = "Skill Check"
 dice = "1d20"
 target_type = "skill"
 bonus_field = "modifier"
+
+[roll.saving_throw]
+name = "Saving Throw"
+dice = "1d20"
+target_type = "saving_throw"
+bonus_field = "modifier"

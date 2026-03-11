@@ -33,3 +33,7 @@ name = "Equipment"
 [[concept_type]]
 id = "currency"
 name = "Currency"
+
+[[concept_type]]
+id = "saving_throw"
+name = "Saving Throw"

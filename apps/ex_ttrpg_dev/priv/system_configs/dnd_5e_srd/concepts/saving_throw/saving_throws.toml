@@ -1,0 +1,29 @@
+[saving_throw.strength]
+name = "Strength"
+modifier.type = "accumulator"
+modifier.base = "ability('strength').modifier"
+
+[saving_throw.dexterity]
+name = "Dexterity"
+modifier.type = "accumulator"
+modifier.base = "ability('dexterity').modifier"
+
+[saving_throw.constitution]
+name = "Constitution"
+modifier.type = "accumulator"
+modifier.base = "ability('constitution').modifier"
+
+[saving_throw.wisdom]
+name = "Wisdom"
+modifier.type = "accumulator"
+modifier.base = "ability('wisdom').modifier"
+
+[saving_throw.intelligence]
+name = "Intelligence"
+modifier.type = "accumulator"
+modifier.base = "ability('intelligence').modifier"
+
+[saving_throw.charisma]
+name = "Charisma"
+modifier.type = "accumulator"
+modifier.base = "ability('charisma').modifier"

@@ -99,5 +99,36 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"skill", "athletics", "modifier"}] == 3
     assert resolved[{"skill", "acrobatics", "modifier"}] == 2
     assert resolved[{"skill", "arcana", "modifier"}] == 0
+
+    # Verify saving throws inherit their ability modifier
+    assert resolved[{"saving_throw", "strength", "modifier"}] == 3
+    assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
+    assert resolved[{"saving_throw", "constitution", "modifier"}] == 2
+    assert resolved[{"saving_throw", "wisdom", "modifier"}] == 1
+    assert resolved[{"saving_throw", "intelligence", "modifier"}] == 0
+    assert resolved[{"saving_throw", "charisma", "modifier"}] == -1
+  end
+
+  test "integration: saving throw modifier increases when proficiency is applied as an effect" do
+    {:ok, loader_data} = Loader.load(dnd_path())
+    {:ok, system} = Graph.build(loader_data)
+
+    generated = %{
+      {"ability", "strength", "base_score"} => 16,
+      {"ability", "dexterity", "base_score"} => 14,
+      {"ability", "constitution", "base_score"} => 14,
+      {"ability", "wisdom", "base_score"} => 12,
+      {"ability", "intelligence", "base_score"} => 10,
+      {"ability", "charisma", "base_score"} => 8
+    }
+
+    # Proficiency bonus of +2 applied to strength saving throw
+    effects = [%{target: {"saving_throw", "strength", "modifier"}, value: 2}]
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+    # strength modifier is 3, plus proficiency bonus of 2
+    assert resolved[{"saving_throw", "strength", "modifier"}] == 5
+    # other saving throws are unaffected
+    assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
   end
 end
