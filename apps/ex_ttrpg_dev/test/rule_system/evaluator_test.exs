@@ -58,6 +58,45 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"attr", "strength", "modifier"}] == 4
   end
 
+  test "evaluate/3 resolves formula-valued effects against current node values" do
+    loader_data = %{
+      nodes: %{
+        {"trait", "prof", "bonus"} => %{type: :accumulator, base: "2"},
+        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
+        {"attr", "strength", "total_score"} => %{
+          type: :accumulator,
+          base: "attr('strength').base_score"
+        },
+        {"attr", "strength", "modifier"} => %{
+          type: :formula,
+          formula: "floor((attr('strength').total_score - 10) / 2)"
+        },
+        {"save", "strength", "modifier"} => %{
+          type: :accumulator,
+          base: "attr('strength').modifier"
+        }
+      },
+      rolling_methods: %{},
+      concept_metadata: %{},
+      effects: [
+        %{
+          source: {"class", "fighter", nil},
+          target: {"save", "strength", "modifier"},
+          value: "trait('prof').bonus"
+        }
+      ]
+    }
+
+    {:ok, system} = Graph.build(loader_data)
+    generated = %{{"attr", "strength", "base_score"} => 16}
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, system.effects)
+    # strength modifier = floor((16 - 10) / 2) = 3
+    # proficiency bonus = 2
+    # saving throw = 3 + 2 = 5
+    assert resolved[{"save", "strength", "modifier"}] == 5
+  end
+
   test "evaluate/3 returns error for missing generated value" do
     system = minimal_system()
     # Provide empty generated values — base_score will be missing

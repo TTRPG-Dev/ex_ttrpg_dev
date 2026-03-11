@@ -77,18 +77,30 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   end
 
   defp add_effect_edges(graph, nodes, effects) do
-    Enum.reduce_while(effects, {:ok, graph}, fn
-      %{target: target_key}, {:ok, g} when is_tuple(target_key) ->
-        if Map.has_key?(nodes, target_key) do
-          {:cont, {:ok, g}}
-        else
-          {:halt, {:error, {:undefined_effect_target, target_key}}}
-        end
-
-      _, acc ->
-        {:cont, acc}
+    Enum.reduce_while(effects, {:ok, graph}, fn effect, {:ok, g} ->
+      case add_single_effect_edge(g, nodes, effect) do
+        {:ok, new_g} -> {:cont, {:ok, new_g}}
+        error -> {:halt, error}
+      end
     end)
   end
+
+  defp add_single_effect_edge(graph, nodes, %{target: target_key} = effect)
+       when is_tuple(target_key) do
+    if Map.has_key?(nodes, target_key) do
+      add_formula_effect_edge(graph, nodes, target_key, effect.value)
+    else
+      {:error, {:undefined_effect_target, target_key}}
+    end
+  end
+
+  defp add_single_effect_edge(graph, _nodes, _effect), do: {:ok, graph}
+
+  defp add_formula_effect_edge(graph, nodes, target_key, value) when is_binary(value) do
+    validate_and_add_refs(graph, nodes, value, target_key)
+  end
+
+  defp add_formula_effect_edge(graph, _nodes, _target_key, _value), do: {:ok, graph}
 
   defp validate_and_add_refs(graph, nodes, formula, dependent_key) do
     refs = Expression.extract_refs(formula)

@@ -73,6 +73,49 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     assert total_idx < mod_idx
   end
 
+  test "build/1 adds edge from formula-valued effect's ref to its target" do
+    data = %{
+      nodes: %{
+        {"trait", "prof", "bonus"} => %{type: :accumulator, base: "2"},
+        {"save", "str", "modifier"} => %{type: :accumulator, base: "0"}
+      },
+      rolling_methods: %{},
+      concept_metadata: %{},
+      effects: [
+        %{
+          source: {"class", "fighter", nil},
+          target: {"save", "str", "modifier"},
+          value: "trait('prof').bonus"
+        }
+      ]
+    }
+
+    assert {:ok, system} = Graph.build(data)
+    order = Graph.topological_order(system)
+    prof_idx = Enum.find_index(order, &(&1 == {"trait", "prof", "bonus"}))
+    save_idx = Enum.find_index(order, &(&1 == {"save", "str", "modifier"}))
+    assert prof_idx < save_idx
+  end
+
+  test "build/1 returns error for undefined ref in formula-valued effect" do
+    data = %{
+      nodes: %{
+        {"save", "str", "modifier"} => %{type: :accumulator, base: "0"}
+      },
+      rolling_methods: %{},
+      concept_metadata: %{},
+      effects: [
+        %{
+          source: {"class", "fighter", nil},
+          target: {"save", "str", "modifier"},
+          value: "trait('prof').bonus"
+        }
+      ]
+    }
+
+    assert {:error, {:undefined_ref, _}} = Graph.build(data)
+  end
+
   test "build/1 returns error for undefined contribution target" do
     data = %{
       nodes: %{
