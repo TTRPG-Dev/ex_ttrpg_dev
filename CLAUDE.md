@@ -66,4 +66,7 @@ contributes = [{target = "type('id').field", value = 2}]
 
 - Functions return `{:ok, result}` / `{:error, reason}`; bang variants raise.
 - Tests use `async: true` and include doctests where appropriate.
-- Commits are small and atomic; messages explain *why*, not just what.
+- Commits are small and atomic; messages explain *why*, not just what. Exceptions for large sweeping changes (lint rule changes, package updates, etc.).
+- Commit descriptions are encouraged (but not required) and should cover: why the change is necessary, any foreseen issues, and paths intentionally not taken (and why).
+- Commits are GPG-signed (`commit.gpgsign=true`). Do not skip signing.
+- Do not add `Co-Authored-By` trailers.
