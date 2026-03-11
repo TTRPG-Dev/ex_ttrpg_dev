@@ -139,6 +139,9 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"skill", "acrobatics", "modifier"}] == 2
     assert resolved[{"skill", "arcana", "modifier"}] == 0
 
+    # Verify proficiency bonus base value
+    assert resolved[{"character_trait", "proficiency_bonus", "bonus"}] == 2
+
     # Verify saving throws inherit their ability modifier
     assert resolved[{"saving_throw", "strength", "modifier"}] == 3
     assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2

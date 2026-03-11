@@ -37,3 +37,7 @@ name = "Currency"
 [[concept_type]]
 id = "saving_throw"
 name = "Saving Throw"
+
+[[concept_type]]
+id = "character_trait"
+name = "Character Trait"

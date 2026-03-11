@@ -1,0 +1,4 @@
+[character_trait.proficiency_bonus]
+name = "Proficiency Bonus"
+bonus.type = "accumulator"
+bonus.base = "2"

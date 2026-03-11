@@ -177,6 +177,18 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end
   end
 
+  test "load/1 registers character_trait concept type" do
+    {:ok, data} = Loader.load(dnd_path())
+    concept_type_ids = Enum.map(data.module.concept_types, & &1.id)
+    assert "character_trait" in concept_type_ids
+  end
+
+  test "load/1 returns proficiency_bonus as an accumulator with base 2" do
+    {:ok, data} = Loader.load(dnd_path())
+    node = data.nodes[{"character_trait", "proficiency_bonus", "bonus"}]
+    assert %{type: :accumulator, base: "2"} = node
+  end
+
   test "load/1 returns saving_throw roll definition" do
     {:ok, data} = Loader.load(dnd_path())
 
