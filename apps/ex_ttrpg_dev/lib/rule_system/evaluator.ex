@@ -64,15 +64,23 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp evaluate_accumulator(base_formula, node_key, resolved, effects) do
     with {:ok, base_value} <- Expression.evaluate(base_formula, resolved) do
-      contrib_total =
-        effects
-        |> Enum.filter(fn %{target: target} -> target == node_key end)
-        |> Enum.map(fn %{value: v} -> v end)
-        |> Enum.sum()
-
-      {:ok, base_value + contrib_total}
+      effects
+      |> Enum.filter(fn %{target: target} -> target == node_key end)
+      |> Enum.reduce_while({:ok, base_value}, &apply_effect(&1, &2, resolved))
     end
   end
+
+  defp apply_effect(%{value: v}, {:ok, acc}, resolved) do
+    case resolve_effect_value(v, resolved) do
+      {:ok, n} -> {:cont, {:ok, acc + n}}
+      error -> {:halt, error}
+    end
+  end
+
+  defp resolve_effect_value(value, _resolved) when is_number(value), do: {:ok, value}
+
+  defp resolve_effect_value(formula, resolved) when is_binary(formula),
+    do: Expression.evaluate(formula, resolved)
 
   defp fetch_generated(resolved, node_key) do
     case Map.fetch(resolved, node_key) do

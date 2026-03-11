@@ -27,8 +27,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
       |> Map.keys()
       |> Enum.reduce(Graph.new(type: :directed), &Graph.add_vertex(&2, &1))
 
-    with {:ok, graph} <- add_formula_edges(graph, nodes),
-         {:ok, graph} <- add_accumulator_edges(graph, nodes),
+    with {:ok, graph} <- add_node_edges(graph, nodes),
          {:ok, graph} <- add_effect_edges(graph, nodes, effects) do
       if Graph.is_acyclic?(graph) do
         {:ok,
@@ -50,45 +49,50 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     Graph.topsort(graph)
   end
 
-  defp add_formula_edges(graph, nodes) do
-    Enum.reduce_while(nodes, {:ok, graph}, fn
-      {node_key, %{type: :formula, formula: formula}}, {:ok, g} ->
-        case validate_and_add_refs(g, nodes, formula, node_key) do
-          {:ok, new_g} -> {:cont, {:ok, new_g}}
-          error -> {:halt, error}
-        end
-
-      _, acc ->
-        {:cont, acc}
+  defp add_node_edges(graph, nodes) do
+    Enum.reduce_while(nodes, {:ok, graph}, fn {node_key, node}, {:ok, g} ->
+      add_node_edge(g, nodes, node_key, node_formula(node))
     end)
   end
 
-  defp add_accumulator_edges(graph, nodes) do
-    Enum.reduce_while(nodes, {:ok, graph}, fn
-      {node_key, %{type: :accumulator, base: base_formula}}, {:ok, g} ->
-        case validate_and_add_refs(g, nodes, base_formula, node_key) do
-          {:ok, new_g} -> {:cont, {:ok, new_g}}
-          error -> {:halt, error}
-        end
+  defp add_node_edge(graph, _nodes, _node_key, nil), do: {:cont, {:ok, graph}}
 
-      _, acc ->
-        {:cont, acc}
-    end)
+  defp add_node_edge(graph, nodes, node_key, formula) do
+    case validate_and_add_refs(graph, nodes, formula, node_key) do
+      {:ok, new_g} -> {:cont, {:ok, new_g}}
+      error -> {:halt, error}
+    end
   end
+
+  defp node_formula(%{type: :formula, formula: formula}), do: formula
+  defp node_formula(%{type: :accumulator, base: base}), do: base
+  defp node_formula(_), do: nil
 
   defp add_effect_edges(graph, nodes, effects) do
-    Enum.reduce_while(effects, {:ok, graph}, fn
-      %{target: target_key}, {:ok, g} when is_tuple(target_key) ->
-        if Map.has_key?(nodes, target_key) do
-          {:cont, {:ok, g}}
-        else
-          {:halt, {:error, {:undefined_effect_target, target_key}}}
-        end
-
-      _, acc ->
-        {:cont, acc}
+    Enum.reduce_while(effects, {:ok, graph}, fn effect, {:ok, g} ->
+      case add_single_effect_edge(g, nodes, effect) do
+        {:ok, new_g} -> {:cont, {:ok, new_g}}
+        error -> {:halt, error}
+      end
     end)
   end
+
+  defp add_single_effect_edge(graph, nodes, %{target: target_key} = effect)
+       when is_tuple(target_key) do
+    if Map.has_key?(nodes, target_key) do
+      add_formula_effect_edge(graph, nodes, target_key, effect.value)
+    else
+      {:error, {:undefined_effect_target, target_key}}
+    end
+  end
+
+  defp add_single_effect_edge(graph, _nodes, _effect), do: {:ok, graph}
+
+  defp add_formula_effect_edge(graph, nodes, target_key, value) when is_binary(value) do
+    validate_and_add_refs(graph, nodes, value, target_key)
+  end
+
+  defp add_formula_effect_edge(graph, _nodes, _target_key, _value), do: {:ok, graph}
 
   defp validate_and_add_refs(graph, nodes, formula, dependent_key) do
     refs = Expression.extract_refs(formula)
