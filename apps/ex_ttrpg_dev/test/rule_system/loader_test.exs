@@ -150,6 +150,45 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert "currency" in concept_type_ids
   end
 
+  test "load/1 registers saving_throw concept type" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    concept_type_ids = Enum.map(data.module.concept_types, & &1.id)
+    assert "saving_throw" in concept_type_ids
+  end
+
+  test "load/1 returns all six saving throw modifier nodes" do
+    {:ok, data} = Loader.load(dnd_path())
+    abilities = ~w(strength dexterity constitution wisdom intelligence charisma)
+
+    for ability <- abilities do
+      assert Map.has_key?(data.nodes, {"saving_throw", ability, "modifier"}),
+             "Missing modifier for saving_throw #{ability}"
+    end
+  end
+
+  test "load/1 saving throw modifier nodes are accumulators referencing the correct ability" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    for ability <- ~w(strength dexterity constitution wisdom intelligence charisma) do
+      node = data.nodes[{"saving_throw", ability, "modifier"}]
+      assert %{type: :accumulator} = node
+      assert String.contains?(node.base, "ability('#{ability}').modifier")
+    end
+  end
+
+  test "load/1 returns saving_throw roll definition" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    saving_throw_roll =
+      Enum.find_value(data.concept_metadata, fn {{type, _id}, meta} ->
+        if type == "roll" and meta["target_type"] == "saving_throw", do: meta
+      end)
+
+    assert saving_throw_roll["dice"] == "1d20"
+    assert saving_throw_roll["bonus_field"] == "modifier"
+  end
+
   test "load/1 returns all 5 currencies with correct conversion rates" do
     {:ok, data} = Loader.load(dnd_path())
     currency_meta = fn id -> data.concept_metadata[{"currency", id}] end
