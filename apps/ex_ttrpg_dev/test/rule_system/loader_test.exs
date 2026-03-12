@@ -321,6 +321,64 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert count_equipment_by_category(data, "trade_good") == 23
   end
 
+  test "load/1 returns race concept metadata" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"race", "human"})
+    assert Map.has_key?(data.concept_metadata, {"race", "dwarf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "elf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "halfling"})
+    assert Map.has_key?(data.concept_metadata, {"race", "gnome"})
+    assert Map.has_key?(data.concept_metadata, {"race", "dragonborn"})
+    assert Map.has_key?(data.concept_metadata, {"race", "half_elf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "half_orc"})
+    assert Map.has_key?(data.concept_metadata, {"race", "tiefling"})
+  end
+
+  test "load/1 returns subrace metadata for races with subraces" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert Map.has_key?(data.concept_metadata, {"race", "hill_dwarf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "mountain_dwarf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "high_elf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "wood_elf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "dark_elf"})
+    assert Map.has_key?(data.concept_metadata, {"race", "lightfoot_halfling"})
+    assert Map.has_key?(data.concept_metadata, {"race", "stout_halfling"})
+    assert Map.has_key?(data.concept_metadata, {"race", "forest_gnome"})
+    assert Map.has_key?(data.concept_metadata, {"race", "rock_gnome"})
+  end
+
+  test "load/1 parses choices into race metadata" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    dwarf_meta = data.concept_metadata[{"race", "dwarf"}]
+    assert is_map(dwarf_meta["choices"])
+    assert is_map(dwarf_meta["choices"]["subrace"])
+    assert dwarf_meta["choices"]["subrace"]["type"] == "race"
+    assert dwarf_meta["choices"]["subrace"]["required"] == true
+    assert "hill_dwarf" in dwarf_meta["choices"]["subrace"]["options"]
+    assert "mountain_dwarf" in dwarf_meta["choices"]["subrace"]["options"]
+  end
+
+  test "load/1 parses race contributes into the effects list" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    human_bonuses =
+      Enum.filter(data.effects, fn e -> e.source == {"race", "human"} end)
+
+    assert length(human_bonuses) == 6
+
+    constitution_bonus =
+      Enum.find(data.effects, fn e ->
+        e.source == {"race", "dwarf"} and
+          e.target == {"ability", "constitution", "total_score"}
+      end)
+
+    assert constitution_bonus != nil
+    assert constitution_bonus.value == 2
+  end
+
   defp assert_cost(item, amount, currency) do
     assert item["cost"]["amount"] == amount
     assert item["cost"]["currency"] == currency
