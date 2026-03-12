@@ -1,5 +1,6 @@
 [race.tiefling]
 name = "Tiefling"
+languages = ["common", "infernal"]
 
 [[race.tiefling.contributes]]
 target = "ability('intelligence').total_score"

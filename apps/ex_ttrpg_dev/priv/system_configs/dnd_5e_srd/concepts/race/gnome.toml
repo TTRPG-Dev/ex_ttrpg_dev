@@ -1,5 +1,6 @@
 [race.gnome]
 name = "Gnome"
+languages = ["common", "gnomish"]
 
 [race.gnome.choices.subrace]
 required = true
@@ -19,6 +20,7 @@ value = 1
 
 [race.rock_gnome]
 name = "Rock Gnome"
+tool_proficiencies = ["tinkers_tools"]
 
 [[race.rock_gnome.contributes]]
 target = "ability('constitution').total_score"

@@ -1,5 +1,6 @@
 [race.dragonborn]
 name = "Dragonborn"
+languages = ["common", "draconic"]
 
 [[race.dragonborn.contributes]]
 target = "ability('strength').total_score"

@@ -1,5 +1,6 @@
 [race.halfling]
 name = "Halfling"
+languages = ["common", "halfling"]
 
 [race.halfling.choices.subrace]
 required = true

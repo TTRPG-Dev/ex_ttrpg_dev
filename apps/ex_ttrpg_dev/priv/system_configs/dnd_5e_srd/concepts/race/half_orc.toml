@@ -1,5 +1,6 @@
 [race.half_orc]
 name = "Half-Orc"
+languages = ["common", "orc"]
 
 [[race.half_orc.contributes]]
 target = "ability('strength').total_score"

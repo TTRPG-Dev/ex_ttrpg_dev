@@ -1,5 +1,27 @@
 [race.human]
 name = "Human"
+languages = ["common"]
+
+[race.human.choices.extra_language]
+required = true
+type = "language"
+options = [
+  "dwarvish",
+  "elvish",
+  "giant",
+  "gnomish",
+  "goblin",
+  "halfling",
+  "orc",
+  "abyssal",
+  "celestial",
+  "draconic",
+  "deep_speech",
+  "infernal",
+  "primordial",
+  "sylvan",
+  "undercommon",
+]
 
 [[race.human.contributes]]
 target = "ability('strength').total_score"

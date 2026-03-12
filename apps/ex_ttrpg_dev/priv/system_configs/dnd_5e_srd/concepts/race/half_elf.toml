@@ -1,5 +1,26 @@
 [race.half_elf]
 name = "Half-Elf"
+languages = ["common", "elvish"]
+
+[race.half_elf.choices.extra_language]
+required = true
+type = "language"
+options = [
+  "dwarvish",
+  "giant",
+  "gnomish",
+  "goblin",
+  "halfling",
+  "orc",
+  "abyssal",
+  "celestial",
+  "draconic",
+  "deep_speech",
+  "infernal",
+  "primordial",
+  "sylvan",
+  "undercommon",
+]
 
 [[race.half_elf.contributes]]
 target = "ability('charisma').total_score"
