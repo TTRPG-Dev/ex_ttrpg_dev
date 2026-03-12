@@ -51,13 +51,18 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert String.contains?(formula, "ability('strength')")
   end
 
-  test "load/1 returns rolling methods" do
+  test "load/1 returns both rolling methods" do
     {:ok, data} = Loader.load(dnd_path())
     assert Map.has_key?(data.rolling_methods, "standard")
     assert Map.has_key?(data.rolling_methods, "hard")
-    assert data.rolling_methods["standard"].dice == "4d6"
-    assert data.rolling_methods["standard"].drop == "lowest"
-    assert data.rolling_methods["standard"].default == true
+  end
+
+  test "load/1 standard rolling method has correct configuration" do
+    {:ok, data} = Loader.load(dnd_path())
+    standard = data.rolling_methods["standard"]
+    assert standard.dice == "4d6"
+    assert standard.drop == "lowest"
+    assert standard.default == true
   end
 
   test "load/1 returns concept metadata for abilities" do
@@ -324,41 +329,33 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   test "load/1 returns race concept metadata" do
     {:ok, data} = Loader.load(dnd_path())
 
-    assert Map.has_key?(data.concept_metadata, {"race", "human"})
-    assert Map.has_key?(data.concept_metadata, {"race", "dwarf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "elf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "halfling"})
-    assert Map.has_key?(data.concept_metadata, {"race", "gnome"})
-    assert Map.has_key?(data.concept_metadata, {"race", "dragonborn"})
-    assert Map.has_key?(data.concept_metadata, {"race", "half_elf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "half_orc"})
-    assert Map.has_key?(data.concept_metadata, {"race", "tiefling"})
+    for race <- ~w(human dwarf elf halfling gnome dragonborn half_elf half_orc tiefling) do
+      assert Map.has_key?(data.concept_metadata, {"race", race}), "Missing race: #{race}"
+    end
   end
 
   test "load/1 returns subrace metadata for races with subraces" do
     {:ok, data} = Loader.load(dnd_path())
 
-    assert Map.has_key?(data.concept_metadata, {"race", "hill_dwarf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "mountain_dwarf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "high_elf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "wood_elf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "dark_elf"})
-    assert Map.has_key?(data.concept_metadata, {"race", "lightfoot_halfling"})
-    assert Map.has_key?(data.concept_metadata, {"race", "stout_halfling"})
-    assert Map.has_key?(data.concept_metadata, {"race", "forest_gnome"})
-    assert Map.has_key?(data.concept_metadata, {"race", "rock_gnome"})
+    subraces = ~w(
+      hill_dwarf mountain_dwarf
+      high_elf wood_elf dark_elf
+      lightfoot_halfling stout_halfling
+      forest_gnome rock_gnome
+    )
+
+    for subrace <- subraces do
+      assert Map.has_key?(data.concept_metadata, {"race", subrace}), "Missing subrace: #{subrace}"
+    end
   end
 
   test "load/1 parses choices into race metadata" do
     {:ok, data} = Loader.load(dnd_path())
 
-    dwarf_meta = data.concept_metadata[{"race", "dwarf"}]
-    assert is_map(dwarf_meta["choices"])
-    assert is_map(dwarf_meta["choices"]["subrace"])
-    assert dwarf_meta["choices"]["subrace"]["type"] == "race"
-    assert dwarf_meta["choices"]["subrace"]["required"] == true
-    assert "hill_dwarf" in dwarf_meta["choices"]["subrace"]["options"]
-    assert "mountain_dwarf" in dwarf_meta["choices"]["subrace"]["options"]
+    subrace_choice = data.concept_metadata[{"race", "dwarf"}]["choices"]["subrace"]
+    assert %{"type" => "race", "required" => true, "options" => options} = subrace_choice
+    assert "hill_dwarf" in options
+    assert "mountain_dwarf" in options
   end
 
   test "load/1 parses race contributes into the effects list" do
