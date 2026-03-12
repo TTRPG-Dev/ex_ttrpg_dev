@@ -1,0 +1,6 @@
+[race.half_elf]
+name = "Half-Elf"
+
+[[race.half_elf.contributes]]
+target = "ability('charisma').total_score"
+value = 2

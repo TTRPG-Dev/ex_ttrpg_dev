@@ -1,0 +1,25 @@
+[race.gnome]
+name = "Gnome"
+
+[race.gnome.choices.subrace]
+required = true
+type = "race"
+options = ["forest_gnome", "rock_gnome"]
+
+[[race.gnome.contributes]]
+target = "ability('intelligence').total_score"
+value = 2
+
+[race.forest_gnome]
+name = "Forest Gnome"
+
+[[race.forest_gnome.contributes]]
+target = "ability('dexterity').total_score"
+value = 1
+
+[race.rock_gnome]
+name = "Rock Gnome"
+
+[[race.rock_gnome.contributes]]
+target = "ability('constitution').total_score"
+value = 1

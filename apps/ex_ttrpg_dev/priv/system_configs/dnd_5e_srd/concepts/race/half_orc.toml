@@ -1,0 +1,10 @@
+[race.half_orc]
+name = "Half-Orc"
+
+[[race.half_orc.contributes]]
+target = "ability('strength').total_score"
+value = 2
+
+[[race.half_orc.contributes]]
+target = "ability('constitution').total_score"
+value = 1

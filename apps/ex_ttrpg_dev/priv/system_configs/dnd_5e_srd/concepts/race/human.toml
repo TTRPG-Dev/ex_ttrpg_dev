@@ -1,0 +1,26 @@
+[race.human]
+name = "Human"
+
+[[race.human.contributes]]
+target = "ability('strength').total_score"
+value = 1
+
+[[race.human.contributes]]
+target = "ability('dexterity').total_score"
+value = 1
+
+[[race.human.contributes]]
+target = "ability('constitution').total_score"
+value = 1
+
+[[race.human.contributes]]
+target = "ability('wisdom').total_score"
+value = 1
+
+[[race.human.contributes]]
+target = "ability('intelligence').total_score"
+value = 1
+
+[[race.human.contributes]]
+target = "ability('charisma').total_score"
+value = 1

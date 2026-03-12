@@ -1,0 +1,25 @@
+[race.dwarf]
+name = "Dwarf"
+
+[race.dwarf.choices.subrace]
+required = true
+type = "race"
+options = ["hill_dwarf", "mountain_dwarf"]
+
+[[race.dwarf.contributes]]
+target = "ability('constitution').total_score"
+value = 2
+
+[race.hill_dwarf]
+name = "Hill Dwarf"
+
+[[race.hill_dwarf.contributes]]
+target = "ability('wisdom').total_score"
+value = 1
+
+[race.mountain_dwarf]
+name = "Mountain Dwarf"
+
+[[race.mountain_dwarf.contributes]]
+target = "ability('strength').total_score"
+value = 2

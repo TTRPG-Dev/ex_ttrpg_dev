@@ -1,0 +1,10 @@
+[race.tiefling]
+name = "Tiefling"
+
+[[race.tiefling.contributes]]
+target = "ability('intelligence').total_score"
+value = 1
+
+[[race.tiefling.contributes]]
+target = "ability('charisma').total_score"
+value = 2

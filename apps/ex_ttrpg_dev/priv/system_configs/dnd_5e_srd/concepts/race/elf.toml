@@ -1,0 +1,32 @@
+[race.elf]
+name = "Elf"
+
+[race.elf.choices.subrace]
+required = true
+type = "race"
+options = ["high_elf", "wood_elf", "dark_elf"]
+
+[[race.elf.contributes]]
+target = "ability('dexterity').total_score"
+value = 2
+
+[race.high_elf]
+name = "High Elf"
+
+[[race.high_elf.contributes]]
+target = "ability('intelligence').total_score"
+value = 1
+
+[race.wood_elf]
+name = "Wood Elf"
+
+[[race.wood_elf.contributes]]
+target = "ability('wisdom').total_score"
+value = 1
+
+[race.dark_elf]
+name = "Dark Elf"
+
+[[race.dark_elf.contributes]]
+target = "ability('charisma').total_score"
+value = 1
