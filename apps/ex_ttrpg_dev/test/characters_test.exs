@@ -101,6 +101,7 @@ defmodule ExTTRPGDevTest.Characters do
         name: "Test Character",
         generated_values: generated,
         effects: [],
+        decisions: [],
         metadata: %ExTTRPGDev.Characters.Metadata{
           slug: "test_roll_char",
           rule_system: "dnd_5e_srd"
