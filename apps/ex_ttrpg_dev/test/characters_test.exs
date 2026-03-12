@@ -102,32 +102,26 @@ defmodule ExTTRPGDevTest.Characters do
       assert MapSet.member?(result, {"race", "human"})
     end
 
-    test "recurses into sub-choices when a decision exists for them" do
-      concept_metadata = %{
-        {"race", "dwarf"} => %{
-          "choices" => %{"subrace" => %{"type" => "race", "options" => ["hill_dwarf"]}}
-        }
+    @dwarf_metadata %{
+      {"race", "dwarf"} => %{
+        "choices" => %{"subrace" => %{"type" => "race", "options" => ["hill_dwarf"]}}
       }
+    }
 
+    test "recurses into sub-choices when a decision exists for them" do
       decisions = [
         %{scope: nil, choice: "race", selection: "dwarf"},
         %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
       ]
 
-      result = Characters.active_concepts(decisions, concept_metadata)
+      result = Characters.active_concepts(decisions, @dwarf_metadata)
       assert MapSet.member?(result, {"race", "dwarf"})
       assert MapSet.member?(result, {"race", "hill_dwarf"})
     end
 
     test "does not activate sub-concept when no decision is made for a choice" do
-      concept_metadata = %{
-        {"race", "dwarf"} => %{
-          "choices" => %{"subrace" => %{"type" => "race", "options" => ["hill_dwarf"]}}
-        }
-      }
-
       decisions = [%{scope: nil, choice: "race", selection: "dwarf"}]
-      result = Characters.active_concepts(decisions, concept_metadata)
+      result = Characters.active_concepts(decisions, @dwarf_metadata)
       assert MapSet.member?(result, {"race", "dwarf"})
       refute MapSet.member?(result, {"race", "hill_dwarf"})
     end
