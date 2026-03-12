@@ -91,6 +91,48 @@ defmodule ExTTRPGDevTest.Characters do
     delete_test_character(character)
   end
 
+  describe "active_concepts/2" do
+    test "returns empty set for no decisions" do
+      assert MapSet.new() == Characters.active_concepts([], %{})
+    end
+
+    test "returns root concept for a single root decision" do
+      decisions = [%{scope: nil, choice: "race", selection: "human"}]
+      result = Characters.active_concepts(decisions, %{})
+      assert MapSet.member?(result, {"race", "human"})
+    end
+
+    test "recurses into sub-choices when a decision exists for them" do
+      concept_metadata = %{
+        {"race", "dwarf"} => %{
+          "choices" => %{"subrace" => %{"type" => "race", "options" => ["hill_dwarf"]}}
+        }
+      }
+
+      decisions = [
+        %{scope: nil, choice: "race", selection: "dwarf"},
+        %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
+      ]
+
+      result = Characters.active_concepts(decisions, concept_metadata)
+      assert MapSet.member?(result, {"race", "dwarf"})
+      assert MapSet.member?(result, {"race", "hill_dwarf"})
+    end
+
+    test "does not activate sub-concept when no decision is made for a choice" do
+      concept_metadata = %{
+        {"race", "dwarf"} => %{
+          "choices" => %{"subrace" => %{"type" => "race", "options" => ["hill_dwarf"]}}
+        }
+      }
+
+      decisions = [%{scope: nil, choice: "race", selection: "dwarf"}]
+      result = Characters.active_concepts(decisions, concept_metadata)
+      assert MapSet.member?(result, {"race", "dwarf"})
+      refute MapSet.member?(result, {"race", "hill_dwarf"})
+    end
+  end
+
   describe "concept_roll!/4" do
     setup do
       system = RuleSystems.load_system!("dnd_5e_srd")

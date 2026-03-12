@@ -110,6 +110,37 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
+
+  Walks the decisions tree starting from root decisions (scope: nil), adding each selected
+  concept and recursing into any sub-choices that concept declares.
+  """
+  def active_concepts(decisions, concept_metadata) do
+    decisions
+    |> Enum.filter(fn d -> d.scope == nil end)
+    |> Enum.reduce(MapSet.new(), fn %{choice: type, selection: id}, acc ->
+      collect_active_concepts({type, id}, decisions, concept_metadata, acc)
+    end)
+  end
+
+  @doc """
+  Returns the combined effects list for a character against a system.
+
+  Filters system-defined effects to only those whose source concept is active
+  (per the character's decisions), then appends the character's own effects.
+  """
+  def active_effects(%LoadedSystem{} = system, %Character{} = character) do
+    active = active_concepts(character.decisions, system.concept_metadata)
+
+    system.effects
+    |> Enum.filter(fn
+      %{source: {type, id, _}} -> MapSet.member?(active, {type, id})
+      _ -> false
+    end)
+    |> Kernel.++(character.effects)
+  end
+
+  @doc """
   Rolls for a concept using the roll definition attached to its type in the system config.
 
   Looks up a roll definition (from the system's `roll` concept type) whose `target_type`
@@ -135,7 +166,7 @@ defmodule ExTTRPGDev.Characters do
 
     {_key, %{"dice" => dice_str, "bonus_field" => bonus_field}} = roll_def
 
-    effects = system.effects ++ character.effects
+    effects = active_effects(system, character)
     resolved = Evaluator.evaluate!(system, character.generated_values, effects)
 
     bonus_key = {type_id, concept_id, bonus_field}
@@ -155,5 +186,25 @@ defmodule ExTTRPGDev.Characters do
       bonus: bonus,
       total: Enum.sum(rolls) + bonus
     }
+  end
+
+  defp collect_active_concepts({_type, _id} = key, decisions, concept_metadata, acc) do
+    acc = MapSet.put(acc, key)
+    choices = concept_metadata |> Map.get(key, %{}) |> Map.get("choices", %{})
+
+    Enum.reduce(choices, acc, fn {choice_id, choice_def}, acc ->
+      decision = Enum.find(decisions, &(&1.scope == key and &1.choice == choice_id))
+
+      if decision do
+        collect_active_concepts(
+          {choice_def["type"], decision.selection},
+          decisions,
+          concept_metadata,
+          acc
+        )
+      else
+        acc
+      end
+    end)
   end
 end

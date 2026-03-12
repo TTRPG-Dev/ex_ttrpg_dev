@@ -87,25 +87,24 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "total_score: #{expected_total}")
   end
 
-  test "print/2 merges system-level effects with character effects", %{
+  test "print/2 applies character effects to displayed values", %{
     system: system,
     character: character
   } do
     str_base = character.generated_values[{"ability", "strength", "base_score"}]
     expected_total = str_base + 4
 
-    system_with_contrib = %{
-      system
+    character_with_effect = %{
+      character
       | effects: [
           %{
-            source: {"feat", "tough", nil},
             target: {"ability", "strength", "total_score"},
             value: 4
           }
         ]
     }
 
-    output = capture_io(fn -> CharacterDisplay.print(system_with_contrib, character) end)
+    output = capture_io(fn -> CharacterDisplay.print(system, character_with_effect) end)
     assert String.contains?(output, "total_score: #{expected_total}")
   end
 end

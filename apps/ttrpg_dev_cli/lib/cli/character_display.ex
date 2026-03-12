@@ -3,6 +3,7 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
   Formats and prints a character sheet to stdout.
   """
 
+  alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystems.LoadedSystem
@@ -14,10 +15,10 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
   types that have no DAG nodes (e.g. pure-metadata types like languages).
   """
   def print(%LoadedSystem{} = system, %Character{} = character) do
-    effects = system.effects ++ character.effects
-
     resolved =
-      Evaluator.evaluate!(system, character.generated_values, effects)
+      system
+      |> Characters.active_effects(character)
+      |> then(&Evaluator.evaluate!(system, character.generated_values, &1))
 
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
 
