@@ -23,10 +23,51 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
 
     IO.puts("-- #{character.name} --")
+    print_character_choices(system, character)
 
     Enum.each(system.module.concept_types, fn concept_type ->
       print_concept_type(concept_type, system.concept_metadata, resolved_by_concept)
     end)
+  end
+
+  defp print_character_choices(system, character) do
+    Enum.each(system.module.character_choices, fn %{concept_type: type_id} ->
+      type_name = Enum.find_value(system.module.concept_types, &if(&1.id == type_id, do: &1.name))
+      root = Enum.find(character.decisions, &(&1.scope == nil and &1.choice == type_id))
+
+      if root do
+        chain =
+          concept_name_chain(
+            character.decisions,
+            system.concept_metadata,
+            type_id,
+            root.selection
+          )
+
+        IO.puts("#{type_name}: #{Enum.join(chain, " / ")}")
+      end
+    end)
+  end
+
+  defp concept_name_chain(decisions, concept_metadata, type_id, concept_id) do
+    name = get_in(concept_metadata, [{type_id, concept_id}, "name"]) || concept_id
+
+    sub_names =
+      concept_metadata
+      |> Map.get({type_id, concept_id}, %{})
+      |> Map.get("choices", %{})
+      |> Enum.flat_map(fn {choice_id, choice_def} ->
+        decision =
+          Enum.find(decisions, &(&1.scope == {type_id, concept_id} and &1.choice == choice_id))
+
+        if decision do
+          concept_name_chain(decisions, concept_metadata, choice_def["type"], decision.selection)
+        else
+          []
+        end
+      end)
+
+    [name | sub_names]
   end
 
   defp print_concept_type(%{id: type_id, name: type_name}, concept_metadata, resolved_by_concept) do

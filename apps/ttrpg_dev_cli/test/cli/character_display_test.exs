@@ -35,6 +35,33 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "Skills:")
   end
 
+  test "print/2 shows the character's race", %{system: system} do
+    decisions = [%{scope: nil, choice: "race", selection: "human"}]
+
+    character = %{
+      Character.gen_character!(system, decisions)
+      | decisions: decisions
+    }
+
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Race: Human")
+  end
+
+  test "print/2 shows subrace chain for races with subraces", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
+    ]
+
+    character = %{
+      Character.gen_character!(system, decisions)
+      | decisions: decisions
+    }
+
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Race: Dwarf / Hill Dwarf")
+  end
+
   test "print/2 skips concept types with no DAG nodes (languages)", %{
     system: system,
     character: character
