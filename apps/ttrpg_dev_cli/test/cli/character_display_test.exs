@@ -12,18 +12,24 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     {:ok, system: system, character: character}
   end
 
+  defp character_with_decisions(system, decisions) do
+    %{Character.gen_character!(system, decisions) | decisions: decisions}
+  end
+
+  defp print_output(system, character) do
+    capture_io(fn -> CharacterDisplay.print(system, character) end)
+  end
+
   test "print/2 outputs the character name", %{system: system, character: character} do
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, character.name)
+    assert print_output(system, character) |> String.contains?(character.name)
   end
 
   test "print/2 shows Abilities section", %{system: system, character: character} do
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "Abilities:")
+    assert print_output(system, character) |> String.contains?("Abilities:")
   end
 
   test "print/2 shows all six D&D attributes", %{system: system, character: character} do
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    output = print_output(system, character)
 
     for name <- ~w(Strength Dexterity Constitution Wisdom Intelligence Charisma) do
       assert String.contains?(output, name), "Expected #{name} in output"
@@ -31,20 +37,14 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
   end
 
   test "print/2 shows Skills section", %{system: system, character: character} do
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "Skills:")
+    assert print_output(system, character) |> String.contains?("Skills:")
   end
 
   test "print/2 shows the character's race", %{system: system} do
-    decisions = [%{scope: nil, choice: "race", selection: "human"}]
+    character =
+      character_with_decisions(system, [%{scope: nil, choice: "race", selection: "human"}])
 
-    character = %{
-      Character.gen_character!(system, decisions)
-      | decisions: decisions
-    }
-
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "Race: Human")
+    assert print_output(system, character) |> String.contains?("Race: Human")
   end
 
   test "print/2 shows subrace chain for races with subraces", %{system: system} do
@@ -53,13 +53,8 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
     ]
 
-    character = %{
-      Character.gen_character!(system, decisions)
-      | decisions: decisions
-    }
-
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "Race: Dwarf / Hill Dwarf")
+    assert print_output(system, character_with_decisions(system, decisions))
+           |> String.contains?("Race: Dwarf / Hill Dwarf")
   end
 
   test "print/2 does not show a Languages section header from the concept type loop", %{
@@ -68,8 +63,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
   } do
     # Languages have no DAG nodes so they never appear via the concept type loop.
     # The fixture character has no race decisions so no language grants appear either.
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    refute String.contains?(output, "Languages:")
+    refute print_output(system, character) |> String.contains?("Languages:")
   end
 
   test "print/2 shows fixed language grants from race", %{system: system} do
@@ -79,8 +73,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    output = print_output(system, character_with_decisions(system, decisions))
     assert String.contains?(output, "Languages:")
     assert String.contains?(output, "Common")
     assert String.contains?(output, "Dwarvish")
@@ -92,9 +85,8 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "Elvish")
+    assert print_output(system, character_with_decisions(system, decisions))
+           |> String.contains?("Elvish")
   end
 
   test "print/2 shows tool proficiency choice", %{system: system} do
@@ -104,8 +96,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    output = print_output(system, character_with_decisions(system, decisions))
     assert String.contains?(output, "Tool Proficiencies:")
     assert String.contains?(output, "Smith's Tools")
   end
@@ -116,8 +107,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "gnome"}, choice: "subrace", selection: "rock_gnome"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    output = print_output(system, character_with_decisions(system, decisions))
     assert String.contains?(output, "Tool Proficiencies:")
     assert String.contains?(output, "Tinker's Tools")
   end
@@ -129,8 +119,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    output = print_output(system, character_with_decisions(system, decisions))
     assert String.contains?(output, "Weapon Proficiencies:")
     assert String.contains?(output, "Battleaxe")
     assert String.contains?(output, "Warhammer")
@@ -143,8 +132,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    output = print_output(system, character_with_decisions(system, decisions))
     assert String.contains?(output, "Armor Proficiencies:")
     assert String.contains?(output, "Light Armor")
     assert String.contains?(output, "Medium Armor")
@@ -156,9 +144,8 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
       %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
     ]
 
-    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    refute String.contains?(output, "Weapon Proficiencies:")
+    refute print_output(system, character_with_decisions(system, decisions))
+           |> String.contains?("Weapon Proficiencies:")
   end
 
   test "print/2 formats positive modifiers with leading +", %{
@@ -169,8 +156,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     dex_key = {"ability", "dexterity", "base_score"}
     character = %{character | generated_values: Map.put(character.generated_values, dex_key, 12)}
 
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert output =~ ~r/modifier: \+\d+/
+    assert print_output(system, character) =~ ~r/modifier: \+\d+/
   end
 
   test "print/2 formats negative modifiers without leading +", %{
@@ -183,8 +169,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
 
     character = %{character | generated_values: generated_values}
 
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert output =~ ~r/modifier: -\d+/
+    assert print_output(system, character) =~ ~r/modifier: -\d+/
   end
 
   test "print/2 applies active effects to total_score", %{
@@ -201,8 +186,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
         ]
     }
 
-    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
-    assert String.contains?(output, "total_score: #{expected_total}")
+    assert print_output(system, character) |> String.contains?("total_score: #{expected_total}")
   end
 
   test "print/2 applies character effects to displayed values", %{
@@ -222,7 +206,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
         ]
     }
 
-    output = capture_io(fn -> CharacterDisplay.print(system, character_with_effect) end)
-    assert String.contains?(output, "total_score: #{expected_total}")
+    assert print_output(system, character_with_effect)
+           |> String.contains?("total_score: #{expected_total}")
   end
 end
