@@ -8,7 +8,24 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     defstruct [:id, :name]
   end
 
-  defstruct [:name, :slug, :version, :family, :series, :publisher, :concept_types]
+  defmodule CharacterChoice do
+    @moduledoc """
+    A top-level concept selection a character must make during creation,
+    e.g. choosing a race or class.
+    """
+    defstruct [:concept_type, required: true]
+  end
+
+  defstruct [
+    :name,
+    :slug,
+    :version,
+    :family,
+    :series,
+    :publisher,
+    :concept_types,
+    character_choices: []
+  ]
 
   @required_keys ["name", "slug", "version"]
 
@@ -28,6 +45,16 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
         |> Map.get("concept_type", [])
         |> Enum.map(fn et -> %ConceptType{id: et["id"], name: et["name"]} end)
 
+      character_choices =
+        map
+        |> Map.get("character_choice", [])
+        |> Enum.map(fn cc ->
+          %CharacterChoice{
+            concept_type: cc["concept_type"],
+            required: Map.get(cc, "required", true)
+          }
+        end)
+
       {:ok,
        %__MODULE__{
          name: module_map["name"],
@@ -36,7 +63,8 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          family: module_map["family"],
          series: module_map["series"],
          publisher: module_map["publisher"],
-         concept_types: concept_types
+         concept_types: concept_types,
+         character_choices: character_choices
        }}
     end
   end

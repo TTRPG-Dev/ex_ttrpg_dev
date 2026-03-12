@@ -41,3 +41,11 @@ name = "Saving Throw"
 [[concept_type]]
 id = "character_trait"
 name = "Character Trait"
+
+[[concept_type]]
+id = "race"
+name = "Race"
+
+[[character_choice]]
+concept_type = "race"
+required = true
