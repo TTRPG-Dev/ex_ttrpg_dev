@@ -8,6 +8,10 @@ type = "race"
 options = ["lightfoot_halfling", "stout_halfling"]
 
 [[race.halfling.contributes]]
+target = "character_trait('speed').feet"
+value = 25
+
+[[race.halfling.contributes]]
 target = "ability('dexterity').total_score"
 value = 2
 

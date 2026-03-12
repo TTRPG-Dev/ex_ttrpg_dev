@@ -367,7 +367,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     human_bonuses =
       Enum.filter(data.effects, fn e -> e.source == {"race", "human"} end)
 
-    assert length(human_bonuses) == 6
+    assert length(human_bonuses) == 7
 
     constitution_bonus =
       Enum.find(data.effects, fn e ->

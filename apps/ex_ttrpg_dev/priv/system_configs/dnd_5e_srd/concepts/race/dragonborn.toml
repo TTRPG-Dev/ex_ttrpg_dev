@@ -3,6 +3,10 @@ name = "Dragonborn"
 languages = ["common", "draconic"]
 
 [[race.dragonborn.contributes]]
+target = "character_trait('speed').feet"
+value = 30
+
+[[race.dragonborn.contributes]]
 target = "ability('strength').total_score"
 value = 2
 

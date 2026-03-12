@@ -24,6 +24,10 @@ options = [
 ]
 
 [[race.human.contributes]]
+target = "character_trait('speed').feet"
+value = 30
+
+[[race.human.contributes]]
 target = "ability('strength').total_score"
 value = 1
 

@@ -16,6 +16,14 @@ options = ["smiths_tools", "brewers_supplies", "masons_tools"]
 target = "ability('constitution').total_score"
 value = 2
 
+[[race.dwarf.contributes]]
+target = "character_trait('speed').feet"
+value = 25
+
+[[race.dwarf.contributes]]
+target = "character_trait('darkvision').range"
+value = 60
+
 [race.hill_dwarf]
 name = "Hill Dwarf"
 

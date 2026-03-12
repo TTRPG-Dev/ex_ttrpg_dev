@@ -8,6 +8,14 @@ type = "race"
 options = ["high_elf", "wood_elf", "dark_elf"]
 
 [[race.elf.contributes]]
+target = "character_trait('speed').feet"
+value = 30
+
+[[race.elf.contributes]]
+target = "character_trait('darkvision').range"
+value = 60
+
+[[race.elf.contributes]]
 target = "ability('dexterity').total_score"
 value = 2
 

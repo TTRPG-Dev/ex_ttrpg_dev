@@ -23,5 +23,13 @@ options = [
 ]
 
 [[race.half_elf.contributes]]
+target = "character_trait('speed').feet"
+value = 30
+
+[[race.half_elf.contributes]]
+target = "character_trait('darkvision').range"
+value = 60
+
+[[race.half_elf.contributes]]
 target = "ability('charisma').total_score"
 value = 2

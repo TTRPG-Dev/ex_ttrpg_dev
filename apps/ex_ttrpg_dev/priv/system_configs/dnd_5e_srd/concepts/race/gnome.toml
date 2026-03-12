@@ -8,6 +8,14 @@ type = "race"
 options = ["forest_gnome", "rock_gnome"]
 
 [[race.gnome.contributes]]
+target = "character_trait('speed').feet"
+value = 25
+
+[[race.gnome.contributes]]
+target = "character_trait('darkvision').range"
+value = 60
+
+[[race.gnome.contributes]]
 target = "ability('intelligence').total_score"
 value = 2
 
