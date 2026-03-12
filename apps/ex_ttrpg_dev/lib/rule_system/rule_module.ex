@@ -24,7 +24,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     :series,
     :publisher,
     :concept_types,
-    character_choices: []
+    character_building_choices: []
   ]
 
   @required_keys ["name", "slug", "version"]

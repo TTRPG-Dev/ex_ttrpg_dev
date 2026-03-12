@@ -135,13 +135,13 @@ defmodule ExTTRPGDevTest.Characters do
     test "returns one root decision per character choice", %{system: system} do
       decisions = Characters.random_decisions(system)
       root = Enum.filter(decisions, &(&1.scope == nil))
-      assert length(root) == length(system.module.character_choices)
+      assert length(root) == length(system.module.character_building_choices)
     end
 
     test "root decision choice matches the character_choice concept_type", %{system: system} do
       decisions = Characters.random_decisions(system)
 
-      for %{concept_type: type_id} <- system.module.character_choices do
+      for %{concept_type: type_id} <- system.module.character_building_choices do
         assert Enum.any?(decisions, &(&1.scope == nil and &1.choice == type_id))
       end
     end

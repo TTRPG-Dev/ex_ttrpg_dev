@@ -24,7 +24,7 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     active = Characters.active_concepts(character.decisions, system.concept_metadata)
 
     IO.puts("-- #{character.name} --")
-    print_character_choices(system, character)
+    print_character_building_choices(system, character)
     print_known_languages(system, character, active)
     print_weapon_proficiencies(system, active)
     print_armor_proficiencies(system, active)
@@ -35,8 +35,8 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     end)
   end
 
-  defp print_character_choices(system, character) do
-    Enum.each(system.module.character_choices, fn %{concept_type: type_id} ->
+  defp print_character_building_choices(system, character) do
+    Enum.each(system.module.character_building_choices, fn %{concept_type: type_id} ->
       type_name = Enum.find_value(system.module.concept_types, &if(&1.id == type_id, do: &1.name))
       root = Enum.find(character.decisions, &(&1.scope == nil and &1.choice == type_id))
 

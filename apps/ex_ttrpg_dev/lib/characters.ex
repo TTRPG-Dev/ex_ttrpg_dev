@@ -117,7 +117,7 @@ defmodule ExTTRPGDev.Characters do
   are the valid top-level picks. Sub-choices follow whatever options the selected concept declares.
   """
   def random_decisions(%LoadedSystem{} = system) do
-    system.module.character_choices
+    system.module.character_building_choices
     |> Enum.flat_map(fn %{concept_type: type_id} ->
       root_ids = root_concept_ids(system.concept_metadata, type_id)
       selected_id = Enum.random(root_ids)
