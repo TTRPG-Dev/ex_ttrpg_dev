@@ -133,6 +133,50 @@ defmodule ExTTRPGDevTest.Characters do
     end
   end
 
+  describe "random_decisions/1" do
+    setup do
+      {:ok, system: RuleSystems.load_system!("dnd_5e_srd")}
+    end
+
+    test "returns one root decision per character choice", %{system: system} do
+      decisions = Characters.random_decisions(system)
+      root = Enum.filter(decisions, &(&1.scope == nil))
+      assert length(root) == length(system.module.character_choices)
+    end
+
+    test "root decision choice matches the character_choice concept_type", %{system: system} do
+      decisions = Characters.random_decisions(system)
+
+      for %{concept_type: type_id} <- system.module.character_choices do
+        assert Enum.any?(decisions, &(&1.scope == nil and &1.choice == type_id))
+      end
+    end
+
+    test "selected root race is not a subrace", %{system: system} do
+      decisions = Characters.random_decisions(system)
+      root_race = Enum.find(decisions, &(&1.scope == nil and &1.choice == "race"))
+
+      subraces =
+        ~w[hill_dwarf mountain_dwarf high_elf wood_elf dark_elf lightfoot_halfling stout_halfling forest_gnome rock_gnome]
+
+      refute root_race.selection in subraces
+    end
+
+    test "races with subraces produce a subrace decision", %{system: system} do
+      races_with_subraces = ~w[dwarf elf halfling gnome]
+
+      for _ <- 1..20 do
+        decisions = Characters.random_decisions(system)
+        root_race = Enum.find(decisions, &(&1.scope == nil and &1.choice == "race"))
+
+        if root_race.selection in races_with_subraces do
+          parent_scope = {"race", root_race.selection}
+          assert Enum.any?(decisions, &(&1.scope == parent_scope and &1.choice == "subrace"))
+        end
+      end
+    end
+  end
+
   describe "concept_roll!/4" do
     setup do
       system = RuleSystems.load_system!("dnd_5e_srd")

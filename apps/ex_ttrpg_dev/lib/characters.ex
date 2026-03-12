@@ -110,6 +110,23 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Generates a random decision list for a system by randomly selecting a value for each required
+  character choice and recursing into any sub-choices declared by the selected concept.
+
+  Root concepts (those not referenced as sub-options of any other concept of the same type)
+  are the valid top-level picks. Sub-choices follow whatever options the selected concept declares.
+  """
+  def random_decisions(%LoadedSystem{} = system) do
+    system.module.character_choices
+    |> Enum.flat_map(fn %{concept_type: type_id} ->
+      root_ids = root_concept_ids(system.concept_metadata, type_id)
+      selected_id = Enum.random(root_ids)
+      decision = %{scope: nil, choice: type_id, selection: selected_id}
+      [decision | random_sub_decisions(system.concept_metadata, {type_id, selected_id})]
+    end)
+  end
+
+  @doc """
   Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
 
   Walks the decisions tree starting from root decisions (scope: nil), adding each selected
@@ -187,6 +204,40 @@ defmodule ExTTRPGDev.Characters do
       bonus: bonus,
       total: Enum.sum(rolls) + bonus
     }
+  end
+
+  defp root_concept_ids(concept_metadata, type_id) do
+    all_ids =
+      concept_metadata
+      |> Enum.filter(fn {{t, _}, _} -> t == type_id end)
+      |> Enum.map(fn {{_, id}, _} -> id end)
+
+    sub_ids =
+      concept_metadata
+      |> Enum.flat_map(fn {_, meta} -> sub_option_ids(meta, type_id) end)
+      |> MapSet.new()
+
+    Enum.reject(all_ids, &MapSet.member?(sub_ids, &1))
+  end
+
+  defp random_sub_decisions(concept_metadata, {type_id, concept_id} = key) do
+    concept_metadata
+    |> Map.get(key, %{})
+    |> Map.get("choices", %{})
+    |> Enum.flat_map(fn {choice_id, choice_def} ->
+      sub_type = choice_def["type"]
+      selected = Enum.random(choice_def["options"])
+      decision = %{scope: {type_id, concept_id}, choice: choice_id, selection: selected}
+      [decision | random_sub_decisions(concept_metadata, {sub_type, selected})]
+    end)
+  end
+
+  defp sub_option_ids(meta, type_id) do
+    meta
+    |> Map.get("choices", %{})
+    |> Enum.flat_map(fn {_, choice_def} ->
+      if choice_def["type"] == type_id, do: choice_def["options"] || [], else: []
+    end)
   end
 
   defp collect_active_concepts({_type, _id} = key, decisions, concept_metadata, acc) do
