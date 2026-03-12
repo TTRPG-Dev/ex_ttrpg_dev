@@ -24,6 +24,8 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
 
     IO.puts("-- #{character.name} --")
     print_character_choices(system, character)
+    print_known_languages(system, character)
+    print_tool_proficiencies(system, character)
 
     Enum.each(system.module.concept_types, fn concept_type ->
       print_concept_type(concept_type, system.concept_metadata, resolved_by_concept)
@@ -49,6 +51,8 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     end)
   end
 
+  # Builds the display name chain for a concept, following only sub-choices of the
+  # same type (e.g. race → subrace, but not race → equipment or race → language).
   defp concept_name_chain(decisions, concept_metadata, type_id, concept_id) do
     name = get_in(concept_metadata, [{type_id, concept_id}, "name"]) || concept_id
 
@@ -57,17 +61,113 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
       |> Map.get({type_id, concept_id}, %{})
       |> Map.get("choices", %{})
       |> Enum.flat_map(fn {choice_id, choice_def} ->
-        decision =
-          Enum.find(decisions, &(&1.scope == {type_id, concept_id} and &1.choice == choice_id))
-
-        if decision do
-          concept_name_chain(decisions, concept_metadata, choice_def["type"], decision.selection)
-        else
-          []
-        end
+        same_type_sub_chain(
+          decisions,
+          concept_metadata,
+          type_id,
+          concept_id,
+          choice_id,
+          choice_def
+        )
       end)
 
     [name | sub_names]
+  end
+
+  defp same_type_sub_chain(
+         decisions,
+         concept_metadata,
+         type_id,
+         concept_id,
+         choice_id,
+         choice_def
+       ) do
+    if choice_def["type"] == type_id do
+      decision =
+        Enum.find(decisions, &(&1.scope == {type_id, concept_id} and &1.choice == choice_id))
+
+      if decision do
+        concept_name_chain(decisions, concept_metadata, type_id, decision.selection)
+      else
+        []
+      end
+    else
+      []
+    end
+  end
+
+  defp print_known_languages(system, character) do
+    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+
+    fixed =
+      active
+      |> Enum.flat_map(fn {type, id} ->
+        Map.get(system.concept_metadata[{type, id}] || %{}, "languages", [])
+      end)
+
+    chosen =
+      character.decisions
+      |> Enum.filter(fn
+        %{scope: {scope_type, scope_id}, choice: choice_id} ->
+          get_in(system.concept_metadata, [
+            {scope_type, scope_id},
+            "choices",
+            choice_id,
+            "type"
+          ]) == "language"
+
+        _ ->
+          false
+      end)
+      |> Enum.map(& &1.selection)
+
+    all_langs = (fixed ++ chosen) |> Enum.uniq() |> Enum.sort()
+
+    if all_langs != [] do
+      names =
+        Enum.map(all_langs, fn id ->
+          get_in(system.concept_metadata, [{"language", id}, "name"]) || id
+        end)
+
+      IO.puts("Languages: #{Enum.join(names, ", ")}")
+    end
+  end
+
+  defp print_tool_proficiencies(system, character) do
+    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+
+    fixed =
+      active
+      |> Enum.flat_map(fn {type, id} ->
+        Map.get(system.concept_metadata[{type, id}] || %{}, "tool_proficiencies", [])
+      end)
+
+    chosen =
+      character.decisions
+      |> Enum.filter(fn
+        %{scope: {scope_type, scope_id}, choice: choice_id} ->
+          get_in(system.concept_metadata, [
+            {scope_type, scope_id},
+            "choices",
+            choice_id,
+            "type"
+          ]) == "equipment"
+
+        _ ->
+          false
+      end)
+      |> Enum.map(& &1.selection)
+
+    all_tools = (fixed ++ chosen) |> Enum.uniq() |> Enum.sort()
+
+    if all_tools != [] do
+      names =
+        Enum.map(all_tools, fn id ->
+          get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
+        end)
+
+      IO.puts("Tool Proficiencies: #{Enum.join(names, ", ")}")
+    end
   end
 
   defp print_concept_type(%{id: type_id, name: type_name}, concept_metadata, resolved_by_concept) do

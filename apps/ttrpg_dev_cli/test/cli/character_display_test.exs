@@ -62,12 +62,64 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "Race: Dwarf / Hill Dwarf")
   end
 
-  test "print/2 skips concept types with no DAG nodes (languages)", %{
+  test "print/2 does not show a Languages section header from the concept type loop", %{
     system: system,
     character: character
   } do
+    # Languages have no DAG nodes so they never appear via the concept type loop.
+    # The fixture character has no race decisions so no language grants appear either.
     output = capture_io(fn -> CharacterDisplay.print(system, character) end)
     refute String.contains?(output, "Languages:")
+  end
+
+  test "print/2 shows fixed language grants from race", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Languages:")
+    assert String.contains?(output, "Common")
+    assert String.contains?(output, "Dwarvish")
+  end
+
+  test "print/2 includes chosen extra language in Languages line", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "human"},
+      %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Elvish")
+  end
+
+  test "print/2 shows tool proficiency choice", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Tool Proficiencies:")
+    assert String.contains?(output, "Smith's Tools")
+  end
+
+  test "print/2 shows fixed tool proficiency (Rock Gnome)", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "gnome"},
+      %{scope: {"race", "gnome"}, choice: "subrace", selection: "rock_gnome"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Tool Proficiencies:")
+    assert String.contains?(output, "Tinker's Tools")
   end
 
   test "print/2 formats positive modifiers with leading +", %{
