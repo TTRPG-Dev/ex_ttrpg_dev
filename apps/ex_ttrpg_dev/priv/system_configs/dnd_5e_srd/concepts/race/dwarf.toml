@@ -1,6 +1,7 @@
 [race.dwarf]
 name = "Dwarf"
 languages = ["common", "dwarvish"]
+weapon_proficiencies = ["battleaxe", "handaxe", "light_hammer", "warhammer"]
 
 [race.dwarf.choices.subrace]
 required = true
@@ -33,6 +34,7 @@ value = 1
 
 [race.mountain_dwarf]
 name = "Mountain Dwarf"
+armor_proficiencies = ["light", "medium"]
 
 [[race.mountain_dwarf.contributes]]
 target = "ability('strength').total_score"

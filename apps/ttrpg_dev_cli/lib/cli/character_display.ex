@@ -25,6 +25,8 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     IO.puts("-- #{character.name} --")
     print_character_choices(system, character)
     print_known_languages(system, character)
+    print_weapon_proficiencies(system, character)
+    print_armor_proficiencies(system, character)
     print_tool_proficiencies(system, character)
 
     Enum.each(system.module.concept_types, fn concept_type ->
@@ -132,6 +134,47 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
       IO.puts("Languages: #{Enum.join(names, ", ")}")
     end
   end
+
+  defp print_weapon_proficiencies(system, character) do
+    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+
+    all_weapons =
+      active
+      |> Enum.flat_map(fn {type, id} ->
+        Map.get(system.concept_metadata[{type, id}] || %{}, "weapon_proficiencies", [])
+      end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    if all_weapons != [] do
+      names =
+        Enum.map(all_weapons, fn id ->
+          get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
+        end)
+
+      IO.puts("Weapon Proficiencies: #{Enum.join(names, ", ")}")
+    end
+  end
+
+  defp print_armor_proficiencies(system, character) do
+    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+
+    all_armor =
+      active
+      |> Enum.flat_map(fn {type, id} ->
+        Map.get(system.concept_metadata[{type, id}] || %{}, "armor_proficiencies", [])
+      end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    if all_armor != [] do
+      names = Enum.map(all_armor, &format_armor_category/1)
+      IO.puts("Armor Proficiencies: #{Enum.join(names, ", ")}")
+    end
+  end
+
+  defp format_armor_category("shield"), do: "Shield"
+  defp format_armor_category(category), do: "#{String.capitalize(category)} Armor"
 
   defp print_tool_proficiencies(system, character) do
     active = Characters.active_concepts(character.decisions, system.concept_metadata)

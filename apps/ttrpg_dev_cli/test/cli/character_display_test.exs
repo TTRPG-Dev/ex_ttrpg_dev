@@ -122,6 +122,45 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "Tinker's Tools")
   end
 
+  test "print/2 shows racial weapon proficiencies", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Weapon Proficiencies:")
+    assert String.contains?(output, "Battleaxe")
+    assert String.contains?(output, "Warhammer")
+  end
+
+  test "print/2 shows racial armor proficiencies", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "mountain_dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    assert String.contains?(output, "Armor Proficiencies:")
+    assert String.contains?(output, "Light Armor")
+    assert String.contains?(output, "Medium Armor")
+  end
+
+  test "print/2 does not show weapon proficiencies for races without them", %{system: system} do
+    decisions = [
+      %{scope: nil, choice: "race", selection: "human"},
+      %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
+    ]
+
+    character = %{Character.gen_character!(system, decisions) | decisions: decisions}
+    output = capture_io(fn -> CharacterDisplay.print(system, character) end)
+    refute String.contains?(output, "Weapon Proficiencies:")
+  end
+
   test "print/2 formats positive modifiers with leading +", %{
     system: system,
     character: character

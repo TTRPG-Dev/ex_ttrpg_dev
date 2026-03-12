@@ -1,6 +1,7 @@
 [race.elf]
 name = "Elf"
 languages = ["common", "elvish"]
+weapon_proficiencies = ["longsword", "shortsword", "shortbow", "longbow"]
 
 [race.elf.choices.subrace]
 required = true
