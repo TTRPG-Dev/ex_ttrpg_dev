@@ -45,16 +45,6 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
         |> Map.get("concept_type", [])
         |> Enum.map(fn et -> %ConceptType{id: et["id"], name: et["name"]} end)
 
-      character_choices =
-        map
-        |> Map.get("character_choice", [])
-        |> Enum.map(fn cc ->
-          %CharacterChoice{
-            concept_type: cc["concept_type"],
-            required: Map.get(cc, "required", true)
-          }
-        end)
-
       {:ok,
        %__MODULE__{
          name: module_map["name"],
@@ -63,8 +53,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          family: module_map["family"],
          series: module_map["series"],
          publisher: module_map["publisher"],
-         concept_types: concept_types,
-         character_choices: character_choices
+         concept_types: concept_types
        }}
     end
   end
