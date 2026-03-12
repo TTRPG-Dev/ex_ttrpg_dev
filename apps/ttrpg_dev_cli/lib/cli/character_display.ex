@@ -21,13 +21,14 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
       |> then(&Evaluator.evaluate!(system, character.generated_values, &1))
 
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
+    active = Characters.active_concepts(character.decisions, system.concept_metadata)
 
     IO.puts("-- #{character.name} --")
     print_character_choices(system, character)
-    print_known_languages(system, character)
-    print_weapon_proficiencies(system, character)
-    print_armor_proficiencies(system, character)
-    print_tool_proficiencies(system, character)
+    print_known_languages(system, character, active)
+    print_weapon_proficiencies(system, active)
+    print_armor_proficiencies(system, active)
+    print_tool_proficiencies(system, character, active)
 
     Enum.each(system.module.concept_types, fn concept_type ->
       print_concept_type(concept_type, system.concept_metadata, resolved_by_concept)
@@ -98,118 +99,66 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     end
   end
 
-  defp print_known_languages(system, character) do
-    active = Characters.active_concepts(character.decisions, system.concept_metadata)
-
-    fixed =
-      active
-      |> Enum.flat_map(fn {type, id} ->
-        Map.get(system.concept_metadata[{type, id}] || %{}, "languages", [])
-      end)
-
-    chosen =
-      character.decisions
-      |> Enum.filter(fn
-        %{scope: {scope_type, scope_id}, choice: choice_id} ->
-          get_in(system.concept_metadata, [
-            {scope_type, scope_id},
-            "choices",
-            choice_id,
-            "type"
-          ]) == "language"
-
-        _ ->
-          false
-      end)
-      |> Enum.map(& &1.selection)
-
+  defp print_known_languages(system, character, active) do
+    fixed = collect_from_active(active, system.concept_metadata, "languages")
+    chosen = chosen_by_type(character.decisions, system.concept_metadata, "language")
     all_langs = (fixed ++ chosen) |> Enum.uniq() |> Enum.sort()
 
-    if all_langs != [] do
-      names =
-        Enum.map(all_langs, fn id ->
-          get_in(system.concept_metadata, [{"language", id}, "name"]) || id
-        end)
-
-      IO.puts("Languages: #{Enum.join(names, ", ")}")
-    end
+    print_if_present("Languages", all_langs, fn id ->
+      get_in(system.concept_metadata, [{"language", id}, "name"]) || id
+    end)
   end
 
-  defp print_weapon_proficiencies(system, character) do
-    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+  defp print_weapon_proficiencies(system, active) do
+    ids = collect_from_active(active, system.concept_metadata, "weapon_proficiencies")
 
-    all_weapons =
-      active
-      |> Enum.flat_map(fn {type, id} ->
-        Map.get(system.concept_metadata[{type, id}] || %{}, "weapon_proficiencies", [])
-      end)
-      |> Enum.uniq()
-      |> Enum.sort()
-
-    if all_weapons != [] do
-      names =
-        Enum.map(all_weapons, fn id ->
-          get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
-        end)
-
-      IO.puts("Weapon Proficiencies: #{Enum.join(names, ", ")}")
-    end
+    print_if_present("Weapon Proficiencies", ids, fn id ->
+      get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
+    end)
   end
 
-  defp print_armor_proficiencies(system, character) do
-    active = Characters.active_concepts(character.decisions, system.concept_metadata)
-
-    all_armor =
-      active
-      |> Enum.flat_map(fn {type, id} ->
-        Map.get(system.concept_metadata[{type, id}] || %{}, "armor_proficiencies", [])
-      end)
-      |> Enum.uniq()
-      |> Enum.sort()
-
-    if all_armor != [] do
-      names = Enum.map(all_armor, &format_armor_category/1)
-      IO.puts("Armor Proficiencies: #{Enum.join(names, ", ")}")
-    end
+  defp print_armor_proficiencies(system, active) do
+    ids = collect_from_active(active, system.concept_metadata, "armor_proficiencies")
+    print_if_present("Armor Proficiencies", ids, &format_armor_category/1)
   end
 
   defp format_armor_category("shield"), do: "Shield"
   defp format_armor_category(category), do: "#{String.capitalize(category)} Armor"
 
-  defp print_tool_proficiencies(system, character) do
-    active = Characters.active_concepts(character.decisions, system.concept_metadata)
-
-    fixed =
-      active
-      |> Enum.flat_map(fn {type, id} ->
-        Map.get(system.concept_metadata[{type, id}] || %{}, "tool_proficiencies", [])
-      end)
-
-    chosen =
-      character.decisions
-      |> Enum.filter(fn
-        %{scope: {scope_type, scope_id}, choice: choice_id} ->
-          get_in(system.concept_metadata, [
-            {scope_type, scope_id},
-            "choices",
-            choice_id,
-            "type"
-          ]) == "equipment"
-
-        _ ->
-          false
-      end)
-      |> Enum.map(& &1.selection)
-
+  defp print_tool_proficiencies(system, character, active) do
+    fixed = collect_from_active(active, system.concept_metadata, "tool_proficiencies")
+    chosen = chosen_by_type(character.decisions, system.concept_metadata, "equipment")
     all_tools = (fixed ++ chosen) |> Enum.uniq() |> Enum.sort()
 
-    if all_tools != [] do
-      names =
-        Enum.map(all_tools, fn id ->
-          get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
-        end)
+    print_if_present("Tool Proficiencies", all_tools, fn id ->
+      get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
+    end)
+  end
 
-      IO.puts("Tool Proficiencies: #{Enum.join(names, ", ")}")
+  defp collect_from_active(active, concept_metadata, key) do
+    active
+    |> Enum.flat_map(fn {type, id} ->
+      Map.get(concept_metadata[{type, id}] || %{}, key, [])
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp chosen_by_type(decisions, concept_metadata, type) do
+    decisions
+    |> Enum.filter(fn
+      %{scope: {scope_type, scope_id}, choice: choice_id} ->
+        get_in(concept_metadata, [{scope_type, scope_id}, "choices", choice_id, "type"]) == type
+
+      _ ->
+        false
+    end)
+    |> Enum.map(& &1.selection)
+  end
+
+  defp print_if_present(label, ids, name_fn) do
+    if ids != [] do
+      IO.puts("#{label}: #{Enum.map_join(ids, ", ", name_fn)}")
     end
   end
 
