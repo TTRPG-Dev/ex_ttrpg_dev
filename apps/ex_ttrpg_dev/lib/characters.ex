@@ -134,6 +134,7 @@ defmodule ExTTRPGDev.Characters do
 
     system.effects
     |> Enum.filter(fn
+      %{source: {type, id}} -> MapSet.member?(active, {type, id})
       %{source: {type, id, _}} -> MapSet.member?(active, {type, id})
       _ -> false
     end)
