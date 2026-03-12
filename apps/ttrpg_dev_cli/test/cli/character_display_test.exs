@@ -20,6 +20,21 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     capture_io(fn -> CharacterDisplay.print(system, character) end)
   end
 
+  defp hill_dwarf_decisions do
+    [
+      %{scope: nil, choice: "race", selection: "dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
+      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
+    ]
+  end
+
+  defp human_with_elvish_decisions do
+    [
+      %{scope: nil, choice: "race", selection: "human"},
+      %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
+    ]
+  end
+
   test "print/2 outputs the character name", %{system: system, character: character} do
     assert print_output(system, character) |> String.contains?(character.name)
   end
@@ -67,36 +82,19 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
   end
 
   test "print/2 shows fixed language grants from race", %{system: system} do
-    decisions = [
-      %{scope: nil, choice: "race", selection: "dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
-    ]
-
-    output = print_output(system, character_with_decisions(system, decisions))
+    output = print_output(system, character_with_decisions(system, hill_dwarf_decisions()))
     assert String.contains?(output, "Languages:")
     assert String.contains?(output, "Common")
     assert String.contains?(output, "Dwarvish")
   end
 
   test "print/2 includes chosen extra language in Languages line", %{system: system} do
-    decisions = [
-      %{scope: nil, choice: "race", selection: "human"},
-      %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
-    ]
-
-    assert print_output(system, character_with_decisions(system, decisions))
+    assert print_output(system, character_with_decisions(system, human_with_elvish_decisions()))
            |> String.contains?("Elvish")
   end
 
   test "print/2 shows tool proficiency choice", %{system: system} do
-    decisions = [
-      %{scope: nil, choice: "race", selection: "dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
-    ]
-
-    output = print_output(system, character_with_decisions(system, decisions))
+    output = print_output(system, character_with_decisions(system, hill_dwarf_decisions()))
     assert String.contains?(output, "Tool Proficiencies:")
     assert String.contains?(output, "Smith's Tools")
   end
@@ -113,13 +111,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
   end
 
   test "print/2 shows racial weapon proficiencies", %{system: system} do
-    decisions = [
-      %{scope: nil, choice: "race", selection: "dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
-    ]
-
-    output = print_output(system, character_with_decisions(system, decisions))
+    output = print_output(system, character_with_decisions(system, hill_dwarf_decisions()))
     assert String.contains?(output, "Weapon Proficiencies:")
     assert String.contains?(output, "Battleaxe")
     assert String.contains?(output, "Warhammer")
@@ -139,12 +131,7 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
   end
 
   test "print/2 does not show weapon proficiencies for races without them", %{system: system} do
-    decisions = [
-      %{scope: nil, choice: "race", selection: "human"},
-      %{scope: {"race", "human"}, choice: "extra_language", selection: "elvish"}
-    ]
-
-    refute print_output(system, character_with_decisions(system, decisions))
+    refute print_output(system, character_with_decisions(system, human_with_elvish_decisions()))
            |> String.contains?("Weapon Proficiencies:")
   end
 
@@ -181,32 +168,9 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
 
     character = %{
       character
-      | effects: [
-          %{target: {"ability", "dexterity", "total_score"}, value: 2}
-        ]
+      | effects: [%{target: {"ability", "dexterity", "total_score"}, value: 2}]
     }
 
     assert print_output(system, character) |> String.contains?("total_score: #{expected_total}")
-  end
-
-  test "print/2 applies character effects to displayed values", %{
-    system: system,
-    character: character
-  } do
-    str_base = character.generated_values[{"ability", "strength", "base_score"}]
-    expected_total = str_base + 4
-
-    character_with_effect = %{
-      character
-      | effects: [
-          %{
-            target: {"ability", "strength", "total_score"},
-            value: 4
-          }
-        ]
-    }
-
-    assert print_output(system, character_with_effect)
-           |> String.contains?("total_score: #{expected_total}")
   end
 end
