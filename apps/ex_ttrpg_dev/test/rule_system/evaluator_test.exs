@@ -58,6 +58,42 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"attr", "strength", "modifier"}] == 4
   end
 
+  test "evaluate/3 resolves mapping node from input value" do
+    loader_data = %{
+      nodes: %{
+        {"char", "xp", "total"} => %{type: :accumulator, base: "0"},
+        {"char", "level", "value"} => %{
+          type: :mapping,
+          input: "char('xp').total",
+          steps: [[0, 1], [300, 2], [900, 3]]
+        }
+      },
+      rolling_methods: %{},
+      concept_metadata: %{},
+      effects: []
+    }
+
+    {:ok, system} = Graph.build(loader_data)
+
+    assert {:ok, r0} = Evaluator.evaluate(system, %{})
+    assert r0[{"char", "level", "value"}] == 1
+
+    assert {:ok, r1} =
+             Evaluator.evaluate(system, %{}, [%{target: {"char", "xp", "total"}, value: 300}])
+
+    assert r1[{"char", "level", "value"}] == 2
+
+    assert {:ok, r2} =
+             Evaluator.evaluate(system, %{}, [%{target: {"char", "xp", "total"}, value: 850}])
+
+    assert r2[{"char", "level", "value"}] == 2
+
+    assert {:ok, r3} =
+             Evaluator.evaluate(system, %{}, [%{target: {"char", "xp", "total"}, value: 900}])
+
+    assert r3[{"char", "level", "value"}] == 3
+  end
+
   test "evaluate/3 resolves formula-valued effects against current node values" do
     loader_data = %{
       nodes: %{

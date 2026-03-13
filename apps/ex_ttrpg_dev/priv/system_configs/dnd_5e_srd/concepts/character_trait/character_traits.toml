@@ -1,7 +1,39 @@
+[character_trait.experience_points]
+name = "Experience Points"
+total.type = "accumulator"
+total.base = "0"
+
+[character_trait.character_level]
+name = "Character Level"
+level.type = "mapping"
+level.input = "character_trait('experience_points').total"
+level.steps = [
+  [0, 1],
+  [300, 2],
+  [900, 3],
+  [2700, 4],
+  [6500, 5],
+  [14000, 6],
+  [23000, 7],
+  [34000, 8],
+  [48000, 9],
+  [64000, 10],
+  [85000, 11],
+  [100000, 12],
+  [120000, 13],
+  [140000, 14],
+  [165000, 15],
+  [195000, 16],
+  [225000, 17],
+  [255000, 18],
+  [285000, 19],
+  [305000, 20],
+]
+
 [character_trait.proficiency_bonus]
 name = "Proficiency Bonus"
 bonus.type = "accumulator"
-bonus.base = "2"
+bonus.base = "floor((character_trait('character_level').level - 1) / 4) + 2"
 
 [character_trait.speed]
 name = "Speed"

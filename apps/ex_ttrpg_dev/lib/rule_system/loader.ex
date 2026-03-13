@@ -147,6 +147,10 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     %{type: :accumulator, base: Map.get(map, "base")}
   end
 
+  defp parse_node(%{"type" => "mapping"} = map) do
+    %{type: :mapping, input: Map.get(map, "input"), steps: Map.get(map, "steps")}
+  end
+
   defp parse_node(%{"formula" => formula}) do
     %{type: :formula, formula: formula}
   end

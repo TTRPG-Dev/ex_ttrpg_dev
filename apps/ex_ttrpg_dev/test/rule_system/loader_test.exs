@@ -187,10 +187,27 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert "character_trait" in concept_type_ids
   end
 
-  test "load/1 returns proficiency_bonus as an accumulator with base 2" do
+  test "load/1 returns proficiency_bonus as an accumulator referencing character_level" do
     {:ok, data} = Loader.load(dnd_path())
     node = data.nodes[{"character_trait", "proficiency_bonus", "bonus"}]
-    assert %{type: :accumulator, base: "2"} = node
+    assert %{type: :accumulator, base: base} = node
+    assert String.contains?(base, "character_trait('character_level').level")
+  end
+
+  test "load/1 returns experience_points as an accumulator node" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    assert %{type: :accumulator, base: "0"} =
+             data.nodes[{"character_trait", "experience_points", "total"}]
+  end
+
+  test "load/1 returns character_level as a mapping node with 20 XP steps" do
+    {:ok, data} = Loader.load(dnd_path())
+    node = data.nodes[{"character_trait", "character_level", "level"}]
+    assert %{type: :mapping, steps: steps} = node
+    assert length(steps) == 20
+    assert List.first(steps) == [0, 1]
+    assert List.last(steps) == [305_000, 20]
   end
 
   test "load/1 returns saving_throw roll definition" do
