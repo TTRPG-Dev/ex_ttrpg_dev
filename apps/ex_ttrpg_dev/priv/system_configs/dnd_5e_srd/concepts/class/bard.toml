@@ -1,0 +1,118 @@
+[class.bard]
+name = "Bard"
+hit_die = "d8"
+armor_proficiencies = ["light_armor"]
+weapon_proficiencies = ["simple_weapons", "hand_crossbow", "longsword", "rapier", "shortsword"]
+
+[class.bard.choices.subclass]
+required = true
+type = "class"
+options = ["college_of_lore"]
+
+[class.bard.choices.musical_instrument_1]
+required = true
+type = "equipment"
+options = ["bagpipes", "drum", "dulcimer", "flute", "lute", "lyre", "horn", "pan_flute", "shawm", "viol"]
+
+[class.bard.choices.musical_instrument_2]
+required = true
+type = "equipment"
+options = ["bagpipes", "drum", "dulcimer", "flute", "lute", "lyre", "horn", "pan_flute", "shawm", "viol"]
+
+[class.bard.choices.musical_instrument_3]
+required = true
+type = "equipment"
+options = ["bagpipes", "drum", "dulcimer", "flute", "lute", "lyre", "horn", "pan_flute", "shawm", "viol"]
+
+[class.bard.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "arcana",
+  "athletics",
+  "deception",
+  "history",
+  "insight",
+  "intimidation",
+  "investigation",
+  "medicine",
+  "nature",
+  "perception",
+  "performance",
+  "persuasion",
+  "religion",
+  "sleight_of_hand",
+  "stealth",
+  "survival",
+]
+
+[class.bard.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "arcana",
+  "athletics",
+  "deception",
+  "history",
+  "insight",
+  "intimidation",
+  "investigation",
+  "medicine",
+  "nature",
+  "perception",
+  "performance",
+  "persuasion",
+  "religion",
+  "sleight_of_hand",
+  "stealth",
+  "survival",
+]
+
+[class.bard.choices.skill_proficiency_3]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "arcana",
+  "athletics",
+  "deception",
+  "history",
+  "insight",
+  "intimidation",
+  "investigation",
+  "medicine",
+  "nature",
+  "perception",
+  "performance",
+  "persuasion",
+  "religion",
+  "sleight_of_hand",
+  "stealth",
+  "survival",
+]
+
+[[class.bard.contributes]]
+target = "saving_throw('dexterity').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.bard.contributes]]
+target = "saving_throw('charisma').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.bard.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 8"
+
+[class.college_of_lore]
+name = "College of Lore"
