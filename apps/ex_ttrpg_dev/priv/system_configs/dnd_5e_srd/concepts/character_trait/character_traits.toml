@@ -5,8 +5,9 @@ bonus.base = "2"
 
 [character_trait.speed]
 name = "Speed"
-feet.type = "accumulator"
-feet.base = "0"
+unit = "feet"
+amount.type = "accumulator"
+amount.base = "0"
 
 [character_trait.darkvision]
 name = "Darkvision"

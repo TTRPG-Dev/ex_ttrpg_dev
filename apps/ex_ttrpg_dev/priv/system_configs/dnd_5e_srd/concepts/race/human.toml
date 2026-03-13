@@ -24,7 +24,7 @@ options = [
 ]
 
 [[race.human.contributes]]
-target = "character_trait('speed').feet"
+target = "character_trait('speed').amount"
 value = 30
 
 [[race.human.contributes]]

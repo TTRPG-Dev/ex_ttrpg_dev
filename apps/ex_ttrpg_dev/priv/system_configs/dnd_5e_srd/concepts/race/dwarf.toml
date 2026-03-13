@@ -18,7 +18,7 @@ target = "ability('constitution').total_score"
 value = 2
 
 [[race.dwarf.contributes]]
-target = "character_trait('speed').feet"
+target = "character_trait('speed').amount"
 value = 25
 
 [[race.dwarf.contributes]]

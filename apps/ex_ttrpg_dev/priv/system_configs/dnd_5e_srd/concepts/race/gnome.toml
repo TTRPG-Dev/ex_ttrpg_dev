@@ -8,7 +8,7 @@ type = "race"
 options = ["forest_gnome", "rock_gnome"]
 
 [[race.gnome.contributes]]
-target = "character_trait('speed').feet"
+target = "character_trait('speed').amount"
 value = 25
 
 [[race.gnome.contributes]]

@@ -3,7 +3,7 @@ name = "Tiefling"
 languages = ["common", "infernal"]
 
 [[race.tiefling.contributes]]
-target = "character_trait('speed').feet"
+target = "character_trait('speed').amount"
 value = 30
 
 [[race.tiefling.contributes]]
