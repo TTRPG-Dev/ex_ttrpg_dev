@@ -51,13 +51,18 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert String.contains?(formula, "ability('strength')")
   end
 
-  test "load/1 returns rolling methods" do
+  test "load/1 returns both rolling methods" do
     {:ok, data} = Loader.load(dnd_path())
     assert Map.has_key?(data.rolling_methods, "standard")
     assert Map.has_key?(data.rolling_methods, "hard")
-    assert data.rolling_methods["standard"].dice == "4d6"
-    assert data.rolling_methods["standard"].drop == "lowest"
-    assert data.rolling_methods["standard"].default == true
+  end
+
+  test "load/1 standard rolling method has correct configuration" do
+    {:ok, data} = Loader.load(dnd_path())
+    standard = data.rolling_methods["standard"]
+    assert standard.dice == "4d6"
+    assert standard.drop == "lowest"
+    assert standard.default == true
   end
 
   test "load/1 returns concept metadata for abilities" do
@@ -319,6 +324,56 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   test "load/1 returns all 23 trade good items" do
     {:ok, data} = Loader.load(dnd_path())
     assert count_equipment_by_category(data, "trade_good") == 23
+  end
+
+  test "load/1 returns race concept metadata" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    for race <- ~w(human dwarf elf halfling gnome dragonborn half_elf half_orc tiefling) do
+      assert Map.has_key?(data.concept_metadata, {"race", race}), "Missing race: #{race}"
+    end
+  end
+
+  test "load/1 returns subrace metadata for races with subraces" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    subraces = ~w(
+      hill_dwarf mountain_dwarf
+      high_elf wood_elf dark_elf
+      lightfoot_halfling stout_halfling
+      forest_gnome rock_gnome
+    )
+
+    for subrace <- subraces do
+      assert Map.has_key?(data.concept_metadata, {"race", subrace}), "Missing subrace: #{subrace}"
+    end
+  end
+
+  test "load/1 parses choices into race metadata" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    subrace_choice = data.concept_metadata[{"race", "dwarf"}]["choices"]["subrace"]
+    assert %{"type" => "race", "required" => true, "options" => options} = subrace_choice
+    assert "hill_dwarf" in options
+    assert "mountain_dwarf" in options
+  end
+
+  test "load/1 parses race contributes into the effects list" do
+    {:ok, data} = Loader.load(dnd_path())
+
+    human_bonuses =
+      Enum.filter(data.effects, fn e -> e.source == {"race", "human"} end)
+
+    assert length(human_bonuses) == 7
+
+    constitution_bonus =
+      Enum.find(data.effects, fn e ->
+        e.source == {"race", "dwarf"} and
+          e.target == {"ability", "constitution", "total_score"}
+      end)
+
+    assert constitution_bonus != nil
+    assert constitution_bonus.value == 2
   end
 
   defp assert_cost(item, amount, currency) do

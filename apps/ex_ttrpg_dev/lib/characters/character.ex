@@ -10,14 +10,17 @@ defmodule ExTTRPGDev.Characters.Character do
   - `generated_values` — map of `{type_id, concept_id, field_name} => integer` for leaf nodes
   - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: integer}`
     for currently active items, feats, statuses etc. (defaults to [])
+  - `decisions` — list of `%{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
+    recording each concept selection made during character creation (defaults to [])
   """
-  defstruct [:name, :generated_values, :effects, :metadata]
+  defstruct [:name, :generated_values, :metadata, effects: [], decisions: []]
 
   @doc """
   Generates a character for the given loaded rule system.
   Rolls dice for all generated nodes using the system's rolling methods.
+  Accepts a list of decisions representing concept selections made during character creation.
   """
-  def gen_character!(%LoadedSystem{} = system) do
+  def gen_character!(%LoadedSystem{} = system, decisions \\ []) do
     character_name = Faker.Person.name()
 
     generated_values =
@@ -31,6 +34,7 @@ defmodule ExTTRPGDev.Characters.Character do
       name: character_name,
       generated_values: generated_values,
       effects: [],
+      decisions: decisions,
       metadata: %Metadata{
         slug: slugify(character_name),
         rule_system: system.module.slug
@@ -41,6 +45,7 @@ defmodule ExTTRPGDev.Characters.Character do
   @doc """
   Encodes the character to a JSON-serializable map.
   Tuple keys in `generated_values` are encoded as `"type:id:field"` strings.
+  Decision scopes are encoded as `null` (for nil) or `"type:id"` strings.
   """
   def to_json_map(%Character{} = char) do
     %{
@@ -53,6 +58,7 @@ defmodule ExTTRPGDev.Characters.Character do
         Enum.map(char.effects, fn %{target: {type, id, field}, value: v} ->
           %{"target" => "#{type}:#{id}:#{field}", "value" => v}
         end),
+      "decisions" => Enum.map(char.decisions, &serialize_decision/1),
       "metadata" => %{
         "slug" => char.metadata.slug,
         "rule_system" => char.metadata.rule_system
@@ -78,15 +84,35 @@ defmodule ExTTRPGDev.Characters.Character do
         %{target: {type, id, field}, value: v}
       end)
 
+    decisions = Enum.map(map["decisions"] || [], &deserialize_decision/1)
+
     %Character{
       name: map["name"],
       generated_values: generated_values,
       effects: effects,
+      decisions: decisions,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
         rule_system: map["metadata"]["rule_system"]
       }
     }
+  end
+
+  defp serialize_decision(%{scope: nil, choice: choice, selection: selection}) do
+    %{"scope" => nil, "choice" => choice, "selection" => selection}
+  end
+
+  defp serialize_decision(%{scope: {type, id}, choice: choice, selection: selection}) do
+    %{"scope" => "#{type}:#{id}", "choice" => choice, "selection" => selection}
+  end
+
+  defp deserialize_decision(%{"scope" => nil, "choice" => choice, "selection" => selection}) do
+    %{scope: nil, choice: choice, selection: selection}
+  end
+
+  defp deserialize_decision(%{"scope" => scope_str, "choice" => choice, "selection" => selection}) do
+    [type, id] = String.split(scope_str, ":", parts: 2)
+    %{scope: {type, id}, choice: choice, selection: selection}
   end
 
   defp roll_generated_value(%{method: method_id}, rolling_methods) do

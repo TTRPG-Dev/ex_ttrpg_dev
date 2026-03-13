@@ -87,7 +87,8 @@ defmodule ExTTRPGDev.CLI.Characters do
         args: %{system: %LoadedSystem{} = system},
         flags: %{save: save_character_flag, stat_block_only: stat_block_only_flag}
       }) do
-    character = Character.gen_character!(system)
+    decisions = Characters.random_decisions(system)
+    character = Character.gen_character!(system, decisions)
 
     CharacterDisplay.print(system, character)
 

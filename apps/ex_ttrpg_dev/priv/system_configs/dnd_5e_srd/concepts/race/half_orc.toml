@@ -1,0 +1,19 @@
+[race.half_orc]
+name = "Half-Orc"
+languages = ["common", "orc"]
+
+[[race.half_orc.contributes]]
+target = "character_trait('speed').amount"
+value = 30
+
+[[race.half_orc.contributes]]
+target = "character_trait('darkvision').range"
+value = 60
+
+[[race.half_orc.contributes]]
+target = "ability('strength').total_score"
+value = 2
+
+[[race.half_orc.contributes]]
+target = "ability('constitution').total_score"
+value = 1

@@ -1,0 +1,15 @@
+[race.dragonborn]
+name = "Dragonborn"
+languages = ["common", "draconic"]
+
+[[race.dragonborn.contributes]]
+target = "character_trait('speed').amount"
+value = 30
+
+[[race.dragonborn.contributes]]
+target = "ability('strength').total_score"
+value = 2
+
+[[race.dragonborn.contributes]]
+target = "ability('charisma').total_score"
+value = 1

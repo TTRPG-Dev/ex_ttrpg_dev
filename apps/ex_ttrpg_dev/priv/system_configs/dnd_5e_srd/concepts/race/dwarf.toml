@@ -1,0 +1,41 @@
+[race.dwarf]
+name = "Dwarf"
+languages = ["common", "dwarvish"]
+weapon_proficiencies = ["battleaxe", "handaxe", "light_hammer", "warhammer"]
+
+[race.dwarf.choices.subrace]
+required = true
+type = "race"
+options = ["hill_dwarf", "mountain_dwarf"]
+
+[race.dwarf.choices.artisans_tool_proficiency]
+required = true
+type = "equipment"
+options = ["smiths_tools", "brewers_supplies", "masons_tools"]
+
+[[race.dwarf.contributes]]
+target = "ability('constitution').total_score"
+value = 2
+
+[[race.dwarf.contributes]]
+target = "character_trait('speed').amount"
+value = 25
+
+[[race.dwarf.contributes]]
+target = "character_trait('darkvision').range"
+value = 60
+
+[race.hill_dwarf]
+name = "Hill Dwarf"
+
+[[race.hill_dwarf.contributes]]
+target = "ability('wisdom').total_score"
+value = 1
+
+[race.mountain_dwarf]
+name = "Mountain Dwarf"
+armor_proficiencies = ["light", "medium"]
+
+[[race.mountain_dwarf.contributes]]
+target = "ability('strength').total_score"
+value = 2

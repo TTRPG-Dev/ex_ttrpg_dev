@@ -8,7 +8,24 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     defstruct [:id, :name]
   end
 
-  defstruct [:name, :slug, :version, :family, :series, :publisher, :concept_types]
+  defmodule CharacterChoice do
+    @moduledoc """
+    A top-level concept selection a character must make during creation,
+    e.g. choosing a race or class.
+    """
+    defstruct [:concept_type, required: true]
+  end
+
+  defstruct [
+    :name,
+    :slug,
+    :version,
+    :family,
+    :series,
+    :publisher,
+    :concept_types,
+    character_building_choices: []
+  ]
 
   @required_keys ["name", "slug", "version"]
 

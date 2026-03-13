@@ -18,6 +18,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   alias ExTTRPGDev.RuleSystem.RuleModule
 
   @module_file "module.toml"
+  @character_building_file "character_building.toml"
 
   @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
   def load(path) do
@@ -39,10 +40,29 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     module_path = Path.join(path, @module_file)
 
     with {:ok, contents} <- File.read(module_path),
-         {:ok, map} <- TomlElixir.decode(contents) do
-      RuleModule.from_map(map)
+         {:ok, map} <- TomlElixir.decode(contents),
+         {:ok, rule_module} <- RuleModule.from_map(map) do
+      {:ok, %{rule_module | character_building_choices: load_character_building_choices(path)}}
     else
       {:error, reason} -> {:error, {:module_parse_error, reason}}
+    end
+  end
+
+  defp load_character_building_choices(path) do
+    building_path = Path.join(path, @character_building_file)
+
+    with {:ok, contents} <- File.read(building_path),
+         {:ok, map} <- TomlElixir.decode(contents) do
+      map
+      |> Map.get("character_choice", [])
+      |> Enum.map(fn cc ->
+        %RuleModule.CharacterChoice{
+          concept_type: cc["concept_type"],
+          required: Map.get(cc, "required", true)
+        }
+      end)
+    else
+      _ -> []
     end
   end
 
