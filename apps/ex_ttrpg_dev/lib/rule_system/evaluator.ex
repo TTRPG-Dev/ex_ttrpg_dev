@@ -57,6 +57,9 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
       {:ok, %{type: :accumulator, base: base_formula}} ->
         evaluate_accumulator(base_formula, node_key, resolved, effects)
 
+      {:ok, %{type: :mapping, input: input_formula, steps: steps}} ->
+        evaluate_mapping(input_formula, steps, resolved)
+
       :error ->
         {:error, {:unknown_node, node_key}}
     end
@@ -81,6 +84,20 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp resolve_effect_value(formula, resolved) when is_binary(formula),
     do: Expression.evaluate(formula, resolved)
+
+  defp evaluate_mapping(input_formula, steps, resolved) do
+    with {:ok, input_value} <- Expression.evaluate(input_formula, resolved) do
+      result =
+        steps
+        |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)
+        |> List.last()
+
+      case result do
+        [_, output] -> {:ok, output}
+        nil -> {:error, {:mapping_no_match, input_value}}
+      end
+    end
+  end
 
   defp fetch_generated(resolved, node_key) do
     case Map.fetch(resolved, node_key) do

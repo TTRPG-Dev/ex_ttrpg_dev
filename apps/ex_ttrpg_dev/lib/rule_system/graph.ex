@@ -114,6 +114,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
 
   defp node_formula(%{type: :formula, formula: formula}), do: formula
   defp node_formula(%{type: :accumulator, base: base}), do: base
+  defp node_formula(%{type: :mapping, input: input}), do: input
   defp node_formula(_), do: nil
 
   defp add_effect_edges(graph, nodes, effects) do
