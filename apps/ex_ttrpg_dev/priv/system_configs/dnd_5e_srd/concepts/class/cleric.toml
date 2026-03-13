@@ -1,0 +1,40 @@
+[class.cleric]
+name = "Cleric"
+hit_die = "d8"
+armor_proficiencies = ["light_armor", "medium_armor", "shields"]
+weapon_proficiencies = ["simple_weapons"]
+
+[class.cleric.choices.subclass]
+required = true
+type = "class"
+options = ["life_domain"]
+
+[class.cleric.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["history", "insight", "medicine", "persuasion", "religion"]
+
+[class.cleric.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["history", "insight", "medicine", "persuasion", "religion"]
+
+[[class.cleric.contributes]]
+target = "saving_throw('wisdom').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.cleric.contributes]]
+target = "saving_throw('charisma').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.cleric.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 8"
+
+[class.life_domain]
+name = "Life Domain"
+armor_proficiencies = ["heavy_armor"]
