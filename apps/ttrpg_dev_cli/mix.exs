@@ -42,7 +42,6 @@ defmodule TtrpgDevCli.MixProject do
   defp deps do
     [
       {:ex_ttrpg_dev, in_umbrella: true},
-      {:optimus, "~> 0.6"},
       {:burrito, "~> 1.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
