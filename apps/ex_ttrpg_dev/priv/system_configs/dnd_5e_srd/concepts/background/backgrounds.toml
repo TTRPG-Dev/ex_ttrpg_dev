@@ -1,0 +1,45 @@
+[background.acolyte]
+name = "Acolyte"
+skill_proficiencies = ["insight", "religion"]
+
+[background.acolyte.choices.language_1]
+required = true
+type = "language"
+options = [
+  "dwarvish",
+  "elvish",
+  "giant",
+  "gnomish",
+  "goblin",
+  "halfling",
+  "orc",
+  "abyssal",
+  "celestial",
+  "draconic",
+  "deep_speech",
+  "infernal",
+  "primordial",
+  "sylvan",
+  "undercommon",
+]
+
+[background.acolyte.choices.language_2]
+required = true
+type = "language"
+options = [
+  "dwarvish",
+  "elvish",
+  "giant",
+  "gnomish",
+  "goblin",
+  "halfling",
+  "orc",
+  "abyssal",
+  "celestial",
+  "draconic",
+  "deep_speech",
+  "infernal",
+  "primordial",
+  "sylvan",
+  "undercommon",
+]
