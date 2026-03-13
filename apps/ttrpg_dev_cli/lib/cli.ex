@@ -3,12 +3,14 @@ defmodule ExTTRPGDev.CLI do
   alias ExTTRPGDev.CLI.Characters
   alias ExTTRPGDev.CLI.Roll
   alias ExTTRPGDev.CLI.RuleSystems
+  alias ExTTRPGDev.CLI.Server
   alias ExTTRPGDev.CLI.Shell
 
   @moduledoc """
   The CLI for the project
   """
 
+  def main(["--server"]), do: Server.run()
   def main([]), do: Shell.run(build_optimus())
   def main(argv), do: dispatch(argv)
 
