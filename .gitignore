@@ -43,3 +43,6 @@ burrito_out
 
 # Rust CLI build artifacts
 /cli/target/
+
+# Local build output (both binaries assembled for testing)
+/build_out/

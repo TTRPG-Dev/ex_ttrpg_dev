@@ -141,8 +141,68 @@ jobs:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: mix hex.publish --yes
 
-  github-release:
-    name: Build Burrito binaries and publish GitHub release
+  build-rust:
+    name: Build Rust CLI (${{ matrix.artifact }})
+    needs: version-bump
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rust_target: x86_64-unknown-linux-musl
+            artifact: linux
+            binary: ttrpg-dev
+            musl: true
+          - os: macos-latest
+            rust_target: aarch64-apple-darwin
+            artifact: macos_arm
+            binary: ttrpg-dev
+          - os: macos-latest
+            rust_target: x86_64-apple-darwin
+            artifact: macos
+            binary: ttrpg-dev
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            artifact: windows
+            binary: ttrpg-dev.exe
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.sha }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install musl tools
+        if: ${{ matrix.musl }}
+        run: sudo apt-get install -y musl-tools
+
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.rust_target }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            cli/target
+          key: ${{ matrix.os }}-cargo-${{ matrix.rust_target }}-${{ hashFiles('cli/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-${{ matrix.rust_target }}-
+
+      - name: Build
+        working-directory: cli
+        run: cargo build --release --target ${{ matrix.rust_target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ttrpg-dev-${{ matrix.artifact }}
+          path: cli/target/${{ matrix.rust_target }}/release/${{ matrix.binary }}
+
+  build-engine:
+    name: Build Elixir engine (all targets)
     needs: version-bump
     runs-on: ubuntu-latest
 
@@ -178,26 +238,59 @@ jobs:
       - name: Install dependencies
         run: mix deps.get --only prod
 
-      - name: Build Burrito binaries (all targets)
-        run: MIX_ENV=prod mix release
+      - name: Build Burrito engine (all targets)
+        run: MIX_ENV=prod mix release ttrpg_dev_engine --overwrite
 
-      - name: Package binaries for release
+      - name: Upload engine artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ttrpg-dev-engine-all
+          path: burrito_out/
+
+  github-release:
+    name: Package and publish GitHub release
+    needs: [version-bump, build-rust, build-engine]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.sha }}
+
+      - name: Download Rust binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ttrpg-dev-*
+          path: rust_bins/
+          merge-multiple: false
+
+      - name: Download engine binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: ttrpg-dev-engine-all
+          path: engine_bins/
+
+      - name: Package release archives
         run: |
           mkdir -p release_packages
-          for binary in burrito_out/ttrpg_dev_cli_*; do
-            name=$(basename "$binary")
-            target="${name#ttrpg_dev_cli_}"
-            if [[ "$target" == *windows* ]]; then
-              cp "$binary" "ttrpg-dev.exe"
-              zip "release_packages/${name}.zip" "ttrpg-dev.exe"
-              rm "ttrpg-dev.exe"
-            else
-              cp "$binary" "ttrpg-dev"
-              chmod +x "ttrpg-dev"
-              tar -czf "release_packages/${name}.tar.gz" "ttrpg-dev"
-              rm "ttrpg-dev"
-            fi
-          done
+
+          package_unix() {
+            local target="$1"
+            cp "rust_bins/ttrpg-dev-${target}/ttrpg-dev" ./ttrpg-dev
+            cp "engine_bins/ttrpg_dev_engine_${target}" ./ttrpg-dev-engine
+            chmod +x ttrpg-dev ttrpg-dev-engine
+            tar -czf "release_packages/ttrpg-dev_${target}.tar.gz" ttrpg-dev ttrpg-dev-engine
+            rm ttrpg-dev ttrpg-dev-engine
+          }
+
+          package_unix linux
+          package_unix macos
+          package_unix macos_arm
+
+          cp rust_bins/ttrpg-dev-windows/ttrpg-dev.exe ./ttrpg-dev.exe
+          cp engine_bins/ttrpg_dev_engine_windows ./ttrpg-dev-engine.exe
+          zip release_packages/ttrpg-dev_windows.zip ttrpg-dev.exe ttrpg-dev-engine.exe
+          rm ttrpg-dev.exe ttrpg-dev-engine.exe
 
       - name: Create source archive
         run: |
