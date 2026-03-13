@@ -29,7 +29,8 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
 
     with {:ok, _} <- validate_choice_options(concept_metadata),
          {:ok, graph} <- add_node_edges(graph, nodes),
-         {:ok, graph} <- add_effect_edges(graph, nodes, effects) do
+         {:ok, graph} <- add_effect_edges(graph, nodes, effects),
+         {:ok, graph} <- add_choice_contributes_edges(graph, nodes, concept_metadata) do
       if Graph.is_acyclic?(graph) do
         {:ok,
          %{
@@ -48,6 +49,45 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   @doc "Returns nodes in topological evaluation order."
   def topological_order(%{graph: graph}) do
     Graph.topsort(graph)
+  end
+
+  defp add_choice_contributes_edges(graph, nodes, concept_metadata) do
+    choices =
+      for {_key, meta} <- concept_metadata,
+          {_choice_id, %{"contributes_value" => _} = choice_def} <-
+            Map.get(meta, "choices", %{}),
+          do: choice_def
+
+    Enum.reduce_while(choices, {:ok, graph}, fn choice_def, {:ok, g} ->
+      case add_contributes_choice_edges(g, nodes, choice_def) do
+        {:ok, g} -> {:cont, {:ok, g}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp add_contributes_choice_edges(graph, nodes, choice_def) do
+    %{
+      "contributes_field" => field,
+      "contributes_value" => value,
+      "type" => target_type,
+      "options" => options
+    } = choice_def
+
+    Enum.reduce_while(options, {:ok, graph}, fn option_id, {:ok, g} ->
+      add_contributes_option_edge(g, nodes, {target_type, option_id, field}, value)
+    end)
+  end
+
+  defp add_contributes_option_edge(graph, nodes, target_key, value) do
+    if Map.has_key?(nodes, target_key) do
+      case validate_and_add_refs(graph, nodes, value, target_key) do
+        {:ok, g} -> {:cont, {:ok, g}}
+        error -> {:halt, error}
+      end
+    else
+      {:cont, {:ok, graph}}
+    end
   end
 
   defp validate_choice_options(concept_metadata) do

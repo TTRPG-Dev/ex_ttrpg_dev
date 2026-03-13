@@ -1,0 +1,57 @@
+[class.fighter]
+name = "Fighter"
+hit_die = "d10"
+armor_proficiencies = ["light_armor", "medium_armor", "heavy_armor", "shields"]
+weapon_proficiencies = ["simple_weapons", "martial_weapons"]
+
+[class.fighter.choices.subclass]
+required = true
+type = "class"
+options = ["champion"]
+
+[class.fighter.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "athletics",
+  "history",
+  "insight",
+  "intimidation",
+  "perception",
+  "survival",
+]
+
+[class.fighter.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "athletics",
+  "history",
+  "insight",
+  "intimidation",
+  "perception",
+  "survival",
+]
+
+[[class.fighter.contributes]]
+target = "saving_throw('strength').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.fighter.contributes]]
+target = "saving_throw('constitution').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.fighter.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 10"
+
+[class.champion]
+name = "Champion"

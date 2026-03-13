@@ -5,3 +5,7 @@ required = true
 [[character_choice]]
 concept_type = "background"
 required = true
+
+[[character_choice]]
+concept_type = "class"
+required = true

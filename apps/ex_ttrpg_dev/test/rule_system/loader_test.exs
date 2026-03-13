@@ -39,16 +39,16 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert %{type: :formula} = data.nodes[{"ability", "dexterity", "modifier"}]
   end
 
-  test "load/1 skill nodes reference correct abilities" do
+  test "load/1 skill nodes are accumulators referencing correct abilities" do
     {:ok, data} = Loader.load(dnd_path())
 
     assert Map.has_key?(data.nodes, {"skill", "acrobatics", "modifier"})
-    %{formula: formula} = data.nodes[{"skill", "acrobatics", "modifier"}]
-    assert String.contains?(formula, "ability('dexterity')")
+    %{type: :accumulator, base: base} = data.nodes[{"skill", "acrobatics", "modifier"}]
+    assert String.contains?(base, "ability('dexterity')")
 
     assert Map.has_key?(data.nodes, {"skill", "athletics", "modifier"})
-    %{formula: formula} = data.nodes[{"skill", "athletics", "modifier"}]
-    assert String.contains?(formula, "ability('strength')")
+    %{type: :accumulator, base: base} = data.nodes[{"skill", "athletics", "modifier"}]
+    assert String.contains?(base, "ability('strength')")
   end
 
   test "load/1 returns the standard rolling method" do

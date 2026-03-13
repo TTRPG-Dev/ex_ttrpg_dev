@@ -30,6 +30,11 @@ level.steps = [
   [305000, 20],
 ]
 
+[character_trait.max_hit_points]
+name = "Max Hit Points"
+points.type = "accumulator"
+points.base = "0"
+
 [character_trait.proficiency_bonus]
 name = "Proficiency Bonus"
 bonus.type = "accumulator"
