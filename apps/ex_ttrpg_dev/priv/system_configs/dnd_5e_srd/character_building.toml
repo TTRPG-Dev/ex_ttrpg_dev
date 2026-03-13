@@ -1,3 +1,7 @@
 [[character_choice]]
 concept_type = "race"
 required = true
+
+[[character_choice]]
+concept_type = "background"
+required = true

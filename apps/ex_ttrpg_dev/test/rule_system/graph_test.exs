@@ -21,6 +21,10 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     }
   end
 
+  defp with_choices(concept_metadata) do
+    %{nodes: %{}, rolling_methods: %{}, effects: [], concept_metadata: concept_metadata}
+  end
+
   defp dnd_path do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
   end
@@ -129,6 +133,48 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     }
 
     assert {:error, {:undefined_effect_target, _}} = Graph.build(data)
+  end
+
+  test "build/1 succeeds when all choice options reference valid concepts" do
+    data =
+      with_choices(%{
+        {"race", "human"} => %{
+          "choices" => %{
+            "language" => %{"type" => "language", "options" => ["common", "elvish"]}
+          }
+        },
+        {"language", "common"} => %{"name" => "Common"},
+        {"language", "elvish"} => %{"name" => "Elvish"}
+      })
+
+    assert {:ok, _} = Graph.build(data)
+  end
+
+  test "build/1 returns error for choice referencing undefined concept type" do
+    data =
+      with_choices(%{
+        {"race", "human"} => %{
+          "choices" => %{
+            "language" => %{"type" => "nonexistent_type", "options" => ["common"]}
+          }
+        }
+      })
+
+    assert {:error, {:undefined_choice_type, _}} = Graph.build(data)
+  end
+
+  test "build/1 returns error for choice option not found in its type" do
+    data =
+      with_choices(%{
+        {"race", "human"} => %{
+          "choices" => %{
+            "language" => %{"type" => "language", "options" => ["common", "typo_lang"]}
+          }
+        },
+        {"language", "common"} => %{"name" => "Common"}
+      })
+
+    assert {:error, {:undefined_choice_option, _}} = Graph.build(data)
   end
 
   test "integration: build succeeds for full dnd_5e_srd" do

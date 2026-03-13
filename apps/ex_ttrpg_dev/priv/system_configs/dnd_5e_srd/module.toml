@@ -45,3 +45,7 @@ name = "Character Trait"
 [[concept_type]]
 id = "race"
 name = "Race"
+
+[[concept_type]]
+id = "background"
+name = "Background"

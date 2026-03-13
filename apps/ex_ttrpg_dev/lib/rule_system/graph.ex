@@ -20,14 +20,15 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   Raises if the graph contains cycles.
   """
   def build(loader_data) do
-    %{nodes: nodes, effects: effects} = loader_data
+    %{nodes: nodes, effects: effects, concept_metadata: concept_metadata} = loader_data
 
     graph =
       nodes
       |> Map.keys()
       |> Enum.reduce(Graph.new(type: :directed), &Graph.add_vertex(&2, &1))
 
-    with {:ok, graph} <- add_node_edges(graph, nodes),
+    with {:ok, _} <- validate_choice_options(concept_metadata),
+         {:ok, graph} <- add_node_edges(graph, nodes),
          {:ok, graph} <- add_effect_edges(graph, nodes, effects) do
       if Graph.is_acyclic?(graph) do
         {:ok,
@@ -47,6 +48,53 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   @doc "Returns nodes in topological evaluation order."
   def topological_order(%{graph: graph}) do
     Graph.topsort(graph)
+  end
+
+  defp validate_choice_options(concept_metadata) do
+    valid_type_ids =
+      concept_metadata
+      |> Map.keys()
+      |> MapSet.new(fn {type_id, _} -> type_id end)
+
+    error =
+      Enum.find_value(concept_metadata, fn {{type_id, concept_id}, meta} ->
+        meta
+        |> Map.get("choices", %{})
+        |> Enum.find_value(fn {choice_id, choice_def} ->
+          check_choice(
+            {type_id, concept_id, choice_id},
+            choice_def,
+            valid_type_ids,
+            concept_metadata
+          )
+        end)
+      end)
+
+    if error, do: error, else: {:ok, nil}
+  end
+
+  defp check_choice(
+         {type_id, concept_id, choice_id},
+         choice_def,
+         valid_type_ids,
+         concept_metadata
+       ) do
+    choice_type = choice_def["type"]
+    options = Map.get(choice_def, "options", [])
+
+    if MapSet.member?(valid_type_ids, choice_type) do
+      missing = Enum.find(options, &(not Map.has_key?(concept_metadata, {choice_type, &1})))
+
+      if missing do
+        {:error,
+         {:undefined_choice_option,
+          "#{type_id}('#{concept_id}').choices.#{choice_id} option \"#{missing}\" not found in type \"#{choice_type}\""}}
+      end
+    else
+      {:error,
+       {:undefined_choice_type,
+        "#{type_id}('#{concept_id}').choices.#{choice_id} references undefined type \"#{choice_type}\""}}
+    end
   end
 
   defp add_node_edges(graph, nodes) do

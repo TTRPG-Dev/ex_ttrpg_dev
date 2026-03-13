@@ -25,6 +25,7 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
 
     IO.puts("-- #{character.name} --")
     print_character_building_choices(system, character)
+    print_skill_proficiencies(system, active)
     print_known_languages(system, character, active)
     print_weapon_proficiencies(system, active)
     print_armor_proficiencies(system, active)
@@ -97,6 +98,14 @@ defmodule ExTTRPGDev.CLI.CharacterDisplay do
     else
       []
     end
+  end
+
+  defp print_skill_proficiencies(system, active) do
+    ids = collect_from_active(active, system.concept_metadata, "skill_proficiencies")
+
+    print_if_present("Skill Proficiencies", ids, fn id ->
+      get_in(system.concept_metadata, [{"skill", id}, "name"]) || id
+    end)
   end
 
   defp print_known_languages(system, character, active) do
