@@ -49,3 +49,7 @@ name = "Race"
 [[concept_type]]
 id = "background"
 name = "Background"
+
+[[concept_type]]
+id = "class"
+name = "Class"
