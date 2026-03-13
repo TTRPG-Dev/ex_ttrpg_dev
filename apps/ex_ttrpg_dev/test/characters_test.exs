@@ -170,6 +170,115 @@ defmodule ExTTRPGDevTest.Characters do
     end
   end
 
+  describe "active_effects/2" do
+    defp minimal_system(effects, concept_metadata) do
+      %ExTTRPGDev.RuleSystems.LoadedSystem{
+        module: nil,
+        graph: nil,
+        nodes: %{},
+        rolling_methods: %{},
+        effects: effects,
+        concept_metadata: concept_metadata
+      }
+    end
+
+    defp minimal_character(decisions) do
+      %Character{
+        name: "Test",
+        generated_values: %{},
+        effects: [],
+        decisions: decisions,
+        metadata: %ExTTRPGDev.Characters.Metadata{slug: "test", rule_system: "dnd_5e_srd"}
+      }
+    end
+
+    test "includes system effects for active concepts" do
+      system =
+        minimal_system(
+          [
+            %{
+              source: {"class", "fighter"},
+              target: {"saving_throw", "strength", "modifier"},
+              value: 2
+            }
+          ],
+          %{{"class", "fighter"} => %{}}
+        )
+
+      character = minimal_character([%{scope: nil, choice: "class", selection: "fighter"}])
+      effects = Characters.active_effects(system, character)
+      assert Enum.any?(effects, &(&1.source == {"class", "fighter"}))
+    end
+
+    test "excludes system effects for inactive concepts" do
+      system =
+        minimal_system(
+          [
+            %{
+              source: {"class", "fighter"},
+              target: {"saving_throw", "strength", "modifier"},
+              value: 2
+            }
+          ],
+          %{}
+        )
+
+      character = minimal_character([])
+      effects = Characters.active_effects(system, character)
+      refute Enum.any?(effects, &(&1.source == {"class", "fighter"}))
+    end
+
+    test "generates effects from decisions with contributes_field" do
+      concept_metadata = %{
+        {"class", "fighter"} => %{
+          "choices" => %{
+            "skill_proficiency_1" => %{
+              "type" => "skill",
+              "contributes_field" => "modifier",
+              "contributes_value" => "character_trait('proficiency_bonus').bonus",
+              "options" => ["athletics", "acrobatics"]
+            }
+          }
+        }
+      }
+
+      system = minimal_system([], concept_metadata)
+
+      character =
+        minimal_character([
+          %{scope: {"class", "fighter"}, choice: "skill_proficiency_1", selection: "athletics"}
+        ])
+
+      effects = Characters.active_effects(system, character)
+
+      assert Enum.any?(
+               effects,
+               &(&1.source == {"class", "fighter"} and
+                   &1.target == {"skill", "athletics", "modifier"} and
+                   &1.value == "character_trait('proficiency_bonus').bonus")
+             )
+    end
+
+    test "does not generate effects for choices without contributes_field" do
+      concept_metadata = %{
+        {"race", "elf"} => %{
+          "choices" => %{
+            "subrace" => %{"type" => "race", "options" => ["high_elf"]}
+          }
+        }
+      }
+
+      system = minimal_system([], concept_metadata)
+
+      character =
+        minimal_character([
+          %{scope: {"race", "elf"}, choice: "subrace", selection: "high_elf"}
+        ])
+
+      assert Characters.active_effects(system, character) == []
+    end
+  end
+
   describe "concept_roll!/4" do
     setup do
       system = RuleSystems.load_system!("dnd_5e_srd")

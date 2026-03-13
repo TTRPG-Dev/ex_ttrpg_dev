@@ -148,6 +148,7 @@ defmodule ExTTRPGDev.Characters do
   """
   def active_effects(%LoadedSystem{} = system, %Character{} = character) do
     active = active_concepts(character.decisions, system.concept_metadata)
+    decision_effects = effects_from_decisions(character.decisions, system.concept_metadata)
 
     system.effects
     |> Enum.filter(fn
@@ -155,6 +156,7 @@ defmodule ExTTRPGDev.Characters do
       %{source: {type, id, _}} -> MapSet.member?(active, {type, id})
       _ -> false
     end)
+    |> Kernel.++(decision_effects)
     |> Kernel.++(character.effects)
   end
 
@@ -204,6 +206,32 @@ defmodule ExTTRPGDev.Characters do
       bonus: bonus,
       total: Enum.sum(rolls) + bonus
     }
+  end
+
+  defp effects_from_decisions(decisions, concept_metadata) do
+    Enum.flat_map(decisions, fn
+      %{scope: {type, id}, choice: choice_id, selection: selected} ->
+        choice_def =
+          concept_metadata
+          |> Map.get({type, id}, %{})
+          |> Map.get("choices", %{})
+          |> Map.get(choice_id, %{})
+
+        case choice_def do
+          %{
+            "contributes_field" => field,
+            "contributes_value" => value,
+            "type" => target_type
+          } ->
+            [%{source: {type, id}, target: {target_type, selected, field}, value: value}]
+
+          _ ->
+            []
+        end
+
+      _ ->
+        []
+    end)
   end
 
   defp root_concept_ids(concept_metadata, type_id) do
