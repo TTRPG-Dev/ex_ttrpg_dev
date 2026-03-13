@@ -117,19 +117,6 @@ defmodule ExTTRPGDevTest.CLI.CharacterDisplay do
     assert String.contains?(output, "Warhammer")
   end
 
-  test "print/2 shows racial armor proficiencies", %{system: system} do
-    decisions = [
-      %{scope: nil, choice: "race", selection: "dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "mountain_dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "artisans_tool_proficiency", selection: "smiths_tools"}
-    ]
-
-    output = print_output(system, character_with_decisions(system, decisions))
-    assert String.contains?(output, "Armor Proficiencies:")
-    assert String.contains?(output, "Light Armor")
-    assert String.contains?(output, "Medium Armor")
-  end
-
   test "print/2 does not show weapon proficiencies for races without them", %{system: system} do
     refute print_output(system, character_with_decisions(system, human_with_elvish_decisions()))
            |> String.contains?("Weapon Proficiencies:")

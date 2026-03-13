@@ -5,7 +5,7 @@ languages = ["common", "halfling"]
 [race.halfling.choices.subrace]
 required = true
 type = "race"
-options = ["lightfoot_halfling", "stout_halfling"]
+options = ["lightfoot_halfling"]
 
 [[race.halfling.contributes]]
 target = "character_trait('speed').amount"
@@ -20,11 +20,4 @@ name = "Lightfoot Halfling"
 
 [[race.lightfoot_halfling.contributes]]
 target = "ability('charisma').total_score"
-value = 1
-
-[race.stout_halfling]
-name = "Stout Halfling"
-
-[[race.stout_halfling.contributes]]
-target = "ability('constitution').total_score"
 value = 1

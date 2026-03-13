@@ -150,8 +150,7 @@ defmodule ExTTRPGDevTest.Characters do
       decisions = Characters.random_decisions(system)
       root_race = Enum.find(decisions, &(&1.scope == nil and &1.choice == "race"))
 
-      subraces =
-        ~w[hill_dwarf mountain_dwarf high_elf wood_elf dark_elf lightfoot_halfling stout_halfling forest_gnome rock_gnome]
+      subraces = ~w[hill_dwarf high_elf lightfoot_halfling rock_gnome]
 
       refute root_race.selection in subraces
     end
