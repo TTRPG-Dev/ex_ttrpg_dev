@@ -1,7 +1,18 @@
+[character_trait.experience_points]
+name = "Experience Points"
+xp_thresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 255000, 285000, 305000]
+total.type = "accumulator"
+total.base = "0"
+
+[character_trait.character_level]
+name = "Character Level"
+level.type = "accumulator"
+level.base = "1"
+
 [character_trait.proficiency_bonus]
 name = "Proficiency Bonus"
 bonus.type = "accumulator"
-bonus.base = "2"
+bonus.base = "floor((character_trait('character_level').level - 1) / 4) + 2"
 
 [character_trait.speed]
 name = "Speed"
