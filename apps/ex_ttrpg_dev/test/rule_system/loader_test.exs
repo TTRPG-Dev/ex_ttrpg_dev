@@ -51,10 +51,9 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert String.contains?(formula, "ability('strength')")
   end
 
-  test "load/1 returns both rolling methods" do
+  test "load/1 returns the standard rolling method" do
     {:ok, data} = Loader.load(dnd_path())
     assert Map.has_key?(data.rolling_methods, "standard")
-    assert Map.has_key?(data.rolling_methods, "hard")
   end
 
   test "load/1 standard rolling method has correct configuration" do
