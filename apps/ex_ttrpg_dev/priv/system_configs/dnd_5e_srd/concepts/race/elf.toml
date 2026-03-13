@@ -1,12 +1,11 @@
 [race.elf]
 name = "Elf"
 languages = ["common", "elvish"]
-weapon_proficiencies = ["longsword", "shortsword", "shortbow", "longbow"]
 
 [race.elf.choices.subrace]
 required = true
 type = "race"
-options = ["high_elf", "wood_elf", "dark_elf"]
+options = ["high_elf"]
 
 [[race.elf.contributes]]
 target = "character_trait('speed').amount"
@@ -22,6 +21,7 @@ value = 2
 
 [race.high_elf]
 name = "High Elf"
+weapon_proficiencies = ["longsword", "shortsword", "shortbow", "longbow"]
 
 [race.high_elf.choices.extra_language]
 required = true
@@ -45,18 +45,4 @@ options = [
 
 [[race.high_elf.contributes]]
 target = "ability('intelligence').total_score"
-value = 1
-
-[race.wood_elf]
-name = "Wood Elf"
-
-[[race.wood_elf.contributes]]
-target = "ability('wisdom').total_score"
-value = 1
-
-[race.dark_elf]
-name = "Dark Elf"
-
-[[race.dark_elf.contributes]]
-target = "ability('charisma').total_score"
 value = 1

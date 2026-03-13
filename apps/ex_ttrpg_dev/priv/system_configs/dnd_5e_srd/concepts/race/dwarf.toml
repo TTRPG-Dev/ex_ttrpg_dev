@@ -6,7 +6,7 @@ weapon_proficiencies = ["battleaxe", "handaxe", "light_hammer", "warhammer"]
 [race.dwarf.choices.subrace]
 required = true
 type = "race"
-options = ["hill_dwarf", "mountain_dwarf"]
+options = ["hill_dwarf"]
 
 [race.dwarf.choices.artisans_tool_proficiency]
 required = true
@@ -31,11 +31,3 @@ name = "Hill Dwarf"
 [[race.hill_dwarf.contributes]]
 target = "ability('wisdom').total_score"
 value = 1
-
-[race.mountain_dwarf]
-name = "Mountain Dwarf"
-armor_proficiencies = ["light", "medium"]
-
-[[race.mountain_dwarf.contributes]]
-target = "ability('strength').total_score"
-value = 2

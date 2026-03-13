@@ -51,10 +51,9 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert String.contains?(formula, "ability('strength')")
   end
 
-  test "load/1 returns both rolling methods" do
+  test "load/1 returns the standard rolling method" do
     {:ok, data} = Loader.load(dnd_path())
     assert Map.has_key?(data.rolling_methods, "standard")
-    assert Map.has_key?(data.rolling_methods, "hard")
   end
 
   test "load/1 standard rolling method has correct configuration" do
@@ -337,12 +336,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   test "load/1 returns subrace metadata for races with subraces" do
     {:ok, data} = Loader.load(dnd_path())
 
-    subraces = ~w(
-      hill_dwarf mountain_dwarf
-      high_elf wood_elf dark_elf
-      lightfoot_halfling stout_halfling
-      forest_gnome rock_gnome
-    )
+    subraces = ~w(hill_dwarf high_elf lightfoot_halfling rock_gnome)
 
     for subrace <- subraces do
       assert Map.has_key?(data.concept_metadata, {"race", subrace}), "Missing subrace: #{subrace}"
@@ -354,8 +348,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     subrace_choice = data.concept_metadata[{"race", "dwarf"}]["choices"]["subrace"]
     assert %{"type" => "race", "required" => true, "options" => options} = subrace_choice
-    assert "hill_dwarf" in options
-    assert "mountain_dwarf" in options
+    assert options == ["hill_dwarf"]
   end
 
   test "load/1 parses race contributes into the effects list" do
