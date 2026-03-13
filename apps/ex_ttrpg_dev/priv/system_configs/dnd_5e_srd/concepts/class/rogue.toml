@@ -1,0 +1,102 @@
+[class.rogue]
+name = "Rogue"
+hit_die = "d8"
+armor_proficiencies = ["light_armor"]
+weapon_proficiencies = ["simple_weapons", "hand_crossbow", "longsword", "rapier", "shortsword"]
+tool_proficiencies = ["thieves_tools"]
+
+[class.rogue.choices.subclass]
+required = true
+type = "class"
+options = ["thief"]
+
+[class.rogue.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "athletics",
+  "deception",
+  "insight",
+  "intimidation",
+  "investigation",
+  "perception",
+  "performance",
+  "persuasion",
+  "sleight_of_hand",
+  "stealth",
+]
+
+[class.rogue.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "athletics",
+  "deception",
+  "insight",
+  "intimidation",
+  "investigation",
+  "perception",
+  "performance",
+  "persuasion",
+  "sleight_of_hand",
+  "stealth",
+]
+
+[class.rogue.choices.skill_proficiency_3]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "athletics",
+  "deception",
+  "insight",
+  "intimidation",
+  "investigation",
+  "perception",
+  "performance",
+  "persuasion",
+  "sleight_of_hand",
+  "stealth",
+]
+
+[class.rogue.choices.skill_proficiency_4]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "athletics",
+  "deception",
+  "insight",
+  "intimidation",
+  "investigation",
+  "perception",
+  "performance",
+  "persuasion",
+  "sleight_of_hand",
+  "stealth",
+]
+
+[[class.rogue.contributes]]
+target = "saving_throw('dexterity').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.rogue.contributes]]
+target = "saving_throw('intelligence').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.rogue.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 8"
+
+[class.thief]
+name = "Thief"
