@@ -7,6 +7,7 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
+  alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
@@ -206,6 +207,91 @@ defmodule ExTTRPGDev.Characters do
       bonus: bonus,
       total: Enum.sum(rolls) + bonus
     }
+  end
+
+  @doc """
+  Returns the list of character progression choices that are currently pending or available.
+
+  Each entry is a map with:
+  - `:type` — `:pending` (required and not yet made) or `:available` (optional and currently unlocked)
+  - `:id` — the progression concept id
+  - `:name` — display name
+  - `:effect_target` — where the resulting value should be applied (e.g. `"character_trait('max_hit_points').points"`)
+  - `:roll` — the resolved roll reference (e.g. `"d8"`), or `nil` if none
+
+  For `:pending` entries, `:count` is also included indicating how many choices remain.
+
+  `resolved` should be the output of `Evaluator.evaluate!/3` for the character's current state.
+  """
+  def pending_choices(%LoadedSystem{} = system, %Character{} = character, resolved) do
+    system.concept_metadata
+    |> Enum.filter(fn {{type, _id}, _} -> type == "character_progression" end)
+    |> Enum.flat_map(fn {{_type, id}, meta} ->
+      roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
+      progression_choices(id, Map.put(meta, "roll", roll), character.decisions, resolved)
+    end)
+  end
+
+  defp progression_choices(id, %{"required_count" => required_str} = meta, decisions, resolved) do
+    with {:ok, required} <- Expression.evaluate(required_str, resolved),
+         made = count_progression_decisions(decisions, id),
+         pending_count = max(0, trunc(required) - made),
+         true <- pending_count > 0 do
+      [
+        %{
+          type: :pending,
+          id: id,
+          name: meta["name"] || id,
+          count: pending_count,
+          effect_target: meta["effect_target"],
+          roll: meta["roll"]
+        }
+      ]
+    else
+      _ -> []
+    end
+  end
+
+  defp progression_choices(id, %{"available_when" => available_str} = meta, _decisions, resolved) do
+    case Expression.evaluate(available_str, resolved) do
+      {:ok, val} when val not in [0, false, nil] ->
+        [
+          %{
+            type: :available,
+            id: id,
+            name: meta["name"] || id,
+            effect_target: meta["effect_target"],
+            roll: meta["roll"]
+          }
+        ]
+
+      _ ->
+        []
+    end
+  end
+
+  defp progression_choices(_id, _meta, _decisions, _resolved), do: []
+
+  defp count_progression_decisions(decisions, progression_id) do
+    Enum.count(decisions, fn
+      %{scope: {"character_progression", ^progression_id}} -> true
+      _ -> false
+    end)
+  end
+
+  defp resolve_roll_reference(nil, _character, _concept_metadata), do: nil
+
+  defp resolve_roll_reference(roll_reference, character, concept_metadata) do
+    case String.split(roll_reference, ".", parts: 2) do
+      [type_id, field] ->
+        case Enum.find(character.decisions, &(&1.scope == nil and &1.choice == type_id)) do
+          nil -> nil
+          %{selection: concept_id} -> get_in(concept_metadata, [{type_id, concept_id}, field])
+        end
+
+      _ ->
+        nil
+    end
   end
 
   defp effects_from_decisions(decisions, concept_metadata) do

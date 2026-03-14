@@ -1,0 +1,5 @@
+[character_progression.hp_per_level]
+name = "Hit Points"
+required_count = "character_trait('character_level').level - 1"
+effect_target = "character_trait('max_hit_points').points"
+roll_reference = "class.hit_die"
