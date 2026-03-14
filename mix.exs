@@ -35,7 +35,7 @@ defmodule ExTtrpgDevUmbrella.MixProject do
 
   defp releases do
     [
-      ttrpg_dev_cli: [
+      ttrpg_dev_engine: [
         applications: [ttrpg_dev_cli: :permanent],
         steps: [:assemble, &Burrito.wrap/1],
         burrito: [

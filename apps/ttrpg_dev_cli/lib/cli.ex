@@ -1,57 +1,18 @@
-# credo:disable-for-this-file Credo.Check.Warning.IoInspect
 defmodule ExTTRPGDev.CLI do
-  alias ExTTRPGDev.CLI.Characters
-  alias ExTTRPGDev.CLI.Roll
-  alias ExTTRPGDev.CLI.RuleSystems
-  alias ExTTRPGDev.CLI.Shell
-
   @moduledoc """
-  The CLI for the project
+  Entry point for the ttrpg-dev-engine binary.
+
+  In normal operation this binary is driven by the Rust CLI frontend
+  (`ttrpg-dev`) via the `--server` flag, which starts the JSON server
+  mode. Direct invocation with no arguments prints a brief usage note.
   """
 
-  def main([]), do: Shell.run(build_optimus())
-  def main(argv), do: dispatch(argv)
+  alias ExTTRPGDev.CLI.Server
 
-  def dispatch(argv), do: dispatch(argv, build_optimus(), &System.halt/1)
+  def main(["--server"]), do: Server.run()
 
-  def dispatch(argv, optimus, halt_fn) do
-    case Optimus.parse!(optimus, argv, halt_fn) do
-      %{args: %{}} ->
-        Optimus.parse!(optimus, ["--help"], halt_fn)
-
-      {[:roll], parse_result} ->
-        Roll.handle(parse_result)
-
-      {[:systems | sub_commands], parse_result} ->
-        RuleSystems.handle_systems_subcommands(sub_commands, parse_result)
-
-      {[:characters | sub_commands], parse_result} ->
-        Characters.handle_characters_subcommands(sub_commands, parse_result)
-
-      {unhandled, _parse_result} ->
-        str_command =
-          unhandled
-          |> Enum.reduce([], fn x, acc -> [Atom.to_string(x) | acc] end)
-          |> Enum.reverse()
-          |> Enum.join(" ")
-
-        raise "Unhandled CLI command `#{str_command}`, if you are seeing this error please report the issue"
-    end
-  end
-
-  def build_optimus do
-    Optimus.new!(
-      name: "ttrpg-dev",
-      description: "CLI for all things RPG",
-      version: "0.6.3",
-      author: "Quigley Malcolm quigley@quigleymalcolm.com",
-      about: "Utility for playing tabletop role-playing games.",
-      allow_unknown_args: false,
-      parse_double_dash: true,
-      subcommands:
-        Roll.commands() ++
-          RuleSystems.commands() ++
-          Characters.commands()
-    )
+  def main(_argv) do
+    IO.puts("ttrpg-dev-engine: backend engine for ttrpg-dev.")
+    IO.puts("Run via the ttrpg-dev frontend, or pass --server to start JSON server mode.")
   end
 end

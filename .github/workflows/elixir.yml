@@ -1,4 +1,4 @@
-name: Elixir CI
+name: CI
 
 on:
   push:
@@ -10,26 +10,25 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
-    name: Build and test
+  elixir:
+    name: Build and test (Elixir)
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.19.5' # Define the elixir version [required]
-        otp-version: '28.3.1' # Define the OTP version [required]
+        elixir-version: '1.19.5'
+        otp-version: '28.3.1'
     - name: Restore dependencies cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: deps
         key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
         restore-keys: ${{ runner.os }}-mix-
     - name: Restore PLT cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: priv/plts
         key: ${{ runner.os }}-plt-${{ hashFiles('**/mix.lock') }}
@@ -42,3 +41,29 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Run dialyzer
       run: mix dialyzer --format github
+
+  rust:
+    name: Build and lint (Rust)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+    - name: Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          cli/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('cli/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+    - name: Build
+      working-directory: cli
+      run: cargo build
+    - name: Clippy
+      working-directory: cli
+      run: cargo clippy -- -D warnings
