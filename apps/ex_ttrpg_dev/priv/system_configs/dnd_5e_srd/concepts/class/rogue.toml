@@ -98,5 +98,9 @@ value = "character_trait('proficiency_bonus').bonus"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
 
+[[class.rogue.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
 [class.thief]
 name = "Thief"
