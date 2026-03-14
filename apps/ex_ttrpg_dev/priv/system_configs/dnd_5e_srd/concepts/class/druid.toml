@@ -1,0 +1,58 @@
+[class.druid]
+name = "Druid"
+hit_die = "d8"
+armor_proficiencies = ["light_armor", "medium_armor", "shields"]
+weapon_proficiencies = ["club", "dagger", "dart", "javelin", "mace", "quarterstaff", "scimitar", "sickle", "sling", "spear"]
+tool_proficiencies = ["herbalism_kit"]
+
+[class.druid.choices.subclass]
+required = true
+type = "class"
+options = ["circle_of_the_land"]
+
+[class.druid.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "arcana",
+  "animal_handling",
+  "insight",
+  "medicine",
+  "nature",
+  "perception",
+  "religion",
+  "survival",
+]
+
+[class.druid.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "arcana",
+  "animal_handling",
+  "insight",
+  "medicine",
+  "nature",
+  "perception",
+  "religion",
+  "survival",
+]
+
+[[class.druid.contributes]]
+target = "saving_throw('intelligence').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.druid.contributes]]
+target = "saving_throw('wisdom').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.druid.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 8"
+
+[class.circle_of_the_land]
+name = "Circle of the Land"

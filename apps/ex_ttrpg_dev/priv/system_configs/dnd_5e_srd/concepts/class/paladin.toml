@@ -1,0 +1,39 @@
+[class.paladin]
+name = "Paladin"
+hit_die = "d10"
+armor_proficiencies = ["light_armor", "medium_armor", "heavy_armor", "shields"]
+weapon_proficiencies = ["simple_weapons", "martial_weapons"]
+
+[class.paladin.choices.subclass]
+required = true
+type = "class"
+options = ["oath_of_devotion"]
+
+[class.paladin.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["athletics", "insight", "intimidation", "medicine", "persuasion", "religion"]
+
+[class.paladin.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["athletics", "insight", "intimidation", "medicine", "persuasion", "religion"]
+
+[[class.paladin.contributes]]
+target = "saving_throw('wisdom').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.paladin.contributes]]
+target = "saving_throw('charisma').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.paladin.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 10"
+
+[class.oath_of_devotion]
+name = "Oath of Devotion"

@@ -1,0 +1,73 @@
+[class.ranger]
+name = "Ranger"
+hit_die = "d10"
+armor_proficiencies = ["light_armor", "medium_armor", "shields"]
+weapon_proficiencies = ["simple_weapons", "martial_weapons"]
+
+[class.ranger.choices.subclass]
+required = true
+type = "class"
+options = ["hunter"]
+
+[class.ranger.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "animal_handling",
+  "athletics",
+  "insight",
+  "investigation",
+  "nature",
+  "perception",
+  "stealth",
+  "survival",
+]
+
+[class.ranger.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "animal_handling",
+  "athletics",
+  "insight",
+  "investigation",
+  "nature",
+  "perception",
+  "stealth",
+  "survival",
+]
+
+[class.ranger.choices.skill_proficiency_3]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "animal_handling",
+  "athletics",
+  "insight",
+  "investigation",
+  "nature",
+  "perception",
+  "stealth",
+  "survival",
+]
+
+[[class.ranger.contributes]]
+target = "saving_throw('strength').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.ranger.contributes]]
+target = "saving_throw('dexterity').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.ranger.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 10"
+
+[class.hunter]
+name = "Hunter"

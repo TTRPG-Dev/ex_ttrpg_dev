@@ -1,0 +1,38 @@
+[class.wizard]
+name = "Wizard"
+hit_die = "d6"
+weapon_proficiencies = ["dagger", "dart", "sling", "quarterstaff", "light_crossbow"]
+
+[class.wizard.choices.subclass]
+required = true
+type = "class"
+options = ["school_of_evocation"]
+
+[class.wizard.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["arcana", "history", "insight", "investigation", "medicine", "religion"]
+
+[class.wizard.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["arcana", "history", "insight", "investigation", "medicine", "religion"]
+
+[[class.wizard.contributes]]
+target = "saving_throw('intelligence').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.wizard.contributes]]
+target = "saving_throw('wisdom').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.wizard.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 6"
+
+[class.school_of_evocation]
+name = "School of Evocation"

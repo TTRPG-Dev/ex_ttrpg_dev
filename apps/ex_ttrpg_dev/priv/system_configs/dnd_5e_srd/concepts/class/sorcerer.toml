@@ -1,0 +1,38 @@
+[class.sorcerer]
+name = "Sorcerer"
+hit_die = "d6"
+weapon_proficiencies = ["dagger", "dart", "sling", "quarterstaff", "light_crossbow"]
+
+[class.sorcerer.choices.subclass]
+required = true
+type = "class"
+options = ["draconic_bloodline"]
+
+[class.sorcerer.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["arcana", "deception", "insight", "intimidation", "persuasion", "religion"]
+
+[class.sorcerer.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["arcana", "deception", "insight", "intimidation", "persuasion", "religion"]
+
+[[class.sorcerer.contributes]]
+target = "saving_throw('constitution').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.sorcerer.contributes]]
+target = "saving_throw('charisma').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.sorcerer.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 6"
+
+[class.draconic_bloodline]
+name = "Draconic Bloodline"

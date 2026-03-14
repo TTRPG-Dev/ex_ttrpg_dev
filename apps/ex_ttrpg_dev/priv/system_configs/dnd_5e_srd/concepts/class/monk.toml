@@ -1,0 +1,71 @@
+[class.monk]
+name = "Monk"
+hit_die = "d8"
+weapon_proficiencies = ["simple_weapons", "shortsword"]
+
+[class.monk.choices.subclass]
+required = true
+type = "class"
+options = ["way_of_the_open_hand"]
+
+[class.monk.choices.tool_proficiency]
+required = true
+type = "equipment"
+options = [
+  "alchemists_supplies",
+  "brewers_supplies",
+  "calligraphers_supplies",
+  "carpenters_tools",
+  "cartographers_tools",
+  "cobblers_tools",
+  "cooks_utensils",
+  "glassblowers_tools",
+  "jewelers_tools",
+  "leatherworkers_tools",
+  "masons_tools",
+  "painters_supplies",
+  "potters_tools",
+  "smiths_tools",
+  "tinkers_tools",
+  "weavers_tools",
+  "woodcarvers_tools",
+  "bagpipes",
+  "drum",
+  "dulcimer",
+  "flute",
+  "lute",
+  "lyre",
+  "horn",
+  "pan_flute",
+  "shawm",
+  "viol",
+]
+
+[class.monk.choices.skill_proficiency_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["acrobatics", "athletics", "history", "insight", "religion", "stealth"]
+
+[class.monk.choices.skill_proficiency_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = ["acrobatics", "athletics", "history", "insight", "religion", "stealth"]
+
+[[class.monk.contributes]]
+target = "saving_throw('strength').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.monk.contributes]]
+target = "saving_throw('dexterity').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+
+[[class.monk.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier + 8"
+
+[class.way_of_the_open_hand]
+name = "Way of the Open Hand"
