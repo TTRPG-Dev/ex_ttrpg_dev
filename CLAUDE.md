@@ -16,10 +16,9 @@ mix test apps/ex_ttrpg_dev/test/rule_system/loader_test.exs  # Single test file
 mix credo --umbrella
 mix dialyzer
 
-# Build CLI
-mix escript                           # Build escript (./ttrpg-dev)
-./scripts/build_cli.sh                # Build Burrito binary for current platform
-./scripts/build_cli.sh all            # Cross-compile all targets
+# Build
+./scripts/build.sh                    # Build ttrpg-dev + ttrpg-dev-engine for current platform
+./scripts/build.sh all                # Cross-compile engine for all targets (Rust: current only)
 
 # Coverage
 mix coveralls.html --umbrella
@@ -30,7 +29,8 @@ mix coveralls.html --umbrella
 This is an Elixir umbrella project with two independently versioned apps:
 
 - **`apps/ex_ttrpg_dev/`** — Library published to Hex.pm. Core TTRPG utilities: dice rolling, rule system loading/evaluation, character generation and persistence.
-- **`apps/ttrpg_dev_cli/`** — Burrito-compiled standalone binary. CLI/REPL interface consuming the library.
+- **`apps/ttrpg_dev_cli/`** — Burrito-compiled engine binary (`ttrpg-dev-engine`). Exposes the library over a newline-delimited JSON protocol (`--server` mode) for the Rust frontend.
+- **`cli/`** — Rust CLI frontend (`ttrpg-dev`). reedline-based REPL with history and tab completion. Spawns `ttrpg-dev-engine` as a subprocess.
 
 ### Rule Systems (TOML-driven DAG)
 
