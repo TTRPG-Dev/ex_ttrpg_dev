@@ -288,7 +288,7 @@ jobs:
           package_unix macos_arm
 
           cp rust_bins/ttrpg-dev-windows/ttrpg-dev.exe ./ttrpg-dev.exe
-          cp engine_bins/ttrpg_dev_engine_windows ./ttrpg-dev-engine.exe
+          cp engine_bins/ttrpg_dev_engine_windows.exe ./ttrpg-dev-engine.exe
           zip release_packages/ttrpg-dev_windows.zip ttrpg-dev.exe ttrpg-dev-engine.exe
           rm ttrpg-dev.exe ttrpg-dev-engine.exe
 
