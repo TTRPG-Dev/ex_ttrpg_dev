@@ -377,13 +377,13 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
     match engine.call::<_, CharacterData>(&req) {
         Ok(character) => {
             print_character(&character);
-            if let Some(temp_id) = &character.temp_id {
-                if prompt_yes_no("Save this character?") {
-                    let save_req = json!({"command": "characters.save", "temp_id": temp_id});
-                    match engine.call::<_, SaveResult>(&save_req) {
-                        Ok(saved) => println!("Saved as '{}'.", saved.slug),
-                        Err(e) => eprintln!("Error saving: {e}"),
-                    }
+            if let Some(temp_id) = &character.temp_id
+                && prompt_yes_no("Save this character?")
+            {
+                let save_req = json!({"command": "characters.save", "temp_id": temp_id});
+                match engine.call::<_, SaveResult>(&save_req) {
+                    Ok(saved) => println!("Saved as '{}'.", saved.slug),
+                    Err(e) => eprintln!("Error saving: {e}"),
                 }
             }
         }
