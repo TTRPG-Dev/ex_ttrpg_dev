@@ -13,6 +13,7 @@ defmodule ExTTRPGDev.Characters.Character do
   - `decisions` — list of `%{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
     recording each concept selection made during character creation (defaults to [])
   """
+  @type t :: %__MODULE__{}
   defstruct [:name, :generated_values, :metadata, effects: [], decisions: []]
 
   @doc """
