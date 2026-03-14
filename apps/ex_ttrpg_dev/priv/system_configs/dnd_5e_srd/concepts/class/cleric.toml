@@ -35,6 +35,10 @@ value = "character_trait('proficiency_bonus').bonus"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
 
+[[class.cleric.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
 [class.life_domain]
 name = "Life Domain"
 armor_proficiencies = ["heavy_armor"]

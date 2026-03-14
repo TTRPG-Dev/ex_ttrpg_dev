@@ -180,6 +180,61 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  defp handle(
+         %{
+           "command" => "characters.levelup",
+           "character" => slug,
+           "xp" => xp,
+           "hp" => hp,
+           "hp_method" => hp_method
+         },
+         state
+       ) do
+    try do
+      unless is_integer(xp) and is_integer(hp),
+        do: raise("xp and hp must be integers")
+
+      unless hp_method in ["rolled", "average"],
+        do: raise("hp_method must be \"rolled\" or \"average\"")
+
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      hp_level_count =
+        Enum.count(character.decisions, fn
+          %{scope: {"character_trait", "max_hit_points"}} -> true
+          _ -> false
+        end)
+
+      new_level = hp_level_count + 2
+
+      updated = %{
+        character
+        | effects:
+            character.effects ++
+              [
+                %{target: {"character_trait", "experience_points", "total"}, value: xp},
+                %{target: {"character_trait", "max_hit_points", "points"}, value: hp}
+              ],
+          decisions:
+            character.decisions ++
+              [
+                %{
+                  scope: {"character_trait", "max_hit_points"},
+                  choice: "level_#{new_level}",
+                  selection: hp_method
+                }
+              ]
+      }
+
+      Characters.save_character!(updated, true)
+      data = serialize_character(system, updated, slug)
+      {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => "characters.show", "character" => slug}, state) do
     try do
       character = Characters.load_character!(slug)
@@ -271,10 +326,18 @@ defmodule ExTTRPGDev.CLI.Server do
       name: character.name,
       rule_system: character.metadata.rule_system,
       slug: slug,
+      hit_die: get_hit_die(character, system.concept_metadata),
       choices: serialize_choices(system, character),
       proficiencies: serialize_proficiencies(system, character, active),
       concept_types: serialize_concept_type_values(system, resolved_by_concept)
     }
+  end
+
+  defp get_hit_die(character, concept_metadata) do
+    case Enum.find(character.decisions, &(&1.scope == nil and &1.choice == "class")) do
+      nil -> nil
+      %{selection: class_id} -> get_in(concept_metadata, [{"class", class_id}, "hit_die"])
+    end
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do

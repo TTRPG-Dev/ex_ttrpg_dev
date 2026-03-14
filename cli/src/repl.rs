@@ -52,6 +52,7 @@ static COMMANDS: &[&str] = &[
     "characters list",
     "characters show",
     "characters roll",
+    "characters levelup",
     "help",
     "exit",
     "quit",
@@ -143,6 +144,7 @@ struct CharacterData {
     slug: Option<String>,
     name: String,
     rule_system: String,
+    hit_die: Option<String>,
     choices: Vec<ChoiceEntry>,
     proficiencies: Proficiencies,
     concept_types: Vec<ConceptTypeValues>,
@@ -165,12 +167,14 @@ struct Proficiencies {
 
 #[derive(Deserialize)]
 struct ConceptTypeValues {
+    id: String,
     name: String,
     concepts: Vec<ConceptValues>,
 }
 
 #[derive(Deserialize)]
 struct ConceptValues {
+    id: String,
     name: String,
     fields: Vec<FieldValue>,
 }
@@ -366,8 +370,9 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             }
         }
         ["roll", slug, type_id, concept_id] => handle_characters_roll(slug, type_id, concept_id, engine),
+        ["levelup", slug] => handle_characters_levelup(slug, engine),
         _ => eprintln!(
-            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>"
+            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept> | levelup <slug>"
         ),
     }
 }
@@ -419,6 +424,103 @@ fn handle_characters_roll(slug: &str, type_id: &str, concept_id: &str, engine: &
     }
 }
 
+fn handle_characters_levelup(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.show", "character": slug});
+    let character = match engine.call::<_, CharacterData>(&req) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return;
+        }
+    };
+
+    let hit_die = match &character.hit_die {
+        Some(hd) => hd.clone(),
+        None => {
+            eprintln!("Could not determine hit die for this character.");
+            return;
+        }
+    };
+
+    let current_level = find_character_level(&character);
+    let sides = parse_die_sides(&hit_die);
+    let average = sides / 2 + 1;
+
+    println!(
+        "\nLeveling up {} from level {current_level} to {}.",
+        character.name,
+        current_level + 1
+    );
+    println!("Hit die: {hit_die}  Average HP (no roll): {average}");
+    println!();
+
+    let xp = prompt_integer("XP gained:");
+
+    let (hp, hp_method) =
+        if prompt_yes_no(&format!("Roll {hit_die} for HP? (no = take average of {average})")) {
+            let roll_req = json!({"command": "roll", "dice": format!("1{hit_die}")});
+            match engine.call::<_, RollResult>(&roll_req) {
+                Ok(result) => {
+                    let rolled = result.results[0].total;
+                    println!("Rolled: {rolled}");
+                    (rolled, "rolled")
+                }
+                Err(e) => {
+                    eprintln!("Error rolling: {e}");
+                    return;
+                }
+            }
+        } else {
+            (average, "average")
+        };
+
+    let levelup_req = json!({
+        "command": "characters.levelup",
+        "character": slug,
+        "xp": xp,
+        "hp": hp,
+        "hp_method": hp_method,
+    });
+
+    match engine.call::<_, CharacterData>(&levelup_req) {
+        Ok(updated) => {
+            println!("\nReached level {}!", current_level + 1);
+            print_character(&updated);
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn find_character_level(character: &CharacterData) -> i64 {
+    character
+        .concept_types
+        .iter()
+        .find(|ct| ct.id == "character_trait")
+        .and_then(|ct| ct.concepts.iter().find(|c| c.id == "character_level"))
+        .and_then(|c| c.fields.iter().find(|f| f.name == "level"))
+        .and_then(|f| f.value.parse::<i64>().ok())
+        .unwrap_or(1)
+}
+
+fn parse_die_sides(hit_die: &str) -> i64 {
+    hit_die.trim_start_matches('d').parse().unwrap_or(8)
+}
+
+fn prompt_integer(question: &str) -> i64 {
+    use std::io::{self, BufRead};
+    loop {
+        print!("{question} ");
+        let _ = std::io::Write::flush(&mut io::stdout());
+        let stdin = io::stdin();
+        if let Some(Ok(line)) = stdin.lock().lines().next()
+            && let Ok(n) = line.trim().parse::<i64>()
+        {
+            return n;
+        }
+        eprintln!("Please enter a valid number.");
+    }
+}
+
 fn prompt_yes_no(question: &str) -> bool {
     use std::io::{self, BufRead};
     print!("(y/n) {question} ");
@@ -444,6 +546,7 @@ Commands:
   characters list --system <system>        List characters for a system
   characters show <slug>                   Show a saved character
   characters roll <slug> <type> <concept>  Roll for a character concept
+  characters levelup <slug>                Level up a character (add XP + HP gain)
   help                                     Show this help
   exit / quit                              Exit
 "#
