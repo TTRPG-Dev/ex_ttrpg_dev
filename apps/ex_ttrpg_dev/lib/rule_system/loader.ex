@@ -15,16 +15,18 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   ```
   """
 
-  alias ExTTRPGDev.RuleSystem.RuleModule
+  alias ExTTRPGDev.RuleSystem.{InventoryRules, RuleModule}
 
   @module_file "module.toml"
   @character_building_file "character_building.toml"
+  @inventory_rules_file "inventory_rules.toml"
 
   @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
   def load(path) do
     with {:ok, rule_module} <- load_module(path),
          {:ok, data} <- load_concept_files(path, rule_module) do
-      {:ok, Map.put(data, :module, rule_module)}
+      inventory_rules = load_inventory_rules(path)
+      {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
     end
   end
 
@@ -45,6 +47,18 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       {:ok, %{rule_module | character_building_choices: load_character_building_choices(path)}}
     else
       {:error, reason} -> {:error, {:module_parse_error, reason}}
+    end
+  end
+
+  defp load_inventory_rules(path) do
+    rules_path = Path.join(path, @inventory_rules_file)
+
+    with {:ok, contents} <- File.read(rules_path),
+         {:ok, map} <- TomlElixir.decode(contents),
+         {:ok, rules} <- InventoryRules.from_map(map) do
+      rules
+    else
+      _ -> %InventoryRules{}
     end
   end
 

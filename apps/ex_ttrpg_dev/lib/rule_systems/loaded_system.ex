@@ -4,5 +4,13 @@ defmodule ExTTRPGDev.RuleSystems.LoadedSystem do
 
   Produced by `ExTTRPGDev.RuleSystems.load_system!/1`.
   """
-  defstruct [:module, :graph, :nodes, :rolling_methods, :concept_metadata, :effects]
+  defstruct [
+    :module,
+    :graph,
+    :nodes,
+    :rolling_methods,
+    :concept_metadata,
+    :effects,
+    :inventory_rules
+  ]
 end

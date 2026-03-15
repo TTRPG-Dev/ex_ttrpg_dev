@@ -1,6 +1,6 @@
 defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Loader, RuleModule}
+  alias ExTTRPGDev.RuleSystem.{InventoryRules, Loader, RuleModule}
 
   defp dnd_path do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
@@ -145,6 +145,30 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
       assert conditional.value == 2
       assert conditional.when == "item.equipped"
       assert unconditional.when == nil
+    end)
+  end
+
+  test "load/1 returns empty inventory_rules when inventory_rules.toml is absent" do
+    assert {:ok, data} = Loader.load(dnd_path())
+    assert %InventoryRules{} = data.inventory_rules
+    refute InventoryRules.inventoriable?(data.inventory_rules, "equipment")
+  end
+
+  test "load/1 parses inventory_rules.toml when present" do
+    with_tmp_system(["equipment"], fn dir ->
+      File.write!(Path.join(dir, "inventory_rules.toml"), """
+      [inventory]
+      inventoriable_types = ["equipment"]
+
+      [inventory_item_schema.equipped]
+      type = "boolean"
+      default = false
+      """)
+
+      assert {:ok, data} = Loader.load(dir)
+      assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
+      refute InventoryRules.inventoriable?(data.inventory_rules, "language")
+      assert %{type: :boolean, default: false} = data.inventory_rules.schema["equipped"]
     end)
   end
 
