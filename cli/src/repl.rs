@@ -55,6 +55,9 @@ static COMMANDS: &[&str] = &[
     "characters award",
     "characters choices",
     "characters resolve_choice",
+    "characters inventory",
+    "characters inventory add",
+    "characters inventory set",
     "help",
     "exit",
     "quit",
@@ -206,6 +209,19 @@ struct SaveResult {
 }
 
 #[derive(Deserialize)]
+struct InventoryResponse {
+    inventory: Vec<InventoryItemData>,
+}
+
+#[derive(Deserialize)]
+struct InventoryItemData {
+    index: usize,
+    concept_type: String,
+    concept_id: String,
+    fields: serde_json::Value,
+}
+
+#[derive(Deserialize)]
 struct ConceptRollResult {
     concept_name: String,
     dice: String,
@@ -253,6 +269,27 @@ fn print_proficiencies(p: &Proficiencies) {
         if !items.is_empty() {
             println!("{label}: {}", items.join(", "));
         }
+    }
+}
+
+fn print_inventory(inventory: &[InventoryItemData]) {
+    if inventory.is_empty() {
+        println!("Inventory: (empty)");
+        return;
+    }
+    println!("Inventory ({} item{}):", inventory.len(), if inventory.len() == 1 { "" } else { "s" });
+    for item in inventory {
+        let fields_str = item
+            .fields
+            .as_object()
+            .map(|m| {
+                m.iter()
+                    .map(|(k, v)| format!("{k}: {v}"))
+                    .collect::<Vec<_>>()
+                    .join("  ")
+            })
+            .unwrap_or_default();
+        println!("  [{}] {}/{}  {}", item.index, item.concept_type, item.concept_id, fields_str);
     }
 }
 
@@ -388,8 +425,13 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["award", slug, award_id, value] => handle_characters_award(slug, award_id, value, engine),
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
+        ["inventory", rest @ ..] => handle_inventory(rest, engine),
         _ => eprintln!(
-            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n       characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>"
+            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n\
+             \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
+             \x20      characters inventory <slug>\n\
+             \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
+             \x20      characters inventory set <slug> <index> <field> <value>"
         ),
     }
 }
@@ -615,6 +657,91 @@ fn prompt_yes_no(question: &str) -> bool {
     )
 }
 
+struct InventoryAddArgs<'a> {
+    concept_type: &'a str,
+    concept_id: &'a str,
+    fields: serde_json::Value,
+}
+
+struct InventorySetArgs<'a> {
+    index: u64,
+    field: &'a str,
+    value: serde_json::Value,
+}
+
+fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
+    match tokens {
+        [slug] => handle_characters_inventory(slug, engine),
+        ["add", slug, type_id, id] => handle_characters_inventory_add(
+            slug,
+            InventoryAddArgs { concept_type: type_id, concept_id: id, fields: json!({}) },
+            engine,
+        ),
+        ["add", slug, type_id, id, "--equipped"] => handle_characters_inventory_add(
+            slug,
+            InventoryAddArgs {
+                concept_type: type_id,
+                concept_id: id,
+                fields: json!({"equipped": true}),
+            },
+            engine,
+        ),
+        ["set", slug, index_str, field, value_str] => {
+            let Ok(index) = index_str.parse::<u64>() else {
+                eprintln!("Error: index must be a non-negative integer");
+                return;
+            };
+            let value: serde_json::Value = match *value_str {
+                "true" => json!(true),
+                "false" => json!(false),
+                s => s.parse::<f64>().map_or_else(|_| json!(s), |n| json!(n)),
+            };
+            handle_characters_inventory_set(slug, InventorySetArgs { index, field, value }, engine)
+        }
+        _ => eprintln!(
+            "Usage: characters inventory <slug>\n\
+             \x20       characters inventory add <slug> <type> <id> [--equipped]\n\
+             \x20       characters inventory set <slug> <index> <field> <value>"
+        ),
+    }
+}
+
+fn handle_characters_inventory(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.inventory", "character": slug});
+    match engine.call::<_, InventoryResponse>(&req) {
+        Ok(r) => print_inventory(&r.inventory),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_inventory_add(slug: &str, args: InventoryAddArgs<'_>, engine: &mut Engine) {
+    let req = json!({
+        "command": "characters.inventory.add",
+        "character": slug,
+        "type": args.concept_type,
+        "id": args.concept_id,
+        "fields": args.fields,
+    });
+    match engine.call::<_, InventoryResponse>(&req) {
+        Ok(r) => print_inventory(&r.inventory),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_inventory_set(slug: &str, args: InventorySetArgs<'_>, engine: &mut Engine) {
+    let req = json!({
+        "command": "characters.inventory.set",
+        "character": slug,
+        "index": args.index,
+        "field": args.field,
+        "value": args.value,
+    });
+    match engine.call::<_, InventoryResponse>(&req) {
+        Ok(r) => print_inventory(&r.inventory),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
 fn print_help() {
     println!(
         r#"
@@ -631,6 +758,10 @@ Commands:
   characters award <slug> <award_id> <value>             Award something to a character
   characters choices <slug>                              Show pending progression choices
   characters resolve_choice <slug>                       Interactively resolve a pending choice
+  characters inventory <slug>                            Show a character's inventory
+  characters inventory add <slug> <type> <id>            Add an item to inventory
+  characters inventory add <slug> <type> <id> --equipped Add an item and equip it
+  characters inventory set <slug> <index> <field> <val>  Update an inventory item field
   help                                                   Show this help
   exit / quit                                            Exit
 "#
