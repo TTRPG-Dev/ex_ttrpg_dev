@@ -75,9 +75,10 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp apply_effect(effect, {:ok, acc}, resolved) do
     condition = Map.get(effect, :when)
+    item_fields = Map.get(effect, :item_fields, %{})
 
-    with {:ok, true} <- evaluate_condition(condition, resolved),
-         {:ok, n} <- resolve_effect_value(effect.value, resolved) do
+    with {:ok, true} <- evaluate_condition(condition, resolved, item_fields),
+         {:ok, n} <- resolve_effect_value(effect.value, resolved, item_fields) do
       {:cont, {:ok, acc + n}}
     else
       {:ok, false} -> {:cont, {:ok, acc}}
@@ -85,10 +86,10 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
     end
   end
 
-  defp evaluate_condition(nil, _resolved), do: {:ok, true}
+  defp evaluate_condition(nil, _resolved, _item_fields), do: {:ok, true}
 
-  defp evaluate_condition(formula, resolved) when is_binary(formula) do
-    case Expression.evaluate(formula, resolved) do
+  defp evaluate_condition(formula, resolved, item_fields) when is_binary(formula) do
+    case formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved) do
       {:ok, result} -> {:ok, truthy?(result)}
       error -> error
     end
@@ -99,10 +100,18 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   defp truthy?(n) when is_number(n), do: n != 0
   defp truthy?(_), do: false
 
-  defp resolve_effect_value(value, _resolved) when is_number(value), do: {:ok, value}
+  defp resolve_effect_value(value, _resolved, _item_fields) when is_number(value),
+    do: {:ok, value}
 
-  defp resolve_effect_value(formula, resolved) when is_binary(formula),
-    do: Expression.evaluate(formula, resolved)
+  defp resolve_effect_value(formula, resolved, item_fields) when is_binary(formula) do
+    formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved)
+  end
+
+  defp substitute_item_fields(formula, item_fields) do
+    Enum.reduce(item_fields, formula, fn {name, value}, acc ->
+      String.replace(acc, "item.#{name}", to_string(value))
+    end)
+  end
 
   defp evaluate_mapping(input_formula, steps, resolved) do
     with {:ok, input_value} <- Expression.evaluate(input_formula, resolved) do

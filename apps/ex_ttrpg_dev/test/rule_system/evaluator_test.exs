@@ -133,80 +133,6 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"save", "strength", "modifier"}] == 5
   end
 
-  test "evaluate/3 skips effect when `when` condition evaluates to false" do
-    system = minimal_system()
-    generated = %{{"attr", "strength", "base_score"} => 16}
-
-    effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "false"}]
-
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-    assert resolved[{"attr", "strength", "total_score"}] == 16
-  end
-
-  test "evaluate/3 applies effect when `when` condition evaluates to true" do
-    system = minimal_system()
-    generated = %{{"attr", "strength", "base_score"} => 16}
-
-    effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "true"}]
-
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-    assert resolved[{"attr", "strength", "total_score"}] == 18
-  end
-
-  test "evaluate/3 applies effect when `when` key is absent (backward compat)" do
-    system = minimal_system()
-    generated = %{{"attr", "strength", "base_score"} => 16}
-
-    effects = [%{target: {"attr", "strength", "total_score"}, value: 2}]
-
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-    assert resolved[{"attr", "strength", "total_score"}] == 18
-  end
-
-  test "evaluate/3 evaluates `when` as a formula referencing resolved nodes" do
-    loader_data = %{
-      nodes: %{
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
-        {"attr", "strength", "total_score"} => %{
-          type: :accumulator,
-          base: "attr('strength').base_score"
-        },
-        {"flag", "active", "value"} => %{type: :accumulator, base: "0"}
-      },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: []
-    }
-
-    {:ok, system} = Graph.build(loader_data)
-    generated = %{{"attr", "strength", "base_score"} => 16}
-
-    # Effect applies only when flag is active (non-zero)
-    effects = [
-      %{target: {"flag", "active", "value"}, value: 1},
-      %{
-        target: {"attr", "strength", "total_score"},
-        value: 4,
-        when: "flag('active').value"
-      }
-    ]
-
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-    assert resolved[{"attr", "strength", "total_score"}] == 20
-
-    # Without the flag effect, the condition is false (flag stays 0)
-    effects_no_flag = [
-      %{
-        target: {"attr", "strength", "total_score"},
-        value: 4,
-        when: "flag('active').value"
-      }
-    ]
-
-    assert {:ok, resolved_no_flag} = Evaluator.evaluate(system, generated, effects_no_flag)
-    assert resolved_no_flag[{"attr", "strength", "total_score"}] == 16
-  end
-
   test "evaluate/3 returns error for missing generated value" do
     system = minimal_system()
     # Provide empty generated values — base_score will be missing
@@ -221,66 +147,186 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
   end
 
-  test "integration: evaluate full dnd_5e_srd with known scores" do
-    {:ok, loader_data} = Loader.load(dnd_path())
-    {:ok, system} = Graph.build(loader_data)
+  describe "when conditions" do
+    test "skips effect when condition evaluates to false" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+      effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "false"}]
 
-    generated = %{
-      {"ability", "strength", "base_score"} => 16,
-      {"ability", "dexterity", "base_score"} => 14,
-      {"ability", "constitution", "base_score"} => 14,
-      {"ability", "wisdom", "base_score"} => 12,
-      {"ability", "intelligence", "base_score"} => 10,
-      {"ability", "charisma", "base_score"} => 8
-    }
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 16
+    end
 
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated)
+    test "applies effect when condition evaluates to true" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+      effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "true"}]
 
-    # Verify modifiers: floor((score - 10) / 2)
-    assert resolved[{"ability", "strength", "modifier"}] == 3
-    assert resolved[{"ability", "dexterity", "modifier"}] == 2
-    assert resolved[{"ability", "constitution", "modifier"}] == 2
-    assert resolved[{"ability", "wisdom", "modifier"}] == 1
-    assert resolved[{"ability", "intelligence", "modifier"}] == 0
-    assert resolved[{"ability", "charisma", "modifier"}] == -1
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 18
+    end
 
-    # Verify skills inherit their ability modifier
-    assert resolved[{"skill", "athletics", "modifier"}] == 3
-    assert resolved[{"skill", "acrobatics", "modifier"}] == 2
-    assert resolved[{"skill", "arcana", "modifier"}] == 0
+    test "applies effect when `when` key is absent (backward compat)" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+      effects = [%{target: {"attr", "strength", "total_score"}, value: 2}]
 
-    # Verify proficiency bonus base value
-    assert resolved[{"character_trait", "proficiency_bonus", "bonus"}] == 2
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 18
+    end
 
-    # Verify saving throws inherit their ability modifier
-    assert resolved[{"saving_throw", "strength", "modifier"}] == 3
-    assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
-    assert resolved[{"saving_throw", "constitution", "modifier"}] == 2
-    assert resolved[{"saving_throw", "wisdom", "modifier"}] == 1
-    assert resolved[{"saving_throw", "intelligence", "modifier"}] == 0
-    assert resolved[{"saving_throw", "charisma", "modifier"}] == -1
+    test "evaluates `when` as a formula referencing resolved nodes" do
+      loader_data = %{
+        nodes: %{
+          {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
+          {"attr", "strength", "total_score"} => %{
+            type: :accumulator,
+            base: "attr('strength').base_score"
+          },
+          {"flag", "active", "value"} => %{type: :accumulator, base: "0"}
+        },
+        rolling_methods: %{},
+        concept_metadata: %{},
+        effects: []
+      }
+
+      {:ok, system} = Graph.build(loader_data)
+      generated = %{{"attr", "strength", "base_score"} => 16}
+
+      # Effect applies only when flag is active (non-zero)
+      effects = [
+        %{target: {"flag", "active", "value"}, value: 1},
+        %{target: {"attr", "strength", "total_score"}, value: 4, when: "flag('active').value"}
+      ]
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 20
+
+      # Without the flag effect, the condition evaluates to 0 (false)
+      effects_no_flag = [
+        %{target: {"attr", "strength", "total_score"}, value: 4, when: "flag('active').value"}
+      ]
+
+      assert {:ok, resolved_no_flag} = Evaluator.evaluate(system, generated, effects_no_flag)
+      assert resolved_no_flag[{"attr", "strength", "total_score"}] == 16
+    end
   end
 
-  test "integration: saving throw modifier increases when proficiency is applied as an effect" do
-    {:ok, loader_data} = Loader.load(dnd_path())
-    {:ok, system} = Graph.build(loader_data)
+  describe "item_fields bindings" do
+    test "applies effect when item.field resolves to true in when condition" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
 
-    generated = %{
-      {"ability", "strength", "base_score"} => 16,
-      {"ability", "dexterity", "base_score"} => 14,
-      {"ability", "constitution", "base_score"} => 14,
-      {"ability", "wisdom", "base_score"} => 12,
-      {"ability", "intelligence", "base_score"} => 10,
-      {"ability", "charisma", "base_score"} => 8
-    }
+      effects = [
+        %{
+          target: {"attr", "strength", "total_score"},
+          value: 4,
+          when: "item.equipped",
+          item_fields: %{"equipped" => true}
+        }
+      ]
 
-    # Proficiency bonus of +2 applied to strength saving throw
-    effects = [%{target: {"saving_throw", "strength", "modifier"}, value: 2}]
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 20
+    end
 
-    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-    # strength modifier is 3, plus proficiency bonus of 2
-    assert resolved[{"saving_throw", "strength", "modifier"}] == 5
-    # other saving throws are unaffected
-    assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
+    test "skips effect when item.field resolves to false in when condition" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+
+      effects = [
+        %{
+          target: {"attr", "strength", "total_score"},
+          value: 4,
+          when: "item.equipped",
+          item_fields: %{"equipped" => false}
+        }
+      ]
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 16
+    end
+
+    test "substitutes item.field in value formula" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+
+      # condition is 0.5, so value formula "item.condition * 4" = 2.0
+      effects = [
+        %{
+          target: {"attr", "strength", "total_score"},
+          value: "item.condition * 4",
+          item_fields: %{"condition" => 0.5}
+        }
+      ]
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 18.0
+    end
+  end
+
+  describe "integration" do
+    test "evaluate full dnd_5e_srd with known scores" do
+      {:ok, loader_data} = Loader.load(dnd_path())
+      {:ok, system} = Graph.build(loader_data)
+
+      generated = %{
+        {"ability", "strength", "base_score"} => 16,
+        {"ability", "dexterity", "base_score"} => 14,
+        {"ability", "constitution", "base_score"} => 14,
+        {"ability", "wisdom", "base_score"} => 12,
+        {"ability", "intelligence", "base_score"} => 10,
+        {"ability", "charisma", "base_score"} => 8
+      }
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated)
+
+      # Verify modifiers: floor((score - 10) / 2)
+      assert resolved[{"ability", "strength", "modifier"}] == 3
+      assert resolved[{"ability", "dexterity", "modifier"}] == 2
+      assert resolved[{"ability", "constitution", "modifier"}] == 2
+      assert resolved[{"ability", "wisdom", "modifier"}] == 1
+      assert resolved[{"ability", "intelligence", "modifier"}] == 0
+      assert resolved[{"ability", "charisma", "modifier"}] == -1
+
+      # Verify skills inherit their ability modifier
+      assert resolved[{"skill", "athletics", "modifier"}] == 3
+      assert resolved[{"skill", "acrobatics", "modifier"}] == 2
+      assert resolved[{"skill", "arcana", "modifier"}] == 0
+
+      # Verify proficiency bonus base value
+      assert resolved[{"character_trait", "proficiency_bonus", "bonus"}] == 2
+
+      # Verify saving throws inherit their ability modifier
+      assert resolved[{"saving_throw", "strength", "modifier"}] == 3
+      assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
+      assert resolved[{"saving_throw", "constitution", "modifier"}] == 2
+      assert resolved[{"saving_throw", "wisdom", "modifier"}] == 1
+      assert resolved[{"saving_throw", "intelligence", "modifier"}] == 0
+      assert resolved[{"saving_throw", "charisma", "modifier"}] == -1
+    end
+
+    test "saving throw modifier increases when proficiency is applied as an effect" do
+      {:ok, loader_data} = Loader.load(dnd_path())
+      {:ok, system} = Graph.build(loader_data)
+
+      generated = %{
+        {"ability", "strength", "base_score"} => 16,
+        {"ability", "dexterity", "base_score"} => 14,
+        {"ability", "constitution", "base_score"} => 14,
+        {"ability", "wisdom", "base_score"} => 12,
+        {"ability", "intelligence", "base_score"} => 10,
+        {"ability", "charisma", "base_score"} => 8
+      }
+
+      # Proficiency bonus of +2 applied to strength saving throw
+      effects = [%{target: {"saving_throw", "strength", "modifier"}, value: 2}]
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      # strength modifier is 3, plus proficiency bonus of 2
+      assert resolved[{"saving_throw", "strength", "modifier"}] == 5
+      # other saving throws are unaffected
+      assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
+    end
   end
 end

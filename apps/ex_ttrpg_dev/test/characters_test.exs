@@ -1,7 +1,7 @@
 defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
   alias ExTTRPGDev.Characters
-  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.RuleSystems
 
   doctest ExTTRPGDev.Characters,
@@ -257,6 +257,50 @@ defmodule ExTTRPGDevTest.Characters do
                    &1.target == {"skill", "athletics", "modifier"} and
                    &1.value == "character_trait('proficiency_bonus').bonus")
              )
+    end
+
+    test "includes effects from inventory items with item_fields populated" do
+      system =
+        minimal_system(
+          [
+            %{
+              source: {"equipment", "longsword"},
+              target: {"character_trait", "ac", "value"},
+              value: 2,
+              when: "item.equipped"
+            }
+          ],
+          %{}
+        )
+
+      item = %InventoryItem{
+        concept_type: "equipment",
+        concept_id: "longsword",
+        fields: %{"equipped" => true}
+      }
+
+      character = %{minimal_character([]) | inventory: [item]}
+      effects = Characters.active_effects(system, character)
+
+      assert length(effects) == 1
+      [effect] = effects
+      assert effect.source == {"equipment", "longsword"}
+      assert effect.item_fields == %{"equipped" => true}
+    end
+
+    test "produces one effect entry per inventory item even for the same concept" do
+      system =
+        minimal_system(
+          [%{source: {"equipment", "shortsword"}, target: {"stat", "atk", "bonus"}, value: 1}],
+          %{}
+        )
+
+      item1 = %InventoryItem{concept_type: "equipment", concept_id: "shortsword", fields: %{}}
+      item2 = %InventoryItem{concept_type: "equipment", concept_id: "shortsword", fields: %{}}
+
+      character = %{minimal_character([]) | inventory: [item1, item2]}
+      effects = Characters.active_effects(system, character)
+      assert length(effects) == 2
     end
 
     test "does not generate effects for choices without contributes_field" do

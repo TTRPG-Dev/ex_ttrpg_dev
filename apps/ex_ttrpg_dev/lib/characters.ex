@@ -4,6 +4,7 @@ defmodule ExTTRPGDev.Characters do
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
+  alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
@@ -158,6 +159,7 @@ defmodule ExTTRPGDev.Characters do
       _ -> false
     end)
     |> Kernel.++(decision_effects)
+    |> Kernel.++(inventory_effects(system, character.inventory))
     |> Kernel.++(character.effects)
   end
 
@@ -317,6 +319,17 @@ defmodule ExTTRPGDev.Characters do
 
       _ ->
         []
+    end)
+  end
+
+  defp inventory_effects(%LoadedSystem{} = system, inventory) do
+    Enum.flat_map(inventory, fn %InventoryItem{} = item ->
+      system.effects
+      |> Enum.filter(fn
+        %{source: {type, id}} -> type == item.concept_type and id == item.concept_id
+        _ -> false
+      end)
+      |> Enum.map(&Map.put(&1, :item_fields, item.fields))
     end)
   end
 
