@@ -21,6 +21,9 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.list", "system": "dnd_5e_srd"}
       {"command": "characters.show", "character": "thorin-stoneback"}
       {"command": "characters.roll", "character": "thorin-stoneback", "type": "skill", "concept": "acrobatics"}
+      {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
+      {"command": "characters.choices", "character": "thorin-stoneback"}
+      {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
 
   Each response is a single line of JSON:
 
@@ -180,6 +183,106 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  defp handle(
+         %{
+           "command" => "characters.award",
+           "character" => slug,
+           "award" => award_id,
+           "value" => value
+         },
+         state
+       ) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      award_meta =
+        system.concept_metadata[{"award", award_id}] ||
+          raise("unknown award: #{inspect(award_id)}")
+
+      updated = apply_award!(character, award_meta, value)
+      Characters.save_character!(updated, true)
+
+      resolved = resolve_character(system, updated)
+      choices = Characters.pending_choices(system, updated, resolved)
+
+      data =
+        serialize_character(system, updated, slug)
+        |> Map.put(:pending_choices, serialize_choices_list(choices))
+
+      {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(%{"command" => "characters.choices", "character" => slug}, state) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      resolved = resolve_character(system, character)
+      choices = Characters.pending_choices(system, character, resolved)
+
+      {ok(%{pending_choices: serialize_choices_list(choices)}), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{
+           "command" => "characters.resolve_choice",
+           "character" => slug,
+           "progression" => progression_id,
+           "value" => value,
+           "selection" => selection
+         },
+         state
+       ) do
+    try do
+      unless is_integer(value), do: raise("value must be an integer")
+
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      parsed_target = load_progression_target!(system, progression_id)
+
+      choice_number =
+        Enum.count(character.decisions, fn
+          %{scope: {"character_progression", ^progression_id}} -> true
+          _ -> false
+        end) + 1
+
+      updated = %{
+        character
+        | effects: character.effects ++ [%{target: parsed_target, value: value}],
+          decisions:
+            character.decisions ++
+              [
+                %{
+                  scope: {"character_progression", progression_id},
+                  choice: "choice_#{choice_number}",
+                  selection: selection
+                }
+              ]
+      }
+
+      Characters.save_character!(updated, true)
+
+      resolved = resolve_character(system, updated)
+      choices = Characters.pending_choices(system, updated, resolved)
+
+      data =
+        serialize_character(system, updated, slug)
+        |> Map.put(:pending_choices, serialize_choices_list(choices))
+
+      {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => "characters.show", "character" => slug}, state) do
     try do
       character = Characters.load_character!(slug)
@@ -259,22 +362,25 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp serialize_character(%LoadedSystem{} = system, %Character{} = character, slug) do
     active = Characters.active_concepts(character.decisions, system.concept_metadata)
-
-    resolved =
-      system
-      |> Characters.active_effects(character)
-      |> then(&Evaluator.evaluate!(system, character.generated_values, &1))
-
+    resolved = resolve_character(system, character)
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
 
     %{
       name: character.name,
       rule_system: character.metadata.rule_system,
       slug: slug,
+      hit_die: get_hit_die(character, system.concept_metadata),
       choices: serialize_choices(system, character),
       proficiencies: serialize_proficiencies(system, character, active),
       concept_types: serialize_concept_type_values(system, resolved_by_concept)
     }
+  end
+
+  defp get_hit_die(character, concept_metadata) do
+    case Enum.find(character.decisions, &(&1.scope == nil and &1.choice == "class")) do
+      nil -> nil
+      %{selection: class_id} -> get_in(concept_metadata, [{"class", class_id}, "hit_die"])
+    end
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do
@@ -424,6 +530,50 @@ defmodule ExTTRPGDev.CLI.Server do
     do: "+#{value}"
 
   defp format_field_value(_field, value), do: "#{value}"
+
+  defp resolve_character(%LoadedSystem{} = system, %Character{} = character) do
+    system
+    |> Characters.active_effects(character)
+    |> then(&Evaluator.evaluate!(system, character.generated_values, &1))
+  end
+
+  defp load_progression_target!(%LoadedSystem{} = system, progression_id) do
+    meta =
+      system.concept_metadata[{"character_progression", progression_id}] ||
+        raise("unknown progression: #{inspect(progression_id)}")
+
+    effect_target = meta["effect_target"] || raise("progression has no effect_target")
+    parse_effect_target!(effect_target)
+  end
+
+  @effect_target_regex ~r/^(\w+)\('([^']+)'\)\.(\w+)$/
+
+  defp parse_effect_target!(target) do
+    case Regex.run(@effect_target_regex, target, capture: :all_but_first) do
+      [type_id, concept_id, field] -> {type_id, concept_id, field}
+      _ -> raise("invalid effect target: #{inspect(target)}")
+    end
+  end
+
+  defp apply_award!(character, %{"value_type" => "integer", "effect_target" => target}, value) do
+    unless is_integer(value), do: raise("value must be an integer for this award")
+    parsed_target = parse_effect_target!(target)
+    %{character | effects: character.effects ++ [%{target: parsed_target, value: value}]}
+  end
+
+  defp apply_award!(_character, %{"value_type" => value_type}, _value) do
+    raise("unsupported award value_type: #{inspect(value_type)}")
+  end
+
+  defp serialize_choices_list(choices) do
+    Enum.map(choices, fn
+      %{type: :pending} = c ->
+        %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll}
+
+      %{type: :available} = c ->
+        %{type: "available", id: c.id, name: c.name, roll: c.roll}
+    end)
+  end
 
   # --- Response helpers ---
 

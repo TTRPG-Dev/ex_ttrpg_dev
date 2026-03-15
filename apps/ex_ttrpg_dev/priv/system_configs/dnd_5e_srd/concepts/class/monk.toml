@@ -67,5 +67,9 @@ value = "character_trait('proficiency_bonus').bonus"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
 
+[[class.monk.contributes]]
+target = "character_trait('max_hit_points').points"
+value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
 [class.way_of_the_open_hand]
 name = "Way of the Open Hand"

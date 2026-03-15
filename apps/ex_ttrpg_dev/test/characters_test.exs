@@ -279,6 +279,204 @@ defmodule ExTTRPGDevTest.Characters do
     end
   end
 
+  describe "pending_choices/3" do
+    @level_binding %{{"character_trait", "character_level", "level"} => 3}
+
+    @hp_progression %{
+      "name" => "Hit Points",
+      "required_count" => "character_trait('character_level').level - 1",
+      "effect_target" => "character_trait('max_hit_points').points"
+    }
+
+    defp progression_system(progressions) do
+      minimal_system(
+        [],
+        Map.new(progressions, fn {id, meta} ->
+          {{"character_progression", id}, meta}
+        end)
+      )
+    end
+
+    test "returns empty list when no character_progression concepts exist" do
+      system = minimal_system([], %{})
+      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+    end
+
+    test "returns a pending entry when required slots exceed decisions made" do
+      system = progression_system(%{"hp_per_level" => @hp_progression})
+      # level 3 → required 2, decisions made 0 → 2 pending
+      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      assert entry.type == :pending
+      assert entry.id == "hp_per_level"
+      assert entry.name == "Hit Points"
+      assert entry.count == 2
+      assert entry.effect_target == "character_trait('max_hit_points').points"
+    end
+
+    test "reduces pending count by decisions already made for that progression" do
+      system = progression_system(%{"hp_per_level" => @hp_progression})
+
+      decisions = [
+        %{
+          scope: {"character_progression", "hp_per_level"},
+          choice: "choice_1",
+          selection: "rolled"
+        }
+      ]
+
+      # level 3 → required 2, made 1 → 1 pending
+      [entry] = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
+      assert entry.count == 1
+    end
+
+    test "returns empty when all required slots are filled" do
+      system = progression_system(%{"hp_per_level" => @hp_progression})
+
+      decisions = [
+        %{
+          scope: {"character_progression", "hp_per_level"},
+          choice: "choice_1",
+          selection: "rolled"
+        },
+        %{
+          scope: {"character_progression", "hp_per_level"},
+          choice: "choice_2",
+          selection: "average"
+        }
+      ]
+
+      # level 3 → required 2, made 2 → empty
+      assert Characters.pending_choices(system, minimal_character(decisions), @level_binding) ==
+               []
+    end
+
+    test "does not count decisions scoped to a different progression" do
+      system =
+        progression_system(%{"hp_per_level" => @hp_progression, "other" => @hp_progression})
+
+      decisions = [
+        %{scope: {"character_progression", "other"}, choice: "choice_1", selection: "rolled"}
+      ]
+
+      result = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
+      hp_entry = Enum.find(result, &(&1.id == "hp_per_level"))
+      assert hp_entry.count == 2
+    end
+
+    test "returns empty for required_count when formula binding is missing" do
+      system = progression_system(%{"hp_per_level" => @hp_progression})
+      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+    end
+
+    test "returns an available entry when available_when is truthy" do
+      progression = %{
+        "name" => "Spend XP",
+        "available_when" => "character_trait('experience_points').total",
+        "effect_target" => "skill('athletics').modifier"
+      }
+
+      system = progression_system(%{"spend_xp" => progression})
+      resolved = %{{"character_trait", "experience_points", "total"} => 100}
+      [entry] = Characters.pending_choices(system, minimal_character([]), resolved)
+      assert entry.type == :available
+      assert entry.id == "spend_xp"
+      assert entry.effect_target == "skill('athletics').modifier"
+    end
+
+    test "returns empty when available_when evaluates to 0" do
+      progression = %{
+        "name" => "Spend XP",
+        "available_when" => "character_trait('experience_points').total",
+        "effect_target" => "skill('athletics').modifier"
+      }
+
+      system = progression_system(%{"spend_xp" => progression})
+      resolved = %{{"character_trait", "experience_points", "total"} => 0}
+      assert Characters.pending_choices(system, minimal_character([]), resolved) == []
+    end
+
+    test "returns empty when available_when evaluates to false" do
+      progression = %{
+        "name" => "Spend XP",
+        "available_when" => "character_trait('experience_points').total > 0",
+        "effect_target" => "skill('athletics').modifier"
+      }
+
+      system = progression_system(%{"spend_xp" => progression})
+      resolved = %{{"character_trait", "experience_points", "total"} => 0}
+      assert Characters.pending_choices(system, minimal_character([]), resolved) == []
+    end
+
+    test "returns empty for available_when when formula binding is missing" do
+      progression = %{
+        "available_when" => "character_trait('experience_points').total",
+        "effect_target" => "skill('athletics').modifier"
+      }
+
+      system = progression_system(%{"spend_xp" => progression})
+      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+    end
+
+    test "returns empty when progression has neither required_count nor available_when" do
+      progression = %{
+        "name" => "Inert",
+        "effect_target" => "character_trait('max_hit_points').points"
+      }
+
+      system = progression_system(%{"inert" => progression})
+      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+    end
+
+    test "falls back to id as name when name is not present" do
+      progression = Map.delete(@hp_progression, "name")
+      system = progression_system(%{"hp_per_level" => progression})
+      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      assert entry.name == "hp_per_level"
+    end
+
+    test "resolves roll_reference from the character's active root decision" do
+      concept_metadata = %{
+        {"character_progression", "hp_per_level"} =>
+          Map.put(@hp_progression, "roll_reference", "class.hit_die"),
+        {"class", "fighter"} => %{"hit_die" => "d10"}
+      }
+
+      system = minimal_system([], concept_metadata)
+      decisions = [%{scope: nil, choice: "class", selection: "fighter"}]
+      [entry] = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
+      assert entry.roll == "d10"
+    end
+
+    test "roll is nil when roll_reference has no matching decision on the character" do
+      concept_metadata = %{
+        {"character_progression", "hp_per_level"} =>
+          Map.put(@hp_progression, "roll_reference", "class.hit_die")
+      }
+
+      system = minimal_system([], concept_metadata)
+      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      assert entry.roll == nil
+    end
+
+    test "roll is nil when no roll_reference is declared" do
+      system = progression_system(%{"hp_per_level" => @hp_progression})
+      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      assert entry.roll == nil
+    end
+
+    test "returns entries for multiple progressions" do
+      other = %{
+        "name" => "Other",
+        "required_count" => "character_trait('character_level').level - 1",
+        "effect_target" => "skill('athletics').modifier"
+      }
+
+      system = progression_system(%{"hp_per_level" => @hp_progression, "other" => other})
+      result = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      assert Enum.map(result, & &1.id) |> Enum.sort() == ["hp_per_level", "other"]
+    end
+  end
+
   describe "concept_roll!/4" do
     setup do
       system = RuleSystems.load_system!("dnd_5e_srd")

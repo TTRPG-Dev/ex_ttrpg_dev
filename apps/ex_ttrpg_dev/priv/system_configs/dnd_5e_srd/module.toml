@@ -53,3 +53,11 @@ name = "Background"
 [[concept_type]]
 id = "class"
 name = "Class"
+
+[[concept_type]]
+id = "character_progression"
+name = "Character Progression"
+
+[[concept_type]]
+id = "award"
+name = "Award"

@@ -52,6 +52,9 @@ static COMMANDS: &[&str] = &[
     "characters list",
     "characters show",
     "characters roll",
+    "characters award",
+    "characters choices",
+    "characters resolve_choice",
     "help",
     "exit",
     "quit",
@@ -146,6 +149,22 @@ struct CharacterData {
     choices: Vec<ChoiceEntry>,
     proficiencies: Proficiencies,
     concept_types: Vec<ConceptTypeValues>,
+    pending_choices: Option<Vec<PendingChoice>>,
+}
+
+#[derive(Deserialize)]
+struct PendingChoice {
+    #[serde(rename = "type")]
+    choice_type: String,
+    id: String,
+    name: String,
+    count: Option<i64>,
+    roll: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ChoicesResponse {
+    pending_choices: Vec<PendingChoice>,
 }
 
 #[derive(Deserialize)]
@@ -366,8 +385,11 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             }
         }
         ["roll", slug, type_id, concept_id] => handle_characters_roll(slug, type_id, concept_id, engine),
+        ["award", slug, award_id, value] => handle_characters_award(slug, award_id, value, engine),
+        ["choices", slug] => handle_characters_choices(slug, engine),
+        ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         _ => eprintln!(
-            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>"
+            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n       characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>"
         ),
     }
 }
@@ -419,6 +441,168 @@ fn handle_characters_roll(slug: &str, type_id: &str, concept_id: &str, engine: &
     }
 }
 
+fn handle_characters_award(slug: &str, award_id: &str, value_str: &str, engine: &mut Engine) {
+    // Send value as integer if it parses as one, otherwise as a string.
+    // The server uses the award's value_type to validate; string values support
+    // future award types (equipment IDs, feat names, etc.).
+    let req = if let Ok(n) = value_str.parse::<i64>() {
+        json!({"command": "characters.award", "character": slug, "award": award_id, "value": n})
+    } else {
+        json!({"command": "characters.award", "character": slug, "award": award_id, "value": value_str})
+    };
+    match engine.call::<_, CharacterData>(&req) {
+        Ok(c) => {
+            print_character(&c);
+            if let Some(choices) = &c.pending_choices {
+                print_pending_choices(choices);
+            }
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_choices(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.choices", "character": slug});
+    match engine.call::<_, ChoicesResponse>(&req) {
+        Ok(r) => {
+            if r.pending_choices.is_empty() {
+                println!("No pending choices.");
+            } else {
+                print_pending_choices(&r.pending_choices);
+            }
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_resolve_choice(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.choices", "character": slug});
+    let choices = match engine.call::<_, ChoicesResponse>(&req) {
+        Ok(r) => r.pending_choices,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return;
+        }
+    };
+
+    let Some(choice) = select_pending_choice(&choices) else {
+        return;
+    };
+
+    let Some((value, selection)) = prompt_choice_value(choice, engine) else {
+        return;
+    };
+
+    let req = json!({
+        "command": "characters.resolve_choice",
+        "character": slug,
+        "progression": choice.id,
+        "value": value,
+        "selection": selection,
+    });
+    match engine.call::<_, CharacterData>(&req) {
+        Ok(c) => {
+            print_character(&c);
+            if let Some(remaining) = &c.pending_choices
+                && !remaining.is_empty()
+            {
+                print_pending_choices(remaining);
+            }
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn print_pending_choices(choices: &[PendingChoice]) {
+    println!("\nPending choices:");
+    for c in choices {
+        let roll_info = c
+            .roll
+            .as_deref()
+            .map(|r| format!(" ({})", r))
+            .unwrap_or_default();
+        match c.choice_type.as_str() {
+            "pending" => {
+                let count = c.count.unwrap_or(1);
+                println!(
+                    "  • {} — {} remaining{}",
+                    c.name,
+                    count,
+                    roll_info
+                );
+            }
+            _ => println!("  • {}{} (available)", c.name, roll_info),
+        }
+    }
+    println!("  Use `characters resolve_choice <slug>` to resolve.");
+}
+
+fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
+    if choices.is_empty() {
+        println!("No pending choices to resolve.");
+        return None;
+    }
+    if choices.len() == 1 {
+        return Some(&choices[0]);
+    }
+    println!("Pending choices:");
+    for (i, c) in choices.iter().enumerate() {
+        println!("  {}: {}", i + 1, c.name);
+    }
+    let idx = prompt_integer("Select choice (number):") as usize;
+    match choices.get(idx.saturating_sub(1)) {
+        Some(c) => Some(c),
+        None => {
+            eprintln!("Invalid selection.");
+            None
+        }
+    }
+}
+
+fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {
+    let Some(die) = &choice.roll else {
+        let v = prompt_integer(&format!("Value for {}:", choice.name));
+        return Some((v, "manual".to_string()));
+    };
+
+    let sides: i64 = die.trim_start_matches('d').parse().unwrap_or(8);
+    let average = sides / 2 + 1;
+    println!("\nResolving: {} ({})", choice.name, die);
+    println!("Average HP (no roll): {average}");
+
+    if !prompt_yes_no(&format!("Roll {die} for HP? (no = take average of {average})")) {
+        return Some((average, "average".to_string()));
+    }
+
+    let roll_req = json!({"command": "roll", "dice": format!("1{die}")});
+    match engine.call::<_, RollResult>(&roll_req) {
+        Ok(result) => {
+            let rolled = result.results[0].total;
+            println!("Rolled: {rolled}");
+            Some((rolled, "rolled".to_string()))
+        }
+        Err(e) => {
+            eprintln!("Error rolling: {e}");
+            None
+        }
+    }
+}
+
+fn prompt_integer(question: &str) -> i64 {
+    use std::io::{self, BufRead};
+    loop {
+        print!("{question} ");
+        let _ = std::io::Write::flush(&mut io::stdout());
+        let stdin = io::stdin();
+        if let Some(Ok(line)) = stdin.lock().lines().next()
+            && let Ok(n) = line.trim().parse::<i64>()
+        {
+            return n;
+        }
+        eprintln!("Please enter a valid number.");
+    }
+}
+
 fn prompt_yes_no(question: &str) -> bool {
     use std::io::{self, BufRead};
     print!("(y/n) {question} ");
@@ -435,17 +619,20 @@ fn print_help() {
     println!(
         r#"
 Commands:
-  roll <dice>                              Roll dice, e.g. roll 3d6, 1d20
-  systems list                             List configured rule systems
-  systems show <system>                    Show system info
-  systems show <system> --concept-type <t> List concepts of a type
-  characters gen <system>                  Generate a character
-  characters list                          List saved characters
-  characters list --system <system>        List characters for a system
-  characters show <slug>                   Show a saved character
-  characters roll <slug> <type> <concept>  Roll for a character concept
-  help                                     Show this help
-  exit / quit                              Exit
+  roll <dice>                                            Roll dice, e.g. roll 3d6, 1d20
+  systems list                                           List configured rule systems
+  systems show <system>                                  Show system info
+  systems show <system> --concept-type <t>               List concepts of a type
+  characters gen <system>                                Generate a character
+  characters list                                        List saved characters
+  characters list --system <system>                      List characters for a system
+  characters show <slug>                                 Show a saved character
+  characters roll <slug> <type> <concept>                Roll for a character concept
+  characters award <slug> <award_id> <value>             Award something to a character
+  characters choices <slug>                              Show pending progression choices
+  characters resolve_choice <slug>                       Interactively resolve a pending choice
+  help                                                   Show this help
+  exit / quit                                            Exit
 "#
     );
 }
