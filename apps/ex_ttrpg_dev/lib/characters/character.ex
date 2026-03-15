@@ -1,6 +1,6 @@
 defmodule ExTTRPGDev.Characters.Character do
   alias __MODULE__
-  alias ExTTRPGDev.Characters.Metadata
+  alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -12,9 +12,11 @@ defmodule ExTTRPGDev.Characters.Character do
     for currently active items, feats, statuses etc. (defaults to [])
   - `decisions` — list of `%{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
     recording each concept selection made during character creation (defaults to [])
+  - `inventory` — list of `%InventoryItem{}` representing items the character is carrying
+    (defaults to [])
   """
   @type t :: %__MODULE__{}
-  defstruct [:name, :generated_values, :metadata, effects: [], decisions: []]
+  defstruct [:name, :generated_values, :metadata, effects: [], decisions: [], inventory: []]
 
   @doc """
   Generates a character for the given loaded rule system.
@@ -36,6 +38,7 @@ defmodule ExTTRPGDev.Characters.Character do
       generated_values: generated_values,
       effects: [],
       decisions: decisions,
+      inventory: [],
       metadata: %Metadata{
         slug: slugify(character_name),
         rule_system: system.module.slug
@@ -58,6 +61,14 @@ defmodule ExTTRPGDev.Characters.Character do
       "effects" =>
         Enum.map(char.effects, fn %{target: {type, id, field}, value: v} ->
           %{"target" => "#{type}:#{id}:#{field}", "value" => v}
+        end),
+      "inventory" =>
+        Enum.map(char.inventory, fn %InventoryItem{} = item ->
+          %{
+            "concept_type" => item.concept_type,
+            "concept_id" => item.concept_id,
+            "fields" => item.fields
+          }
         end),
       "decisions" => Enum.map(char.decisions, &serialize_decision/1),
       "metadata" => %{
@@ -85,12 +96,22 @@ defmodule ExTTRPGDev.Characters.Character do
         %{target: {type, id, field}, value: v}
       end)
 
+    inventory =
+      Enum.map(map["inventory"] || [], fn item ->
+        %InventoryItem{
+          concept_type: item["concept_type"],
+          concept_id: item["concept_id"],
+          fields: item["fields"] || %{}
+        }
+      end)
+
     decisions = Enum.map(map["decisions"] || [], &deserialize_decision/1)
 
     %Character{
       name: map["name"],
       generated_values: generated_values,
       effects: effects,
+      inventory: inventory,
       decisions: decisions,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],

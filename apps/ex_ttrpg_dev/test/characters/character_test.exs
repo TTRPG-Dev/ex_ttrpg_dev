@@ -1,6 +1,6 @@
 defmodule ExTTRPGDevTest.Characters.Character do
   use ExUnit.Case
-  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.RuleSystems
 
   doctest ExTTRPGDev.Characters.Character,
@@ -20,6 +20,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert character.metadata.rule_system == "dnd_5e_srd"
     assert character.effects == []
     assert character.decisions == []
+    assert character.inventory == []
   end
 
   test "gen_character!/2 stores provided decisions" do
@@ -61,6 +62,33 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert restored.generated_values == original.generated_values
     assert restored.effects == original.effects
     assert restored.decisions == original.decisions
+    assert restored.inventory == original.inventory
+  end
+
+  test "to_json_map/1 and from_json!/1 round-trip preserves inventory" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    original = Character.gen_character!(system)
+
+    original = %{
+      original
+      | inventory: [
+          %InventoryItem{
+            concept_type: "equipment",
+            concept_id: "longsword",
+            fields: %{"equipped" => true, "condition" => 0.8}
+          }
+        ]
+    }
+
+    json = original |> Character.to_json_map() |> Poison.encode!()
+    restored = Character.from_json!(json)
+
+    assert length(restored.inventory) == 1
+    [item] = restored.inventory
+    assert item.concept_type == "equipment"
+    assert item.concept_id == "longsword"
+    assert item.fields["equipped"] == true
+    assert item.fields["condition"] == 0.8
   end
 
   test "to_json_map/1 and from_json!/1 round-trip preserves decisions" do
