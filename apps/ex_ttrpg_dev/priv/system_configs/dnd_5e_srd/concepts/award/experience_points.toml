@@ -1,0 +1,4 @@
+[award.experience_points]
+name = "Experience Points"
+value_type = "integer"
+effect_target = "character_trait('experience_points').total"

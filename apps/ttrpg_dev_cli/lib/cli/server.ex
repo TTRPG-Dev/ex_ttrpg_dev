@@ -21,7 +21,7 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.list", "system": "dnd_5e_srd"}
       {"command": "characters.show", "character": "thorin-stoneback"}
       {"command": "characters.roll", "character": "thorin-stoneback", "type": "skill", "concept": "acrobatics"}
-      {"command": "characters.add_effect", "character": "thorin-stoneback", "target": "character_trait('experience_points').total", "value": 300}
+      {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
       {"command": "characters.choices", "character": "thorin-stoneback"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
 
@@ -185,26 +185,22 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp handle(
          %{
-           "command" => "characters.add_effect",
+           "command" => "characters.award",
            "character" => slug,
-           "target" => target,
+           "award" => award_id,
            "value" => value
          },
          state
        ) do
     try do
-      unless is_integer(value), do: raise("value must be an integer")
-
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      parsed_target = parse_effect_target!(target)
+      award_meta =
+        system.concept_metadata[{"award", award_id}] ||
+          raise("unknown award: #{inspect(award_id)}")
 
-      updated = %{
-        character
-        | effects: character.effects ++ [%{target: parsed_target, value: value}]
-      }
-
+      updated = apply_award!(character, award_meta, value)
       Characters.save_character!(updated, true)
 
       resolved = resolve_character(system, updated)
@@ -557,6 +553,16 @@ defmodule ExTTRPGDev.CLI.Server do
       [type_id, concept_id, field] -> {type_id, concept_id, field}
       _ -> raise("invalid effect target: #{inspect(target)}")
     end
+  end
+
+  defp apply_award!(character, %{"value_type" => "integer", "effect_target" => target}, value) do
+    unless is_integer(value), do: raise("value must be an integer for this award")
+    parsed_target = parse_effect_target!(target)
+    %{character | effects: character.effects ++ [%{target: parsed_target, value: value}]}
+  end
+
+  defp apply_award!(_character, %{"value_type" => value_type}, _value) do
+    raise("unsupported award value_type: #{inspect(value_type)}")
   end
 
   defp serialize_choices_list(choices) do

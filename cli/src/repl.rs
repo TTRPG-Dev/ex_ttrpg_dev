@@ -52,7 +52,7 @@ static COMMANDS: &[&str] = &[
     "characters list",
     "characters show",
     "characters roll",
-    "characters add_effect",
+    "characters award",
     "characters choices",
     "characters resolve_choice",
     "help",
@@ -385,14 +385,11 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             }
         }
         ["roll", slug, type_id, concept_id] => handle_characters_roll(slug, type_id, concept_id, engine),
-        ["add_effect", slug, type_id, concept_id, field, value] => {
-            let target = format!("{type_id}('{concept_id}').{field}");
-            handle_characters_add_effect(slug, &target, value, engine);
-        }
+        ["award", slug, award_id, value] => handle_characters_award(slug, award_id, value, engine),
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         _ => eprintln!(
-            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n       characters add_effect <slug> <type_id> <concept_id> <field> <value>\n       characters choices <slug> | resolve_choice <slug>"
+            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n       characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>"
         ),
     }
 }
@@ -444,20 +441,15 @@ fn handle_characters_roll(slug: &str, type_id: &str, concept_id: &str, engine: &
     }
 }
 
-fn handle_characters_add_effect(slug: &str, target: &str, value_str: &str, engine: &mut Engine) {
-    let value: i64 = match value_str.parse() {
-        Ok(v) => v,
-        Err(_) => {
-            eprintln!("Error: value must be an integer");
-            return;
-        }
+fn handle_characters_award(slug: &str, award_id: &str, value_str: &str, engine: &mut Engine) {
+    // Send value as integer if it parses as one, otherwise as a string.
+    // The server uses the award's value_type to validate; string values support
+    // future award types (equipment IDs, feat names, etc.).
+    let req = if let Ok(n) = value_str.parse::<i64>() {
+        json!({"command": "characters.award", "character": slug, "award": award_id, "value": n})
+    } else {
+        json!({"command": "characters.award", "character": slug, "award": award_id, "value": value_str})
     };
-    let req = json!({
-        "command": "characters.add_effect",
-        "character": slug,
-        "target": target,
-        "value": value,
-    });
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => {
             print_character(&c);
@@ -636,7 +628,7 @@ Commands:
   characters list --system <system>                      List characters for a system
   characters show <slug>                                 Show a saved character
   characters roll <slug> <type> <concept>                Roll for a character concept
-  characters add_effect <slug> <type> <id> <field> <n>   Add an effect to a character
+  characters award <slug> <award_id> <value>             Award something to a character
   characters choices <slug>                              Show pending progression choices
   characters resolve_choice <slug>                       Interactively resolve a pending choice
   help                                                   Show this help
