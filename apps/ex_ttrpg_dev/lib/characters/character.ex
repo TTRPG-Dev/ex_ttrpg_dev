@@ -2,6 +2,7 @@ defmodule ExTTRPGDev.Characters.Character do
   alias __MODULE__
   alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
   alias ExTTRPGDev.Dice
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @moduledoc """
@@ -22,6 +23,10 @@ defmodule ExTTRPGDev.Characters.Character do
   Generates a character for the given loaded rule system.
   Rolls dice for all generated nodes using the system's rolling methods.
   Accepts a list of decisions representing concept selections made during character creation.
+
+  If any chosen concepts (race, class, background, etc.) declare `starting_equipment`,
+  those items are automatically added to the character's inventory with default field values
+  from the system's inventory schema.
   """
   def gen_character!(%LoadedSystem{} = system, decisions \\ []) do
     character_name = Faker.Person.name()
@@ -33,12 +38,14 @@ defmodule ExTTRPGDev.Characters.Character do
         {node_key, roll_generated_value(node, system.rolling_methods)}
       end)
 
+    starting_inventory = starting_inventory_from_decisions(decisions, system)
+
     %Character{
       name: character_name,
       generated_values: generated_values,
       effects: [],
       decisions: decisions,
-      inventory: [],
+      inventory: starting_inventory,
       metadata: %Metadata{
         slug: slugify(character_name),
         rule_system: system.module.slug
@@ -136,6 +143,28 @@ defmodule ExTTRPGDev.Characters.Character do
     [type, id] = String.split(scope_str, ":", parts: 2)
     %{scope: {type, id}, choice: choice, selection: selection}
   end
+
+  defp starting_inventory_from_decisions(decisions, system) do
+    decisions
+    |> Enum.filter(&(&1.scope == nil))
+    |> Enum.flat_map(fn %{choice: type, selection: id} ->
+      system.concept_metadata
+      |> Map.get({type, id}, %{})
+      |> Map.get("starting_equipment", [])
+      |> Enum.flat_map(&item_from_spec(&1, system.inventory_rules))
+    end)
+  end
+
+  defp item_from_spec(%{"type" => type, "id" => id} = spec, %InventoryRules{} = inventory_rules) do
+    custom_fields = Map.get(spec, "fields", %{})
+
+    case InventoryItem.new(type, id, inventory_rules, custom_fields) do
+      {:ok, item} -> [item]
+      _ -> []
+    end
+  end
+
+  defp item_from_spec(_, _), do: []
 
   defp roll_generated_value(%{method: method_id}, rolling_methods) do
     method = Map.get(rolling_methods, method_id || "standard")

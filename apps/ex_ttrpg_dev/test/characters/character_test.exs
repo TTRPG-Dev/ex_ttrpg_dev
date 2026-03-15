@@ -49,6 +49,55 @@ defmodule ExTTRPGDevTest.Characters.Character do
     end
   end
 
+  test "gen_character!/2 populates inventory from starting_equipment on chosen concepts" do
+    {:ok, inventory_rules} =
+      ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
+        "inventory" => %{"inventoriable_types" => ["equipment"]},
+        "inventory_item_schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+      })
+
+    system =
+      RuleSystems.load_system!("dnd_5e_srd")
+      |> Map.put(:inventory_rules, inventory_rules)
+      |> Map.put(:concept_metadata, %{
+        {"class", "fighter"} => %{
+          "name" => "Fighter",
+          "starting_equipment" => [
+            %{"type" => "equipment", "id" => "chain_mail"},
+            %{"type" => "equipment", "id" => "longsword", "fields" => %{"equipped" => true}}
+          ]
+        }
+      })
+
+    decisions = [%{scope: nil, choice: "class", selection: "fighter"}]
+    character = Character.gen_character!(system, decisions)
+
+    assert length(character.inventory) == 2
+    chain_mail = Enum.find(character.inventory, &(&1.concept_id == "chain_mail"))
+    longsword = Enum.find(character.inventory, &(&1.concept_id == "longsword"))
+
+    assert chain_mail.concept_type == "equipment"
+    assert chain_mail.fields["equipped"] == false
+    assert longsword.fields["equipped"] == true
+  end
+
+  test "gen_character!/2 ignores starting_equipment for non-inventoriable types" do
+    {:ok, empty_rules} = ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{})
+
+    system =
+      RuleSystems.load_system!("dnd_5e_srd")
+      |> Map.put(:inventory_rules, empty_rules)
+      |> Map.put(:concept_metadata, %{
+        {"class", "fighter"} => %{
+          "starting_equipment" => [%{"type" => "equipment", "id" => "longsword"}]
+        }
+      })
+
+    decisions = [%{scope: nil, choice: "class", selection: "fighter"}]
+    character = Character.gen_character!(system, decisions)
+    assert character.inventory == []
+  end
+
   test "to_json_map/1 and from_json!/1 round-trip correctly" do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)
