@@ -155,6 +155,40 @@ defmodule ExTTRPGDevTest.Characters do
       refute root_race.selection in subraces
     end
 
+    test "equipment choices (grants_to: inventory) produce a decision but do not recurse", %{
+      system: system
+    } do
+      concept_metadata =
+        Map.put(system.concept_metadata, {"class", "fighter"}, %{
+          "choices" => %{
+            "starting_weapon" => %{
+              "type" => "equipment",
+              "grants_to" => "inventory",
+              "options" => ["longsword", "shortsword"]
+            }
+          }
+        })
+
+      system = %{system | concept_metadata: concept_metadata}
+
+      for _ <- 1..10 do
+        decisions = Characters.random_decisions(system)
+
+        weapon_decision =
+          Enum.find(decisions, fn d ->
+            d.scope != nil and elem(d.scope, 0) == "class" and d.choice == "starting_weapon"
+          end)
+
+        if weapon_decision do
+          assert weapon_decision.selection in ["longsword", "shortsword"]
+          # The selected equipment id should not appear as a scope in any decision
+          refute Enum.any?(decisions, fn d ->
+                   d.scope != nil and elem(d.scope, 1) == weapon_decision.selection
+                 end)
+        end
+      end
+    end
+
     test "races with subraces produce a subrace decision", %{system: system} do
       races_with_subraces = ~w[dwarf elf halfling gnome]
 

@@ -98,6 +98,40 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert character.inventory == []
   end
 
+  test "gen_character!/2 adds inventory item for equipment choice decision" do
+    {:ok, inventory_rules} =
+      ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
+        "inventory" => %{"inventoriable_types" => ["equipment"]},
+        "inventory_item_schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+      })
+
+    system =
+      RuleSystems.load_system!("dnd_5e_srd")
+      |> Map.put(:inventory_rules, inventory_rules)
+      |> Map.put(:concept_metadata, %{
+        {"class", "fighter"} => %{
+          "choices" => %{
+            "starting_weapon" => %{
+              "type" => "equipment",
+              "grants_to" => "inventory",
+              "options" => ["longsword", "shortsword"]
+            }
+          }
+        }
+      })
+
+    decisions = [
+      %{scope: {"class", "fighter"}, choice: "starting_weapon", selection: "longsword"}
+    ]
+
+    character = Character.gen_character!(system, decisions)
+
+    assert length(character.inventory) == 1
+    [item] = character.inventory
+    assert item.concept_type == "equipment"
+    assert item.concept_id == "longsword"
+  end
+
   test "to_json_map/1 and from_json!/1 round-trip correctly" do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)

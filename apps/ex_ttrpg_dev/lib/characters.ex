@@ -355,7 +355,12 @@ defmodule ExTTRPGDev.Characters do
       sub_type = choice_def["type"]
       selected = Enum.random(choice_def["options"])
       decision = %{scope: {type_id, concept_id}, choice: choice_id, selection: selected}
-      [decision | random_sub_decisions(concept_metadata, {sub_type, selected})]
+
+      if Map.get(choice_def, "grants_to") == "inventory" do
+        [decision]
+      else
+        [decision | random_sub_decisions(concept_metadata, {sub_type, selected})]
+      end
     end)
   end
 

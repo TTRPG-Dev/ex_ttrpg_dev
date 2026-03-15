@@ -145,6 +145,12 @@ defmodule ExTTRPGDev.Characters.Character do
   end
 
   defp starting_inventory_from_decisions(decisions, system) do
+    static = starting_equipment_items(decisions, system)
+    chosen = equipment_choice_items(decisions, system)
+    static ++ chosen
+  end
+
+  defp starting_equipment_items(decisions, system) do
     decisions
     |> Enum.filter(&(&1.scope == nil))
     |> Enum.flat_map(fn %{choice: type, selection: id} ->
@@ -152,6 +158,27 @@ defmodule ExTTRPGDev.Characters.Character do
       |> Map.get({type, id}, %{})
       |> Map.get("starting_equipment", [])
       |> Enum.flat_map(&item_from_spec(&1, system.inventory_rules))
+    end)
+  end
+
+  defp equipment_choice_items(decisions, system) do
+    Enum.flat_map(decisions, fn
+      %{scope: {type, id}, choice: choice_id, selection: selected} ->
+        choice_def =
+          system.concept_metadata
+          |> Map.get({type, id}, %{})
+          |> Map.get("choices", %{})
+          |> Map.get(choice_id, %{})
+
+        if Map.get(choice_def, "grants_to") == "inventory" do
+          item_type = choice_def["type"]
+          item_from_spec(%{"type" => item_type, "id" => selected}, system.inventory_rules)
+        else
+          []
+        end
+
+      _ ->
+        []
     end)
   end
 
