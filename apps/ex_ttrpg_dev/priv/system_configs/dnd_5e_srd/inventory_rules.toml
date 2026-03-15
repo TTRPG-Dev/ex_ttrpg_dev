@@ -1,0 +1,16 @@
+[inventory]
+inventoriable_types = ["equipment"]
+
+# Fields present on every inventory item instance.
+# Rule system TOML can reference these in `when` conditions and `value`
+# formulas via `item.<field_name>` (e.g. `when = "item.equipped"`).
+
+[inventory_item_schema.equipped]
+type = "boolean"
+default = false
+
+[inventory_item_schema.condition]
+type = "float"
+default = 1.0
+min = 0.0
+max = 1.0

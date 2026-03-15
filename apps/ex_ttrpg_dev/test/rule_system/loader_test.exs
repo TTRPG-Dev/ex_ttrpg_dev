@@ -148,10 +148,13 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end)
   end
 
-  test "load/1 returns empty inventory_rules when inventory_rules.toml is absent" do
+  test "load/1 returns inventory_rules for dnd_5e_srd" do
     assert {:ok, data} = Loader.load(dnd_path())
     assert %InventoryRules{} = data.inventory_rules
-    refute InventoryRules.inventoriable?(data.inventory_rules, "equipment")
+    assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
+    refute InventoryRules.inventoriable?(data.inventory_rules, "language")
+    assert Map.has_key?(data.inventory_rules.schema, "equipped")
+    assert Map.has_key?(data.inventory_rules.schema, "condition")
   end
 
   test "load/1 parses inventory_rules.toml when present" do
@@ -396,6 +399,24 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     for subrace <- subraces do
       assert Map.has_key?(data.concept_metadata, {"race", subrace}), "Missing subrace: #{subrace}"
     end
+  end
+
+  test "load/1 parses fighter starting_weapon as an equipment choice granting inventory" do
+    {:ok, data} = Loader.load(dnd_path())
+    fighter = data.concept_metadata[{"class", "fighter"}]
+    weapon_choice = fighter["choices"]["starting_weapon"]
+    assert weapon_choice["grants_to"] == "inventory"
+    assert weapon_choice["type"] == "equipment"
+    assert "longsword" in weapon_choice["options"]
+  end
+
+  test "load/1 parses acolyte static starting_equipment" do
+    {:ok, data} = Loader.load(dnd_path())
+    acolyte = data.concept_metadata[{"background", "acolyte"}]
+    equipment = acolyte["starting_equipment"]
+    assert is_list(equipment)
+    assert Enum.any?(equipment, &(&1["id"] == "holy_symbol_amulet"))
+    assert Enum.any?(equipment, &(&1["id"] == "backpack"))
   end
 
   test "load/1 parses choices into race metadata" do

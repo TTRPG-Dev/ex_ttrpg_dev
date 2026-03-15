@@ -4,6 +4,27 @@ hit_die = "d10"
 armor_proficiencies = ["light_armor", "medium_armor", "heavy_armor", "shields"]
 weapon_proficiencies = ["simple_weapons", "martial_weapons"]
 
+# Starting equipment choices (per D&D 5e SRD)
+[class.fighter.choices.starting_armor]
+required = true
+type = "equipment"
+grants_to = "inventory"
+options = ["chain_mail", "leather_armor"]
+
+[class.fighter.choices.starting_weapon]
+required = true
+type = "equipment"
+grants_to = "inventory"
+options = [
+  "longsword",
+  "battleaxe",
+  "flail",
+  "handaxe",
+  "mace",
+  "shortsword",
+  "warhammer",
+]
+
 [class.fighter.choices.subclass]
 required = true
 type = "class"

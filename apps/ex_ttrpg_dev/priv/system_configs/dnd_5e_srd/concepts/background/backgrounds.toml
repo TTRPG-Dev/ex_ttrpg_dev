@@ -2,6 +2,14 @@
 name = "Acolyte"
 skill_proficiencies = ["insight", "religion"]
 
+[[background.acolyte.starting_equipment]]
+type = "equipment"
+id = "holy_symbol_amulet"
+
+[[background.acolyte.starting_equipment]]
+type = "equipment"
+id = "backpack"
+
 [background.acolyte.choices.language_1]
 required = true
 type = "language"
