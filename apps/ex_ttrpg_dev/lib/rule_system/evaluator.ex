@@ -73,12 +73,31 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
     end
   end
 
-  defp apply_effect(%{value: v}, {:ok, acc}, resolved) do
-    case resolve_effect_value(v, resolved) do
-      {:ok, n} -> {:cont, {:ok, acc + n}}
+  defp apply_effect(effect, {:ok, acc}, resolved) do
+    condition = Map.get(effect, :when)
+
+    with {:ok, true} <- evaluate_condition(condition, resolved),
+         {:ok, n} <- resolve_effect_value(effect.value, resolved) do
+      {:cont, {:ok, acc + n}}
+    else
+      {:ok, false} -> {:cont, {:ok, acc}}
       error -> {:halt, error}
     end
   end
+
+  defp evaluate_condition(nil, _resolved), do: {:ok, true}
+
+  defp evaluate_condition(formula, resolved) when is_binary(formula) do
+    case Expression.evaluate(formula, resolved) do
+      {:ok, result} -> {:ok, truthy?(result)}
+      error -> error
+    end
+  end
+
+  defp truthy?(true), do: true
+  defp truthy?(false), do: false
+  defp truthy?(n) when is_number(n), do: n != 0
+  defp truthy?(_), do: false
 
   defp resolve_effect_value(value, _resolved) when is_number(value), do: {:ok, value}
 

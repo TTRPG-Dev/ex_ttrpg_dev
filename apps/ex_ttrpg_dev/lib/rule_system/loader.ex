@@ -164,13 +164,13 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     }
   end
 
-  defp parse_effect(source, %{"target" => target, "value" => value}) do
+  defp parse_effect(source, %{"target" => target, "value" => value} = entry) do
     parsed_target =
       case Regex.run(~r/(\w+)\('([^']+)'\)\.(\w+)/, target) do
         [_, type_id, concept_id, field_name] -> {type_id, concept_id, field_name}
         _ -> target
       end
 
-    %{source: source, target: parsed_target, value: value}
+    %{source: source, target: parsed_target, value: value, when: Map.get(entry, "when")}
   end
 end

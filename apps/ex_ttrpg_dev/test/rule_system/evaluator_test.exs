@@ -133,6 +133,80 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"save", "strength", "modifier"}] == 5
   end
 
+  test "evaluate/3 skips effect when `when` condition evaluates to false" do
+    system = minimal_system()
+    generated = %{{"attr", "strength", "base_score"} => 16}
+
+    effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "false"}]
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+    assert resolved[{"attr", "strength", "total_score"}] == 16
+  end
+
+  test "evaluate/3 applies effect when `when` condition evaluates to true" do
+    system = minimal_system()
+    generated = %{{"attr", "strength", "base_score"} => 16}
+
+    effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "true"}]
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+    assert resolved[{"attr", "strength", "total_score"}] == 18
+  end
+
+  test "evaluate/3 applies effect when `when` key is absent (backward compat)" do
+    system = minimal_system()
+    generated = %{{"attr", "strength", "base_score"} => 16}
+
+    effects = [%{target: {"attr", "strength", "total_score"}, value: 2}]
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+    assert resolved[{"attr", "strength", "total_score"}] == 18
+  end
+
+  test "evaluate/3 evaluates `when` as a formula referencing resolved nodes" do
+    loader_data = %{
+      nodes: %{
+        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
+        {"attr", "strength", "total_score"} => %{
+          type: :accumulator,
+          base: "attr('strength').base_score"
+        },
+        {"flag", "active", "value"} => %{type: :accumulator, base: "0"}
+      },
+      rolling_methods: %{},
+      concept_metadata: %{},
+      effects: []
+    }
+
+    {:ok, system} = Graph.build(loader_data)
+    generated = %{{"attr", "strength", "base_score"} => 16}
+
+    # Effect applies only when flag is active (non-zero)
+    effects = [
+      %{target: {"flag", "active", "value"}, value: 1},
+      %{
+        target: {"attr", "strength", "total_score"},
+        value: 4,
+        when: "flag('active').value"
+      }
+    ]
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+    assert resolved[{"attr", "strength", "total_score"}] == 20
+
+    # Without the flag effect, the condition is false (flag stays 0)
+    effects_no_flag = [
+      %{
+        target: {"attr", "strength", "total_score"},
+        value: 4,
+        when: "flag('active').value"
+      }
+    ]
+
+    assert {:ok, resolved_no_flag} = Evaluator.evaluate(system, generated, effects_no_flag)
+    assert resolved_no_flag[{"attr", "strength", "total_score"}] == 16
+  end
+
   test "evaluate/3 returns error for missing generated value" do
     system = minimal_system()
     # Provide empty generated values — base_score will be missing
