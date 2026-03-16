@@ -60,6 +60,17 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
     assert {:error, {:unknown_field_type, "uuid"}} = InventoryRules.from_map(map)
   end
 
+  test "from_map/1 short-circuits on first field error when multiple fields are invalid" do
+    map = %{
+      "inventory_item_schema" => %{
+        "foo" => %{"type" => "uuid", "default" => ""},
+        "bar" => %{"type" => "xml", "default" => ""}
+      }
+    }
+
+    assert {:error, {:unknown_field_type, _}} = InventoryRules.from_map(map)
+  end
+
   test "from_map/1 with empty map returns empty rules" do
     assert {:ok, rules} = InventoryRules.from_map(%{})
     refute InventoryRules.inventoriable?(rules, "equipment")

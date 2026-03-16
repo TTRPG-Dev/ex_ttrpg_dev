@@ -329,4 +329,35 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
     end
   end
+
+  test "when condition edge cases: numeric truthy/falsy and formula errors" do
+    system = minimal_system()
+    generated = %{{"attr", "strength", "base_score"} => 16}
+
+    # Non-zero number is truthy
+    assert {:ok, r1} =
+             Evaluator.evaluate(system, generated, [
+               %{target: {"attr", "strength", "total_score"}, value: 2, when: "1"}
+             ])
+
+    assert r1[{"attr", "strength", "total_score"}] == 18
+
+    # Zero is falsy
+    assert {:ok, r2} =
+             Evaluator.evaluate(system, generated, [
+               %{target: {"attr", "strength", "total_score"}, value: 2, when: "0"}
+             ])
+
+    assert r2[{"attr", "strength", "total_score"}] == 16
+
+    # Formula error propagates
+    assert {:error, _} =
+             Evaluator.evaluate(system, generated, [
+               %{
+                 target: {"attr", "strength", "total_score"},
+                 value: 2,
+                 when: "nonexistent('x').y"
+               }
+             ])
+  end
 end

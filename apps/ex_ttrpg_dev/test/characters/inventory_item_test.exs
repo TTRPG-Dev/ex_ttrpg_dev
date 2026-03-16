@@ -72,6 +72,66 @@ defmodule ExTTRPGDev.Characters.InventoryItemTest do
              InventoryItem.set_field(item, "equipped", 1, rules())
   end
 
+  defp rules_with_int_and_enum do
+    {:ok, rules} =
+      InventoryRules.from_map(%{
+        "inventory" => %{"inventoriable_types" => ["equipment"]},
+        "inventory_item_schema" => %{
+          "charges" => %{"type" => "integer", "default" => 3, "min" => 0, "max" => 10},
+          "quality" => %{
+            "type" => "enum",
+            "default" => "common",
+            "values" => ["poor", "common", "good"]
+          }
+        }
+      })
+
+    rules
+  end
+
+  test "new/4 creates item with integer and enum field defaults" do
+    assert {:ok, item} = InventoryItem.new("equipment", "longsword", rules_with_int_and_enum())
+    assert item.fields["charges"] == 3
+    assert item.fields["quality"] == "common"
+  end
+
+  test "new/4 returns error for invalid integer type" do
+    assert {:error, {:invalid_type, :integer}} =
+             InventoryItem.new("equipment", "longsword", rules_with_int_and_enum(), %{
+               "charges" => 3.5
+             })
+  end
+
+  test "new/4 returns error for integer value above maximum" do
+    assert {:error, {:above_maximum, 11, 10}} =
+             InventoryItem.new("equipment", "longsword", rules_with_int_and_enum(), %{
+               "charges" => 11
+             })
+  end
+
+  test "new/4 accepts a valid enum value" do
+    assert {:ok, item} =
+             InventoryItem.new("equipment", "longsword", rules_with_int_and_enum(), %{
+               "quality" => "good"
+             })
+
+    assert item.fields["quality"] == "good"
+  end
+
+  test "new/4 returns error for invalid enum value" do
+    assert {:error, {:invalid_enum_value, "legendary", _}} =
+             InventoryItem.new("equipment", "longsword", rules_with_int_and_enum(), %{
+               "quality" => "legendary"
+             })
+  end
+
+  test "new/4 returns error for invalid enum type" do
+    assert {:error, {:invalid_type, :enum}} =
+             InventoryItem.new("equipment", "longsword", rules_with_int_and_enum(), %{
+               "quality" => 42
+             })
+  end
+
   test "set_field/4 returns error for value below minimum" do
     {:ok, item} = InventoryItem.new("equipment", "longsword", rules())
 
