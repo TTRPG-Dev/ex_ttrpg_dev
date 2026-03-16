@@ -1,6 +1,7 @@
 //! Interactive REPL using reedline.
 //!
-//! Drives the Elixir engine subprocess and handles all display formatting.
+//! Drives the Elixir engine subprocess. Command dispatch and interactive
+//! prompts live here; protocol types are in `protocol`, display in `display`.
 
 use std::borrow::Cow;
 
@@ -8,10 +9,14 @@ use reedline::{
     Completer, DefaultHinter, DefaultValidator, FileBackedHistory, Prompt, PromptEditMode,
     PromptHistorySearch, PromptHistorySearchStatus, Reedline, Signal, Suggestion,
 };
-use serde::Deserialize;
 use serde_json::json;
 
+use crate::display;
 use crate::engine::Engine;
+use crate::protocol::{
+    CharacterData, CharactersList, ChoicesResponse, ConceptRollResult, ConceptsList,
+    InventoryResponse, PendingChoice, RollResult, SaveResult, SystemInfo, SystemsList,
+};
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
@@ -83,254 +88,6 @@ impl Completer for CommandCompleter {
     }
 }
 
-// ── Response types ─────────────────────────────────────────────────────────────
-
-#[derive(Deserialize)]
-struct SystemsList {
-    systems: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct SystemInfo {
-    name: String,
-    slug: String,
-    version: String,
-    publisher: Option<String>,
-    family: Option<String>,
-    series: Option<String>,
-    concept_types: Option<Vec<ConceptTypeSummary>>,
-}
-
-#[derive(Deserialize)]
-struct ConceptTypeSummary {
-    id: String,
-    name: String,
-}
-
-#[derive(Deserialize)]
-struct ConceptsList {
-    concept_type: String,
-    concepts: Vec<ConceptSummary>,
-}
-
-#[derive(Deserialize)]
-struct ConceptSummary {
-    id: String,
-    name: String,
-}
-
-#[derive(Deserialize)]
-struct RollResult {
-    results: Vec<DiceResult>,
-}
-
-#[derive(Deserialize)]
-struct DiceResult {
-    spec: String,
-    rolls: Vec<i64>,
-    total: i64,
-}
-
-#[derive(Deserialize)]
-struct CharactersList {
-    characters: Vec<CharacterSummary>,
-}
-
-#[derive(Deserialize)]
-struct CharacterSummary {
-    slug: String,
-    name: String,
-    rule_system: String,
-}
-
-#[derive(Deserialize)]
-struct CharacterData {
-    temp_id: Option<String>,
-    slug: Option<String>,
-    name: String,
-    rule_system: String,
-    choices: Vec<ChoiceEntry>,
-    proficiencies: Proficiencies,
-    concept_types: Vec<ConceptTypeValues>,
-    pending_choices: Option<Vec<PendingChoice>>,
-}
-
-#[derive(Deserialize)]
-struct PendingChoice {
-    #[serde(rename = "type")]
-    choice_type: String,
-    id: String,
-    name: String,
-    count: Option<i64>,
-    roll: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct ChoicesResponse {
-    pending_choices: Vec<PendingChoice>,
-}
-
-#[derive(Deserialize)]
-struct ChoiceEntry {
-    type_name: String,
-    value: String,
-}
-
-#[derive(Deserialize)]
-struct Proficiencies {
-    skills: Vec<String>,
-    languages: Vec<String>,
-    weapons: Vec<String>,
-    armor: Vec<String>,
-    tools: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct ConceptTypeValues {
-    name: String,
-    concepts: Vec<ConceptValues>,
-}
-
-#[derive(Deserialize)]
-struct ConceptValues {
-    name: String,
-    fields: Vec<FieldValue>,
-}
-
-#[derive(Deserialize)]
-struct FieldValue {
-    name: String,
-    value: String,
-}
-
-#[derive(Deserialize)]
-struct SaveResult {
-    slug: String,
-}
-
-#[derive(Deserialize)]
-struct InventoryResponse {
-    inventory: Vec<InventoryItemData>,
-}
-
-#[derive(Deserialize)]
-struct InventoryItemData {
-    index: usize,
-    concept_type: String,
-    concept_id: String,
-    fields: serde_json::Value,
-}
-
-#[derive(Deserialize)]
-struct ConceptRollResult {
-    concept_name: String,
-    dice: String,
-    rolls: Vec<i64>,
-    bonus: i64,
-    total: i64,
-}
-
-// ── Display helpers ────────────────────────────────────────────────────────────
-
-fn print_character(c: &CharacterData) {
-    let header = match &c.slug {
-        Some(slug) => format!("── {} ({}) ──", c.name, slug),
-        None => format!("── {} ──", c.name),
-    };
-    println!("\n{header}");
-    println!("System: {}", c.rule_system);
-    for choice in &c.choices {
-        println!("{}: {}", choice.type_name, choice.value);
-    }
-    print_proficiencies(&c.proficiencies);
-    for ct in &c.concept_types {
-        println!("\n{}s:", ct.name);
-        for concept in &ct.concepts {
-            let fields: Vec<String> = concept
-                .fields
-                .iter()
-                .map(|f| format!("{}: {}", f.name, f.value))
-                .collect();
-            println!("  {}: {}", concept.name, fields.join("  "));
-        }
-    }
-    println!();
-}
-
-fn print_proficiencies(p: &Proficiencies) {
-    let entries = [
-        ("Skill Proficiencies", &p.skills),
-        ("Languages", &p.languages),
-        ("Weapon Proficiencies", &p.weapons),
-        ("Armor Proficiencies", &p.armor),
-        ("Tool Proficiencies", &p.tools),
-    ];
-    for (label, items) in entries {
-        if !items.is_empty() {
-            println!("{label}: {}", items.join(", "));
-        }
-    }
-}
-
-fn print_inventory(inventory: &[InventoryItemData]) {
-    if inventory.is_empty() {
-        println!("Inventory: (empty)");
-        return;
-    }
-    println!("Inventory ({} item{}):", inventory.len(), if inventory.len() == 1 { "" } else { "s" });
-    for item in inventory {
-        let fields_str = item
-            .fields
-            .as_object()
-            .map(|m| {
-                m.iter()
-                    .map(|(k, v)| format!("{k}: {v}"))
-                    .collect::<Vec<_>>()
-                    .join("  ")
-            })
-            .unwrap_or_default();
-        println!("  [{}] {}/{}  {}", item.index, item.concept_type, item.concept_id, fields_str);
-    }
-}
-
-fn print_system_info(info: SystemInfo) {
-    println!("Name:    {}", info.name);
-    println!("Slug:    {}", info.slug);
-    println!("Version: {}", info.version);
-    if let Some(p) = &info.publisher {
-        println!("Publisher: {p}");
-    }
-    if let Some(f) = &info.family {
-        println!("Family: {f}");
-    }
-    if let Some(s) = &info.series {
-        println!("Series: {s}");
-    }
-    if let Some(cts) = &info.concept_types {
-        println!("\nConcept Types:");
-        for ct in cts {
-            println!("  {}: {}", ct.id, ct.name);
-        }
-    }
-}
-
-fn print_concepts_list(cl: &ConceptsList) {
-    println!("{}:", cl.concept_type);
-    for c in &cl.concepts {
-        println!("  {}: {}", c.id, c.name);
-    }
-}
-
-fn print_characters_list(characters: &[CharacterSummary], empty_msg: &str) {
-    if characters.is_empty() {
-        println!("{empty_msg}");
-    } else {
-        for c in characters {
-            println!("  - {}: {} [{}]", c.slug, c.name, c.rule_system);
-        }
-    }
-}
-
 // ── Command dispatch ───────────────────────────────────────────────────────────
 
 fn handle_line(line: &str, engine: &mut Engine) -> bool {
@@ -379,14 +136,14 @@ fn handle_systems(tokens: &[&str], engine: &mut Engine) {
         ["show", slug] => {
             let req = json!({"command": "systems.show", "system": slug});
             match engine.call::<_, SystemInfo>(&req) {
-                Ok(info) => print_system_info(info),
+                Ok(info) => display::print_system_info(info),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
         ["show", slug, "--concept-type", ct] => {
             let req = json!({"command": "systems.show", "system": slug, "concept_type": ct});
             match engine.call::<_, ConceptsList>(&req) {
-                Ok(cl) => print_concepts_list(&cl),
+                Ok(cl) => display::print_concepts_list(&cl),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
@@ -399,14 +156,14 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["list"] => {
             let req = json!({"command": "characters.list"});
             match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => print_characters_list(&r.characters, "No saved characters found."),
+                Ok(r) => display::print_characters_list(&r.characters, "No saved characters found."),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
         ["list", "--system", system] => {
             let req = json!({"command": "characters.list", "system": system});
             match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => print_characters_list(
+                Ok(r) => display::print_characters_list(
                     &r.characters,
                     &format!("No saved characters found for system `{system}`."),
                 ),
@@ -417,12 +174,20 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["show", slug] => {
             let req = json!({"command": "characters.show", "character": slug});
             match engine.call::<_, CharacterData>(&req) {
-                Ok(c) => print_character(&c),
+                Ok(c) => display::print_character(&c),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
-        ["roll", slug, type_id, concept_id] => handle_characters_roll(slug, type_id, concept_id, engine),
-        ["award", slug, award_id, value] => handle_characters_award(slug, award_id, value, engine),
+        ["roll", slug, type_id, concept_id] => handle_characters_roll(
+            slug,
+            ConceptRollArgs { concept_type: type_id, concept_id },
+            engine,
+        ),
+        ["award", slug, award_id, value] => handle_characters_award(
+            slug,
+            CharacterAwardArgs { award_id, value_str: value },
+            engine,
+        ),
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
@@ -440,7 +205,7 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.gen", "system": system});
     match engine.call::<_, CharacterData>(&req) {
         Ok(character) => {
-            print_character(&character);
+            display::print_character(&character);
             if let Some(temp_id) = &character.temp_id
                 && prompt_yes_no("Save this character?")
             {
@@ -455,12 +220,12 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
     }
 }
 
-fn handle_characters_roll(slug: &str, type_id: &str, concept_id: &str, engine: &mut Engine) {
+fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut Engine) {
     let req = json!({
         "command": "characters.roll",
         "character": slug,
-        "type": type_id,
-        "concept": concept_id,
+        "type": args.concept_type,
+        "concept": args.concept_id,
     });
     match engine.call::<_, ConceptRollResult>(&req) {
         Ok(result) => {
@@ -483,20 +248,20 @@ fn handle_characters_roll(slug: &str, type_id: &str, concept_id: &str, engine: &
     }
 }
 
-fn handle_characters_award(slug: &str, award_id: &str, value_str: &str, engine: &mut Engine) {
+fn handle_characters_award(slug: &str, args: CharacterAwardArgs<'_>, engine: &mut Engine) {
     // Send value as integer if it parses as one, otherwise as a string.
     // The server uses the award's value_type to validate; string values support
     // future award types (equipment IDs, feat names, etc.).
-    let req = if let Ok(n) = value_str.parse::<i64>() {
-        json!({"command": "characters.award", "character": slug, "award": award_id, "value": n})
+    let req = if let Ok(n) = args.value_str.parse::<i64>() {
+        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": n})
     } else {
-        json!({"command": "characters.award", "character": slug, "award": award_id, "value": value_str})
+        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": args.value_str})
     };
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => {
-            print_character(&c);
+            display::print_character(&c);
             if let Some(choices) = &c.pending_choices {
-                print_pending_choices(choices);
+                display::print_pending_choices(choices);
             }
         }
         Err(e) => eprintln!("Error: {e}"),
@@ -510,7 +275,7 @@ fn handle_characters_choices(slug: &str, engine: &mut Engine) {
             if r.pending_choices.is_empty() {
                 println!("No pending choices.");
             } else {
-                print_pending_choices(&r.pending_choices);
+                display::print_pending_choices(&r.pending_choices);
             }
         }
         Err(e) => eprintln!("Error: {e}"),
@@ -544,39 +309,15 @@ fn handle_characters_resolve_choice(slug: &str, engine: &mut Engine) {
     });
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => {
-            print_character(&c);
+            display::print_character(&c);
             if let Some(remaining) = &c.pending_choices
                 && !remaining.is_empty()
             {
-                print_pending_choices(remaining);
+                display::print_pending_choices(remaining);
             }
         }
         Err(e) => eprintln!("Error: {e}"),
     }
-}
-
-fn print_pending_choices(choices: &[PendingChoice]) {
-    println!("\nPending choices:");
-    for c in choices {
-        let roll_info = c
-            .roll
-            .as_deref()
-            .map(|r| format!(" ({})", r))
-            .unwrap_or_default();
-        match c.choice_type.as_str() {
-            "pending" => {
-                let count = c.count.unwrap_or(1);
-                println!(
-                    "  • {} — {} remaining{}",
-                    c.name,
-                    count,
-                    roll_info
-                );
-            }
-            _ => println!("  • {}{} (available)", c.name, roll_info),
-        }
-    }
-    println!("  Use `characters resolve_choice <slug>` to resolve.");
 }
 
 fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
@@ -657,6 +398,18 @@ fn prompt_yes_no(question: &str) -> bool {
     )
 }
 
+// ── Argument bundles ──────────────────────────────────────────────────────────
+
+struct ConceptRollArgs<'a> {
+    concept_type: &'a str,
+    concept_id: &'a str,
+}
+
+struct CharacterAwardArgs<'a> {
+    award_id: &'a str,
+    value_str: &'a str,
+}
+
 struct InventoryAddArgs<'a> {
     concept_type: &'a str,
     concept_id: &'a str,
@@ -709,7 +462,7 @@ fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
 fn handle_characters_inventory(slug: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.inventory", "character": slug});
     match engine.call::<_, InventoryResponse>(&req) {
-        Ok(r) => print_inventory(&r.inventory),
+        Ok(r) => display::print_inventory(&r.inventory),
         Err(e) => eprintln!("Error: {e}"),
     }
 }
@@ -723,7 +476,7 @@ fn handle_characters_inventory_add(slug: &str, args: InventoryAddArgs<'_>, engin
         "fields": args.fields,
     });
     match engine.call::<_, InventoryResponse>(&req) {
-        Ok(r) => print_inventory(&r.inventory),
+        Ok(r) => display::print_inventory(&r.inventory),
         Err(e) => eprintln!("Error: {e}"),
     }
 }
@@ -737,7 +490,7 @@ fn handle_characters_inventory_set(slug: &str, args: InventorySetArgs<'_>, engin
         "value": args.value,
     });
     match engine.call::<_, InventoryResponse>(&req) {
-        Ok(r) => print_inventory(&r.inventory),
+        Ok(r) => display::print_inventory(&r.inventory),
         Err(e) => eprintln!("Error: {e}"),
     }
 }

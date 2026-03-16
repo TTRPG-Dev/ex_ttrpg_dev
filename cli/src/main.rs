@@ -1,4 +1,6 @@
+mod display;
 mod engine;
+mod protocol;
 mod repl;
 
 fn main() {
