@@ -108,11 +108,11 @@ fn handle_line(line: &str, engine: &mut Engine) -> bool {
         return true;
     }
     match tokens.as_slice() {
-        ["exit" | "quit"] => return false,
+        ["exit" | "quit" | "exit()"] => return false,
         ["help"] => print_help(),
         ["roll", rest @ ..] => handle_roll(&rest.join(" "), engine),
-        ["systems", rest @ ..] => handle_systems(rest, engine),
-        ["characters", rest @ ..] => handle_characters(rest, engine),
+        ["systems" | "system", rest @ ..] => handle_systems(rest, engine),
+        ["characters" | "character", rest @ ..] => handle_characters(rest, engine),
         _ => eprintln!("Unknown command. Type `help` for available commands."),
     }
     true
