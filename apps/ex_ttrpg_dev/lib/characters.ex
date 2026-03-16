@@ -4,6 +4,7 @@ defmodule ExTTRPGDev.Characters do
   """
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
+  alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
@@ -158,6 +159,7 @@ defmodule ExTTRPGDev.Characters do
       _ -> false
     end)
     |> Kernel.++(decision_effects)
+    |> Kernel.++(inventory_effects(system, character.inventory))
     |> Kernel.++(character.effects)
   end
 
@@ -320,6 +322,17 @@ defmodule ExTTRPGDev.Characters do
     end)
   end
 
+  defp inventory_effects(%LoadedSystem{} = system, inventory) do
+    Enum.flat_map(inventory, fn %InventoryItem{} = item ->
+      system.effects
+      |> Enum.filter(fn
+        %{source: {type, id}} -> type == item.concept_type and id == item.concept_id
+        _ -> false
+      end)
+      |> Enum.map(&Map.put(&1, :item_fields, item.fields))
+    end)
+  end
+
   defp root_concept_ids(concept_metadata, type_id) do
     all_ids =
       concept_metadata
@@ -342,7 +355,12 @@ defmodule ExTTRPGDev.Characters do
       sub_type = choice_def["type"]
       selected = Enum.random(choice_def["options"])
       decision = %{scope: {type_id, concept_id}, choice: choice_id, selection: selected}
-      [decision | random_sub_decisions(concept_metadata, {sub_type, selected})]
+
+      if Map.get(choice_def, "grants_to") == "inventory" do
+        [decision]
+      else
+        [decision | random_sub_decisions(concept_metadata, {sub_type, selected})]
+      end
     end)
   end
 

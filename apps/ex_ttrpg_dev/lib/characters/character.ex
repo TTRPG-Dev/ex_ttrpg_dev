@@ -1,7 +1,8 @@
 defmodule ExTTRPGDev.Characters.Character do
   alias __MODULE__
-  alias ExTTRPGDev.Characters.Metadata
+  alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
   alias ExTTRPGDev.Dice
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @moduledoc """
@@ -12,14 +13,20 @@ defmodule ExTTRPGDev.Characters.Character do
     for currently active items, feats, statuses etc. (defaults to [])
   - `decisions` — list of `%{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
     recording each concept selection made during character creation (defaults to [])
+  - `inventory` — list of `%InventoryItem{}` representing items the character is carrying
+    (defaults to [])
   """
   @type t :: %__MODULE__{}
-  defstruct [:name, :generated_values, :metadata, effects: [], decisions: []]
+  defstruct [:name, :generated_values, :metadata, effects: [], decisions: [], inventory: []]
 
   @doc """
   Generates a character for the given loaded rule system.
   Rolls dice for all generated nodes using the system's rolling methods.
   Accepts a list of decisions representing concept selections made during character creation.
+
+  If any chosen concepts (race, class, background, etc.) declare `starting_equipment`,
+  those items are automatically added to the character's inventory with default field values
+  from the system's inventory schema.
   """
   def gen_character!(%LoadedSystem{} = system, decisions \\ []) do
     character_name = Faker.Person.name()
@@ -31,11 +38,14 @@ defmodule ExTTRPGDev.Characters.Character do
         {node_key, roll_generated_value(node, system.rolling_methods)}
       end)
 
+    starting_inventory = starting_inventory_from_decisions(decisions, system)
+
     %Character{
       name: character_name,
       generated_values: generated_values,
       effects: [],
       decisions: decisions,
+      inventory: starting_inventory,
       metadata: %Metadata{
         slug: slugify(character_name),
         rule_system: system.module.slug
@@ -58,6 +68,14 @@ defmodule ExTTRPGDev.Characters.Character do
       "effects" =>
         Enum.map(char.effects, fn %{target: {type, id, field}, value: v} ->
           %{"target" => "#{type}:#{id}:#{field}", "value" => v}
+        end),
+      "inventory" =>
+        Enum.map(char.inventory, fn %InventoryItem{} = item ->
+          %{
+            "concept_type" => item.concept_type,
+            "concept_id" => item.concept_id,
+            "fields" => item.fields
+          }
         end),
       "decisions" => Enum.map(char.decisions, &serialize_decision/1),
       "metadata" => %{
@@ -85,12 +103,22 @@ defmodule ExTTRPGDev.Characters.Character do
         %{target: {type, id, field}, value: v}
       end)
 
+    inventory =
+      Enum.map(map["inventory"] || [], fn item ->
+        %InventoryItem{
+          concept_type: item["concept_type"],
+          concept_id: item["concept_id"],
+          fields: item["fields"] || %{}
+        }
+      end)
+
     decisions = Enum.map(map["decisions"] || [], &deserialize_decision/1)
 
     %Character{
       name: map["name"],
       generated_values: generated_values,
       effects: effects,
+      inventory: inventory,
       decisions: decisions,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
@@ -115,6 +143,55 @@ defmodule ExTTRPGDev.Characters.Character do
     [type, id] = String.split(scope_str, ":", parts: 2)
     %{scope: {type, id}, choice: choice, selection: selection}
   end
+
+  defp starting_inventory_from_decisions(decisions, system) do
+    static = starting_equipment_items(decisions, system)
+    chosen = equipment_choice_items(decisions, system)
+    static ++ chosen
+  end
+
+  defp starting_equipment_items(decisions, system) do
+    decisions
+    |> Enum.filter(&(&1.scope == nil))
+    |> Enum.flat_map(fn %{choice: type, selection: id} ->
+      system.concept_metadata
+      |> Map.get({type, id}, %{})
+      |> Map.get("starting_equipment", [])
+      |> Enum.flat_map(&item_from_spec(&1, system.inventory_rules))
+    end)
+  end
+
+  defp equipment_choice_items(decisions, system) do
+    Enum.flat_map(decisions, fn
+      %{scope: {type, id}, choice: choice_id, selection: selected} ->
+        choice_def =
+          system.concept_metadata
+          |> Map.get({type, id}, %{})
+          |> Map.get("choices", %{})
+          |> Map.get(choice_id, %{})
+
+        if Map.get(choice_def, "grants_to") == "inventory" do
+          item_type = choice_def["type"]
+          item_from_spec(%{"type" => item_type, "id" => selected}, system.inventory_rules)
+        else
+          []
+        end
+
+      _ ->
+        []
+    end)
+  end
+
+  defp item_from_spec(%{"type" => type, "id" => id} = spec, %InventoryRules{} = inventory_rules) do
+    custom_fields = Map.get(spec, "fields", %{})
+
+    case InventoryItem.new(type, id, inventory_rules, custom_fields) do
+      {:ok, item} -> [item]
+      _ -> []
+    end
+  end
+
+  defp item_from_spec(_, _), do: []
 
   defp roll_generated_value(%{method: method_id}, rolling_methods) do
     method = Map.get(rolling_methods, method_id || "standard")

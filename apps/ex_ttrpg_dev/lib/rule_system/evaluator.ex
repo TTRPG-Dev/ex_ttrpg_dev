@@ -73,17 +73,45 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
     end
   end
 
-  defp apply_effect(%{value: v}, {:ok, acc}, resolved) do
-    case resolve_effect_value(v, resolved) do
-      {:ok, n} -> {:cont, {:ok, acc + n}}
+  defp apply_effect(effect, {:ok, acc}, resolved) do
+    condition = Map.get(effect, :when)
+    item_fields = Map.get(effect, :item_fields, %{})
+
+    with {:ok, true} <- evaluate_condition(condition, resolved, item_fields),
+         {:ok, n} <- resolve_effect_value(effect.value, resolved, item_fields) do
+      {:cont, {:ok, acc + n}}
+    else
+      {:ok, false} -> {:cont, {:ok, acc}}
       error -> {:halt, error}
     end
   end
 
-  defp resolve_effect_value(value, _resolved) when is_number(value), do: {:ok, value}
+  defp evaluate_condition(nil, _resolved, _item_fields), do: {:ok, true}
 
-  defp resolve_effect_value(formula, resolved) when is_binary(formula),
-    do: Expression.evaluate(formula, resolved)
+  defp evaluate_condition(formula, resolved, item_fields) when is_binary(formula) do
+    case formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved) do
+      {:ok, result} -> {:ok, truthy?(result)}
+      error -> error
+    end
+  end
+
+  defp truthy?(true), do: true
+  defp truthy?(false), do: false
+  defp truthy?(n) when is_number(n), do: n != 0
+  defp truthy?(_), do: false
+
+  defp resolve_effect_value(value, _resolved, _item_fields) when is_number(value),
+    do: {:ok, value}
+
+  defp resolve_effect_value(formula, resolved, item_fields) when is_binary(formula) do
+    formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved)
+  end
+
+  defp substitute_item_fields(formula, item_fields) do
+    Enum.reduce(item_fields, formula, fn {name, value}, acc ->
+      String.replace(acc, "item.#{name}", to_string(value))
+    end)
+  end
 
   defp evaluate_mapping(input_formula, steps, resolved) do
     with {:ok, input_value} <- Expression.evaluate(input_formula, resolved) do

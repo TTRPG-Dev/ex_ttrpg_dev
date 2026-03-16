@@ -1,7 +1,7 @@
 defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
   alias ExTTRPGDev.Characters
-  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.RuleSystems
 
   doctest ExTTRPGDev.Characters,
@@ -155,6 +155,40 @@ defmodule ExTTRPGDevTest.Characters do
       refute root_race.selection in subraces
     end
 
+    test "equipment choices (grants_to: inventory) produce a decision but do not recurse", %{
+      system: system
+    } do
+      concept_metadata =
+        Map.put(system.concept_metadata, {"class", "fighter"}, %{
+          "choices" => %{
+            "starting_weapon" => %{
+              "type" => "equipment",
+              "grants_to" => "inventory",
+              "options" => ["longsword", "shortsword"]
+            }
+          }
+        })
+
+      system = %{system | concept_metadata: concept_metadata}
+
+      for _ <- 1..10 do
+        decisions = Characters.random_decisions(system)
+
+        weapon_decision =
+          Enum.find(decisions, fn d ->
+            d.scope != nil and elem(d.scope, 0) == "class" and d.choice == "starting_weapon"
+          end)
+
+        if weapon_decision do
+          assert weapon_decision.selection in ["longsword", "shortsword"]
+          # The selected equipment id should not appear as a scope in any decision
+          refute Enum.any?(decisions, fn d ->
+                   d.scope != nil and elem(d.scope, 1) == weapon_decision.selection
+                 end)
+        end
+      end
+    end
+
     test "races with subraces produce a subrace decision", %{system: system} do
       races_with_subraces = ~w[dwarf elf halfling gnome]
 
@@ -257,6 +291,50 @@ defmodule ExTTRPGDevTest.Characters do
                    &1.target == {"skill", "athletics", "modifier"} and
                    &1.value == "character_trait('proficiency_bonus').bonus")
              )
+    end
+
+    test "includes effects from inventory items with item_fields populated" do
+      system =
+        minimal_system(
+          [
+            %{
+              source: {"equipment", "longsword"},
+              target: {"character_trait", "ac", "value"},
+              value: 2,
+              when: "item.equipped"
+            }
+          ],
+          %{}
+        )
+
+      item = %InventoryItem{
+        concept_type: "equipment",
+        concept_id: "longsword",
+        fields: %{"equipped" => true}
+      }
+
+      character = %{minimal_character([]) | inventory: [item]}
+      effects = Characters.active_effects(system, character)
+
+      assert length(effects) == 1
+      [effect] = effects
+      assert effect.source == {"equipment", "longsword"}
+      assert effect.item_fields == %{"equipped" => true}
+    end
+
+    test "produces one effect entry per inventory item even for the same concept" do
+      system =
+        minimal_system(
+          [%{source: {"equipment", "shortsword"}, target: {"stat", "atk", "bonus"}, value: 1}],
+          %{}
+        )
+
+      item1 = %InventoryItem{concept_type: "equipment", concept_id: "shortsword", fields: %{}}
+      item2 = %InventoryItem{concept_type: "equipment", concept_id: "shortsword", fields: %{}}
+
+      character = %{minimal_character([]) | inventory: [item1, item2]}
+      effects = Characters.active_effects(system, character)
+      assert length(effects) == 2
     end
 
     test "does not generate effects for choices without contributes_field" do

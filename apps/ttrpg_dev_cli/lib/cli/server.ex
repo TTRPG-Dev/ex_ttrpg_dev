@@ -24,6 +24,10 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
       {"command": "characters.choices", "character": "thorin-stoneback"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
+      {"command": "characters.inventory", "character": "thorin-stoneback"}
+      {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "longsword"}
+      {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "chain_mail", "fields": {"equipped": true}}
+      {"command": "characters.inventory.set", "character": "thorin-stoneback", "index": 0, "field": "equipped", "value": true}
 
   Each response is a single line of JSON:
 
@@ -35,7 +39,7 @@ defmodule ExTTRPGDev.CLI.Server do
   """
 
   alias ExTTRPGDev.Characters
-  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystems
@@ -326,6 +330,79 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  # --- Inventory ---
+
+  defp handle(%{"command" => "characters.inventory", "character" => slug}, state) do
+    try do
+      character = Characters.load_character!(slug)
+      {ok(%{inventory: serialize_inventory(character.inventory)}), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{
+           "command" => "characters.inventory.add",
+           "character" => slug,
+           "type" => type,
+           "id" => id
+         } =
+           cmd,
+         state
+       ) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+      custom_fields = Map.get(cmd, "fields", %{})
+
+      case InventoryItem.new(type, id, system.inventory_rules, custom_fields) do
+        {:ok, item} ->
+          updated = %{character | inventory: character.inventory ++ [item]}
+          Characters.save_character!(updated, true)
+          {ok(%{inventory: serialize_inventory(updated.inventory)}), state}
+
+        {:error, reason} ->
+          {error("cannot add item: #{inspect(reason)}"), state}
+      end
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{
+           "command" => "characters.inventory.set",
+           "character" => slug,
+           "index" => index,
+           "field" => field,
+           "value" => value
+         },
+         state
+       ) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      item =
+        Enum.at(character.inventory, index) ||
+          raise("no inventory item at index #{inspect(index)}")
+
+      case InventoryItem.set_field(item, field, value, system.inventory_rules) do
+        {:ok, updated_item} ->
+          new_inventory = List.replace_at(character.inventory, index, updated_item)
+          updated = %{character | inventory: new_inventory}
+          Characters.save_character!(updated, true)
+          {ok(%{inventory: serialize_inventory(updated.inventory)}), state}
+
+        {:error, reason} ->
+          {error("cannot set field: #{inspect(reason)}"), state}
+      end
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => cmd}, state) do
     {error("unknown command: #{inspect(cmd)}"), state}
   end
@@ -485,12 +562,28 @@ defmodule ExTTRPGDev.CLI.Server do
     decisions
     |> Enum.filter(fn
       %{scope: {scope_type, scope_id}, choice: choice_id} ->
-        get_in(concept_metadata, [{scope_type, scope_id}, "choices", choice_id, "type"]) == type
+        choice_def =
+          get_in(concept_metadata, [{scope_type, scope_id}, "choices", choice_id]) || %{}
+
+        choice_def["type"] == type and choice_def["grants_to"] != "inventory"
 
       _ ->
         false
     end)
     |> Enum.map(& &1.selection)
+  end
+
+  defp serialize_inventory(inventory) do
+    inventory
+    |> Enum.with_index()
+    |> Enum.map(fn {%InventoryItem{} = item, index} ->
+      %{
+        index: index,
+        concept_type: item.concept_type,
+        concept_id: item.concept_id,
+        fields: item.fields
+      }
+    end)
   end
 
   defp serialize_concept_type_values(%LoadedSystem{} = system, resolved_by_concept) do

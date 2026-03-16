@@ -1,9 +1,37 @@
 defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Loader, RuleModule}
+  alias ExTTRPGDev.RuleSystem.{InventoryRules, Loader, RuleModule}
 
   defp dnd_path do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
+  end
+
+  # Creates a temporary rule system directory with a minimal module.toml,
+  # calls fun/1 with the dir path, then cleans up.
+  defp with_tmp_system(concept_types \\ ["ability", "feat"], fun) do
+    dir =
+      System.tmp_dir!() |> Path.join("ex_ttrpg_loader_test_#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(dir)
+
+    concept_types_toml =
+      Enum.map_join(concept_types, "\n", fn t ->
+        "\n[[concept_type]]\nid = \"#{t}\"\nname = \"#{String.capitalize(t)}\""
+      end)
+
+    File.write!(Path.join(dir, "module.toml"), """
+    [module]
+    name = "Test System"
+    slug = "test_system"
+    version = "0.0.1"
+    #{concept_types_toml}
+    """)
+
+    try do
+      fun.(dir)
+    after
+      File.rm_rf!(dir)
+    end
   end
 
   test "load/1 succeeds for dnd_5e_srd" do
@@ -83,55 +111,68 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   end
 
   test "load/1 parses contributes entries into the effects list" do
-    dir =
-      System.tmp_dir!() |> Path.join("ex_ttrpg_loader_test_#{System.unique_integer([:positive])}")
+    with_tmp_system(fn dir ->
+      File.mkdir_p!(Path.join([dir, "concepts", "ability"]))
+      File.mkdir_p!(Path.join([dir, "concepts", "feat"]))
 
-    File.mkdir_p!(Path.join([dir, "concepts", "ability"]))
-    File.mkdir_p!(Path.join([dir, "concepts", "feat"]))
+      File.write!(Path.join([dir, "concepts", "ability", "abilities.toml"]), """
+      [ability.strength]
+      name = "Strength"
+      base_score.type = "generated"
+      base_score.method = "standard"
+      total_score.type = "accumulator"
+      total_score.base = "ability('strength').base_score"
+      """)
 
-    File.write!(Path.join(dir, "module.toml"), """
-    [module]
-    name = "Test System"
-    slug = "test_system"
-    version = "0.0.1"
-    publisher = "Test"
+      File.write!(Path.join([dir, "concepts", "feat", "feats.toml"]), """
+      [feat.toughness]
+      name = "Toughness"
 
-    [[concept_type]]
-    id = "ability"
-    name = "Ability"
+      [[feat.toughness.contributes]]
+      target = "ability('strength').total_score"
+      value = 2
+      when = "item.equipped"
 
-    [[concept_type]]
-    id = "feat"
-    name = "Feat"
-    """)
+      [[feat.toughness.contributes]]
+      target = "ability('strength').total_score"
+      value = 1
+      """)
 
-    File.write!(Path.join([dir, "concepts", "ability", "abilities.toml"]), """
-    [ability.strength]
-    name = "Strength"
-    base_score.type = "generated"
-    base_score.method = "standard"
-    total_score.type = "accumulator"
-    total_score.base = "ability('strength').base_score"
-    """)
-
-    File.write!(Path.join([dir, "concepts", "feat", "feats.toml"]), """
-    [feat.toughness]
-    name = "Toughness"
-
-    [[feat.toughness.contributes]]
-    target = "ability('strength').total_score"
-    value = 2
-    """)
-
-    try do
       assert {:ok, data} = Loader.load(dir)
-      assert length(data.effects) == 1
-      [effect] = data.effects
-      assert effect.target == {"ability", "strength", "total_score"}
-      assert effect.value == 2
-    after
-      File.rm_rf!(dir)
-    end
+      assert length(data.effects) == 2
+      [conditional, unconditional] = data.effects
+      assert conditional.target == {"ability", "strength", "total_score"}
+      assert conditional.value == 2
+      assert conditional.when == "item.equipped"
+      assert unconditional.when == nil
+    end)
+  end
+
+  test "load/1 returns inventory_rules for dnd_5e_srd" do
+    assert {:ok, data} = Loader.load(dnd_path())
+    assert %InventoryRules{} = data.inventory_rules
+    assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
+    refute InventoryRules.inventoriable?(data.inventory_rules, "language")
+    assert Map.has_key?(data.inventory_rules.schema, "equipped")
+    refute Map.has_key?(data.inventory_rules.schema, "condition")
+  end
+
+  test "load/1 parses inventory_rules.toml when present" do
+    with_tmp_system(["equipment"], fn dir ->
+      File.write!(Path.join(dir, "inventory_rules.toml"), """
+      [inventory]
+      inventoriable_types = ["equipment"]
+
+      [inventory_item_schema.equipped]
+      type = "boolean"
+      default = false
+      """)
+
+      assert {:ok, data} = Loader.load(dir)
+      assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
+      refute InventoryRules.inventoriable?(data.inventory_rules, "language")
+      assert %{type: :boolean, default: false} = data.inventory_rules.schema["equipped"]
+    end)
   end
 
   test "load/1 returns 18 skill nodes" do
@@ -360,6 +401,24 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end
   end
 
+  test "load/1 parses fighter starting_weapon as an equipment choice granting inventory" do
+    {:ok, data} = Loader.load(dnd_path())
+    fighter = data.concept_metadata[{"class", "fighter"}]
+    weapon_choice = fighter["choices"]["starting_weapon"]
+    assert weapon_choice["grants_to"] == "inventory"
+    assert weapon_choice["type"] == "equipment"
+    assert "longsword" in weapon_choice["options"]
+  end
+
+  test "load/1 parses acolyte static starting_equipment" do
+    {:ok, data} = Loader.load(dnd_path())
+    acolyte = data.concept_metadata[{"background", "acolyte"}]
+    equipment = acolyte["starting_equipment"]
+    assert is_list(equipment)
+    assert Enum.any?(equipment, &(&1["id"] == "holy_symbol_amulet"))
+    assert Enum.any?(equipment, &(&1["id"] == "backpack"))
+  end
+
   test "load/1 parses choices into race metadata" do
     {:ok, data} = Loader.load(dnd_path())
 
@@ -384,6 +443,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert constitution_bonus != nil
     assert constitution_bonus.value == 2
+    assert constitution_bonus.when == nil
   end
 
   defp assert_cost(item, amount, currency) do

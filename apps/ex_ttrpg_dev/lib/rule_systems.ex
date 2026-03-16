@@ -164,7 +164,8 @@ defmodule ExTTRPGDev.RuleSystems do
           nodes: system_map.nodes,
           rolling_methods: loader_data.rolling_methods,
           concept_metadata: loader_data.concept_metadata,
-          effects: loader_data.effects
+          effects: loader_data.effects,
+          inventory_rules: loader_data.inventory_rules
         }
 
       {:error, reason} ->
