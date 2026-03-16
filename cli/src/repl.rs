@@ -110,6 +110,9 @@ fn handle_line(line: &str, engine: &mut Engine) -> bool {
     match tokens.as_slice() {
         ["exit" | "quit" | "exit()"] => return false,
         ["help"] => print_help(),
+        ["roll"] | ["roll", "--help"] => {
+            println!("Usage: roll <dice>  e.g. roll 3d6, roll 1d20, roll 2d8+3d6")
+        }
         ["roll", rest @ ..] => handle_roll(&rest.join(" "), engine),
         ["systems" | "system", rest @ ..] => handle_systems(rest, engine),
         ["characters" | "character", rest @ ..] => handle_characters(rest, engine),
