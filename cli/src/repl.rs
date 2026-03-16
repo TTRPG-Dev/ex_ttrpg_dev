@@ -6,8 +6,10 @@
 use std::borrow::Cow;
 
 use reedline::{
-    Completer, DefaultHinter, DefaultValidator, FileBackedHistory, Prompt, PromptEditMode,
-    PromptHistorySearch, PromptHistorySearchStatus, Reedline, Signal, Suggestion,
+    ColumnarMenu, Completer, DefaultHinter, DefaultValidator, Emacs, FileBackedHistory, KeyCode,
+    KeyModifiers, MenuBuilder, Prompt, PromptEditMode, PromptHistorySearch,
+    PromptHistorySearchStatus, Reedline, ReedlineEvent, ReedlineMenu, Signal, Suggestion,
+    default_emacs_keybindings,
 };
 use serde_json::json;
 
@@ -73,16 +75,26 @@ struct CommandCompleter;
 impl Completer for CommandCompleter {
     fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
         let prefix = &line[..pos];
+        let word_start = prefix.rfind(' ').map(|i| i + 1).unwrap_or(0);
+
+        let mut seen = std::collections::HashSet::new();
         COMMANDS
             .iter()
             .filter(|cmd| cmd.starts_with(prefix))
-            .map(|cmd| Suggestion {
-                value: cmd.to_string(),
-                description: None,
-                style: None,
-                extra: None,
-                span: reedline::Span { start: 0, end: pos },
-                append_whitespace: true,
+            .filter_map(|cmd| {
+                let token = cmd[word_start..].split_whitespace().next()?;
+                if seen.insert(token) {
+                    Some(Suggestion {
+                        value: token.to_string(),
+                        description: None,
+                        style: None,
+                        extra: None,
+                        span: reedline::Span { start: word_start, end: pos },
+                        append_whitespace: true,
+                    })
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -539,11 +551,25 @@ pub fn run() {
             Err(_) => Box::new(FileBackedHistory::new(1000).expect("in-memory history")),
         };
 
+    let completion_menu = Box::new(ColumnarMenu::default().with_name("completion_menu"));
+
+    let mut keybindings = default_emacs_keybindings();
+    keybindings.add_binding(
+        KeyModifiers::NONE,
+        KeyCode::Tab,
+        ReedlineEvent::UntilFound(vec![
+            ReedlineEvent::Menu("completion_menu".to_string()),
+            ReedlineEvent::MenuNext,
+        ]),
+    );
+
     let mut line_editor = Reedline::create()
         .with_history(history)
         .with_completer(Box::new(CommandCompleter))
+        .with_menu(ReedlineMenu::EngineCompleter(completion_menu))
         .with_hinter(Box::new(DefaultHinter::default()))
-        .with_validator(Box::new(DefaultValidator));
+        .with_validator(Box::new(DefaultValidator))
+        .with_edit_mode(Box::new(Emacs::new(keybindings)));
 
     let prompt = TtrpgPrompt;
 
