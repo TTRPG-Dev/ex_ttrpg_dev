@@ -154,7 +154,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
     refute InventoryRules.inventoriable?(data.inventory_rules, "language")
     assert Map.has_key?(data.inventory_rules.schema, "equipped")
-    assert Map.has_key?(data.inventory_rules.schema, "condition")
+    refute Map.has_key?(data.inventory_rules.schema, "condition")
   end
 
   test "load/1 parses inventory_rules.toml when present" do
