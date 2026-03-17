@@ -1,4 +1,6 @@
 //! Display helpers — functions that format and print engine responses to stdout.
+//!
+//! Also provides `page_output` for piping long content through the system pager.
 
 use crate::protocol::{
     CharacterData, CharacterSummary, ConceptsList, InventoryItemData, PendingChoice, Proficiencies,
@@ -139,4 +141,27 @@ pub(crate) fn print_pending_choices(choices: &[PendingChoice]) {
         }
     }
     println!("  Use `characters resolve_choice <slug>` to resolve.");
+}
+
+pub(crate) fn page_output(content: &str) {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let terminal_height = crossterm::terminal::size()
+        .map(|(_, h)| h as usize)
+        .unwrap_or(24);
+    if content.lines().count() <= terminal_height {
+        print!("{content}");
+        return;
+    }
+
+    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
+    if let Ok(mut child) = Command::new(&pager).stdin(Stdio::piped()).spawn() {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(content.as_bytes());
+        }
+        let _ = child.wait();
+    } else {
+        print!("{content}");
+    }
 }
