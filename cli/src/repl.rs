@@ -174,7 +174,10 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["list"] => {
             let req = json!({"command": "characters.list"});
             match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => display::print_characters_list(&r.characters, "No saved characters found."),
+                Ok(r) => display::print_characters_list(
+                    &r.characters,
+                    "No saved characters found. Run `characters gen <system>` to create one.",
+                ),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
@@ -183,7 +186,7 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             match engine.call::<_, CharactersList>(&req) {
                 Ok(r) => display::print_characters_list(
                     &r.characters,
-                    &format!("No saved characters found for system `{system}`."),
+                    &format!("No saved characters found for system `{system}`. Run `characters gen {system}` to create one."),
                 ),
                 Err(e) => eprintln!("Error: {e}"),
             }
