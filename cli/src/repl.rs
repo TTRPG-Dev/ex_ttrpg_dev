@@ -162,6 +162,9 @@ fn handle_systems(tokens: &[&str], engine: &mut Engine) {
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
+        [] | ["--help"] => println!(
+            "Usage: systems list | systems show <slug> [--concept-type <type>]"
+        ),
         _ => eprintln!("Usage: systems list | systems show <slug> [--concept-type <type>]"),
     }
 }
@@ -206,6 +209,13 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
+        [] | ["--help"] => println!(
+            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n\
+             \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
+             \x20      characters inventory <slug>\n\
+             \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
+             \x20      characters inventory set <slug> <index> <field> <value>"
+        ),
         _ => eprintln!(
             "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n\
              \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
