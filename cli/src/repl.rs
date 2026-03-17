@@ -192,7 +192,7 @@ fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["show", slug] => {
             let req = json!({"command": "characters.show", "character": slug});
             match engine.call::<_, CharacterData>(&req) {
-                Ok(c) => display::print_character(&c),
+                Ok(c) => page_output(&display::format_character(&c)),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
@@ -610,6 +610,29 @@ pub fn run() {
                 break;
             }
         }
+    }
+}
+
+fn page_output(content: &str) {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let terminal_height = crossterm::terminal::size()
+        .map(|(_, h)| h as usize)
+        .unwrap_or(24);
+    if content.lines().count() <= terminal_height {
+        print!("{content}");
+        return;
+    }
+
+    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
+    if let Ok(mut child) = Command::new(&pager).stdin(Stdio::piped()).spawn() {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(content.as_bytes());
+        }
+        let _ = child.wait();
+    } else {
+        print!("{content}");
     }
 }
 

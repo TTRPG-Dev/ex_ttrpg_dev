@@ -512,6 +512,7 @@ dependencies = [
 name = "ttrpg-dev"
 version = "0.1.0"
 dependencies = [
+ "crossterm",
  "reedline",
  "serde",
  "serde_json",
