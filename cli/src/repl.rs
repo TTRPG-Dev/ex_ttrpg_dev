@@ -229,7 +229,7 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
         Ok(character) => {
             display::print_character(&character);
             if let Some(temp_id) = &character.temp_id
-                && prompt_yes_no("Save this character?")
+                && prompt_yes_no("Save this character?").unwrap_or(false)
             {
                 let save_req = json!({"command": "characters.save", "temp_id": temp_id});
                 match engine.call::<_, SaveResult>(&save_req) {
@@ -354,7 +354,7 @@ fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
     for (i, c) in choices.iter().enumerate() {
         println!("  {}: {}", i + 1, c.name);
     }
-    let idx = prompt_integer("Select choice (number):") as usize;
+    let idx = prompt_integer("Select choice (number):")? as usize;
     match choices.get(idx.saturating_sub(1)) {
         Some(c) => Some(c),
         None => {
@@ -366,7 +366,7 @@ fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
 
 fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {
     let Some(die) = &choice.roll else {
-        let v = prompt_integer(&format!("Value for {}:", choice.name));
+        let v = prompt_integer(&format!("Value for {}:", choice.name))?;
         return Some((v, "manual".to_string()));
     };
 
@@ -375,7 +375,7 @@ fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i
     println!("\nResolving: {} ({})", choice.name, die);
     println!("Average HP (no roll): {average}");
 
-    if !prompt_yes_no(&format!("Roll {die} for HP? (no = take average of {average})")) {
+    if !prompt_yes_no(&format!("Roll {die} for HP? (no = take average of {average})"))?  {
         return Some((average, "average".to_string()));
     }
 
@@ -393,31 +393,42 @@ fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i
     }
 }
 
-fn prompt_integer(question: &str) -> i64 {
+fn prompt_integer(question: &str) -> Option<i64> {
     use std::io::{self, BufRead};
     loop {
         print!("{question} ");
         let _ = std::io::Write::flush(&mut io::stdout());
         let stdin = io::stdin();
-        if let Some(Ok(line)) = stdin.lock().lines().next()
-            && let Ok(n) = line.trim().parse::<i64>()
-        {
-            return n;
+        match stdin.lock().lines().next() {
+            None | Some(Err(_)) => {
+                println!();
+                return None;
+            }
+            Some(Ok(line)) => {
+                if let Ok(n) = line.trim().parse::<i64>() {
+                    return Some(n);
+                }
+                eprintln!("Please enter a valid number.");
+            }
         }
-        eprintln!("Please enter a valid number.");
     }
 }
 
-fn prompt_yes_no(question: &str) -> bool {
+fn prompt_yes_no(question: &str) -> Option<bool> {
     use std::io::{self, BufRead};
     print!("(y/n) {question} ");
     let _ = std::io::Write::flush(&mut io::stdout());
     let stdin = io::stdin();
-    let line = stdin.lock().lines().next().and_then(|l| l.ok());
-    matches!(
-        line.as_deref().map(str::trim).map(str::to_lowercase).as_deref(),
-        Some("y") | Some("yes")
-    )
+    match stdin.lock().lines().next() {
+        None | Some(Err(_)) => {
+            println!();
+            None
+        }
+        Some(Ok(line)) => Some(matches!(
+            line.trim().to_lowercase().as_str(),
+            "y" | "yes"
+        )),
+    }
 }
 
 // ── Argument bundles ──────────────────────────────────────────────────────────
