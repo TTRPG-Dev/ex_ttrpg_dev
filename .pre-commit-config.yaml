@@ -36,6 +36,19 @@ repos:
     pass_filenames: false
     files: mix\.lock$
 
+  - id: cargo-fmt
+    name: 'rust: cargo fmt'
+    entry: cargo fmt --manifest-path cli/Cargo.toml --
+    language: system
+    files: ^cli/.*\.rs$
+
+  - id: cargo-clippy
+    name: 'rust: cargo clippy'
+    entry: cargo clippy --manifest-path cli/Cargo.toml -- -D warnings
+    language: system
+    pass_filenames: false
+    files: ^cli/
+
   - id: codescene
     name: 'codescene: delta'
     entry: sh -c 'if [ -z "$CS_ACCESS_TOKEN" ] || ! command -v cs > /dev/null 2>&1; then exit 0; fi; cs delta --git-hook --staged'

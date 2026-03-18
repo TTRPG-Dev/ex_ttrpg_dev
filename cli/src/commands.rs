@@ -26,7 +26,6 @@ pub(crate) struct CharacterAwardArgs<'a> {
     pub(crate) value_str: &'a str,
 }
 
-
 // ── roll ──────────────────────────────────────────────────────────────────────
 
 pub(crate) fn handle_roll(dice: &str, engine: &mut Engine) {
@@ -76,9 +75,9 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
-        [] | ["--help"] => println!(
-            "Usage: systems list | systems show <slug> [--concept-type <type>]"
-        ),
+        [] | ["--help"] => {
+            println!("Usage: systems list | systems show <slug> [--concept-type <type>]")
+        }
         [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `systems --help`."),
     }
 }
@@ -114,27 +113,29 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             match engine.call::<_, CharactersList>(&req) {
                 Ok(r) => display::print_characters_list(
                     &r.characters,
-                    &format!("No saved characters found for system `{system}`. Run `characters gen {system}` to create one."),
+                    &format!(
+                        "No saved characters found for system `{system}`. Run `characters gen {system}` to create one."
+                    ),
                 ),
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
         ["gen", system] => handle_characters_gen(system, engine),
-        ["show", slug] => {
-            let req = json!({"command": "characters.show", "character": slug});
-            match engine.call::<_, CharacterData>(&req) {
-                Ok(c) => display::page_output(&display::format_character(&c)),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
+        ["show", slug] => handle_characters_show(slug, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
             slug,
-            ConceptRollArgs { concept_type: type_id, concept_id },
+            ConceptRollArgs {
+                concept_type: type_id,
+                concept_id,
+            },
             engine,
         ),
         ["award", slug, award_id, value] => handle_characters_award(
             slug,
-            CharacterAwardArgs { award_id, value_str: value },
+            CharacterAwardArgs {
+                award_id,
+                value_str: value,
+            },
             engine,
         ),
         ["choices", slug] => handle_characters_choices(slug, engine),
@@ -166,6 +167,14 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
                 }
             }
         }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_show(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.show", "character": slug});
+    match engine.call::<_, CharacterData>(&req) {
+        Ok(c) => display::page_output(&display::format_character(&c)),
         Err(e) => eprintln!("Error: {e}"),
     }
 }
@@ -303,7 +312,9 @@ fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i
     println!("\nResolving: {} ({})", choice.name, die);
     println!("Average HP (no roll): {average}");
 
-    if !prompt_yes_no(&format!("Roll {die} for HP? (no = take average of {average})"))? {
+    if !prompt_yes_no(&format!(
+        "Roll {die} for HP? (no = take average of {average})"
+    ))? {
         return Some((average, "average".to_string()));
     }
 

@@ -31,9 +31,6 @@ pub(crate) fn prompt_yes_no(question: &str) -> Option<bool> {
             println!();
             None
         }
-        Some(Ok(line)) => Some(matches!(
-            line.trim().to_lowercase().as_str(),
-            "y" | "yes"
-        )),
+        Some(Ok(line)) => Some(matches!(line.trim().to_lowercase().as_str(), "y" | "yes")),
     }
 }
