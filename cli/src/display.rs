@@ -142,6 +142,127 @@ pub(crate) fn print_pending_choices(choices: &[PendingChoice]) {
     println!("  Use `characters resolve_choice <slug>` to resolve.");
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::*;
+
+    fn empty_proficiencies() -> Proficiencies {
+        Proficiencies {
+            skills: vec![],
+            languages: vec![],
+            weapons: vec![],
+            armor: vec![],
+            tools: vec![],
+        }
+    }
+
+    fn minimal_character(name: &str) -> CharacterData {
+        CharacterData {
+            temp_id: None,
+            slug: None,
+            name: name.to_string(),
+            rule_system: "test_system".to_string(),
+            choices: vec![],
+            proficiencies: empty_proficiencies(),
+            concept_types: vec![],
+            pending_choices: None,
+        }
+    }
+
+    #[test]
+    fn format_proficiencies_all_empty_returns_empty_string() {
+        assert_eq!(format_proficiencies(&empty_proficiencies()), "");
+    }
+
+    #[test]
+    fn format_proficiencies_single_category() {
+        let p = Proficiencies {
+            skills: vec!["Acrobatics".to_string(), "Stealth".to_string()],
+            ..empty_proficiencies()
+        };
+        let out = format_proficiencies(&p);
+        assert!(out.contains("Skill Proficiencies: Acrobatics, Stealth"));
+        assert!(!out.contains("Languages"));
+    }
+
+    #[test]
+    fn format_proficiencies_multiple_categories() {
+        let p = Proficiencies {
+            skills: vec!["Stealth".to_string()],
+            languages: vec!["Common".to_string(), "Elvish".to_string()],
+            ..empty_proficiencies()
+        };
+        let out = format_proficiencies(&p);
+        assert!(out.contains("Skill Proficiencies: Stealth"));
+        assert!(out.contains("Languages: Common, Elvish"));
+        assert!(!out.contains("Weapons"));
+    }
+
+    #[test]
+    fn format_character_without_slug() {
+        let out = format_character(&minimal_character("Aria"));
+        assert!(out.contains("── Aria ──"));
+        assert!(out.contains("System: test_system"));
+    }
+
+    #[test]
+    fn format_character_with_slug() {
+        let c = CharacterData {
+            slug: Some("aria-1".to_string()),
+            ..minimal_character("Aria")
+        };
+        assert!(format_character(&c).contains("── Aria (aria-1) ──"));
+    }
+
+    #[test]
+    fn format_character_includes_choices() {
+        let c = CharacterData {
+            choices: vec![ChoiceEntry {
+                type_name: "Race".to_string(),
+                value: "Elf".to_string(),
+            }],
+            ..minimal_character("Aria")
+        };
+        assert!(format_character(&c).contains("Race: Elf"));
+    }
+
+    #[test]
+    fn format_character_includes_concept_types_and_fields() {
+        let c = CharacterData {
+            concept_types: vec![ConceptTypeValues {
+                name: "Ability".to_string(),
+                concepts: vec![ConceptValues {
+                    name: "Strength".to_string(),
+                    fields: vec![FieldValue {
+                        name: "score".to_string(),
+                        value: "16".to_string(),
+                    }],
+                }],
+            }],
+            ..minimal_character("Aria")
+        };
+        let out = format_character(&c);
+        assert!(out.contains("Strength"));
+        assert!(out.contains("score: 16"));
+    }
+
+    #[test]
+    fn format_character_includes_proficiencies() {
+        let c = CharacterData {
+            proficiencies: Proficiencies {
+                skills: vec!["Stealth".to_string()],
+                languages: vec!["Common".to_string()],
+                ..empty_proficiencies()
+            },
+            ..minimal_character("Aria")
+        };
+        let out = format_character(&c);
+        assert!(out.contains("Skill Proficiencies: Stealth"));
+        assert!(out.contains("Languages: Common"));
+    }
+}
+
 pub(crate) fn page_output(content: &str) {
     use std::io::Write;
     use std::process::{Command, Stdio};
