@@ -70,6 +70,10 @@ jobs:
     - name: Clippy
       working-directory: cli
       run: cargo clippy -- -D warnings
+    - name: Machete
+      uses: bnjbvr/cargo-machete@main
+      with:
+        directory: cli
     - name: Audit
       uses: rustsec/audit-check@v2
       with:

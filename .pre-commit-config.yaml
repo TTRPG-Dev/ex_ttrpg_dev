@@ -49,6 +49,13 @@ repos:
     pass_filenames: false
     files: ^cli/
 
+  - id: cargo-machete
+    name: 'rust: cargo machete'
+    entry: sh -c 'cd cli && cargo machete'
+    language: system
+    pass_filenames: false
+    files: ^cli/
+
   - id: cargo-audit
     name: 'rust: cargo audit'
     entry: sh -c 'cd cli && cargo audit'
