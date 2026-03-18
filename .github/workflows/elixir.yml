@@ -70,3 +70,12 @@ jobs:
     - name: Clippy
       working-directory: cli
       run: cargo clippy -- -D warnings
+    - name: Audit
+      uses: rustsec/audit-check@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: cli
+    - name: Deny
+      uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        manifest-path: cli/Cargo.toml
