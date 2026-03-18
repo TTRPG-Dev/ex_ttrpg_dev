@@ -1,36 +1,47 @@
 //! Display helpers — functions that format and print engine responses to stdout.
+//!
+//! Also provides `page_output` for piping long content through the system pager.
 
 use crate::protocol::{
     CharacterData, CharacterSummary, ConceptsList, InventoryItemData, PendingChoice, Proficiencies,
     SystemInfo,
 };
 
-pub(crate) fn print_character(c: &CharacterData) {
+pub(crate) fn format_character(c: &CharacterData) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
     let header = match &c.slug {
         Some(slug) => format!("── {} ({}) ──", c.name, slug),
         None => format!("── {} ──", c.name),
     };
-    println!("\n{header}");
-    println!("System: {}", c.rule_system);
+    writeln!(out, "\n{header}").unwrap();
+    writeln!(out, "System: {}", c.rule_system).unwrap();
     for choice in &c.choices {
-        println!("{}: {}", choice.type_name, choice.value);
+        writeln!(out, "{}: {}", choice.type_name, choice.value).unwrap();
     }
-    print_proficiencies(&c.proficiencies);
+    out.push_str(&format_proficiencies(&c.proficiencies));
     for ct in &c.concept_types {
-        println!("\n{}s:", ct.name);
+        writeln!(out, "\n{}s:", ct.name).unwrap();
         for concept in &ct.concepts {
             let fields: Vec<String> = concept
                 .fields
                 .iter()
                 .map(|f| format!("{}: {}", f.name, f.value))
                 .collect();
-            println!("  {}: {}", concept.name, fields.join("  "));
+            writeln!(out, "  {}: {}", concept.name, fields.join("  ")).unwrap();
         }
     }
-    println!();
+    writeln!(out).unwrap();
+    out
 }
 
-pub(crate) fn print_proficiencies(p: &Proficiencies) {
+pub(crate) fn print_character(c: &CharacterData) {
+    print!("{}", format_character(c));
+}
+
+pub(crate) fn format_proficiencies(p: &Proficiencies) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
     let entries = [
         ("Skill Proficiencies", &p.skills),
         ("Languages", &p.languages),
@@ -40,10 +51,12 @@ pub(crate) fn print_proficiencies(p: &Proficiencies) {
     ];
     for (label, items) in entries {
         if !items.is_empty() {
-            println!("{label}: {}", items.join(", "));
+            writeln!(out, "{label}: {}", items.join(", ")).unwrap();
         }
     }
+    out
 }
+
 
 pub(crate) fn print_inventory(inventory: &[InventoryItemData]) {
     if inventory.is_empty() {
@@ -128,4 +141,27 @@ pub(crate) fn print_pending_choices(choices: &[PendingChoice]) {
         }
     }
     println!("  Use `characters resolve_choice <slug>` to resolve.");
+}
+
+pub(crate) fn page_output(content: &str) {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let terminal_height = crossterm::terminal::size()
+        .map(|(_, h)| h as usize)
+        .unwrap_or(24);
+    if content.lines().count() <= terminal_height {
+        print!("{content}");
+        return;
+    }
+
+    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
+    if let Ok(mut child) = Command::new(&pager).stdin(Stdio::piped()).spawn() {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(content.as_bytes());
+        }
+        let _ = child.wait();
+    } else {
+        print!("{content}");
+    }
 }
