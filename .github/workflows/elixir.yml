@@ -51,7 +51,7 @@ jobs:
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        components: clippy
+        components: clippy, rustfmt
     - name: Cache Cargo
       uses: actions/cache@v4
       with:
@@ -64,6 +64,22 @@ jobs:
     - name: Build
       working-directory: cli
       run: cargo build
+    - name: Format
+      working-directory: cli
+      run: cargo fmt -- --check
     - name: Clippy
       working-directory: cli
       run: cargo clippy -- -D warnings
+    - name: Machete
+      uses: bnjbvr/cargo-machete@main
+      with:
+        directory: cli
+    - name: Audit
+      uses: rustsec/audit-check@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: cli
+    - name: Deny
+      uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        manifest-path: cli/Cargo.toml

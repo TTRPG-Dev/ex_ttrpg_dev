@@ -83,7 +83,10 @@ impl Completer for CommandCompleter {
                         description: None,
                         style: None,
                         extra: None,
-                        span: reedline::Span { start: word_start, end: pos },
+                        span: reedline::Span {
+                            start: word_start,
+                            end: pos,
+                        },
                         append_whitespace: true,
                     })
                 } else {
@@ -127,8 +130,9 @@ pub fn run() {
         }
     };
 
-    let history: Box<dyn reedline::History> =
-        Box::new(crate::history::DeduplicatingHistory::with_file(1000, history_path()));
+    let history: Box<dyn reedline::History> = Box::new(
+        crate::history::DeduplicatingHistory::with_file(1000, history_path()),
+    );
 
     let completion_menu = Box::new(ColumnarMenu::default().with_name("completion_menu"));
 

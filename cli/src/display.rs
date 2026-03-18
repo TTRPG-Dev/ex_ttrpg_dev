@@ -57,7 +57,6 @@ pub(crate) fn format_proficiencies(p: &Proficiencies) -> String {
     out
 }
 
-
 pub(crate) fn print_inventory(inventory: &[InventoryItemData]) {
     if inventory.is_empty() {
         println!("Inventory: (empty)");
