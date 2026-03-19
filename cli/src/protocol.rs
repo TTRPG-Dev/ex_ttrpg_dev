@@ -149,3 +149,84 @@ pub(crate) struct ConceptRollResult {
     pub(crate) bonus: i64,
     pub(crate) total: i64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialize_roll_result() {
+        let json = r#"{"results":[{"spec":"2d6","rolls":[3,4],"total":7}]}"#;
+        let r: RollResult = serde_json::from_str(json).unwrap();
+        assert_eq!(r.results.len(), 1);
+        assert_eq!(r.results[0].spec, "2d6");
+        assert_eq!(r.results[0].rolls, vec![3, 4]);
+        assert_eq!(r.results[0].total, 7);
+    }
+
+    #[test]
+    fn deserialize_systems_list() {
+        let json = r#"{"systems":["dnd_5e_srd","pathfinder"]}"#;
+        let s: SystemsList = serde_json::from_str(json).unwrap();
+        assert_eq!(s.systems, vec!["dnd_5e_srd", "pathfinder"]);
+    }
+
+    #[test]
+    fn deserialize_character_data_minimal() {
+        let json = r#"{
+            "name": "Aria",
+            "rule_system": "dnd_5e_srd",
+            "choices": [],
+            "proficiencies": {"skills":[],"languages":[],"weapons":[],"armor":[],"tools":[]},
+            "concept_types": []
+        }"#;
+        let c: CharacterData = serde_json::from_str(json).unwrap();
+        assert_eq!(c.name, "Aria");
+        assert_eq!(c.rule_system, "dnd_5e_srd");
+        assert!(c.slug.is_none());
+        assert!(c.temp_id.is_none());
+        assert!(c.pending_choices.is_none());
+    }
+
+    #[test]
+    fn deserialize_character_data_with_optionals() {
+        let json = r#"{
+            "temp_id": "abc123",
+            "slug": "aria-1",
+            "name": "Aria",
+            "rule_system": "dnd_5e_srd",
+            "choices": [{"type_name":"Race","value":"Elf"}],
+            "proficiencies": {"skills":["Stealth"],"languages":["Common"],"weapons":[],"armor":[],"tools":[]},
+            "concept_types": [],
+            "pending_choices": [{"type":"pending","id":"hp_1","name":"Level 1 HP","count":1,"roll":"d8"}]
+        }"#;
+        let c: CharacterData = serde_json::from_str(json).unwrap();
+        assert_eq!(c.slug.as_deref(), Some("aria-1"));
+        assert_eq!(c.choices[0].type_name, "Race");
+        assert_eq!(c.proficiencies.skills, vec!["Stealth"]);
+        let pending = c.pending_choices.unwrap();
+        assert_eq!(pending[0].id, "hp_1");
+        assert_eq!(pending[0].roll.as_deref(), Some("d8"));
+        assert_eq!(pending[0].count, Some(1));
+    }
+
+    #[test]
+    fn deserialize_pending_choice_type_rename() {
+        // The `type` JSON field maps to `choice_type` via serde rename
+        let json = r#"{"type":"available","id":"feat_1","name":"Feat Choice"}"#;
+        let p: PendingChoice = serde_json::from_str(json).unwrap();
+        assert_eq!(p.choice_type, "available");
+        assert_eq!(p.id, "feat_1");
+        assert!(p.count.is_none());
+        assert!(p.roll.is_none());
+    }
+
+    #[test]
+    fn deserialize_inventory_response() {
+        let json = r#"{"inventory":[{"index":0,"concept_type":"weapon","concept_id":"shortsword","fields":{"equipped":true}}]}"#;
+        let r: InventoryResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(r.inventory.len(), 1);
+        assert_eq!(r.inventory[0].concept_id, "shortsword");
+        assert_eq!(r.inventory[0].fields["equipped"], true);
+    }
+}

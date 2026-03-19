@@ -69,3 +69,60 @@ impl History for DeduplicatingHistory {
         self.0.session()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reedline::{HistoryItem, SearchDirection, SearchQuery};
+
+    fn make_history() -> DeduplicatingHistory {
+        DeduplicatingHistory(Box::new(
+            FileBackedHistory::new(100).expect("in-memory history"),
+        ))
+    }
+
+    fn count_all(h: &DeduplicatingHistory) -> i64 {
+        h.count(SearchQuery::everything(SearchDirection::Forward, None))
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn saves_first_entry() {
+        let mut h = make_history();
+        let saved = h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        assert_eq!(saved.command_line, "roll 1d6");
+    }
+
+    #[test]
+    fn skips_consecutive_duplicate() {
+        let mut h = make_history();
+        h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        assert_eq!(count_all(&h), 1);
+    }
+
+    #[test]
+    fn duplicate_save_returns_original_item() {
+        let mut h = make_history();
+        let first = h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        let second = h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        assert_eq!(first.id, second.id);
+    }
+
+    #[test]
+    fn saves_different_consecutive_commands() {
+        let mut h = make_history();
+        h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        h.save(HistoryItem::from_command_line("roll 1d20")).unwrap();
+        assert_eq!(count_all(&h), 2);
+    }
+
+    #[test]
+    fn saves_repeated_command_after_different_one() {
+        let mut h = make_history();
+        h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        h.save(HistoryItem::from_command_line("roll 1d20")).unwrap();
+        h.save(HistoryItem::from_command_line("roll 1d6")).unwrap();
+        assert_eq!(count_all(&h), 3);
+    }
+}

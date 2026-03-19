@@ -51,7 +51,7 @@ jobs:
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        components: clippy, rustfmt
+        components: clippy, rustfmt, llvm-tools
     - name: Cache Cargo
       uses: actions/cache@v4
       with:
@@ -61,15 +61,23 @@ jobs:
           cli/target
         key: ${{ runner.os }}-cargo-${{ hashFiles('cli/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-
-    - name: Build
-      working-directory: cli
-      run: cargo build
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
     - name: Format
       working-directory: cli
       run: cargo fmt -- --check
     - name: Clippy
       working-directory: cli
       run: cargo clippy -- -D warnings
+    - name: Test and coverage
+      working-directory: cli
+      run: cargo llvm-cov --lcov --output-path lcov.info
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        file: cli/lcov.info
+        flag-name: rust
+        parallel: true
     - name: Machete
       uses: bnjbvr/cargo-machete@main
       with:

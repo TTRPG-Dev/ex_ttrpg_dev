@@ -189,3 +189,64 @@ fn history_path() -> std::path::PathBuf {
         .unwrap_or_else(|_| std::path::PathBuf::from("."));
     base.join(".ttrpg_dev_history")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reedline::Completer;
+
+    #[test]
+    fn completes_empty_input_with_top_level_commands() {
+        let mut c = CommandCompleter;
+        let values: Vec<String> = c.complete("", 0).into_iter().map(|s| s.value).collect();
+        assert!(values.contains(&"roll".to_string()));
+        assert!(values.contains(&"characters".to_string()));
+        assert!(values.contains(&"systems".to_string()));
+        assert!(values.contains(&"help".to_string()));
+        assert!(values.contains(&"exit".to_string()));
+    }
+
+    #[test]
+    fn completes_partial_top_level_command() {
+        let mut c = CommandCompleter;
+        let values: Vec<String> = c.complete("ch", 2).into_iter().map(|s| s.value).collect();
+        assert!(values.contains(&"characters".to_string()));
+        assert!(!values.contains(&"roll".to_string()));
+        assert!(!values.contains(&"systems".to_string()));
+    }
+
+    #[test]
+    fn completes_subcommand_after_space() {
+        let mut c = CommandCompleter;
+        let values: Vec<String> = c
+            .complete("characters ", 11)
+            .into_iter()
+            .map(|s| s.value)
+            .collect();
+        assert!(values.contains(&"list".to_string()));
+        assert!(values.contains(&"gen".to_string()));
+        assert!(values.contains(&"show".to_string()));
+        assert!(values.contains(&"roll".to_string()));
+        assert!(values.contains(&"inventory".to_string()));
+    }
+
+    #[test]
+    fn no_completions_for_unknown_prefix() {
+        let mut c = CommandCompleter;
+        assert!(c.complete("zzz", 3).is_empty());
+    }
+
+    #[test]
+    fn deduplicates_suggestions_for_shared_subcommand_prefix() {
+        // "characters inventory", "characters inventory add", "characters inventory set"
+        // all share the "inventory" token — it should appear only once
+        let mut c = CommandCompleter;
+        let values: Vec<String> = c
+            .complete("characters inv", 14)
+            .into_iter()
+            .map(|s| s.value)
+            .collect();
+        let inventory_count = values.iter().filter(|v| *v == "inventory").count();
+        assert_eq!(inventory_count, 1);
+    }
+}
