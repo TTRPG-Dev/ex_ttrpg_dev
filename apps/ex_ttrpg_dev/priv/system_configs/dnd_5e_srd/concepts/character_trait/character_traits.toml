@@ -50,3 +50,13 @@ amount.base = "0"
 name = "Darkvision"
 range.type = "accumulator"
 range.base = "0"
+
+[character_trait.initiative]
+name = "Initiative"
+bonus.type = "accumulator"
+bonus.base = "ability('dexterity').modifier"
+
+[character_trait.passive_perception]
+name = "Passive Perception"
+score.type = "accumulator"
+score.base = "10 + skill('perception').modifier"
