@@ -330,6 +330,94 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
   end
 
+  describe "armor class integration" do
+    setup do
+      {:ok, loader_data} = Loader.load(dnd_path())
+      {:ok, system} = Graph.build(loader_data)
+
+      # All scores 10 (mod 0) except DEX 14 (mod +2)
+      generated = %{
+        {"ability", "strength", "base_score"} => 10,
+        {"ability", "dexterity", "base_score"} => 14,
+        {"ability", "constitution", "base_score"} => 10,
+        {"ability", "wisdom", "base_score"} => 10,
+        {"ability", "intelligence", "base_score"} => 10,
+        {"ability", "charisma", "base_score"} => 10
+      }
+
+      %{system: system, generated: generated}
+    end
+
+    defp item_effects(system, concept_id, equipped) do
+      system.effects
+      |> Enum.filter(fn
+        %{source: {"equipment", id}} -> id == concept_id
+        _ -> false
+      end)
+      |> Enum.map(&Map.put(&1, :item_fields, %{"equipped" => equipped}))
+    end
+
+    test "unarmored default: 10 + DEX modifier", %{system: system, generated: generated} do
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 12
+    end
+
+    test "light armor: ac_base + full DEX modifier", %{system: system, generated: generated} do
+      # leather: ac_base 11; 11 + 2 = 13
+      effects = item_effects(system, "leather_armor", true)
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 13
+    end
+
+    test "medium armor: DEX modifier applied within cap", %{system: system, generated: generated} do
+      # chain_shirt: ac_base 13, DEX mod +2 (≤ cap of 2); 13 + 2 = 15
+      effects = item_effects(system, "chain_shirt", true)
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 15
+    end
+
+    test "medium armor: DEX modifier capped at +2 when mod exceeds cap",
+         %{system: system, generated: generated} do
+      # breastplate: ac_base 14, DEX mod +4 (capped to +2); 14 + 2 = 16
+      generated_high_dex = Map.put(generated, {"ability", "dexterity", "base_score"}, 18)
+      effects = item_effects(system, "breastplate", true)
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated_high_dex, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 16
+    end
+
+    test "heavy armor: ac_base only, DEX modifier ignored", %{
+      system: system,
+      generated: generated
+    } do
+      # chain_mail: ac_base 16; 16 + 0 = 16 regardless of DEX
+      effects = item_effects(system, "chain_mail", true)
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 16
+    end
+
+    test "shield adds +2 to unarmored AC", %{system: system, generated: generated} do
+      # unarmored + shield: 10 + 2 (shield) + 2 (DEX) = 14
+      effects = item_effects(system, "shield", true)
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 14
+    end
+
+    test "light armor + shield stacks correctly", %{system: system, generated: generated} do
+      # leather + shield: (10 + 1 + 2) base + 2 DEX = 15
+      effects =
+        item_effects(system, "leather_armor", true) ++ item_effects(system, "shield", true)
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 15
+    end
+
+    test "unequipped armor has no effect on AC", %{system: system, generated: generated} do
+      effects = item_effects(system, "plate", false)
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "armor_class", "total"}] == 12
+    end
+  end
+
   test "when condition edge cases: numeric truthy/falsy and formula errors" do
     system = minimal_system()
     generated = %{{"attr", "strength", "base_score"} => 16}
