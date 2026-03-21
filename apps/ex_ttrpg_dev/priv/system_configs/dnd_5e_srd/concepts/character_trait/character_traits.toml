@@ -60,3 +60,11 @@ bonus.base = "ability('dexterity').modifier"
 name = "Passive Perception"
 score.type = "accumulator"
 score.base = "10 + skill('perception').modifier"
+
+[character_trait.armor_class]
+name = "Armor Class"
+base.type = "accumulator"
+base.base = "10"
+dex_bonus.type = "accumulator"
+dex_bonus.base = "ability('dexterity').modifier"
+total.formula = "character_trait('armor_class').base + character_trait('armor_class').dex_bonus"
