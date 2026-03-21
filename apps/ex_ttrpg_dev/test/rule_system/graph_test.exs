@@ -181,8 +181,8 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     {:ok, loader_data} = Loader.load(dnd_path())
     assert {:ok, system} = Graph.build(loader_data)
 
-    # 6 abilities * 3 fields + 18 skills * 1 field + 6 saving throws * 1 field + 6 character trait fields = 48 nodes
-    assert map_size(system.nodes) == 48
+    # 6 abilities * 3 fields + 18 skills * 1 field + 6 saving throws * 1 field + 8 character trait fields = 50 nodes
+    assert map_size(system.nodes) == 50
     # topological_order returns false if cyclic, a list if acyclic
     assert is_list(Graph.topological_order(system))
   end
