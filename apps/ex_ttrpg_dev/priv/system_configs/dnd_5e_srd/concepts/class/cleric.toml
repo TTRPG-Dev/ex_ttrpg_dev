@@ -39,6 +39,10 @@ value = "ability('constitution').modifier + 8"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
 
+[[class.cleric.contributes]]
+target = "character_trait('spellcasting_ability_modifier').value"
+value = "ability('wisdom').modifier"
+
 [class.life_domain]
 name = "Life Domain"
 armor_proficiencies = ["heavy_armor"]

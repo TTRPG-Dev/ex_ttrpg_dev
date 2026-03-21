@@ -55,5 +55,9 @@ value = "ability('constitution').modifier + 8"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
 
+[[class.warlock.contributes]]
+target = "character_trait('spellcasting_ability_modifier').value"
+value = "ability('charisma').modifier"
+
 [class.the_fiend]
 name = "The Fiend"
