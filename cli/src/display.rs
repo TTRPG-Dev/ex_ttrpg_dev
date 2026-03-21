@@ -48,6 +48,7 @@ pub(crate) fn format_proficiencies(p: &Proficiencies) -> String {
         ("Weapon Proficiencies", &p.weapons),
         ("Armor Proficiencies", &p.armor),
         ("Tool Proficiencies", &p.tools),
+        ("Damage Resistances", &p.damage_resistances),
     ];
     for (label, items) in entries {
         if !items.is_empty() {
@@ -154,6 +155,7 @@ mod tests {
             weapons: vec![],
             armor: vec![],
             tools: vec![],
+            damage_resistances: vec![],
         }
     }
 
@@ -260,6 +262,17 @@ mod tests {
         let out = format_character(&c);
         assert!(out.contains("Skill Proficiencies: Stealth"));
         assert!(out.contains("Languages: Common"));
+    }
+
+    #[test]
+    fn format_proficiencies_damage_resistances() {
+        let p = Proficiencies {
+            damage_resistances: vec!["Poison".to_string(), "Fire".to_string()],
+            ..empty_proficiencies()
+        };
+        let out = format_proficiencies(&p);
+        assert!(out.contains("Damage Resistances: Poison, Fire"));
+        assert!(!out.contains("Languages"));
     }
 }
 

@@ -516,6 +516,7 @@ defmodule ExTTRPGDev.CLI.Server do
     skill_ids = collect_from_active(active, system.concept_metadata, "skill_proficiencies")
     weapon_ids = collect_from_active(active, system.concept_metadata, "weapon_proficiencies")
     armor_ids = collect_from_active(active, system.concept_metadata, "armor_proficiencies")
+    resistance_ids = collect_from_active(active, system.concept_metadata, "damage_resistances")
 
     fixed_langs = collect_from_active(active, system.concept_metadata, "languages")
     chosen_langs = chosen_by_type(character.decisions, system.concept_metadata, "language")
@@ -542,6 +543,10 @@ defmodule ExTTRPGDev.CLI.Server do
       tools:
         Enum.map(all_tools, fn id ->
           get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
+        end),
+      damage_resistances:
+        Enum.map(resistance_ids, fn id ->
+          get_in(system.concept_metadata, [{"damage_type", id}, "name"]) || id
         end)
     }
   end
