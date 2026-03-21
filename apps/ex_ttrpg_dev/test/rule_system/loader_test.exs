@@ -309,8 +309,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
              "category" => "weapon",
              "weapon_category" => "simple",
              "weapon_type" => "melee",
-             "damage" => "1d4",
-             "damage_type" => "piercing",
+             "damages" => [%{"dice" => "1d4", "type" => "piercing"}],
              "properties" => ["finesse", "light", "thrown"],
              "range_normal" => 20,
              "range_long" => 60
