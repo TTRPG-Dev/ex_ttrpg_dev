@@ -266,7 +266,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   end
 
   describe "integration" do
-    test "evaluate full dnd_5e_srd with known scores" do
+    setup do
       {:ok, loader_data} = Loader.load(dnd_path())
       {:ok, system} = Graph.build(loader_data)
 
@@ -279,53 +279,49 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
         {"ability", "charisma", "base_score"} => 8
       }
 
-      assert {:ok, resolved} = Evaluator.evaluate(system, generated)
+      {:ok, resolved} = Evaluator.evaluate(system, generated)
+      %{system: system, generated: generated, resolved: resolved}
+    end
 
-      # Verify modifiers: floor((score - 10) / 2)
+    test "physical ability modifiers are calculated correctly", %{resolved: resolved} do
       assert resolved[{"ability", "strength", "modifier"}] == 3
       assert resolved[{"ability", "dexterity", "modifier"}] == 2
       assert resolved[{"ability", "constitution", "modifier"}] == 2
+    end
+
+    test "mental ability modifiers are calculated correctly", %{resolved: resolved} do
       assert resolved[{"ability", "wisdom", "modifier"}] == 1
       assert resolved[{"ability", "intelligence", "modifier"}] == 0
       assert resolved[{"ability", "charisma", "modifier"}] == -1
+    end
 
-      # Verify skills inherit their ability modifier
+    test "skills default to their governing ability modifier", %{resolved: resolved} do
       assert resolved[{"skill", "athletics", "modifier"}] == 3
       assert resolved[{"skill", "acrobatics", "modifier"}] == 2
       assert resolved[{"skill", "arcana", "modifier"}] == 0
+    end
 
-      # Verify proficiency bonus base value
+    test "proficiency bonus base value is 2 at level 1", %{resolved: resolved} do
       assert resolved[{"character_trait", "proficiency_bonus", "bonus"}] == 2
+    end
 
-      # Verify saving throws inherit their ability modifier
+    test "physical saving throws inherit ability modifier", %{resolved: resolved} do
       assert resolved[{"saving_throw", "strength", "modifier"}] == 3
       assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
       assert resolved[{"saving_throw", "constitution", "modifier"}] == 2
+    end
+
+    test "mental saving throws inherit ability modifier", %{resolved: resolved} do
       assert resolved[{"saving_throw", "wisdom", "modifier"}] == 1
       assert resolved[{"saving_throw", "intelligence", "modifier"}] == 0
       assert resolved[{"saving_throw", "charisma", "modifier"}] == -1
     end
 
-    test "saving throw modifier increases when proficiency is applied as an effect" do
-      {:ok, loader_data} = Loader.load(dnd_path())
-      {:ok, system} = Graph.build(loader_data)
-
-      generated = %{
-        {"ability", "strength", "base_score"} => 16,
-        {"ability", "dexterity", "base_score"} => 14,
-        {"ability", "constitution", "base_score"} => 14,
-        {"ability", "wisdom", "base_score"} => 12,
-        {"ability", "intelligence", "base_score"} => 10,
-        {"ability", "charisma", "base_score"} => 8
-      }
-
-      # Proficiency bonus of +2 applied to strength saving throw
+    test "saving throw modifier increases when proficiency is applied as an effect",
+         %{system: system, generated: generated} do
       effects = [%{target: {"saving_throw", "strength", "modifier"}, value: 2}]
-
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-      # strength modifier is 3, plus proficiency bonus of 2
       assert resolved[{"saving_throw", "strength", "modifier"}] == 5
-      # other saving throws are unaffected
       assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
     end
   end
@@ -415,6 +411,70 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       effects = item_effects(system, "plate", false)
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "armor_class", "total"}] == 12
+    end
+  end
+
+  describe "spellcasting stat nodes integration" do
+    setup do
+      {:ok, loader_data} = Loader.load(dnd_path())
+      {:ok, system} = Graph.build(loader_data)
+
+      generated = %{
+        {"ability", "strength", "base_score"} => 10,
+        {"ability", "dexterity", "base_score"} => 10,
+        {"ability", "constitution", "base_score"} => 10,
+        {"ability", "wisdom", "base_score"} => 16,
+        {"ability", "intelligence", "base_score"} => 14,
+        {"ability", "charisma", "base_score"} => 12
+      }
+
+      # WIS mod = +3, INT mod = +2, CHA mod = +1, proficiency bonus = +2
+
+      %{system: system, generated: generated}
+    end
+
+    defp class_effects(system, class_id) do
+      Enum.filter(system.effects, fn
+        %{source: {"class", id}} -> id == class_id
+        _ -> false
+      end)
+    end
+
+    test "non-spellcaster: spellcasting_ability_modifier is 0, dc and bonus still resolve",
+         %{system: system, generated: generated} do
+      # Fighter has no spellcasting contribution
+      effects = class_effects(system, "fighter")
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"character_trait", "spellcasting_ability_modifier", "value"}] == 0
+      assert resolved[{"character_trait", "spell_save_dc", "score"}] == 10
+      assert resolved[{"character_trait", "spell_attack_bonus", "bonus"}] == 2
+    end
+
+    test "wizard uses Intelligence", %{system: system, generated: generated} do
+      effects = class_effects(system, "wizard")
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      # INT mod = +2; DC = 8 + 2 + 2 = 12; attack = 2 + 2 = 4
+      assert resolved[{"character_trait", "spellcasting_ability_modifier", "value"}] == 2
+      assert resolved[{"character_trait", "spell_save_dc", "score"}] == 12
+      assert resolved[{"character_trait", "spell_attack_bonus", "bonus"}] == 4
+    end
+
+    test "cleric uses Wisdom", %{system: system, generated: generated} do
+      effects = class_effects(system, "cleric")
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      # WIS mod = +3; DC = 8 + 2 + 3 = 13; attack = 2 + 3 = 5
+      assert resolved[{"character_trait", "spellcasting_ability_modifier", "value"}] == 3
+      assert resolved[{"character_trait", "spell_save_dc", "score"}] == 13
+      assert resolved[{"character_trait", "spell_attack_bonus", "bonus"}] == 5
+    end
+
+    test "bard uses Charisma", %{system: system, generated: generated} do
+      effects = class_effects(system, "bard")
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      # CHA mod = +1; DC = 8 + 2 + 1 = 11; attack = 2 + 1 = 3
+      assert resolved[{"character_trait", "spellcasting_ability_modifier", "value"}] == 1
+      assert resolved[{"character_trait", "spell_save_dc", "score"}] == 11
+      assert resolved[{"character_trait", "spell_attack_bonus", "bonus"}] == 3
     end
   end
 

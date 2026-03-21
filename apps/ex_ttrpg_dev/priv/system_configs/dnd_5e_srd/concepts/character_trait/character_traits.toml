@@ -68,3 +68,16 @@ base.base = "10"
 dex_bonus.type = "accumulator"
 dex_bonus.base = "ability('dexterity').modifier"
 total.formula = "character_trait('armor_class').base + character_trait('armor_class').dex_bonus"
+
+[character_trait.spellcasting_ability_modifier]
+name = "Spellcasting Ability Modifier"
+value.type = "accumulator"
+value.base = "0"
+
+[character_trait.spell_save_dc]
+name = "Spell Save DC"
+score.formula = "8 + character_trait('proficiency_bonus').bonus + character_trait('spellcasting_ability_modifier').value"
+
+[character_trait.spell_attack_bonus]
+name = "Spell Attack Bonus"
+bonus.formula = "character_trait('proficiency_bonus').bonus + character_trait('spellcasting_ability_modifier').value"

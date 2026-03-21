@@ -38,5 +38,9 @@ value = "ability('constitution').modifier + 6"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
 
+[[class.sorcerer.contributes]]
+target = "character_trait('spellcasting_ability_modifier').value"
+value = "ability('charisma').modifier"
+
 [class.draconic_bloodline]
 name = "Draconic Bloodline"

@@ -118,5 +118,9 @@ value = "ability('constitution').modifier + 8"
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
 
+[[class.bard.contributes]]
+target = "character_trait('spellcasting_ability_modifier').value"
+value = "ability('charisma').modifier"
+
 [class.college_of_lore]
 name = "College of Lore"
