@@ -10,6 +10,9 @@ ac_base = 11
 ac_dex_bonus = true
 stealth_disadvantage = true
 weight = 8
+contributes = [
+  {target = "character_trait('armor_class').base", value = 1, when = "item.equipped"},
+]
 
 [equipment.leather_armor]
 name = "Leather"
@@ -21,6 +24,9 @@ ac_base = 11
 ac_dex_bonus = true
 stealth_disadvantage = false
 weight = 10
+contributes = [
+  {target = "character_trait('armor_class').base", value = 1, when = "item.equipped"},
+]
 
 [equipment.studded_leather_armor]
 name = "Studded Leather"
@@ -32,6 +38,9 @@ ac_base = 12
 ac_dex_bonus = true
 stealth_disadvantage = false
 weight = 13
+contributes = [
+  {target = "character_trait('armor_class').base", value = 2, when = "item.equipped"},
+]
 
 # Medium Armor
 
@@ -46,6 +55,10 @@ ac_dex_bonus = true
 ac_dex_max = 2
 stealth_disadvantage = false
 weight = 12
+contributes = [
+  {target = "character_trait('armor_class').base", value = 2, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-(max(0, ability('dexterity').modifier - 2))", when = "item.equipped"},
+]
 
 [equipment.chain_shirt]
 name = "Chain Shirt"
@@ -58,6 +71,10 @@ ac_dex_bonus = true
 ac_dex_max = 2
 stealth_disadvantage = false
 weight = 20
+contributes = [
+  {target = "character_trait('armor_class').base", value = 3, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-(max(0, ability('dexterity').modifier - 2))", when = "item.equipped"},
+]
 
 [equipment.scale_mail]
 name = "Scale Mail"
@@ -70,6 +87,10 @@ ac_dex_bonus = true
 ac_dex_max = 2
 stealth_disadvantage = true
 weight = 45
+contributes = [
+  {target = "character_trait('armor_class').base", value = 4, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-(max(0, ability('dexterity').modifier - 2))", when = "item.equipped"},
+]
 
 [equipment.breastplate]
 name = "Breastplate"
@@ -82,6 +103,10 @@ ac_dex_bonus = true
 ac_dex_max = 2
 stealth_disadvantage = false
 weight = 20
+contributes = [
+  {target = "character_trait('armor_class').base", value = 4, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-(max(0, ability('dexterity').modifier - 2))", when = "item.equipped"},
+]
 
 [equipment.half_plate]
 name = "Half Plate"
@@ -94,6 +119,10 @@ ac_dex_bonus = true
 ac_dex_max = 2
 stealth_disadvantage = true
 weight = 40
+contributes = [
+  {target = "character_trait('armor_class').base", value = 5, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-(max(0, ability('dexterity').modifier - 2))", when = "item.equipped"},
+]
 
 # Heavy Armor
 
@@ -107,6 +136,10 @@ ac_base = 14
 ac_dex_bonus = false
 stealth_disadvantage = true
 weight = 40
+contributes = [
+  {target = "character_trait('armor_class').base", value = 4, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-ability('dexterity').modifier", when = "item.equipped"},
+]
 
 [equipment.chain_mail]
 name = "Chain Mail"
@@ -119,6 +152,10 @@ ac_dex_bonus = false
 strength_requirement = 13
 stealth_disadvantage = true
 weight = 55
+contributes = [
+  {target = "character_trait('armor_class').base", value = 6, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-ability('dexterity').modifier", when = "item.equipped"},
+]
 
 [equipment.splint]
 name = "Splint"
@@ -131,6 +168,10 @@ ac_dex_bonus = false
 strength_requirement = 15
 stealth_disadvantage = true
 weight = 60
+contributes = [
+  {target = "character_trait('armor_class').base", value = 7, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-ability('dexterity').modifier", when = "item.equipped"},
+]
 
 [equipment.plate]
 name = "Plate"
@@ -143,6 +184,10 @@ ac_dex_bonus = false
 strength_requirement = 15
 stealth_disadvantage = true
 weight = 65
+contributes = [
+  {target = "character_trait('armor_class').base", value = 8, when = "item.equipped"},
+  {target = "character_trait('armor_class').dex_bonus", value = "-ability('dexterity').modifier", when = "item.equipped"},
+]
 
 # Shields
 
@@ -155,3 +200,6 @@ cost.currency = "gp"
 ac_bonus = 2
 stealth_disadvantage = false
 weight = 6
+contributes = [
+  {target = "character_trait('armor_class').base", value = 2, when = "item.equipped"},
+]
