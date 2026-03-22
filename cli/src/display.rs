@@ -3,8 +3,8 @@
 //! Also provides `page_output` for piping long content through the system pager.
 
 use crate::protocol::{
-    CharacterData, CharacterSummary, ConceptsList, InventoryItemData, PendingChoice, Proficiencies,
-    SystemInfo,
+    CharacterData, CharacterListCategory, CharacterSummary, ConceptsList, InventoryItemData,
+    PendingChoice, SystemInfo,
 };
 
 pub(crate) fn format_character(c: &CharacterData) -> String {
@@ -19,7 +19,7 @@ pub(crate) fn format_character(c: &CharacterData) -> String {
     for choice in &c.choices {
         writeln!(out, "{}: {}", choice.type_name, choice.value).unwrap();
     }
-    out.push_str(&format_proficiencies(&c.proficiencies));
+    out.push_str(&format_character_lists(&c.character_lists));
     for ct in &c.concept_types {
         writeln!(out, "\n{}s:", ct.name).unwrap();
         for concept in &ct.concepts {
@@ -39,20 +39,12 @@ pub(crate) fn print_character(c: &CharacterData) {
     print!("{}", format_character(c));
 }
 
-pub(crate) fn format_proficiencies(p: &Proficiencies) -> String {
+pub(crate) fn format_character_lists(lists: &[CharacterListCategory]) -> String {
     use std::fmt::Write;
     let mut out = String::new();
-    let entries = [
-        ("Skill Proficiencies", &p.skills),
-        ("Languages", &p.languages),
-        ("Weapon Proficiencies", &p.weapons),
-        ("Armor Proficiencies", &p.armor),
-        ("Tool Proficiencies", &p.tools),
-        ("Damage Resistances", &p.damage_resistances),
-    ];
-    for (label, items) in entries {
-        if !items.is_empty() {
-            writeln!(out, "{label}: {}", items.join(", ")).unwrap();
+    for list in lists {
+        if !list.items.is_empty() {
+            writeln!(out, "{}: {}", list.label, list.items.join(", ")).unwrap();
         }
     }
     out
@@ -148,17 +140,6 @@ mod tests {
     use super::*;
     use crate::protocol::*;
 
-    fn empty_proficiencies() -> Proficiencies {
-        Proficiencies {
-            skills: vec![],
-            languages: vec![],
-            weapons: vec![],
-            armor: vec![],
-            tools: vec![],
-            damage_resistances: vec![],
-        }
-    }
-
     fn minimal_character(name: &str) -> CharacterData {
         CharacterData {
             temp_id: None,
@@ -166,39 +147,47 @@ mod tests {
             name: name.to_string(),
             rule_system: "test_system".to_string(),
             choices: vec![],
-            proficiencies: empty_proficiencies(),
+            character_lists: vec![],
             concept_types: vec![],
             pending_choices: None,
         }
     }
 
-    #[test]
-    fn format_proficiencies_all_empty_returns_empty_string() {
-        assert_eq!(format_proficiencies(&empty_proficiencies()), "");
+    fn list(label: &str, items: &[&str]) -> CharacterListCategory {
+        CharacterListCategory {
+            label: label.to_string(),
+            items: items.iter().map(|s| s.to_string()).collect(),
+        }
     }
 
     #[test]
-    fn format_proficiencies_single_category() {
-        let p = Proficiencies {
-            skills: vec!["Acrobatics".to_string(), "Stealth".to_string()],
-            ..empty_proficiencies()
-        };
-        let out = format_proficiencies(&p);
-        assert!(out.contains("Skill Proficiencies: Acrobatics, Stealth"));
+    fn format_character_lists_empty_returns_empty_string() {
+        assert_eq!(format_character_lists(&[]), "");
+    }
+
+    #[test]
+    fn format_character_lists_single_entry() {
+        let out = format_character_lists(&[list("Skills", &["Acrobatics", "Stealth"])]);
+        assert!(out.contains("Skills: Acrobatics, Stealth"));
         assert!(!out.contains("Languages"));
     }
 
     #[test]
-    fn format_proficiencies_multiple_categories() {
-        let p = Proficiencies {
-            skills: vec!["Stealth".to_string()],
-            languages: vec!["Common".to_string(), "Elvish".to_string()],
-            ..empty_proficiencies()
-        };
-        let out = format_proficiencies(&p);
-        assert!(out.contains("Skill Proficiencies: Stealth"));
+    fn format_character_lists_multiple_entries() {
+        let out = format_character_lists(&[
+            list("Skills", &["Stealth"]),
+            list("Languages", &["Common", "Elvish"]),
+        ]);
+        assert!(out.contains("Skills: Stealth"));
         assert!(out.contains("Languages: Common, Elvish"));
         assert!(!out.contains("Weapons"));
+    }
+
+    #[test]
+    fn format_character_lists_damage_resistances() {
+        let out = format_character_lists(&[list("Damage Resistances", &["Poison", "Fire"])]);
+        assert!(out.contains("Damage Resistances: Poison, Fire"));
+        assert!(!out.contains("Languages"));
     }
 
     #[test]
@@ -250,29 +239,14 @@ mod tests {
     }
 
     #[test]
-    fn format_character_includes_proficiencies() {
+    fn format_character_includes_character_lists() {
         let c = CharacterData {
-            proficiencies: Proficiencies {
-                skills: vec!["Stealth".to_string()],
-                languages: vec!["Common".to_string()],
-                ..empty_proficiencies()
-            },
+            character_lists: vec![list("Skills", &["Stealth"]), list("Languages", &["Common"])],
             ..minimal_character("Aria")
         };
         let out = format_character(&c);
-        assert!(out.contains("Skill Proficiencies: Stealth"));
+        assert!(out.contains("Skills: Stealth"));
         assert!(out.contains("Languages: Common"));
-    }
-
-    #[test]
-    fn format_proficiencies_damage_resistances() {
-        let p = Proficiencies {
-            damage_resistances: vec!["Poison".to_string(), "Fire".to_string()],
-            ..empty_proficiencies()
-        };
-        let out = format_proficiencies(&p);
-        assert!(out.contains("Damage Resistances: Poison, Fire"));
-        assert!(!out.contains("Languages"));
     }
 }
 

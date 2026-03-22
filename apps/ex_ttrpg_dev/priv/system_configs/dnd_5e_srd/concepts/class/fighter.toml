@@ -1,8 +1,8 @@
 [class.fighter]
 name = "Fighter"
 hit_die = "d10"
-armor_proficiencies = ["light_armor", "medium_armor", "heavy_armor", "shields"]
-weapon_proficiencies = ["simple_weapons", "martial_weapons"]
+armor_proficiencies = ["Light Armor", "Medium Armor", "Heavy Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
 # Starting equipment choices (per D&D 5e SRD)
 [class.fighter.choices.starting_armor]

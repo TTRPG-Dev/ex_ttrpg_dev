@@ -1,7 +1,7 @@
 [class.wizard]
 name = "Wizard"
 hit_die = "d6"
-weapon_proficiencies = ["dagger", "dart", "sling", "quarterstaff", "light_crossbow"]
+weapon_proficiencies = ["Dagger", "Dart", "Sling", "Quarterstaff", "Light Crossbow"]
 
 [class.wizard.choices.subclass]
 required = true

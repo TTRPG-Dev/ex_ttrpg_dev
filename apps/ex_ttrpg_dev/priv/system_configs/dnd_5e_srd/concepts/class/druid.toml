@@ -1,9 +1,9 @@
 [class.druid]
 name = "Druid"
 hit_die = "d8"
-armor_proficiencies = ["light_armor", "medium_armor", "shields"]
-weapon_proficiencies = ["club", "dagger", "dart", "javelin", "mace", "quarterstaff", "scimitar", "sickle", "sling", "spear"]
-tool_proficiencies = ["herbalism_kit"]
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Club", "Dagger", "Dart", "Javelin", "Mace", "Quarterstaff", "Scimitar", "Sickle", "Sling", "Spear"]
+tool_proficiencies = ["Herbalism Kit"]
 
 [class.druid.choices.subclass]
 required = true

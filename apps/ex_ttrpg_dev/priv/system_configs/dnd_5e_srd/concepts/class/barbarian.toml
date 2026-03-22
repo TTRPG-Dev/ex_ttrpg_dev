@@ -1,8 +1,8 @@
 [class.barbarian]
 name = "Barbarian"
 hit_die = "d12"
-armor_proficiencies = ["light_armor", "medium_armor", "shields"]
-weapon_proficiencies = ["simple_weapons", "martial_weapons"]
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
 [class.barbarian.choices.subclass]
 required = true

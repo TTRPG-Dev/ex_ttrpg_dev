@@ -70,7 +70,7 @@ pub(crate) struct CharacterData {
     pub(crate) name: String,
     pub(crate) rule_system: String,
     pub(crate) choices: Vec<ChoiceEntry>,
-    pub(crate) proficiencies: Proficiencies,
+    pub(crate) character_lists: Vec<CharacterListCategory>,
     pub(crate) concept_types: Vec<ConceptTypeValues>,
     pub(crate) pending_choices: Option<Vec<PendingChoice>>,
 }
@@ -97,13 +97,9 @@ pub(crate) struct ChoiceEntry {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct Proficiencies {
-    pub(crate) skills: Vec<String>,
-    pub(crate) languages: Vec<String>,
-    pub(crate) weapons: Vec<String>,
-    pub(crate) armor: Vec<String>,
-    pub(crate) tools: Vec<String>,
-    pub(crate) damage_resistances: Vec<String>,
+pub(crate) struct CharacterListCategory {
+    pub(crate) label: String,
+    pub(crate) items: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -178,7 +174,7 @@ mod tests {
             "name": "Aria",
             "rule_system": "dnd_5e_srd",
             "choices": [],
-            "proficiencies": {"skills":[],"languages":[],"weapons":[],"armor":[],"tools":[],"damage_resistances":[]},
+            "character_lists": [],
             "concept_types": []
         }"#;
         let c: CharacterData = serde_json::from_str(json).unwrap();
@@ -197,14 +193,15 @@ mod tests {
             "name": "Aria",
             "rule_system": "dnd_5e_srd",
             "choices": [{"type_name":"Race","value":"Elf"}],
-            "proficiencies": {"skills":["Stealth"],"languages":["Common"],"weapons":[],"armor":[],"tools":[],"damage_resistances":[]},
+            "character_lists": [{"label":"Skill Proficiencies","items":["Stealth"]},{"label":"Languages","items":["Common"]}],
             "concept_types": [],
             "pending_choices": [{"type":"pending","id":"hp_1","name":"Level 1 HP","count":1,"roll":"d8"}]
         }"#;
         let c: CharacterData = serde_json::from_str(json).unwrap();
         assert_eq!(c.slug.as_deref(), Some("aria-1"));
         assert_eq!(c.choices[0].type_name, "Race");
-        assert_eq!(c.proficiencies.skills, vec!["Stealth"]);
+        assert_eq!(c.character_lists[0].label, "Skill Proficiencies");
+        assert_eq!(c.character_lists[0].items, vec!["Stealth"]);
         let pending = c.pending_choices.unwrap();
         assert_eq!(pending[0].id, "hp_1");
         assert_eq!(pending[0].roll.as_deref(), Some("d8"));

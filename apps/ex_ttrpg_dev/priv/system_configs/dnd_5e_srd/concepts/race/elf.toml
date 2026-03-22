@@ -21,7 +21,7 @@ value = 2
 
 [race.high_elf]
 name = "High Elf"
-weapon_proficiencies = ["longsword", "shortsword", "shortbow", "longbow"]
+weapon_proficiencies = ["Longsword", "Shortsword", "Shortbow", "Longbow"]
 
 [race.high_elf.choices.extra_language]
 required = true

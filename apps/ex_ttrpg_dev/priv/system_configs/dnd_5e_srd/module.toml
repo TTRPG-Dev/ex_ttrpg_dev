@@ -65,3 +65,35 @@ name = "Award"
 [[concept_type]]
 id = "damage_type"
 name = "Damage Type"
+
+[[character_list]]
+label = "Skill Proficiencies"
+metadata_key = "skill_proficiencies"
+concept_type = "skill"
+
+[[character_list]]
+label = "Languages"
+metadata_key = "languages"
+concept_type = "language"
+choice_concept_type = "language"
+
+[[character_list]]
+label = "Weapon Proficiencies"
+metadata_key = "weapon_proficiencies"
+
+[[character_list]]
+label = "Armor Proficiencies"
+metadata_key = "armor_proficiencies"
+
+[[character_list]]
+label = "Tool Proficiencies"
+metadata_key = "tool_proficiencies"
+choice_concept_type = "equipment"
+
+[[character_list]]
+label = "Damage Resistances"
+metadata_key = "damage_resistances"
+concept_type = "damage_type"
+
+[display]
+signed_fields = ["modifier", "bonus"]

@@ -1,8 +1,8 @@
 [class.bard]
 name = "Bard"
 hit_die = "d8"
-armor_proficiencies = ["light_armor"]
-weapon_proficiencies = ["simple_weapons", "hand_crossbow", "longsword", "rapier", "shortsword"]
+armor_proficiencies = ["Light Armor"]
+weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier", "Shortsword"]
 
 [class.bard.choices.subclass]
 required = true
