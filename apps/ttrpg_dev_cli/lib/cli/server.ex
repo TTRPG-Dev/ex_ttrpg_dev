@@ -446,18 +446,10 @@ defmodule ExTTRPGDev.CLI.Server do
       name: character.name,
       rule_system: character.metadata.rule_system,
       slug: slug,
-      hit_die: get_hit_die(character, system.concept_metadata),
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active),
       concept_types: serialize_concept_type_values(system, resolved_by_concept)
     }
-  end
-
-  defp get_hit_die(character, concept_metadata) do
-    case Enum.find(character.decisions, &(&1.scope == nil and &1.choice == "class")) do
-      nil -> nil
-      %{selection: class_id} -> get_in(concept_metadata, [{"class", class_id}, "hit_die"])
-    end
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do
