@@ -448,7 +448,7 @@ defmodule ExTTRPGDev.CLI.Server do
       slug: slug,
       hit_die: get_hit_die(character, system.concept_metadata),
       choices: serialize_choices(system, character),
-      proficiencies: serialize_proficiencies(system, character, active),
+      character_lists: serialize_character_lists(system, character, active),
       concept_types: serialize_concept_type_values(system, resolved_by_concept)
     }
   end
@@ -512,47 +512,35 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
-  defp serialize_proficiencies(%LoadedSystem{} = system, %Character{} = character, active) do
-    skill_ids = collect_from_active(active, system.concept_metadata, "skill_proficiencies")
-    weapon_ids = collect_from_active(active, system.concept_metadata, "weapon_proficiencies")
-    armor_ids = collect_from_active(active, system.concept_metadata, "armor_proficiencies")
-    resistance_ids = collect_from_active(active, system.concept_metadata, "damage_resistances")
-
-    fixed_langs = collect_from_active(active, system.concept_metadata, "languages")
-    chosen_langs = chosen_by_type(character.decisions, system.concept_metadata, "language")
-    all_langs = (fixed_langs ++ chosen_langs) |> Enum.uniq() |> Enum.sort()
-
-    fixed_tools = collect_from_active(active, system.concept_metadata, "tool_proficiencies")
-    chosen_tools = chosen_by_type(character.decisions, system.concept_metadata, "equipment")
-    all_tools = (fixed_tools ++ chosen_tools) |> Enum.uniq() |> Enum.sort()
-
-    %{
-      skills:
-        Enum.map(skill_ids, fn id ->
-          get_in(system.concept_metadata, [{"skill", id}, "name"]) || id
-        end),
-      languages:
-        Enum.map(all_langs, fn id ->
-          get_in(system.concept_metadata, [{"language", id}, "name"]) || id
-        end),
-      weapons:
-        Enum.map(weapon_ids, fn id ->
-          get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
-        end),
-      armor: Enum.map(armor_ids, &format_armor_category/1),
-      tools:
-        Enum.map(all_tools, fn id ->
-          get_in(system.concept_metadata, [{"equipment", id}, "name"]) || id
-        end),
-      damage_resistances:
-        Enum.map(resistance_ids, fn id ->
-          get_in(system.concept_metadata, [{"damage_type", id}, "name"]) || id
-        end)
-    }
+  defp serialize_character_lists(%LoadedSystem{} = system, %Character{} = character, active) do
+    system.module.character_lists
+    |> Enum.map(&serialize_character_list_category(&1, system, character, active))
+    |> Enum.reject(fn %{items: items} -> items == [] end)
   end
 
-  defp format_armor_category("shield"), do: "Shield"
-  defp format_armor_category(category), do: "#{String.capitalize(category)} Armor"
+  defp serialize_character_list_category(cat, system, character, active) do
+    ids = collect_from_active(active, system.concept_metadata, cat.metadata_key)
+    items = resolve_concept_names(ids, cat.concept_type, system.concept_metadata)
+
+    choice_items =
+      resolve_choice_names(character.decisions, system.concept_metadata, cat.choice_concept_type)
+
+    %{label: cat.label, items: (items ++ choice_items) |> Enum.uniq() |> Enum.sort()}
+  end
+
+  defp resolve_concept_names(ids, nil, _metadata), do: ids
+
+  defp resolve_concept_names(ids, concept_type, metadata) do
+    Enum.map(ids, &(get_in(metadata, [{concept_type, &1}, "name"]) || &1))
+  end
+
+  defp resolve_choice_names(_decisions, _metadata, nil), do: []
+
+  defp resolve_choice_names(decisions, metadata, concept_type) do
+    decisions
+    |> chosen_by_type(metadata, concept_type)
+    |> Enum.map(&(get_in(metadata, [{concept_type, &1}, "name"]) || &1))
+  end
 
   defp collect_from_active(active, concept_metadata, key) do
     active
@@ -592,11 +580,15 @@ defmodule ExTTRPGDev.CLI.Server do
   end
 
   defp serialize_concept_type_values(%LoadedSystem{} = system, resolved_by_concept) do
+    signed = MapSet.new(system.module.display_config.signed_fields)
+
     system.module.concept_types
-    |> Enum.flat_map(&serialize_concept_type(&1, system.concept_metadata, resolved_by_concept))
+    |> Enum.flat_map(
+      &serialize_concept_type(&1, system.concept_metadata, resolved_by_concept, signed)
+    )
   end
 
-  defp serialize_concept_type(concept_type, concept_metadata, resolved_by_concept) do
+  defp serialize_concept_type(concept_type, concept_metadata, resolved_by_concept, signed) do
     concepts =
       concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == concept_type.id end)
@@ -606,28 +598,29 @@ defmodule ExTTRPGDev.CLI.Server do
     if concepts == [] do
       []
     else
-      entries = Enum.map(concepts, &serialize_concept_entry(&1, resolved_by_concept))
+      entries = Enum.map(concepts, &serialize_concept_entry(&1, resolved_by_concept, signed))
       [%{id: concept_type.id, name: concept_type.name, concepts: entries}]
     end
   end
 
-  defp serialize_concept_entry({{type, id}, meta}, resolved_by_concept) do
+  defp serialize_concept_entry({{type, id}, meta}, resolved_by_concept, signed) do
     name = meta["name"] || id
 
     fields =
       resolved_by_concept[{type, id}]
       |> Enum.sort_by(fn {{_t, _i, field}, _} -> field end)
       |> Enum.map(fn {{_t, _i, field}, value} ->
-        %{name: field, value: format_field_value(field, value)}
+        %{name: field, value: format_field_value(field, value, signed)}
       end)
 
     %{id: id, name: name, fields: fields}
   end
 
-  defp format_field_value("modifier", value) when is_integer(value) and value >= 0,
-    do: "+#{value}"
+  defp format_field_value(field, value, signed) when is_integer(value) and value >= 0 do
+    if MapSet.member?(signed, field), do: "+#{value}", else: "#{value}"
+  end
 
-  defp format_field_value(_field, value), do: "#{value}"
+  defp format_field_value(_field, value, _signed), do: "#{value}"
 
   defp resolve_character(%LoadedSystem{} = system, %Character{} = character) do
     system

@@ -16,9 +16,9 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     defstruct [:concept_type, required: true]
   end
 
-  defmodule ProficiencyCategory do
+  defmodule CharacterListCategory do
     @moduledoc """
-    Defines one proficiency category for display, e.g. "Skill Proficiencies".
+    Defines one named list of character attributes for display, e.g. "Languages" or "Skills".
 
     `metadata_key` is the concept-metadata key whose values are collected.
     `concept_type`, when set, names the type used to look up display names for those values.
@@ -41,7 +41,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     :publisher,
     :concept_types,
     character_building_choices: [],
-    proficiency_categories: [],
+    character_lists: [],
     display_config: nil
   ]
 
@@ -63,15 +63,15 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
         |> Map.get("concept_type", [])
         |> Enum.map(fn et -> %ConceptType{id: et["id"], name: et["name"]} end)
 
-      proficiency_categories =
+      character_lists =
         map
-        |> Map.get("proficiency_category", [])
-        |> Enum.map(fn pc ->
-          %ProficiencyCategory{
-            label: pc["label"],
-            metadata_key: pc["metadata_key"],
-            concept_type: pc["concept_type"],
-            choice_concept_type: pc["choice_concept_type"]
+        |> Map.get("character_list", [])
+        |> Enum.map(fn cl ->
+          %CharacterListCategory{
+            label: cl["label"],
+            metadata_key: cl["metadata_key"],
+            concept_type: cl["concept_type"],
+            choice_concept_type: cl["choice_concept_type"]
           }
         end)
 
@@ -90,7 +90,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          series: module_map["series"],
          publisher: module_map["publisher"],
          concept_types: concept_types,
-         proficiency_categories: proficiency_categories,
+         character_lists: character_lists,
          display_config: display_config
        }}
     end

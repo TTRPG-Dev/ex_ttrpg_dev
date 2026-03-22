@@ -1,7 +1,7 @@
 [class.monk]
 name = "Monk"
 hit_die = "d8"
-weapon_proficiencies = ["simple_weapons", "shortsword"]
+weapon_proficiencies = ["Simple Weapons", "Shortsword"]
 
 [class.monk.choices.subclass]
 required = true

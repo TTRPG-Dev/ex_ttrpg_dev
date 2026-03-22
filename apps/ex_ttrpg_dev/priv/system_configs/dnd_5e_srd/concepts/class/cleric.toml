@@ -1,8 +1,8 @@
 [class.cleric]
 name = "Cleric"
 hit_die = "d8"
-armor_proficiencies = ["light_armor", "medium_armor", "shields"]
-weapon_proficiencies = ["simple_weapons"]
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons"]
 
 [class.cleric.choices.subclass]
 required = true
@@ -45,4 +45,4 @@ value = "ability('wisdom').modifier"
 
 [class.life_domain]
 name = "Life Domain"
-armor_proficiencies = ["heavy_armor"]
+armor_proficiencies = ["Heavy Armor"]

@@ -66,31 +66,31 @@ name = "Award"
 id = "damage_type"
 name = "Damage Type"
 
-[[proficiency_category]]
+[[character_list]]
 label = "Skill Proficiencies"
 metadata_key = "skill_proficiencies"
 concept_type = "skill"
 
-[[proficiency_category]]
+[[character_list]]
 label = "Languages"
 metadata_key = "languages"
 concept_type = "language"
 choice_concept_type = "language"
 
-[[proficiency_category]]
+[[character_list]]
 label = "Weapon Proficiencies"
 metadata_key = "weapon_proficiencies"
 
-[[proficiency_category]]
+[[character_list]]
 label = "Armor Proficiencies"
 metadata_key = "armor_proficiencies"
 
-[[proficiency_category]]
+[[character_list]]
 label = "Tool Proficiencies"
 metadata_key = "tool_proficiencies"
 choice_concept_type = "equipment"
 
-[[proficiency_category]]
+[[character_list]]
 label = "Damage Resistances"
 metadata_key = "damage_resistances"
 concept_type = "damage_type"

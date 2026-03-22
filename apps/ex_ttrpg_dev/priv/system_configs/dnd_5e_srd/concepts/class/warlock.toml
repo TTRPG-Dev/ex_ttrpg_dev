@@ -1,8 +1,8 @@
 [class.warlock]
 name = "Warlock"
 hit_die = "d8"
-armor_proficiencies = ["light_armor"]
-weapon_proficiencies = ["simple_weapons"]
+armor_proficiencies = ["Light Armor"]
+weapon_proficiencies = ["Simple Weapons"]
 
 [class.warlock.choices.subclass]
 required = true

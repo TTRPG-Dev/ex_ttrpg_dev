@@ -1,9 +1,9 @@
 [class.rogue]
 name = "Rogue"
 hit_die = "d8"
-armor_proficiencies = ["light_armor"]
-weapon_proficiencies = ["simple_weapons", "hand_crossbow", "longsword", "rapier", "shortsword"]
-tool_proficiencies = ["thieves_tools"]
+armor_proficiencies = ["Light Armor"]
+weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier", "Shortsword"]
+tool_proficiencies = ["Thieves' Tools"]
 
 [class.rogue.choices.subclass]
 required = true

@@ -21,7 +21,7 @@ value = 2
 
 [race.rock_gnome]
 name = "Rock Gnome"
-tool_proficiencies = ["tinkers_tools"]
+tool_proficiencies = ["Tinkers' Tools"]
 
 [[race.rock_gnome.contributes]]
 target = "ability('constitution').total_score"
