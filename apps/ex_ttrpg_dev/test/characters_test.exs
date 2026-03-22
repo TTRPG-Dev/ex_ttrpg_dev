@@ -125,6 +125,29 @@ defmodule ExTTRPGDevTest.Characters do
       assert MapSet.member?(result, {"race", "dwarf"})
       refute MapSet.member?(result, {"race", "hill_dwarf"})
     end
+
+    @fighter_with_inventory_choice %{
+      {"class", "fighter"} => %{
+        "choices" => %{
+          "starting_armor" => %{
+            "type" => "equipment",
+            "grants_to" => "inventory",
+            "options" => ["chain_mail"]
+          }
+        }
+      }
+    }
+
+    test "does not recurse into choices with grants_to: inventory" do
+      decisions = [
+        %{scope: nil, choice: "class", selection: "fighter"},
+        %{scope: {"class", "fighter"}, choice: "starting_armor", selection: "chain_mail"}
+      ]
+
+      result = Characters.active_concepts(decisions, @fighter_with_inventory_choice)
+      assert MapSet.member?(result, {"class", "fighter"})
+      refute MapSet.member?(result, {"equipment", "chain_mail"})
+    end
   end
 
   describe "random_decisions/1" do
