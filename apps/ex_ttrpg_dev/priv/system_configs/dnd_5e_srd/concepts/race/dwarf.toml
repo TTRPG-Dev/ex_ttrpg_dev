@@ -2,6 +2,7 @@
 name = "Dwarf"
 languages = ["common", "dwarvish"]
 weapon_proficiencies = ["battleaxe", "handaxe", "light_hammer", "warhammer"]
+damage_resistances = ["poison"]
 
 [race.dwarf.choices.subrace]
 required = true

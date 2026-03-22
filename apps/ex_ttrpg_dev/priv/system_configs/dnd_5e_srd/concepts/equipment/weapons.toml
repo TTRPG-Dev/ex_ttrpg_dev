@@ -7,8 +7,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 1
 cost.currency = "sp"
-damage = "1d4"
-damage_type = "bludgeoning"
+damages = [{dice = "1d4", type = "bludgeoning"}]
 weight = 2
 properties = ["light"]
 
@@ -19,8 +18,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 2
 cost.currency = "gp"
-damage = "1d4"
-damage_type = "piercing"
+damages = [{dice = "1d4", type = "piercing"}]
 weight = 1
 properties = ["finesse", "light", "thrown"]
 range_normal = 20
@@ -33,8 +31,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 2
 cost.currency = "sp"
-damage = "1d8"
-damage_type = "bludgeoning"
+damages = [{dice = "1d8", type = "bludgeoning"}]
 weight = 10
 properties = ["two-handed"]
 
@@ -45,8 +42,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 5
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "slashing"
+damages = [{dice = "1d6", type = "slashing"}]
 weight = 2
 properties = ["light", "thrown"]
 range_normal = 20
@@ -59,8 +55,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 5
 cost.currency = "sp"
-damage = "1d6"
-damage_type = "piercing"
+damages = [{dice = "1d6", type = "piercing"}]
 weight = 2
 properties = ["thrown"]
 range_normal = 30
@@ -73,8 +68,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 2
 cost.currency = "gp"
-damage = "1d4"
-damage_type = "bludgeoning"
+damages = [{dice = "1d4", type = "bludgeoning"}]
 weight = 2
 properties = ["light", "thrown"]
 range_normal = 20
@@ -87,8 +81,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 5
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "bludgeoning"
+damages = [{dice = "1d6", type = "bludgeoning"}]
 weight = 4
 properties = []
 
@@ -99,8 +92,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 2
 cost.currency = "sp"
-damage = "1d6"
-damage_type = "bludgeoning"
+damages = [{dice = "1d6", type = "bludgeoning"}]
 weight = 4
 properties = ["versatile"]
 versatile_damage = "1d8"
@@ -112,8 +104,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 1
 cost.currency = "gp"
-damage = "1d4"
-damage_type = "slashing"
+damages = [{dice = "1d4", type = "slashing"}]
 weight = 2
 properties = ["light"]
 
@@ -124,8 +115,7 @@ weapon_category = "simple"
 weapon_type = "melee"
 cost.amount = 1
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "piercing"
+damages = [{dice = "1d6", type = "piercing"}]
 weight = 3
 properties = ["thrown", "versatile"]
 range_normal = 20
@@ -141,8 +131,7 @@ weapon_category = "simple"
 weapon_type = "ranged"
 cost.amount = 25
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "piercing"
+damages = [{dice = "1d8", type = "piercing"}]
 weight = 5
 properties = ["ammunition", "loading", "two-handed"]
 range_normal = 80
@@ -155,8 +144,7 @@ weapon_category = "simple"
 weapon_type = "ranged"
 cost.amount = 5
 cost.currency = "cp"
-damage = "1d4"
-damage_type = "piercing"
+damages = [{dice = "1d4", type = "piercing"}]
 weight = 0.25
 properties = ["finesse", "thrown"]
 range_normal = 20
@@ -169,8 +157,7 @@ weapon_category = "simple"
 weapon_type = "ranged"
 cost.amount = 25
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "piercing"
+damages = [{dice = "1d6", type = "piercing"}]
 weight = 2
 properties = ["ammunition", "two-handed"]
 range_normal = 80
@@ -183,8 +170,7 @@ weapon_category = "simple"
 weapon_type = "ranged"
 cost.amount = 1
 cost.currency = "sp"
-damage = "1d4"
-damage_type = "bludgeoning"
+damages = [{dice = "1d4", type = "bludgeoning"}]
 properties = ["ammunition"]
 range_normal = 30
 range_long = 120
@@ -198,8 +184,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 10
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "slashing"
+damages = [{dice = "1d8", type = "slashing"}]
 weight = 4
 properties = ["versatile"]
 versatile_damage = "1d10"
@@ -211,8 +196,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 10
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "bludgeoning"
+damages = [{dice = "1d8", type = "bludgeoning"}]
 weight = 2
 properties = []
 
@@ -223,8 +207,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 20
 cost.currency = "gp"
-damage = "1d10"
-damage_type = "slashing"
+damages = [{dice = "1d10", type = "slashing"}]
 weight = 6
 properties = ["heavy", "reach", "two-handed"]
 
@@ -235,8 +218,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 30
 cost.currency = "gp"
-damage = "1d12"
-damage_type = "slashing"
+damages = [{dice = "1d12", type = "slashing"}]
 weight = 7
 properties = ["heavy", "two-handed"]
 
@@ -247,8 +229,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 50
 cost.currency = "gp"
-damage = "2d6"
-damage_type = "slashing"
+damages = [{dice = "2d6", type = "slashing"}]
 weight = 6
 properties = ["heavy", "two-handed"]
 
@@ -259,8 +240,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 20
 cost.currency = "gp"
-damage = "1d10"
-damage_type = "slashing"
+damages = [{dice = "1d10", type = "slashing"}]
 weight = 6
 properties = ["heavy", "reach", "two-handed"]
 
@@ -271,8 +251,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 10
 cost.currency = "gp"
-damage = "1d12"
-damage_type = "piercing"
+damages = [{dice = "1d12", type = "piercing"}]
 weight = 6
 properties = ["reach", "special"]
 
@@ -283,8 +262,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 15
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "slashing"
+damages = [{dice = "1d8", type = "slashing"}]
 weight = 3
 properties = ["versatile"]
 versatile_damage = "1d10"
@@ -296,8 +274,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 10
 cost.currency = "gp"
-damage = "2d6"
-damage_type = "bludgeoning"
+damages = [{dice = "2d6", type = "bludgeoning"}]
 weight = 10
 properties = ["heavy", "two-handed"]
 
@@ -308,8 +285,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 15
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "piercing"
+damages = [{dice = "1d8", type = "piercing"}]
 weight = 4
 properties = []
 
@@ -320,8 +296,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 5
 cost.currency = "gp"
-damage = "1d10"
-damage_type = "piercing"
+damages = [{dice = "1d10", type = "piercing"}]
 weight = 18
 properties = ["heavy", "reach", "two-handed"]
 
@@ -332,8 +307,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 25
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "piercing"
+damages = [{dice = "1d8", type = "piercing"}]
 weight = 2
 properties = ["finesse"]
 
@@ -344,8 +318,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 25
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "slashing"
+damages = [{dice = "1d6", type = "slashing"}]
 weight = 3
 properties = ["finesse", "light"]
 
@@ -356,8 +329,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 10
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "piercing"
+damages = [{dice = "1d6", type = "piercing"}]
 weight = 2
 properties = ["finesse", "light"]
 
@@ -368,8 +340,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 5
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "piercing"
+damages = [{dice = "1d6", type = "piercing"}]
 weight = 4
 properties = ["thrown", "versatile"]
 range_normal = 20
@@ -383,8 +354,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 5
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "piercing"
+damages = [{dice = "1d8", type = "piercing"}]
 weight = 2
 properties = []
 
@@ -395,8 +365,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 15
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "bludgeoning"
+damages = [{dice = "1d8", type = "bludgeoning"}]
 weight = 2
 properties = ["versatile"]
 versatile_damage = "1d10"
@@ -408,8 +377,7 @@ weapon_category = "martial"
 weapon_type = "melee"
 cost.amount = 2
 cost.currency = "gp"
-damage = "1d4"
-damage_type = "slashing"
+damages = [{dice = "1d4", type = "slashing"}]
 weight = 3
 properties = ["finesse", "reach"]
 
@@ -422,8 +390,7 @@ weapon_category = "martial"
 weapon_type = "ranged"
 cost.amount = 10
 cost.currency = "gp"
-damage = "1"
-damage_type = "piercing"
+damages = [{dice = "1", type = "piercing"}]
 weight = 1
 properties = ["ammunition", "loading"]
 range_normal = 25
@@ -436,8 +403,7 @@ weapon_category = "martial"
 weapon_type = "ranged"
 cost.amount = 75
 cost.currency = "gp"
-damage = "1d6"
-damage_type = "piercing"
+damages = [{dice = "1d6", type = "piercing"}]
 weight = 3
 properties = ["ammunition", "light", "loading"]
 range_normal = 30
@@ -450,8 +416,7 @@ weapon_category = "martial"
 weapon_type = "ranged"
 cost.amount = 50
 cost.currency = "gp"
-damage = "1d10"
-damage_type = "piercing"
+damages = [{dice = "1d10", type = "piercing"}]
 weight = 18
 properties = ["ammunition", "heavy", "loading", "two-handed"]
 range_normal = 100
@@ -464,8 +429,7 @@ weapon_category = "martial"
 weapon_type = "ranged"
 cost.amount = 50
 cost.currency = "gp"
-damage = "1d8"
-damage_type = "piercing"
+damages = [{dice = "1d8", type = "piercing"}]
 weight = 2
 properties = ["ammunition", "heavy", "two-handed"]
 range_normal = 150

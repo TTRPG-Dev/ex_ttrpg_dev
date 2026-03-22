@@ -1,6 +1,7 @@
 [race.tiefling]
 name = "Tiefling"
 languages = ["common", "infernal"]
+damage_resistances = ["fire"]
 
 [[race.tiefling.contributes]]
 target = "character_trait('speed').amount"

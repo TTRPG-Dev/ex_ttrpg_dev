@@ -103,6 +103,7 @@ pub(crate) struct Proficiencies {
     pub(crate) weapons: Vec<String>,
     pub(crate) armor: Vec<String>,
     pub(crate) tools: Vec<String>,
+    pub(crate) damage_resistances: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -177,7 +178,7 @@ mod tests {
             "name": "Aria",
             "rule_system": "dnd_5e_srd",
             "choices": [],
-            "proficiencies": {"skills":[],"languages":[],"weapons":[],"armor":[],"tools":[]},
+            "proficiencies": {"skills":[],"languages":[],"weapons":[],"armor":[],"tools":[],"damage_resistances":[]},
             "concept_types": []
         }"#;
         let c: CharacterData = serde_json::from_str(json).unwrap();
@@ -196,7 +197,7 @@ mod tests {
             "name": "Aria",
             "rule_system": "dnd_5e_srd",
             "choices": [{"type_name":"Race","value":"Elf"}],
-            "proficiencies": {"skills":["Stealth"],"languages":["Common"],"weapons":[],"armor":[],"tools":[]},
+            "proficiencies": {"skills":["Stealth"],"languages":["Common"],"weapons":[],"armor":[],"tools":[],"damage_resistances":[]},
             "concept_types": [],
             "pending_choices": [{"type":"pending","id":"hp_1","name":"Level 1 HP","count":1,"roll":"d8"}]
         }"#;

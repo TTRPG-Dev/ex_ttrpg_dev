@@ -1,0 +1,38 @@
+[damage_type.acid]
+name = "Acid"
+
+[damage_type.bludgeoning]
+name = "Bludgeoning"
+
+[damage_type.cold]
+name = "Cold"
+
+[damage_type.fire]
+name = "Fire"
+
+[damage_type.force]
+name = "Force"
+
+[damage_type.lightning]
+name = "Lightning"
+
+[damage_type.necrotic]
+name = "Necrotic"
+
+[damage_type.piercing]
+name = "Piercing"
+
+[damage_type.poison]
+name = "Poison"
+
+[damage_type.psychic]
+name = "Psychic"
+
+[damage_type.radiant]
+name = "Radiant"
+
+[damage_type.slashing]
+name = "Slashing"
+
+[damage_type.thunder]
+name = "Thunder"
