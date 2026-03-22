@@ -41,7 +41,7 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.Dice
-  alias ExTTRPGDev.RuleSystem.Evaluator
+  alias ExTTRPGDev.RuleSystem.{Evaluator, InventoryRules}
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -441,6 +441,7 @@ defmodule ExTTRPGDev.CLI.Server do
     active = Characters.active_concepts(character.decisions, system.concept_metadata)
     resolved = resolve_character(system, character)
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
+    inventory_ids = MapSet.new(character.inventory, &{&1.concept_type, &1.concept_id})
 
     %{
       name: character.name,
@@ -448,7 +449,7 @@ defmodule ExTTRPGDev.CLI.Server do
       slug: slug,
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active),
-      concept_types: serialize_concept_type_values(system, resolved_by_concept)
+      concept_types: serialize_concept_type_values(system, resolved_by_concept, inventory_ids)
     }
   end
 
@@ -571,26 +572,36 @@ defmodule ExTTRPGDev.CLI.Server do
     end)
   end
 
-  defp serialize_concept_type_values(%LoadedSystem{} = system, resolved_by_concept) do
-    signed = MapSet.new(system.module.display_config.signed_fields)
+  defp serialize_concept_type_values(%LoadedSystem{} = system, resolved_by_concept, inventory_ids) do
+    ctx = %{
+      concept_metadata: system.concept_metadata,
+      inventory_rules: system.inventory_rules,
+      inventory_ids: inventory_ids,
+      signed: MapSet.new(system.module.display_config.signed_fields)
+    }
 
-    system.module.concept_types
-    |> Enum.flat_map(
-      &serialize_concept_type(&1, system.concept_metadata, resolved_by_concept, signed)
+    Enum.flat_map(
+      system.module.concept_types,
+      &serialize_concept_type(&1, resolved_by_concept, ctx)
     )
   end
 
-  defp serialize_concept_type(concept_type, concept_metadata, resolved_by_concept, signed) do
+  defp serialize_concept_type(concept_type, resolved_by_concept, ctx) do
+    inventoriable = InventoryRules.inventoriable?(ctx.inventory_rules, concept_type.id)
+
     concepts =
-      concept_metadata
+      ctx.concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == concept_type.id end)
       |> Enum.sort_by(fn {{_type, id}, _} -> id end)
-      |> Enum.filter(fn {{type, id}, _} -> Map.has_key?(resolved_by_concept, {type, id}) end)
+      |> Enum.filter(fn {{type, id}, _} ->
+        Map.has_key?(resolved_by_concept, {type, id}) and
+          (not inventoriable or MapSet.member?(ctx.inventory_ids, {type, id}))
+      end)
 
     if concepts == [] do
       []
     else
-      entries = Enum.map(concepts, &serialize_concept_entry(&1, resolved_by_concept, signed))
+      entries = Enum.map(concepts, &serialize_concept_entry(&1, resolved_by_concept, ctx.signed))
       [%{id: concept_type.id, name: concept_type.name, concepts: entries}]
     end
   end
