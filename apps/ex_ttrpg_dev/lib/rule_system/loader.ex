@@ -26,6 +26,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     with {:ok, rule_module} <- load_module(path),
          {:ok, data} <- load_concept_files(path, rule_module) do
       inventory_rules = load_inventory_rules(path)
+      data = expand_metadata_contributions(data, rule_module)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
     end
   end
@@ -176,6 +177,58 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       drop: fields["drop"],
       default: Map.get(fields, "default", false)
     }
+  end
+
+  defp expand_metadata_contributions(data, rule_module) do
+    new_effects =
+      Enum.flat_map(rule_module.metadata_contributions, fn contribution ->
+        expand_contribution(data.concept_metadata, contribution)
+      end)
+
+    %{data | effects: data.effects ++ new_effects}
+  end
+
+  defp expand_contribution(concept_metadata, contribution) do
+    concept_metadata
+    |> Enum.filter(fn {{type, _id}, _meta} -> type == contribution.from_type end)
+    |> Enum.flat_map(fn {{_type, source_id}, meta} ->
+      expand_source_values(concept_metadata, contribution, source_id, meta)
+    end)
+  end
+
+  defp expand_source_values(concept_metadata, contribution, source_id, meta) do
+    values = Map.get(meta, contribution.from_field, [])
+
+    Enum.flat_map(values, fn val ->
+      targets = find_contribution_targets(concept_metadata, contribution, val)
+
+      Enum.map(targets, fn target_id ->
+        %{
+          source: {contribution.from_type, source_id},
+          target: {contribution.to_type, target_id, contribution.to_field},
+          value: contribution.value,
+          when: nil
+        }
+      end)
+    end)
+  end
+
+  defp find_contribution_targets(concept_metadata, contribution, val) do
+    case Enum.find(contribution.label_filters, fn lf -> lf.label == val end) do
+      %{filter_field: filter_field, filter_value: filter_value} ->
+        concept_metadata
+        |> Enum.filter(fn {{type, _id}, meta} ->
+          type == contribution.to_type and Map.get(meta, filter_field) == filter_value
+        end)
+        |> Enum.map(fn {{_type, id}, _meta} -> id end)
+
+      nil ->
+        concept_metadata
+        |> Enum.filter(fn {{type, id}, meta} ->
+          type == contribution.to_type and (id == val or Map.get(meta, "name") == val)
+        end)
+        |> Enum.map(fn {{_type, id}, _meta} -> id end)
+    end
   end
 
   defp parse_effect(source, %{"target" => target, "value" => value} = entry) do

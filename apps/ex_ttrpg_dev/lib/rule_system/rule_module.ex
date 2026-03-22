@@ -32,6 +32,31 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     defstruct signed_fields: []
   end
 
+  defmodule LabelFilter do
+    @moduledoc """
+    Maps a human-readable label string to a metadata filter used during
+    metadata contribution expansion.
+
+    When a value in a contribution source field matches `label`, the loader
+    finds target concepts by checking `filter_field == filter_value` in their
+    metadata rather than matching by name or concept ID.
+    """
+    defstruct [:label, :filter_field, :filter_value]
+  end
+
+  defmodule MetadataContribution do
+    @moduledoc """
+    Declares that string values in a metadata list field on one concept type
+    should generate effects targeting matching concepts of another type.
+
+    At load time the loader expands each `from_type` concept's `from_field`
+    list into effects on matching `to_type` concepts, contributing `value` to
+    their `to_field` accumulator node. Matching is done by `label_filters`
+    first (category labels → metadata filter), then by concept name or ID.
+    """
+    defstruct [:from_type, :from_field, :to_type, :to_field, :value, label_filters: []]
+  end
+
   defstruct [
     :name,
     :slug,
@@ -42,7 +67,8 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     :concept_types,
     character_building_choices: [],
     character_lists: [],
-    display_config: nil
+    display_config: nil,
+    metadata_contributions: []
   ]
 
   @required_keys ["name", "slug", "version"]
@@ -81,6 +107,11 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
           dc -> %DisplayConfig{signed_fields: Map.get(dc, "signed_fields", [])}
         end
 
+      metadata_contributions =
+        map
+        |> Map.get("metadata_contributions", [])
+        |> Enum.map(&parse_metadata_contribution/1)
+
       {:ok,
        %__MODULE__{
          name: module_map["name"],
@@ -91,12 +122,35 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          publisher: module_map["publisher"],
          concept_types: concept_types,
          character_lists: character_lists,
-         display_config: display_config
+         display_config: display_config,
+         metadata_contributions: metadata_contributions
        }}
     end
   end
 
   def from_map(_), do: {:error, {:missing_required_key, "module"}}
+
+  defp parse_metadata_contribution(mc) do
+    label_filters =
+      mc
+      |> Map.get("label_filters", [])
+      |> Enum.map(fn lf ->
+        %LabelFilter{
+          label: lf["label"],
+          filter_field: lf["filter_field"],
+          filter_value: lf["filter_value"]
+        }
+      end)
+
+    %MetadataContribution{
+      from_type: mc["from_type"],
+      from_field: mc["from_field"],
+      to_type: mc["to_type"],
+      to_field: mc["to_field"],
+      value: mc["value"],
+      label_filters: label_filters
+    }
+  end
 
   @doc """
   Returns a MapSet of declared concept type id strings.

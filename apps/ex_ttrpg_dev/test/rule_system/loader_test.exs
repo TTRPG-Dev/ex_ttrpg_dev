@@ -148,6 +148,44 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end)
   end
 
+  test "load/1 expands metadata_contributions via label_filters into effects" do
+    with_tmp_system(["class", "equipment"], fn dir ->
+      write_label_filter_contribution_system(dir)
+      assert {:ok, data} = Loader.load(dir)
+
+      club_effect =
+        Enum.find(data.effects, fn e ->
+          e.source == {"class", "fighter"} and e.target == {"equipment", "club", "is_proficient"}
+        end)
+
+      assert club_effect != nil
+      assert club_effect.value == 1
+      assert club_effect.when == nil
+
+      refute Enum.any?(data.effects, fn e ->
+               e.source == {"class", "fighter"} and
+                 e.target == {"equipment", "longsword", "is_proficient"}
+             end)
+    end)
+  end
+
+  test "load/1 expands metadata_contributions by concept name when no label filter matches" do
+    with_tmp_system(["class", "equipment"], fn dir ->
+      write_name_match_contribution_system(dir)
+      assert {:ok, data} = Loader.load(dir)
+
+      assert Enum.find(data.effects, fn e ->
+               e.source == {"class", "rogue"} and
+                 e.target == {"equipment", "rapier", "is_proficient"}
+             end)
+
+      refute Enum.any?(data.effects, fn e ->
+               e.source == {"class", "rogue"} and
+                 e.target == {"equipment", "longsword", "is_proficient"}
+             end)
+    end)
+  end
+
   test "load/1 returns inventory_rules for dnd_5e_srd" do
     assert {:ok, data} = Loader.load(dnd_path())
     assert %InventoryRules{} = data.inventory_rules
@@ -454,5 +492,105 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     Enum.count(data.concept_metadata, fn {{type, _id}, meta} ->
       type == "equipment" and meta["category"] == category
     end)
+  end
+
+  # Writes a minimal class+equipment system with label_filter-based
+  # metadata_contributions for testing the expansion path.
+  defp write_label_filter_contribution_system(dir) do
+    File.mkdir_p!(Path.join([dir, "concepts", "class"]))
+    File.mkdir_p!(Path.join([dir, "concepts", "equipment"]))
+
+    File.write!(Path.join([dir, "concepts", "class", "classes.toml"]), """
+    [class.fighter]
+    name = "Fighter"
+    weapon_proficiencies = ["Simple Weapons"]
+    """)
+
+    File.write!(Path.join([dir, "concepts", "equipment", "weapons.toml"]), """
+    [equipment.club]
+    name = "Club"
+    weapon_category = "simple"
+    is_proficient.type = "accumulator"
+    is_proficient.base = "0"
+
+    [equipment.longsword]
+    name = "Longsword"
+    weapon_category = "martial"
+    is_proficient.type = "accumulator"
+    is_proficient.base = "0"
+    """)
+
+    File.write!(Path.join(dir, "module.toml"), """
+    [module]
+    name = "Test System"
+    slug = "test_system"
+    version = "0.0.1"
+
+    [[concept_type]]
+    id = "class"
+    name = "Class"
+
+    [[concept_type]]
+    id = "equipment"
+    name = "Equipment"
+
+    [[metadata_contributions]]
+    from_type = "class"
+    from_field = "weapon_proficiencies"
+    to_type = "equipment"
+    to_field = "is_proficient"
+    value = 1
+    label_filters = [
+      {label = "Simple Weapons", filter_field = "weapon_category", filter_value = "simple"}
+    ]
+    """)
+  end
+
+  # Writes a minimal class+equipment system with empty label_filters to test
+  # the name-based fallback matching path.
+  defp write_name_match_contribution_system(dir) do
+    File.mkdir_p!(Path.join([dir, "concepts", "class"]))
+    File.mkdir_p!(Path.join([dir, "concepts", "equipment"]))
+
+    File.write!(Path.join([dir, "concepts", "class", "classes.toml"]), """
+    [class.rogue]
+    name = "Rogue"
+    weapon_proficiencies = ["Rapier"]
+    """)
+
+    File.write!(Path.join([dir, "concepts", "equipment", "weapons.toml"]), """
+    [equipment.rapier]
+    name = "Rapier"
+    is_proficient.type = "accumulator"
+    is_proficient.base = "0"
+
+    [equipment.longsword]
+    name = "Longsword"
+    is_proficient.type = "accumulator"
+    is_proficient.base = "0"
+    """)
+
+    File.write!(Path.join(dir, "module.toml"), """
+    [module]
+    name = "Test System"
+    slug = "test_system"
+    version = "0.0.1"
+
+    [[concept_type]]
+    id = "class"
+    name = "Class"
+
+    [[concept_type]]
+    id = "equipment"
+    name = "Equipment"
+
+    [[metadata_contributions]]
+    from_type = "class"
+    from_field = "weapon_proficiencies"
+    to_type = "equipment"
+    to_field = "is_proficient"
+    value = 1
+    label_filters = []
+    """)
   end
 end
