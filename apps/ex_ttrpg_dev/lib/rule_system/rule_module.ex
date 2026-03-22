@@ -16,6 +16,22 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     defstruct [:concept_type, required: true]
   end
 
+  defmodule ProficiencyCategory do
+    @moduledoc """
+    Defines one proficiency category for display, e.g. "Skill Proficiencies".
+
+    `metadata_key` is the concept-metadata key whose values are collected.
+    `concept_type`, when set, names the type used to look up display names for those values.
+    `choice_concept_type`, when set, also collects character-decision selections of that type.
+    """
+    defstruct [:label, :metadata_key, :concept_type, :choice_concept_type]
+  end
+
+  defmodule DisplayConfig do
+    @moduledoc "System-level display hints, e.g. which numeric fields show an explicit + sign."
+    defstruct signed_fields: []
+  end
+
   defstruct [
     :name,
     :slug,
@@ -24,7 +40,9 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     :series,
     :publisher,
     :concept_types,
-    character_building_choices: []
+    character_building_choices: [],
+    proficiency_categories: [],
+    display_config: nil
   ]
 
   @required_keys ["name", "slug", "version"]
@@ -45,6 +63,24 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
         |> Map.get("concept_type", [])
         |> Enum.map(fn et -> %ConceptType{id: et["id"], name: et["name"]} end)
 
+      proficiency_categories =
+        map
+        |> Map.get("proficiency_category", [])
+        |> Enum.map(fn pc ->
+          %ProficiencyCategory{
+            label: pc["label"],
+            metadata_key: pc["metadata_key"],
+            concept_type: pc["concept_type"],
+            choice_concept_type: pc["choice_concept_type"]
+          }
+        end)
+
+      display_config =
+        case Map.get(map, "display") do
+          nil -> %DisplayConfig{}
+          dc -> %DisplayConfig{signed_fields: Map.get(dc, "signed_fields", [])}
+        end
+
       {:ok,
        %__MODULE__{
          name: module_map["name"],
@@ -53,7 +89,9 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          family: module_map["family"],
          series: module_map["series"],
          publisher: module_map["publisher"],
-         concept_types: concept_types
+         concept_types: concept_types,
+         proficiency_categories: proficiency_categories,
+         display_config: display_config
        }}
     end
   end
