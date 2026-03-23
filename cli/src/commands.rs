@@ -10,8 +10,9 @@ use crate::display;
 use crate::engine::Engine;
 use crate::prompts::{prompt_integer, prompt_yes_no};
 use crate::protocol::{
-    CharacterData, CharactersList, ChoicesResponse, ConceptRollResult, ConceptsList,
-    InventoryResponse, PendingChoice, RollResult, SaveResult, SystemInfo, SystemsList,
+    CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
+    ConceptsList, DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult,
+    SystemInfo, SystemsList,
 };
 
 // ── Argument bundles ──────────────────────────────────────────────────────────
@@ -24,6 +25,38 @@ pub(crate) struct ConceptRollArgs<'a> {
 pub(crate) struct CharacterAwardArgs<'a> {
     pub(crate) award_id: &'a str,
     pub(crate) value_str: &'a str,
+}
+
+struct DeleteAllArgs<'a> {
+    yes: bool,
+    system: Option<&'a str>,
+}
+
+fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
+    let mut yes = false;
+    let mut system = None;
+    let mut i = 0;
+    while i < tokens.len() {
+        match tokens[i] {
+            "--yes" | "-y" => yes = true,
+            "--system" => {
+                i += 1;
+                match tokens.get(i) {
+                    Some(s) => system = Some(*s),
+                    None => {
+                        eprintln!("Error: --system requires a value");
+                        return None;
+                    }
+                }
+            }
+            unknown => {
+                eprintln!("Unknown flag '{unknown}'. Try `characters delete-all --help`.");
+                return None;
+            }
+        }
+        i += 1;
+    }
+    Some(DeleteAllArgs { yes, system })
 }
 
 // ── roll ──────────────────────────────────────────────────────────────────────
@@ -88,6 +121,10 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
     match tokens {
         ["gen", "--help"] => println!("Usage: characters gen <system>"),
         ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
+        ["delete", "--help"] => println!("Usage: characters delete <slug>"),
+        ["delete-all", "--help"] => {
+            println!("Usage: characters delete-all [-y|--yes] [--system <system>]")
+        }
         ["show", "--help"] => println!("Usage: characters show <slug>"),
         ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
         ["award", "--help"] => println!("Usage: characters award <slug> <award_id> <value>"),
@@ -98,28 +135,8 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
              \x20      characters inventory set <slug> <index> <field> <value>"
         ),
-        ["list"] => {
-            let req = json!({"command": "characters.list"});
-            match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => display::print_characters_list(
-                    &r.characters,
-                    "No saved characters found. Run `characters gen <system>` to create one.",
-                ),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
-        ["list", "--system", system] => {
-            let req = json!({"command": "characters.list", "system": system});
-            match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => display::print_characters_list(
-                    &r.characters,
-                    &format!(
-                        "No saved characters found for system `{system}`. Run `characters gen {system}` to create one."
-                    ),
-                ),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
+        ["list"] => handle_characters_list(None, engine),
+        ["list", "--system", system] => handle_characters_list(Some(system), engine),
         ["gen", system] => handle_characters_gen(system, engine),
         ["show", slug] => handle_characters_show(slug, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
@@ -138,11 +155,18 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             },
             engine,
         ),
+        ["delete", slug] => handle_characters_delete(slug, engine),
+        ["delete-all", rest @ ..] => {
+            if let Some(args) = parse_delete_all_flags(rest) {
+                handle_characters_delete_all(engine, args);
+            }
+        }
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         [] | ["--help"] => println!(
-            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n\
+            "Usage: characters list | gen <system> | show <slug> | delete <slug> | delete-all\n\
+             \x20      characters roll <slug> <type> <concept>\n\
              \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
              \x20      characters inventory <slug>\n\
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
@@ -167,6 +191,65 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
                 }
             }
         }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
+    let req = match system {
+        Some(s) => json!({"command": "characters.list", "system": s}),
+        None => json!({"command": "characters.list"}),
+    };
+    let empty_msg = match system {
+        Some(s) => format!(
+            "No saved characters found for system `{s}`. Run `characters gen {s}` to create one."
+        ),
+        None => "No saved characters found. Run `characters gen <system>` to create one.".into(),
+    };
+    match engine.call::<_, CharactersList>(&req) {
+        Ok(r) => display::print_characters_list(&r.characters, &empty_msg),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn confirm_delete_character(character: &CharacterSummary, yes: bool) -> Option<bool> {
+    if yes {
+        Some(true)
+    } else {
+        let question = format!("Delete \"{}\" ({})? [y/N]", character.name, character.slug);
+        prompt_yes_no(&question)
+    }
+}
+
+fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
+    let req = match args.system {
+        Some(s) => json!({"command": "characters.list", "system": s}),
+        None => json!({"command": "characters.list"}),
+    };
+    let characters = match engine.call::<_, CharactersList>(&req) {
+        Ok(r) => r.characters,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return;
+        }
+    };
+    if characters.is_empty() {
+        println!("No saved characters found.");
+        return;
+    }
+    for character in &characters {
+        match confirm_delete_character(character, args.yes) {
+            Some(true) => handle_characters_delete(&character.slug, engine),
+            Some(false) => println!("Skipped {}", character.slug),
+            None => return,
+        }
+    }
+}
+
+fn handle_characters_delete(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.delete", "character": slug});
+    match engine.call::<_, DeletedCharacter>(&req) {
+        Ok(r) => println!("Deleted character: {}", r.deleted),
         Err(e) => eprintln!("Error: {e}"),
     }
 }
@@ -401,6 +484,10 @@ Commands:
   characters list                                        List saved characters
   characters list --system <system>                      List characters for a system
   characters show <slug>                                 Show a saved character
+  characters delete <slug>                               Delete a saved character
+  characters delete-all                                  Delete all characters (confirms each)
+  characters delete-all --yes                            Delete all characters without confirmation
+  characters delete-all --system <system>                Delete all characters for a system
   characters roll <slug> <type> <concept>                Roll for a character concept
   characters award <slug> <award_id> <value>             Award something to a character
   characters choices <slug>                              Show pending progression choices

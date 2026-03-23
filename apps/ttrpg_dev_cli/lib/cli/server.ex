@@ -287,6 +287,13 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  defp handle(%{"command" => "characters.delete", "character" => slug}, state) do
+    case Characters.delete_character(slug) do
+      :ok -> {ok(%{deleted: slug}), state}
+      {:error, :not_found} -> {error("Character not found: #{slug}"), state}
+    end
+  end
+
   defp handle(%{"command" => "characters.show", "character" => slug}, state) do
     try do
       character = Characters.load_character!(slug)

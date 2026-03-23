@@ -91,6 +91,18 @@ defmodule ExTTRPGDevTest.Characters do
     delete_test_character(character)
   end
 
+  test "delete_character/1 deletes an existing character and returns :ok" do
+    character = save_test_character()
+    assert Characters.character_exists?(character)
+
+    assert :ok = Characters.delete_character(character.metadata.slug)
+    refute Characters.character_exists?(character)
+  end
+
+  test "delete_character/1 returns error for unknown slug" do
+    assert {:error, :not_found} = Characters.delete_character("nonexistent_character_xyz")
+  end
+
   describe "active_concepts/2" do
     test "returns empty set for no decisions" do
       assert MapSet.new() == Characters.active_concepts([], %{})
