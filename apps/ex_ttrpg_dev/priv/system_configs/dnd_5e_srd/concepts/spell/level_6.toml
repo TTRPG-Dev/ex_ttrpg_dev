@@ -1,0 +1,447 @@
+[spell.arcane_gate]
+name = "Arcane Gate"
+level = 6
+school = "conjuration"
+casting_time = "1 action"
+range = "500 feet"
+duration = "Concentration, up to 10 minutes"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["sorcerer", "warlock", "wizard"]
+
+[spell.blade_barrier]
+name = "Blade Barrier"
+level = 6
+school = "evocation"
+casting_time = "1 action"
+range = "90 feet"
+duration = "Concentration, up to 10 minutes"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["cleric"]
+
+[spell.chain_lightning]
+name = "Chain Lightning"
+level = 6
+school = "evocation"
+casting_time = "1 action"
+range = "150 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["sorcerer", "wizard"]
+
+[spell.circle_of_death]
+name = "Circle of Death"
+level = 6
+school = "necromancy"
+casting_time = "1 action"
+range = "150 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["sorcerer", "warlock", "wizard"]
+
+[spell.conjure_fey]
+name = "Conjure Fey"
+level = 6
+school = "conjuration"
+casting_time = "1 minute"
+range = "90 feet"
+duration = "Concentration, up to 1 hour"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["druid", "warlock"]
+
+[spell.contingency]
+name = "Contingency"
+level = 6
+school = "evocation"
+casting_time = "10 minutes"
+range = "Self"
+duration = "10 days"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["wizard"]
+
+[spell.create_undead]
+name = "Create Undead"
+level = 6
+school = "necromancy"
+casting_time = "1 minute"
+range = "10 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["cleric", "warlock", "wizard"]
+
+[spell.disintegrate]
+name = "Disintegrate"
+level = 6
+school = "transmutation"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["sorcerer", "wizard"]
+
+[spell.instant_summons]
+name = "Instant Summons"
+level = 6
+school = "conjuration"
+casting_time = "1 minute"
+range = "Touch"
+duration = "Until dispelled"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = true
+classes = ["wizard"]
+
+[spell.eyebite]
+name = "Eyebite"
+level = 6
+school = "necromancy"
+casting_time = "1 action"
+range = "Self"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["bard", "sorcerer", "warlock", "wizard"]
+
+[spell.find_the_path]
+name = "Find the Path"
+level = 6
+school = "divination"
+casting_time = "1 minute"
+range = "Self"
+duration = "Concentration, up to 1 day"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["bard", "cleric", "druid"]
+
+[spell.flesh_to_stone]
+name = "Flesh to Stone"
+level = 6
+school = "transmutation"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["wizard"]
+
+[spell.forbiddance]
+name = "Forbiddance"
+level = 6
+school = "abjuration"
+casting_time = "10 minutes"
+range = "Touch"
+duration = "1 day"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = true
+classes = ["cleric"]
+
+[spell.freezing_sphere]
+name = "Freezing Sphere"
+level = 6
+school = "evocation"
+casting_time = "1 action"
+range = "300 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["wizard"]
+
+[spell.globe_of_invulnerability]
+name = "Globe of Invulnerability"
+level = 6
+school = "abjuration"
+casting_time = "1 action"
+range = "Self (10-foot radius)"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["sorcerer", "wizard"]
+
+[spell.guards_and_wards]
+name = "Guards and Wards"
+level = 6
+school = "abjuration"
+casting_time = "10 minutes"
+range = "Touch"
+duration = "24 hours"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["bard", "wizard"]
+
+[spell.harm]
+name = "Harm"
+level = 6
+school = "necromancy"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = false
+concentration = false
+ritual = false
+classes = ["cleric"]
+
+[spell.heal]
+name = "Heal"
+level = 6
+school = "evocation"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = false
+concentration = false
+ritual = false
+classes = ["cleric", "druid"]
+
+[spell.heroes_feast]
+name = "Heroes' Feast"
+level = 6
+school = "conjuration"
+casting_time = "10 minutes"
+range = "30 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["cleric", "druid"]
+
+[spell.magic_jar]
+name = "Magic Jar"
+level = 6
+school = "necromancy"
+casting_time = "1 minute"
+range = "Self"
+duration = "Until dispelled"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["wizard"]
+
+[spell.mass_suggestion]
+name = "Mass Suggestion"
+level = 6
+school = "enchantment"
+casting_time = "1 action"
+range = "60 feet"
+duration = "24 hours"
+verbal = true
+somatic = false
+material = true
+concentration = false
+ritual = false
+classes = ["bard", "sorcerer", "warlock", "wizard"]
+
+[spell.move_earth]
+name = "Move Earth"
+level = 6
+school = "transmutation"
+casting_time = "1 action"
+range = "120 feet"
+duration = "Concentration, up to 2 hours"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["druid", "sorcerer", "wizard"]
+
+[spell.irresistible_dance]
+name = "Irresistible Dance"
+level = 6
+school = "enchantment"
+casting_time = "1 action"
+range = "30 feet"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = false
+material = false
+concentration = true
+ritual = false
+classes = ["bard", "wizard"]
+
+[spell.planar_ally]
+name = "Planar Ally"
+level = 6
+school = "conjuration"
+casting_time = "10 minutes"
+range = "60 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = false
+concentration = false
+ritual = false
+classes = ["cleric"]
+
+[spell.programmed_illusion]
+name = "Programmed Illusion"
+level = 6
+school = "illusion"
+casting_time = "1 action"
+range = "120 feet"
+duration = "Until dispelled"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["bard", "wizard"]
+
+[spell.sunbeam]
+name = "Sunbeam"
+level = 6
+school = "evocation"
+casting_time = "1 action"
+range = "Self (60-foot line)"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["druid", "sorcerer", "wizard"]
+
+[spell.transport_via_plants]
+name = "Transport via Plants"
+level = 6
+school = "conjuration"
+casting_time = "1 action"
+range = "10 feet"
+duration = "1 round"
+verbal = true
+somatic = true
+material = false
+concentration = false
+ritual = false
+classes = ["druid"]
+
+[spell.true_seeing]
+name = "True Seeing"
+level = 6
+school = "divination"
+casting_time = "1 action"
+range = "Touch"
+duration = "1 hour"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["bard", "cleric", "sorcerer", "warlock", "wizard"]
+
+[spell.wall_of_ice]
+name = "Wall of Ice"
+level = 6
+school = "evocation"
+casting_time = "1 action"
+range = "120 feet"
+duration = "Concentration, up to 10 minutes"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["wizard"]
+
+[spell.wall_of_thorns]
+name = "Wall of Thorns"
+level = 6
+school = "conjuration"
+casting_time = "1 action"
+range = "120 feet"
+duration = "Concentration, up to 10 minutes"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["druid"]
+
+[spell.wind_walk]
+name = "Wind Walk"
+level = 6
+school = "transmutation"
+casting_time = "1 minute"
+range = "30 feet"
+duration = "8 hours"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["druid"]
+
+[spell.word_of_recall]
+name = "Word of Recall"
+level = 6
+school = "conjuration"
+casting_time = "1 action"
+range = "5 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = false
+material = false
+concentration = false
+ritual = false
+classes = ["cleric"]
