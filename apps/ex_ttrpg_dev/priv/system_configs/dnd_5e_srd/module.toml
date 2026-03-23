@@ -95,5 +95,16 @@ label = "Damage Resistances"
 metadata_key = "damage_resistances"
 concept_type = "damage_type"
 
+[[metadata_contributions]]
+from_type = "class"
+from_field = "weapon_proficiencies"
+to_type = "equipment"
+to_field = "is_proficient"
+value = 1
+label_filters = [
+  {label = "Simple Weapons", filter_field = "weapon_category", filter_value = "simple"},
+  {label = "Martial Weapons", filter_field = "weapon_category", filter_value = "martial"}
+]
+
 [display]
 signed_fields = ["modifier", "bonus"]

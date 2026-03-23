@@ -379,7 +379,7 @@ defmodule ExTTRPGDev.Characters do
     Enum.reduce(choices, acc, fn {choice_id, choice_def}, acc ->
       decision = Enum.find(decisions, &(&1.scope == key and &1.choice == choice_id))
 
-      if decision do
+      if decision && choice_def["grants_to"] != "inventory" do
         collect_active_concepts(
           {choice_def["type"], decision.selection},
           decisions,

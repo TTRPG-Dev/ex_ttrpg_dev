@@ -10,6 +10,9 @@ cost.currency = "sp"
 damages = [{dice = "1d4", type = "bludgeoning"}]
 weight = 2
 properties = ["light"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('club').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.dagger]
 name = "Dagger"
@@ -23,6 +26,9 @@ weight = 1
 properties = ["finesse", "light", "thrown"]
 range_normal = 20
 range_long = 60
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "max(ability('strength').modifier, ability('dexterity').modifier) + equipment('dagger').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.greatclub]
 name = "Greatclub"
@@ -34,6 +40,9 @@ cost.currency = "sp"
 damages = [{dice = "1d8", type = "bludgeoning"}]
 weight = 10
 properties = ["two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('greatclub').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.handaxe]
 name = "Handaxe"
@@ -47,6 +56,9 @@ weight = 2
 properties = ["light", "thrown"]
 range_normal = 20
 range_long = 60
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('handaxe').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.javelin]
 name = "Javelin"
@@ -60,6 +72,9 @@ weight = 2
 properties = ["thrown"]
 range_normal = 30
 range_long = 120
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('javelin').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.light_hammer]
 name = "Light Hammer"
@@ -73,6 +88,9 @@ weight = 2
 properties = ["light", "thrown"]
 range_normal = 20
 range_long = 60
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('light_hammer').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.mace]
 name = "Mace"
@@ -84,6 +102,9 @@ cost.currency = "gp"
 damages = [{dice = "1d6", type = "bludgeoning"}]
 weight = 4
 properties = []
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('mace').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.quarterstaff]
 name = "Quarterstaff"
@@ -96,6 +117,9 @@ damages = [{dice = "1d6", type = "bludgeoning"}]
 weight = 4
 properties = ["versatile"]
 versatile_damage = "1d8"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('quarterstaff').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.sickle]
 name = "Sickle"
@@ -107,6 +131,9 @@ cost.currency = "gp"
 damages = [{dice = "1d4", type = "slashing"}]
 weight = 2
 properties = ["light"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('sickle').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.spear]
 name = "Spear"
@@ -121,11 +148,14 @@ properties = ["thrown", "versatile"]
 range_normal = 20
 range_long = 60
 versatile_damage = "1d8"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('spear').is_proficient * character_trait('proficiency_bonus').bonus"
 
 # Simple Ranged Weapons
 
 [equipment.light_crossbow]
-name = "Crossbow, Light"
+name = "Light Crossbow"
 category = "weapon"
 weapon_category = "simple"
 weapon_type = "ranged"
@@ -136,6 +166,9 @@ weight = 5
 properties = ["ammunition", "loading", "two-handed"]
 range_normal = 80
 range_long = 320
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('light_crossbow').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.dart]
 name = "Dart"
@@ -149,6 +182,9 @@ weight = 0.25
 properties = ["finesse", "thrown"]
 range_normal = 20
 range_long = 60
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "max(ability('strength').modifier, ability('dexterity').modifier) + equipment('dart').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.shortbow]
 name = "Shortbow"
@@ -162,6 +198,9 @@ weight = 2
 properties = ["ammunition", "two-handed"]
 range_normal = 80
 range_long = 320
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('shortbow').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.sling]
 name = "Sling"
@@ -174,6 +213,9 @@ damages = [{dice = "1d4", type = "bludgeoning"}]
 properties = ["ammunition"]
 range_normal = 30
 range_long = 120
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('sling').is_proficient * character_trait('proficiency_bonus').bonus"
 
 # Martial Melee Weapons
 
@@ -188,6 +230,9 @@ damages = [{dice = "1d8", type = "slashing"}]
 weight = 4
 properties = ["versatile"]
 versatile_damage = "1d10"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('battleaxe').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.flail]
 name = "Flail"
@@ -199,6 +244,9 @@ cost.currency = "gp"
 damages = [{dice = "1d8", type = "bludgeoning"}]
 weight = 2
 properties = []
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('flail').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.glaive]
 name = "Glaive"
@@ -210,6 +258,9 @@ cost.currency = "gp"
 damages = [{dice = "1d10", type = "slashing"}]
 weight = 6
 properties = ["heavy", "reach", "two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('glaive').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.greataxe]
 name = "Greataxe"
@@ -221,6 +272,9 @@ cost.currency = "gp"
 damages = [{dice = "1d12", type = "slashing"}]
 weight = 7
 properties = ["heavy", "two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('greataxe').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.greatsword]
 name = "Greatsword"
@@ -232,6 +286,9 @@ cost.currency = "gp"
 damages = [{dice = "2d6", type = "slashing"}]
 weight = 6
 properties = ["heavy", "two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('greatsword').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.halberd]
 name = "Halberd"
@@ -243,6 +300,9 @@ cost.currency = "gp"
 damages = [{dice = "1d10", type = "slashing"}]
 weight = 6
 properties = ["heavy", "reach", "two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('halberd').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.lance]
 name = "Lance"
@@ -254,6 +314,9 @@ cost.currency = "gp"
 damages = [{dice = "1d12", type = "piercing"}]
 weight = 6
 properties = ["reach", "special"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('lance').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.longsword]
 name = "Longsword"
@@ -266,6 +329,9 @@ damages = [{dice = "1d8", type = "slashing"}]
 weight = 3
 properties = ["versatile"]
 versatile_damage = "1d10"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('longsword').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.maul]
 name = "Maul"
@@ -277,6 +343,9 @@ cost.currency = "gp"
 damages = [{dice = "2d6", type = "bludgeoning"}]
 weight = 10
 properties = ["heavy", "two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('maul').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.morningstar]
 name = "Morningstar"
@@ -288,6 +357,9 @@ cost.currency = "gp"
 damages = [{dice = "1d8", type = "piercing"}]
 weight = 4
 properties = []
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('morningstar').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.pike]
 name = "Pike"
@@ -299,6 +371,9 @@ cost.currency = "gp"
 damages = [{dice = "1d10", type = "piercing"}]
 weight = 18
 properties = ["heavy", "reach", "two-handed"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('pike').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.rapier]
 name = "Rapier"
@@ -310,6 +385,9 @@ cost.currency = "gp"
 damages = [{dice = "1d8", type = "piercing"}]
 weight = 2
 properties = ["finesse"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "max(ability('strength').modifier, ability('dexterity').modifier) + equipment('rapier').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.scimitar]
 name = "Scimitar"
@@ -321,6 +399,9 @@ cost.currency = "gp"
 damages = [{dice = "1d6", type = "slashing"}]
 weight = 3
 properties = ["finesse", "light"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "max(ability('strength').modifier, ability('dexterity').modifier) + equipment('scimitar').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.shortsword]
 name = "Shortsword"
@@ -332,6 +413,9 @@ cost.currency = "gp"
 damages = [{dice = "1d6", type = "piercing"}]
 weight = 2
 properties = ["finesse", "light"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "max(ability('strength').modifier, ability('dexterity').modifier) + equipment('shortsword').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.trident]
 name = "Trident"
@@ -346,6 +430,9 @@ properties = ["thrown", "versatile"]
 range_normal = 20
 range_long = 60
 versatile_damage = "1d8"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('trident').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.war_pick]
 name = "War Pick"
@@ -357,6 +444,9 @@ cost.currency = "gp"
 damages = [{dice = "1d8", type = "piercing"}]
 weight = 2
 properties = []
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('war_pick').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.warhammer]
 name = "Warhammer"
@@ -369,6 +459,9 @@ damages = [{dice = "1d8", type = "bludgeoning"}]
 weight = 2
 properties = ["versatile"]
 versatile_damage = "1d10"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('strength').modifier + equipment('warhammer').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.whip]
 name = "Whip"
@@ -380,6 +473,9 @@ cost.currency = "gp"
 damages = [{dice = "1d4", type = "slashing"}]
 weight = 3
 properties = ["finesse", "reach"]
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "max(ability('strength').modifier, ability('dexterity').modifier) + equipment('whip').is_proficient * character_trait('proficiency_bonus').bonus"
 
 # Martial Ranged Weapons
 
@@ -395,9 +491,12 @@ weight = 1
 properties = ["ammunition", "loading"]
 range_normal = 25
 range_long = 100
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('blowgun').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.hand_crossbow]
-name = "Crossbow, Hand"
+name = "Hand Crossbow"
 category = "weapon"
 weapon_category = "martial"
 weapon_type = "ranged"
@@ -408,9 +507,12 @@ weight = 3
 properties = ["ammunition", "light", "loading"]
 range_normal = 30
 range_long = 120
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('hand_crossbow').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.heavy_crossbow]
-name = "Crossbow, Heavy"
+name = "Heavy Crossbow"
 category = "weapon"
 weapon_category = "martial"
 weapon_type = "ranged"
@@ -421,6 +523,9 @@ weight = 18
 properties = ["ammunition", "heavy", "loading", "two-handed"]
 range_normal = 100
 range_long = 400
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('heavy_crossbow').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.longbow]
 name = "Longbow"
@@ -434,6 +539,9 @@ weight = 2
 properties = ["ammunition", "heavy", "two-handed"]
 range_normal = 150
 range_long = 600
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('longbow').is_proficient * character_trait('proficiency_bonus').bonus"
 
 [equipment.net]
 name = "Net"
@@ -446,3 +554,6 @@ weight = 3
 properties = ["thrown", "special"]
 range_normal = 5
 range_long = 15
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+attack_bonus.formula = "ability('dexterity').modifier + equipment('net').is_proficient * character_trait('proficiency_bonus').bonus"

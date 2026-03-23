@@ -56,7 +56,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
 
   test "load_system!/1 returns LoadedSystem with nodes and rolling_methods" do
     system = RuleSystems.load_system!("dnd_5e_srd")
-    assert map_size(system.nodes) == 56
+    assert map_size(system.nodes) == 130
     assert Map.has_key?(system.rolling_methods, "standard")
   end
 end

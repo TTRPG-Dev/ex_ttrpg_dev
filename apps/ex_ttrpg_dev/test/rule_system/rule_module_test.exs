@@ -52,6 +52,65 @@ defmodule ExTTRPGDev.RuleSystem.RuleModuleTest do
     assert {:ok, %RuleModule{concept_types: []}} = RuleModule.from_map(map)
   end
 
+  test "from_map/1 defaults metadata_contributions to empty list" do
+    {:ok, pkg} = RuleModule.from_map(@valid_map)
+    assert pkg.metadata_contributions == []
+  end
+
+  test "from_map/1 parses metadata_contributions with label_filters" do
+    map =
+      Map.put(@valid_map, "metadata_contributions", [
+        %{
+          "from_type" => "class",
+          "from_field" => "weapon_proficiencies",
+          "to_type" => "equipment",
+          "to_field" => "is_proficient",
+          "value" => 1,
+          "label_filters" => [
+            %{
+              "label" => "Simple Weapons",
+              "filter_field" => "weapon_category",
+              "filter_value" => "simple"
+            }
+          ]
+        }
+      ])
+
+    {:ok, pkg} = RuleModule.from_map(map)
+    assert length(pkg.metadata_contributions) == 1
+
+    [contrib] = pkg.metadata_contributions
+    assert contrib.from_type == "class"
+    assert contrib.from_field == "weapon_proficiencies"
+    assert contrib.to_type == "equipment"
+    assert contrib.to_field == "is_proficient"
+    assert contrib.value == 1
+
+    assert length(contrib.label_filters) == 1
+    [filter] = contrib.label_filters
+    assert filter.label == "Simple Weapons"
+    assert filter.filter_field == "weapon_category"
+    assert filter.filter_value == "simple"
+  end
+
+  test "from_map/1 parses metadata_contributions with empty label_filters" do
+    map =
+      Map.put(@valid_map, "metadata_contributions", [
+        %{
+          "from_type" => "class",
+          "from_field" => "weapon_proficiencies",
+          "to_type" => "equipment",
+          "to_field" => "is_proficient",
+          "value" => 1,
+          "label_filters" => []
+        }
+      ])
+
+    {:ok, pkg} = RuleModule.from_map(map)
+    [contrib] = pkg.metadata_contributions
+    assert contrib.label_filters == []
+  end
+
   test "concept_type_ids/1 returns a MapSet of ids" do
     {:ok, pkg} = RuleModule.from_map(@valid_map)
     ids = RuleModule.concept_type_ids(pkg)
