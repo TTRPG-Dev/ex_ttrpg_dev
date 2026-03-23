@@ -10,9 +10,9 @@ use crate::display;
 use crate::engine::Engine;
 use crate::prompts::{prompt_integer, prompt_yes_no};
 use crate::protocol::{
-    CharacterData, CharactersList, ChoicesResponse, ConceptRollResult, ConceptsList,
-    DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult, SystemInfo,
-    SystemsList,
+    CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
+    ConceptsList, DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult,
+    SystemInfo, SystemsList,
 };
 
 // ── Argument bundles ──────────────────────────────────────────────────────────
@@ -25,6 +25,38 @@ pub(crate) struct ConceptRollArgs<'a> {
 pub(crate) struct CharacterAwardArgs<'a> {
     pub(crate) award_id: &'a str,
     pub(crate) value_str: &'a str,
+}
+
+struct DeleteAllArgs<'a> {
+    yes: bool,
+    system: Option<&'a str>,
+}
+
+fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
+    let mut yes = false;
+    let mut system = None;
+    let mut i = 0;
+    while i < tokens.len() {
+        match tokens[i] {
+            "--yes" | "-y" => yes = true,
+            "--system" => {
+                i += 1;
+                match tokens.get(i) {
+                    Some(s) => system = Some(*s),
+                    None => {
+                        eprintln!("Error: --system requires a value");
+                        return None;
+                    }
+                }
+            }
+            unknown => {
+                eprintln!("Unknown flag '{unknown}'. Try `characters delete-all --help`.");
+                return None;
+            }
+        }
+        i += 1;
+    }
+    Some(DeleteAllArgs { yes, system })
 }
 
 // ── roll ──────────────────────────────────────────────────────────────────────
@@ -90,7 +122,9 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["gen", "--help"] => println!("Usage: characters gen <system>"),
         ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
         ["delete", "--help"] => println!("Usage: characters delete <slug>"),
-        ["delete-all", "--help"] => println!("Usage: characters delete-all [-y|--yes]"),
+        ["delete-all", "--help"] => {
+            println!("Usage: characters delete-all [-y|--yes] [--system <system>]")
+        }
         ["show", "--help"] => println!("Usage: characters show <slug>"),
         ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
         ["award", "--help"] => println!("Usage: characters award <slug> <award_id> <value>"),
@@ -122,9 +156,10 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             engine,
         ),
         ["delete", slug] => handle_characters_delete(slug, engine),
-        ["delete-all"] => handle_characters_delete_all(engine, false),
-        ["delete-all", "--yes"] | ["delete-all", "-y"] => {
-            handle_characters_delete_all(engine, true)
+        ["delete-all", rest @ ..] => {
+            if let Some(args) = parse_delete_all_flags(rest) {
+                handle_characters_delete_all(engine, args);
+            }
         }
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
@@ -177,8 +212,20 @@ fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
     }
 }
 
-fn handle_characters_delete_all(engine: &mut Engine, yes: bool) {
-    let req = json!({"command": "characters.list"});
+fn confirm_delete_character(character: &CharacterSummary, yes: bool) -> Option<bool> {
+    if yes {
+        Some(true)
+    } else {
+        let question = format!("Delete \"{}\" ({})? [y/N]", character.name, character.slug);
+        prompt_yes_no(&question)
+    }
+}
+
+fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
+    let req = match args.system {
+        Some(s) => json!({"command": "characters.list", "system": s}),
+        None => json!({"command": "characters.list"}),
+    };
     let characters = match engine.call::<_, CharactersList>(&req) {
         Ok(r) => r.characters,
         Err(e) => {
@@ -191,23 +238,10 @@ fn handle_characters_delete_all(engine: &mut Engine, yes: bool) {
         return;
     }
     for character in &characters {
-        let confirmed = if yes {
-            true
-        } else {
-            let question = format!("Delete \"{}\" ({})? [y/N]", character.name, character.slug);
-            match prompt_yes_no(&question) {
-                Some(b) => b,
-                None => return,
-            }
-        };
-        if confirmed {
-            let req = json!({"command": "characters.delete", "character": character.slug});
-            match engine.call::<_, DeletedCharacter>(&req) {
-                Ok(r) => println!("Deleted character: {}", r.deleted),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        } else {
-            println!("Skipped {}", character.slug);
+        match confirm_delete_character(character, args.yes) {
+            Some(true) => handle_characters_delete(&character.slug, engine),
+            Some(false) => println!("Skipped {}", character.slug),
+            None => return,
         }
     }
 }
@@ -453,6 +487,7 @@ Commands:
   characters delete <slug>                               Delete a saved character
   characters delete-all                                  Delete all characters (confirms each)
   characters delete-all --yes                            Delete all characters without confirmation
+  characters delete-all --system <system>                Delete all characters for a system
   characters roll <slug> <type> <concept>                Roll for a character concept
   characters award <slug> <award_id> <value>             Award something to a character
   characters choices <slug>                              Show pending progression choices
