@@ -1,0 +1,237 @@
+[spell.animal_shapes]
+name = "Animal Shapes"
+level = 8
+school = "transmutation"
+casting_time = "1 action"
+range = "30 feet"
+duration = "Concentration, up to 24 hours"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["druid"]
+
+[spell.antimagic_field]
+name = "Antimagic Field"
+level = 8
+school = "abjuration"
+casting_time = "1 action"
+range = "Self (10-foot-radius sphere)"
+duration = "Concentration, up to 1 hour"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["cleric", "wizard"]
+
+[spell.antipathy_sympathy]
+name = "Antipathy/Sympathy"
+level = 8
+school = "enchantment"
+casting_time = "1 hour"
+range = "60 feet"
+duration = "10 days"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["druid", "wizard"]
+
+[spell.clone]
+name = "Clone"
+level = 8
+school = "necromancy"
+casting_time = "1 hour"
+range = "Touch"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["wizard"]
+
+[spell.control_weather]
+name = "Control Weather"
+level = 8
+school = "transmutation"
+casting_time = "10 minutes"
+range = "Self (5-mile radius)"
+duration = "Concentration, up to 8 hours"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["cleric", "druid", "wizard"]
+
+[spell.demiplane]
+name = "Demiplane"
+level = 8
+school = "conjuration"
+casting_time = "1 action"
+range = "60 feet"
+duration = "1 hour"
+verbal = false
+somatic = true
+material = false
+concentration = false
+ritual = false
+classes = ["warlock", "wizard"]
+
+[spell.dominate_monster]
+name = "Dominate Monster"
+level = 8
+school = "enchantment"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Concentration, up to 1 hour"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["bard", "sorcerer", "warlock", "wizard"]
+
+[spell.earthquake]
+name = "Earthquake"
+level = 8
+school = "evocation"
+casting_time = "1 action"
+range = "500 feet"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["cleric", "druid", "sorcerer"]
+
+[spell.feeblemind]
+name = "Feeblemind"
+level = 8
+school = "enchantment"
+casting_time = "1 action"
+range = "150 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["bard", "druid", "warlock", "wizard"]
+
+[spell.glibness]
+name = "Glibness"
+level = 8
+school = "transmutation"
+casting_time = "1 action"
+range = "Self"
+duration = "1 hour"
+verbal = true
+somatic = false
+material = false
+concentration = false
+ritual = false
+classes = ["bard", "warlock"]
+
+[spell.holy_aura]
+name = "Holy Aura"
+level = 8
+school = "abjuration"
+casting_time = "1 action"
+range = "Self (30-foot radius)"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = true
+concentration = true
+ritual = false
+classes = ["cleric"]
+
+[spell.incendiary_cloud]
+name = "Incendiary Cloud"
+level = 8
+school = "conjuration"
+casting_time = "1 action"
+range = "150 feet"
+duration = "Concentration, up to 1 minute"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["sorcerer", "wizard"]
+
+[spell.maze]
+name = "Maze"
+level = 8
+school = "conjuration"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Concentration, up to 10 minutes"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["wizard"]
+
+[spell.mind_blank]
+name = "Mind Blank"
+level = 8
+school = "abjuration"
+casting_time = "1 action"
+range = "Touch"
+duration = "24 hours"
+verbal = true
+somatic = true
+material = false
+concentration = false
+ritual = false
+classes = ["bard", "wizard"]
+
+[spell.power_word_stun]
+name = "Power Word Stun"
+level = 8
+school = "enchantment"
+casting_time = "1 action"
+range = "60 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = false
+material = false
+concentration = false
+ritual = false
+classes = ["bard", "sorcerer", "warlock", "wizard"]
+
+[spell.sunburst]
+name = "Sunburst"
+level = 8
+school = "evocation"
+casting_time = "1 action"
+range = "150 feet"
+duration = "Instantaneous"
+verbal = true
+somatic = true
+material = true
+concentration = false
+ritual = false
+classes = ["druid", "sorcerer", "wizard"]
+
+[spell.tsunami]
+name = "Tsunami"
+level = 8
+school = "conjuration"
+casting_time = "1 minute"
+range = "Sight"
+duration = "Concentration, up to 6 rounds"
+verbal = true
+somatic = true
+material = false
+concentration = true
+ritual = false
+classes = ["druid"]

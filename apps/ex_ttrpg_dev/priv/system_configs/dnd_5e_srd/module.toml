@@ -66,6 +66,10 @@ name = "Award"
 id = "damage_type"
 name = "Damage Type"
 
+[[concept_type]]
+id = "spell"
+name = "Spell"
+
 [[character_list]]
 label = "Skill Proficiencies"
 metadata_key = "skill_proficiencies"
