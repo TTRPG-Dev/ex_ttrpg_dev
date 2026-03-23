@@ -52,6 +52,11 @@ pub(crate) struct DiceResult {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct DeletedCharacter {
+    pub(crate) deleted: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct CharactersList {
     pub(crate) characters: Vec<CharacterSummary>,
 }

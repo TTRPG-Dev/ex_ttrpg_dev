@@ -11,7 +11,8 @@ use crate::engine::Engine;
 use crate::prompts::{prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharactersList, ChoicesResponse, ConceptRollResult, ConceptsList,
-    InventoryResponse, PendingChoice, RollResult, SaveResult, SystemInfo, SystemsList,
+    DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult, SystemInfo,
+    SystemsList,
 };
 
 // ── Argument bundles ──────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
     match tokens {
         ["gen", "--help"] => println!("Usage: characters gen <system>"),
         ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
+        ["delete", "--help"] => println!("Usage: characters delete <slug>"),
         ["show", "--help"] => println!("Usage: characters show <slug>"),
         ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
         ["award", "--help"] => println!("Usage: characters award <slug> <award_id> <value>"),
@@ -98,28 +100,8 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
              \x20      characters inventory set <slug> <index> <field> <value>"
         ),
-        ["list"] => {
-            let req = json!({"command": "characters.list"});
-            match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => display::print_characters_list(
-                    &r.characters,
-                    "No saved characters found. Run `characters gen <system>` to create one.",
-                ),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
-        ["list", "--system", system] => {
-            let req = json!({"command": "characters.list", "system": system});
-            match engine.call::<_, CharactersList>(&req) {
-                Ok(r) => display::print_characters_list(
-                    &r.characters,
-                    &format!(
-                        "No saved characters found for system `{system}`. Run `characters gen {system}` to create one."
-                    ),
-                ),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
+        ["list"] => handle_characters_list(None, engine),
+        ["list", "--system", system] => handle_characters_list(Some(system), engine),
         ["gen", system] => handle_characters_gen(system, engine),
         ["show", slug] => handle_characters_show(slug, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
@@ -138,11 +120,13 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             },
             engine,
         ),
+        ["delete", slug] => handle_characters_delete(slug, engine),
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         [] | ["--help"] => println!(
-            "Usage: characters list | gen <system> | show <slug> | roll <slug> <type> <concept>\n\
+            "Usage: characters list | gen <system> | show <slug> | delete <slug>\n\
+             \x20      characters roll <slug> <type> <concept>\n\
              \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
              \x20      characters inventory <slug>\n\
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
@@ -167,6 +151,31 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
                 }
             }
         }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
+    let req = match system {
+        Some(s) => json!({"command": "characters.list", "system": s}),
+        None => json!({"command": "characters.list"}),
+    };
+    let empty_msg = match system {
+        Some(s) => format!(
+            "No saved characters found for system `{s}`. Run `characters gen {s}` to create one."
+        ),
+        None => "No saved characters found. Run `characters gen <system>` to create one.".into(),
+    };
+    match engine.call::<_, CharactersList>(&req) {
+        Ok(r) => display::print_characters_list(&r.characters, &empty_msg),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_delete(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.delete", "character": slug});
+    match engine.call::<_, DeletedCharacter>(&req) {
+        Ok(r) => println!("Deleted character: {}", r.deleted),
         Err(e) => eprintln!("Error: {e}"),
     }
 }
@@ -401,6 +410,7 @@ Commands:
   characters list                                        List saved characters
   characters list --system <system>                      List characters for a system
   characters show <slug>                                 Show a saved character
+  characters delete <slug>                               Delete a saved character
   characters roll <slug> <type> <concept>                Roll for a character concept
   characters award <slug> <award_id> <value>             Award something to a character
   characters choices <slug>                              Show pending progression choices

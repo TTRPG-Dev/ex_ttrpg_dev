@@ -81,6 +81,23 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Delete a saved character by slug.
+
+  Returns `:ok` if the character was deleted, `{:error, :not_found}` if no
+  character with that slug exists.
+  """
+  def delete_character(character_slug) do
+    path = character_file_path!(character_slug)
+
+    if File.exists?(path) do
+      File.rm!(path)
+      :ok
+    else
+      {:error, :not_found}
+    end
+  end
+
+  @doc """
   List saved characters
 
   ## Example
