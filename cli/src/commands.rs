@@ -90,6 +90,7 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["gen", "--help"] => println!("Usage: characters gen <system>"),
         ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
         ["delete", "--help"] => println!("Usage: characters delete <slug>"),
+        ["delete-all", "--help"] => println!("Usage: characters delete-all"),
         ["show", "--help"] => println!("Usage: characters show <slug>"),
         ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
         ["award", "--help"] => println!("Usage: characters award <slug> <award_id> <value>"),
@@ -121,11 +122,12 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
             engine,
         ),
         ["delete", slug] => handle_characters_delete(slug, engine),
+        ["delete-all"] => handle_characters_delete_all(engine),
         ["choices", slug] => handle_characters_choices(slug, engine),
         ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         [] | ["--help"] => println!(
-            "Usage: characters list | gen <system> | show <slug> | delete <slug>\n\
+            "Usage: characters list | gen <system> | show <slug> | delete <slug> | delete-all\n\
              \x20      characters roll <slug> <type> <concept>\n\
              \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
              \x20      characters inventory <slug>\n\
@@ -169,6 +171,35 @@ fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
     match engine.call::<_, CharactersList>(&req) {
         Ok(r) => display::print_characters_list(&r.characters, &empty_msg),
         Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_delete_all(engine: &mut Engine) {
+    let req = json!({"command": "characters.list"});
+    let characters = match engine.call::<_, CharactersList>(&req) {
+        Ok(r) => r.characters,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return;
+        }
+    };
+    if characters.is_empty() {
+        println!("No saved characters found.");
+        return;
+    }
+    for character in &characters {
+        let question = format!("Delete \"{}\" ({})? [y/N]", character.name, character.slug);
+        match prompt_yes_no(&question) {
+            Some(true) => {
+                let req = json!({"command": "characters.delete", "character": character.slug});
+                match engine.call::<_, DeletedCharacter>(&req) {
+                    Ok(r) => println!("Deleted character: {}", r.deleted),
+                    Err(e) => eprintln!("Error: {e}"),
+                }
+            }
+            Some(false) => println!("Skipped {}", character.slug),
+            None => return,
+        }
     }
 }
 
@@ -411,6 +442,7 @@ Commands:
   characters list --system <system>                      List characters for a system
   characters show <slug>                                 Show a saved character
   characters delete <slug>                               Delete a saved character
+  characters delete-all                                  Delete all characters (confirms each)
   characters roll <slug> <type> <concept>                Roll for a character concept
   characters award <slug> <award_id> <value>             Award something to a character
   characters choices <slug>                              Show pending progression choices
