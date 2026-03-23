@@ -4,6 +4,7 @@
 //! `commands`; protocol types in `protocol`; display in `display`.
 
 use std::borrow::Cow;
+use std::sync::{Arc, Mutex};
 
 use reedline::{
     ColumnarMenu, Completer, DefaultHinter, DefaultValidator, Emacs, KeyCode, KeyModifiers,
@@ -13,6 +14,7 @@ use reedline::{
 
 use crate::commands;
 use crate::engine::Engine;
+use crate::protocol::CharactersList;
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
@@ -64,12 +66,60 @@ static COMMANDS: &[&str] = &[
     "quit",
 ];
 
-struct CommandCompleter;
+// Commands where the next token after the subcommand is a character slug.
+static SLUG_COMMANDS: &[&str] = &[
+    "characters show",
+    "characters delete",
+    "characters roll",
+    "characters award",
+    "characters choices",
+    "characters resolve_choice",
+    "characters inventory",
+];
+
+struct CommandCompleter {
+    engine: Option<Arc<Mutex<Engine>>>,
+}
+
+impl CommandCompleter {
+    fn fetch_character_slugs(&mut self) -> Vec<String> {
+        let engine = match &self.engine {
+            Some(e) => e,
+            None => return vec![],
+        };
+        let req = serde_json::json!({"command": "characters.list"});
+        match engine.lock().unwrap().call::<_, CharactersList>(&req) {
+            Ok(r) => r.characters.into_iter().map(|c| c.slug).collect(),
+            Err(_) => vec![],
+        }
+    }
+}
 
 impl Completer for CommandCompleter {
     fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
         let prefix = &line[..pos];
         let word_start = prefix.rfind(' ').map(|i| i + 1).unwrap_or(0);
+        let context = prefix[..word_start].trim();
+        let current_word = &prefix[word_start..];
+
+        if SLUG_COMMANDS.contains(&context) {
+            let slugs = self.fetch_character_slugs();
+            return slugs
+                .into_iter()
+                .filter(|s| s.starts_with(current_word))
+                .map(|slug| Suggestion {
+                    value: slug,
+                    description: None,
+                    style: None,
+                    extra: None,
+                    span: reedline::Span {
+                        start: word_start,
+                        end: pos,
+                    },
+                    append_whitespace: true,
+                })
+                .collect();
+        }
 
         let mut seen = std::collections::HashSet::new();
         COMMANDS
@@ -121,8 +171,8 @@ fn handle_line(line: &str, engine: &mut Engine) -> bool {
 // ── Entry point ────────────────────────────────────────────────────────────────
 
 pub fn run() {
-    let mut engine = match Engine::spawn() {
-        Ok(e) => e,
+    let engine = match Engine::spawn() {
+        Ok(e) => Arc::new(Mutex::new(e)),
         Err(e) => {
             eprintln!("Failed to start engine: {e}");
             eprintln!("Make sure `ttrpg-dev-engine` is in your PATH or next to this binary.");
@@ -148,7 +198,9 @@ pub fn run() {
 
     let mut line_editor = Reedline::create()
         .with_history(history)
-        .with_completer(Box::new(CommandCompleter))
+        .with_completer(Box::new(CommandCompleter {
+            engine: Some(Arc::clone(&engine)),
+        }))
         .with_menu(ReedlineMenu::EngineCompleter(completion_menu))
         .with_hinter(Box::new(DefaultHinter::default()))
         .with_validator(Box::new(DefaultValidator))
@@ -166,7 +218,7 @@ pub fn run() {
                 if trimmed.is_empty() {
                     continue;
                 }
-                if !handle_line(trimmed, &mut engine) {
+                if !handle_line(trimmed, &mut engine.lock().unwrap()) {
                     println!("Goodbye!");
                     break;
                 }
@@ -197,7 +249,7 @@ mod tests {
 
     #[test]
     fn completes_empty_input_with_top_level_commands() {
-        let mut c = CommandCompleter;
+        let mut c = CommandCompleter { engine: None };
         let values: Vec<String> = c.complete("", 0).into_iter().map(|s| s.value).collect();
         assert!(values.contains(&"roll".to_string()));
         assert!(values.contains(&"characters".to_string()));
@@ -208,7 +260,7 @@ mod tests {
 
     #[test]
     fn completes_partial_top_level_command() {
-        let mut c = CommandCompleter;
+        let mut c = CommandCompleter { engine: None };
         let values: Vec<String> = c.complete("ch", 2).into_iter().map(|s| s.value).collect();
         assert!(values.contains(&"characters".to_string()));
         assert!(!values.contains(&"roll".to_string()));
@@ -217,7 +269,7 @@ mod tests {
 
     #[test]
     fn completes_subcommand_after_space() {
-        let mut c = CommandCompleter;
+        let mut c = CommandCompleter { engine: None };
         let values: Vec<String> = c
             .complete("characters ", 11)
             .into_iter()
@@ -232,7 +284,7 @@ mod tests {
 
     #[test]
     fn no_completions_for_unknown_prefix() {
-        let mut c = CommandCompleter;
+        let mut c = CommandCompleter { engine: None };
         assert!(c.complete("zzz", 3).is_empty());
     }
 
@@ -240,7 +292,7 @@ mod tests {
     fn deduplicates_suggestions_for_shared_subcommand_prefix() {
         // "characters inventory", "characters inventory add", "characters inventory set"
         // all share the "inventory" token — it should appear only once
-        let mut c = CommandCompleter;
+        let mut c = CommandCompleter { engine: None };
         let values: Vec<String> = c
             .complete("characters inv", 14)
             .into_iter()
@@ -248,5 +300,18 @@ mod tests {
             .collect();
         let inventory_count = values.iter().filter(|v| *v == "inventory").count();
         assert_eq!(inventory_count, 1);
+    }
+
+    #[test]
+    fn slug_position_returns_no_static_completions() {
+        // Without an engine, slug completion returns empty rather than
+        // falling through to static command completions.
+        let mut c = CommandCompleter { engine: None };
+        let values: Vec<String> = c
+            .complete("characters show ", 16)
+            .into_iter()
+            .map(|s| s.value)
+            .collect();
+        assert!(values.is_empty());
     }
 }
