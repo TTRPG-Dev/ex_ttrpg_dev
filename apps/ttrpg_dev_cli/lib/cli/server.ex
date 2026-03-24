@@ -614,8 +614,9 @@ defmodule ExTTRPGDev.CLI.Server do
       ctx.concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == concept_type.id end)
       |> Enum.sort_by(fn {{_type, id}, _} -> id end)
-      |> Enum.filter(fn {{type, id}, _} ->
+      |> Enum.filter(fn {{type, id}, meta} ->
         Map.has_key?(resolved_by_concept, {type, id}) and
+          not Map.get(meta, "hidden", false) and
           (not inventoriable or MapSet.member?(ctx.inventory_ids, {type, id})) and
           (not choice_driven or MapSet.member?(ctx.active, {type, id}))
       end)

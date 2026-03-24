@@ -84,6 +84,7 @@ bonus.formula = "character_trait('proficiency_bonus').bonus + character_trait('s
 
 [character_trait.full_caster_slots]
 name = "Full Caster Spell Slots"
+hidden = true
 level_1.type = "mapping"
 level_1.input = "character_trait('character_level').level"
 level_1.steps = [[1, 2], [2, 3], [3, 4]]
@@ -114,6 +115,7 @@ level_9.steps = [[1, 0], [17, 1]]
 
 [character_trait.half_caster_slots]
 name = "Half Caster Spell Slots"
+hidden = true
 level_1.type = "mapping"
 level_1.input = "character_trait('character_level').level"
 level_1.steps = [[1, 0], [2, 2], [3, 3], [5, 4]]
