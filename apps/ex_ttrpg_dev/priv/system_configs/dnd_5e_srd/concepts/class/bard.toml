@@ -122,5 +122,41 @@ value = "ability('constitution').modifier * (character_trait('character_level').
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('charisma').modifier"
 
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_1"
+value = "character_trait('full_caster_slots').level_1"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_2"
+value = "character_trait('full_caster_slots').level_2"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_3"
+value = "character_trait('full_caster_slots').level_3"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_4"
+value = "character_trait('full_caster_slots').level_4"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_5"
+value = "character_trait('full_caster_slots').level_5"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_6"
+value = "character_trait('full_caster_slots').level_6"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_7"
+value = "character_trait('full_caster_slots').level_7"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_8"
+value = "character_trait('full_caster_slots').level_8"
+
+[[class.bard.contributes]]
+target = "character_trait('spell_slots').level_9"
+value = "character_trait('full_caster_slots').level_9"
+
 [class.college_of_lore]
 name = "College of Lore"
