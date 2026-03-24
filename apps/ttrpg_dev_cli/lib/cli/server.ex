@@ -264,15 +264,14 @@ defmodule ExTTRPGDev.CLI.Server do
       }
 
       updated =
-        if meta["type"] == "spell" do
+        if Map.has_key?(meta, "type") do
           resolved = resolve_character(system, character)
           active = Characters.active_concepts(character.decisions, system.concept_metadata)
-          filter = meta["filter"] || %{}
 
           options =
-            Characters.spell_options(filter, system.concept_metadata, active, resolved)
+            Characters.concept_options(meta, system.concept_metadata, active, resolved)
 
-          validate_spell_selection!(selection, options)
+          validate_concept_selection!(selection, options)
           %{character | decisions: character.decisions ++ [decision]}
         else
           value = Map.fetch!(msg, "value")
@@ -472,33 +471,32 @@ defmodule ExTTRPGDev.CLI.Server do
       character_lists: serialize_character_lists(system, character, active),
       concept_types:
         serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
-      known_spells: serialize_known_spells(system, character)
+      selected_concepts: serialize_selected_concepts(system, character)
     }
   end
 
-  defp serialize_known_spells(%LoadedSystem{} = system, %Character{} = character) do
-    spell_progression_ids =
+  defp serialize_selected_concepts(%LoadedSystem{} = system, %Character{} = character) do
+    selection_progression_types =
       system.concept_metadata
       |> Enum.filter(fn {{type, _id}, meta} ->
-        type == "character_progression" and meta["type"] == "spell"
+        type == "character_progression" and Map.has_key?(meta, "type")
       end)
-      |> MapSet.new(fn {{_type, id}, _} -> id end)
+      |> Map.new(fn {{_type, id}, meta} -> {id, meta["type"]} end)
 
-    selected_spell_ids =
-      character.decisions
-      |> Enum.filter(fn
-        %{scope: {"character_progression", prog_id}} ->
-          MapSet.member?(spell_progression_ids, prog_id)
+    character.decisions
+    |> Enum.filter(fn
+      %{scope: {"character_progression", prog_id}} ->
+        Map.has_key?(selection_progression_types, prog_id)
 
-        _ ->
-          false
-      end)
-      |> Enum.map(& &1.selection)
-      |> Enum.uniq()
-
-    selected_spell_ids
-    |> Enum.map(fn id ->
-      meta = system.concept_metadata[{"spell", id}] || %{}
+      _ ->
+        false
+    end)
+    |> Enum.map(fn %{scope: {"character_progression", prog_id}, selection: selection} ->
+      {selection_progression_types[prog_id], selection}
+    end)
+    |> Enum.uniq()
+    |> Enum.map(fn {concept_type, id} ->
+      meta = system.concept_metadata[{concept_type, id}] || %{}
       %{id: id, name: meta["name"] || id, level: meta["level"] || 0}
     end)
     |> Enum.sort_by(fn %{level: level, name: name} -> {level, name} end)
@@ -706,9 +704,9 @@ defmodule ExTTRPGDev.CLI.Server do
     parse_effect_target!(effect_target)
   end
 
-  defp validate_spell_selection!(selection, valid_options) do
+  defp validate_concept_selection!(selection, valid_options) do
     unless selection in valid_options do
-      raise("spell #{inspect(selection)} is not available for this character and progression")
+      raise("#{inspect(selection)} is not available for this character and progression")
     end
   end
 

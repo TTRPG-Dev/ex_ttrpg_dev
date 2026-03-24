@@ -593,7 +593,10 @@ defmodule ExTTRPGDevTest.Characters do
       "name" => "Cantrip",
       "required_count" => "2",
       "type" => "spell",
-      "filter" => %{"level" => 0}
+      "filter" => %{
+        "level" => 0,
+        "active_in" => %{"field" => "classes", "type" => "class"}
+      }
     }
 
     @spell_meta %{
@@ -641,7 +644,8 @@ defmodule ExTTRPGDevTest.Characters do
         "type" => "spell",
         "filter" => %{
           "min_level" => 1,
-          "max_level_node" => "character_trait('max_spell_level').level"
+          "max_level_node" => "character_trait('max_spell_level').level",
+          "active_in" => %{"field" => "classes", "type" => "class"}
         }
       }
 

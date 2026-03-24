@@ -5,6 +5,8 @@ type = "spell"
 
 [character_progression.cantrips.filter]
 level = 0
+active_in.field = "classes"
+active_in.type = "class"
 
 [character_progression.spells_known]
 name = "Spell"
@@ -14,3 +16,5 @@ type = "spell"
 [character_progression.spells_known.filter]
 min_level = 1
 max_level_node = "character_trait('max_spell_level').level"
+active_in.field = "classes"
+active_in.type = "class"

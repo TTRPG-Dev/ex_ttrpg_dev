@@ -251,24 +251,22 @@ defmodule ExTTRPGDev.Characters do
       roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
       meta_with_roll = Map.put(meta, "roll", roll)
 
-      case meta["type"] do
-        "spell" ->
-          spell_progression_choices(
-            id,
-            meta_with_roll,
-            character.decisions,
-            resolved,
-            system.concept_metadata,
-            active
-          )
-
-        _ ->
-          progression_choices(id, meta_with_roll, character.decisions, resolved)
+      if Map.has_key?(meta, "type") do
+        selection_progression_choices(
+          id,
+          meta_with_roll,
+          character.decisions,
+          resolved,
+          system.concept_metadata,
+          active
+        )
+      else
+        progression_choices(id, meta_with_roll, character.decisions, resolved)
       end
     end)
   end
 
-  defp spell_progression_choices(
+  defp selection_progression_choices(
          id,
          %{"required_count" => required_str} = meta,
          decisions,
@@ -280,7 +278,7 @@ defmodule ExTTRPGDev.Characters do
          made = count_progression_decisions(decisions, id),
          pending_count = max(0, trunc(required) - made),
          true <- pending_count > 0 do
-      options = spell_options(meta["filter"] || %{}, concept_metadata, active, resolved)
+      options = concept_options(meta, concept_metadata, active, resolved)
 
       [
         %{
@@ -298,27 +296,43 @@ defmodule ExTTRPGDev.Characters do
     end
   end
 
-  defp spell_progression_choices(_id, _meta, _decisions, _resolved, _concept_metadata, _active),
-    do: []
+  defp selection_progression_choices(
+         _id,
+         _meta,
+         _decisions,
+         _resolved,
+         _concept_metadata,
+         _active
+       ),
+       do: []
 
-  def spell_options(filter, concept_metadata, active, resolved) do
-    level_filter = spell_level_filter(filter, resolved)
+  def concept_options(meta, concept_metadata, active, resolved) do
+    filter = meta["filter"] || %{}
+    concept_type = meta["type"]
+    level_fn = level_filter(filter, resolved)
+    active_in = filter["active_in"]
 
     concept_metadata
-    |> Enum.filter(fn {{type, _id}, meta} ->
-      type == "spell" and
-        level_filter.(meta["level"] || 0) and
-        Enum.any?(meta["classes"] || [], fn cls -> MapSet.member?(active, {"class", cls}) end)
+    |> Enum.filter(fn {{type, _id}, concept_meta} ->
+      type == concept_type and
+        level_fn.(concept_meta["level"] || 0) and
+        passes_active_in_filter?(concept_meta, active_in, active)
     end)
-    |> Enum.map(fn {{_type, id}, _meta} -> id end)
+    |> Enum.map(fn {{_type, id}, _} -> id end)
     |> Enum.sort()
   end
 
-  defp spell_level_filter(%{"level" => exact_level}, _resolved) do
+  defp passes_active_in_filter?(_meta, nil, _active), do: true
+
+  defp passes_active_in_filter?(meta, %{"field" => field, "type" => type}, active) do
+    Enum.any?(meta[field] || [], fn id -> MapSet.member?(active, {type, id}) end)
+  end
+
+  defp level_filter(%{"level" => exact_level}, _resolved) do
     fn level -> level == exact_level end
   end
 
-  defp spell_level_filter(%{"min_level" => min, "max_level_node" => max_node}, resolved) do
+  defp level_filter(%{"min_level" => min, "max_level_node" => max_node}, resolved) do
     max_level =
       case Expression.evaluate(max_node, resolved) do
         {:ok, val} -> trunc(val)
@@ -328,7 +342,7 @@ defmodule ExTTRPGDev.Characters do
     fn level -> level >= min and level <= max_level end
   end
 
-  defp spell_level_filter(_filter, _resolved), do: fn _level -> true end
+  defp level_filter(_filter, _resolved), do: fn _level -> true end
 
   defp progression_choices(id, %{"required_count" => required_str} = meta, decisions, resolved) do
     with {:ok, required} <- Expression.evaluate(required_str, resolved),
