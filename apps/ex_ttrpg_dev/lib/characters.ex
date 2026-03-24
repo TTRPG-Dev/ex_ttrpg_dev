@@ -279,7 +279,14 @@ defmodule ExTTRPGDev.Characters do
          made = count_progression_decisions(decisions, id),
          pending_count = max(0, trunc(required) - made),
          true <- pending_count > 0 do
-      options = concept_options(meta, concept_metadata, active, resolved)
+      already_selected =
+        decisions
+        |> Enum.filter(fn d -> d.scope == {"character_progression", id} end)
+        |> MapSet.new(& &1.selection)
+
+      options =
+        concept_options(meta, concept_metadata, active, resolved)
+        |> Enum.reject(&MapSet.member?(already_selected, &1))
 
       [
         %{

@@ -268,8 +268,14 @@ defmodule ExTTRPGDev.CLI.Server do
           resolved = resolve_character(system, character)
           active = Characters.active_concepts(character.decisions, system.concept_metadata)
 
+          already_selected =
+            character.decisions
+            |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
+            |> MapSet.new(& &1.selection)
+
           options =
             Characters.concept_options(meta, system.concept_metadata, active, resolved)
+            |> Enum.reject(&MapSet.member?(already_selected, &1))
 
           validate_concept_selection!(selection, options)
           %{character | decisions: character.decisions ++ [decision]}
