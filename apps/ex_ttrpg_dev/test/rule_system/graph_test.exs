@@ -183,7 +183,8 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
 
     # 6 abilities * 3 fields + 18 skills * 1 field + 6 saving throws * 1 field + 14 character trait fields
     # + 37 weapons * 2 fields (is_proficient, attack_bonus) = 130 nodes
-    assert map_size(system.nodes) == 130
+    # + 9 full_caster_slots + 5 half_caster_slots + 9 spell_slots + 2 pact_magic + 2 warlock pact mapping = 27 new nodes
+    assert map_size(system.nodes) == 157
     # topological_order returns false if cyclic, a list if acyclic
     assert is_list(Graph.topological_order(system))
   end

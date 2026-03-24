@@ -81,3 +81,81 @@ score.formula = "8 + character_trait('proficiency_bonus').bonus + character_trai
 [character_trait.spell_attack_bonus]
 name = "Spell Attack Bonus"
 bonus.formula = "character_trait('proficiency_bonus').bonus + character_trait('spellcasting_ability_modifier').value"
+
+[character_trait.full_caster_slots]
+name = "Full Caster Spell Slots"
+hidden = true
+level_1.type = "mapping"
+level_1.input = "character_trait('character_level').level"
+level_1.steps = [[1, 2], [2, 3], [3, 4]]
+level_2.type = "mapping"
+level_2.input = "character_trait('character_level').level"
+level_2.steps = [[1, 0], [3, 2], [4, 3]]
+level_3.type = "mapping"
+level_3.input = "character_trait('character_level').level"
+level_3.steps = [[1, 0], [5, 2], [6, 3]]
+level_4.type = "mapping"
+level_4.input = "character_trait('character_level').level"
+level_4.steps = [[1, 0], [7, 1], [8, 2], [9, 3]]
+level_5.type = "mapping"
+level_5.input = "character_trait('character_level').level"
+level_5.steps = [[1, 0], [9, 1], [10, 2], [18, 3]]
+level_6.type = "mapping"
+level_6.input = "character_trait('character_level').level"
+level_6.steps = [[1, 0], [11, 1], [19, 2]]
+level_7.type = "mapping"
+level_7.input = "character_trait('character_level').level"
+level_7.steps = [[1, 0], [13, 1], [20, 2]]
+level_8.type = "mapping"
+level_8.input = "character_trait('character_level').level"
+level_8.steps = [[1, 0], [15, 1]]
+level_9.type = "mapping"
+level_9.input = "character_trait('character_level').level"
+level_9.steps = [[1, 0], [17, 1]]
+
+[character_trait.half_caster_slots]
+name = "Half Caster Spell Slots"
+hidden = true
+level_1.type = "mapping"
+level_1.input = "character_trait('character_level').level"
+level_1.steps = [[1, 0], [2, 2], [3, 3], [5, 4]]
+level_2.type = "mapping"
+level_2.input = "character_trait('character_level').level"
+level_2.steps = [[1, 0], [5, 2], [7, 3]]
+level_3.type = "mapping"
+level_3.input = "character_trait('character_level').level"
+level_3.steps = [[1, 0], [9, 2], [11, 3]]
+level_4.type = "mapping"
+level_4.input = "character_trait('character_level').level"
+level_4.steps = [[1, 0], [13, 1], [15, 2], [17, 3]]
+level_5.type = "mapping"
+level_5.input = "character_trait('character_level').level"
+level_5.steps = [[1, 0], [17, 1], [19, 2]]
+
+[character_trait.spell_slots]
+name = "Spell Slots"
+level_1.type = "accumulator"
+level_1.base = "0"
+level_2.type = "accumulator"
+level_2.base = "0"
+level_3.type = "accumulator"
+level_3.base = "0"
+level_4.type = "accumulator"
+level_4.base = "0"
+level_5.type = "accumulator"
+level_5.base = "0"
+level_6.type = "accumulator"
+level_6.base = "0"
+level_7.type = "accumulator"
+level_7.base = "0"
+level_8.type = "accumulator"
+level_8.base = "0"
+level_9.type = "accumulator"
+level_9.base = "0"
+
+[character_trait.pact_magic]
+name = "Pact Magic"
+slot_count.type = "accumulator"
+slot_count.base = "0"
+slot_level.type = "accumulator"
+slot_level.base = "0"

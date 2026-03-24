@@ -77,5 +77,25 @@ value = "ability('constitution').modifier * (character_trait('character_level').
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('wisdom').modifier"
 
+[[class.ranger.contributes]]
+target = "character_trait('spell_slots').level_1"
+value = "character_trait('half_caster_slots').level_1"
+
+[[class.ranger.contributes]]
+target = "character_trait('spell_slots').level_2"
+value = "character_trait('half_caster_slots').level_2"
+
+[[class.ranger.contributes]]
+target = "character_trait('spell_slots').level_3"
+value = "character_trait('half_caster_slots').level_3"
+
+[[class.ranger.contributes]]
+target = "character_trait('spell_slots').level_4"
+value = "character_trait('half_caster_slots').level_4"
+
+[[class.ranger.contributes]]
+target = "character_trait('spell_slots').level_5"
+value = "character_trait('half_caster_slots').level_5"
+
 [class.hunter]
 name = "Hunter"
