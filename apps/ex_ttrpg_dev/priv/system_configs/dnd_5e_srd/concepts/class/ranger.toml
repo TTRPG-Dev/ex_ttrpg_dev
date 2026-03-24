@@ -97,5 +97,23 @@ value = "character_trait('half_caster_slots').level_4"
 target = "character_trait('spell_slots').level_5"
 value = "character_trait('half_caster_slots').level_5"
 
+[[class.ranger.contributes]]
+target = "character_trait('spells_known').count"
+value = "class('ranger').spells_known_count"
+
+[[class.ranger.contributes]]
+target = "character_trait('max_spell_level').level"
+value = "class('ranger').max_spell_level"
+
+[class.ranger.spells_known_count]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 0], [2, 2], [3, 3], [5, 4], [7, 5], [9, 6], [11, 7], [13, 8], [15, 9], [17, 10], [19, 11]]
+
+[class.ranger.max_spell_level]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+
 [class.hunter]
 name = "Hunter"

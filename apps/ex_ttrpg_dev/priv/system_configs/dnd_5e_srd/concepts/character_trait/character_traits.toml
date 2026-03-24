@@ -159,3 +159,21 @@ slot_count.type = "accumulator"
 slot_count.base = "0"
 slot_level.type = "accumulator"
 slot_level.base = "0"
+
+[character_trait.cantrips_known]
+name = "Cantrips Known"
+hidden = true
+count.type = "accumulator"
+count.base = "0"
+
+[character_trait.spells_known]
+name = "Spells Known"
+hidden = true
+count.type = "accumulator"
+count.base = "0"
+
+[character_trait.max_spell_level]
+name = "Max Spell Level"
+hidden = true
+level.type = "accumulator"
+level.base = "0"

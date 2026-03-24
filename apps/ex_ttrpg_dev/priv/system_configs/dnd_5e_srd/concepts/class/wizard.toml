@@ -78,5 +78,23 @@ value = "character_trait('full_caster_slots').level_8"
 target = "character_trait('spell_slots').level_9"
 value = "character_trait('full_caster_slots').level_9"
 
+[[class.wizard.contributes]]
+target = "character_trait('cantrips_known').count"
+value = "class('wizard').cantrips_known_count"
+
+[[class.wizard.contributes]]
+target = "character_trait('max_spell_level').level"
+value = "class('wizard').max_spell_level"
+
+[class.wizard.cantrips_known_count]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 3], [4, 4], [10, 5]]
+
+[class.wizard.max_spell_level]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+
 [class.school_of_evocation]
 name = "School of Evocation"
