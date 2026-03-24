@@ -264,6 +264,7 @@ defmodule ExTTRPGDev.Characters do
         progression_choices(id, meta_with_roll, character.decisions, resolved)
       end
     end)
+    |> Enum.sort_by(& &1.id)
   end
 
   defp selection_progression_choices(
