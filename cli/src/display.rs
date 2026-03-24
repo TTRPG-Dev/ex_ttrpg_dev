@@ -4,7 +4,7 @@
 
 use crate::protocol::{
     CharacterData, CharacterListCategory, CharacterSummary, ConceptsList, InventoryItemData,
-    PendingChoice, SystemInfo,
+    PendingChoice, SelectedConcept, SystemInfo,
 };
 
 pub(crate) fn format_character(c: &CharacterData) -> String {
@@ -20,6 +20,7 @@ pub(crate) fn format_character(c: &CharacterData) -> String {
         writeln!(out, "{}: {}", choice.type_name, choice.value).unwrap();
     }
     out.push_str(&format_character_lists(&c.character_lists));
+    out.push_str(&format_selected_concepts(&c.selected_concepts));
     for ct in &c.concept_types {
         writeln!(out, "\n{}s:", ct.name).unwrap();
         for concept in &ct.concepts {
@@ -46,6 +47,28 @@ pub(crate) fn format_character_lists(lists: &[CharacterListCategory]) -> String 
         if !list.items.is_empty() {
             writeln!(out, "{}: {}", list.label, list.items.join(", ")).unwrap();
         }
+    }
+    out
+}
+
+pub(crate) fn format_selected_concepts(concepts: &[SelectedConcept]) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let cantrips: Vec<&str> = concepts
+        .iter()
+        .filter(|c| c.level == 0)
+        .map(|c| c.name.as_str())
+        .collect();
+    let spells: Vec<String> = concepts
+        .iter()
+        .filter(|c| c.level > 0)
+        .map(|c| format!("{} ({})", c.name, c.level))
+        .collect();
+    if !cantrips.is_empty() {
+        writeln!(out, "Cantrips: {}", cantrips.join(", ")).unwrap();
+    }
+    if !spells.is_empty() {
+        writeln!(out, "Spells Known: {}", spells.join(", ")).unwrap();
     }
     out
 }
@@ -149,6 +172,7 @@ mod tests {
             choices: vec![],
             character_lists: vec![],
             concept_types: vec![],
+            selected_concepts: vec![],
             pending_choices: None,
         }
     }
