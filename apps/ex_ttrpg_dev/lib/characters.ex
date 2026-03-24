@@ -243,13 +243,92 @@ defmodule ExTTRPGDev.Characters do
   `resolved` should be the output of `Evaluator.evaluate!/3` for the character's current state.
   """
   def pending_choices(%LoadedSystem{} = system, %Character{} = character, resolved) do
+    active = active_concepts(character.decisions, system.concept_metadata)
+
     system.concept_metadata
     |> Enum.filter(fn {{type, _id}, _} -> type == "character_progression" end)
     |> Enum.flat_map(fn {{_type, id}, meta} ->
       roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
-      progression_choices(id, Map.put(meta, "roll", roll), character.decisions, resolved)
+      meta_with_roll = Map.put(meta, "roll", roll)
+
+      case meta["type"] do
+        "spell" ->
+          spell_progression_choices(
+            id,
+            meta_with_roll,
+            character.decisions,
+            resolved,
+            system.concept_metadata,
+            active
+          )
+
+        _ ->
+          progression_choices(id, meta_with_roll, character.decisions, resolved)
+      end
     end)
   end
+
+  defp spell_progression_choices(
+         id,
+         %{"required_count" => required_str} = meta,
+         decisions,
+         resolved,
+         concept_metadata,
+         active
+       ) do
+    with {:ok, required} <- Expression.evaluate(required_str, resolved),
+         made = count_progression_decisions(decisions, id),
+         pending_count = max(0, trunc(required) - made),
+         true <- pending_count > 0 do
+      options = spell_options(meta["filter"] || %{}, concept_metadata, active, resolved)
+
+      [
+        %{
+          type: :pending,
+          id: id,
+          name: meta["name"] || id,
+          count: pending_count,
+          effect_target: nil,
+          roll: nil,
+          options: options
+        }
+      ]
+    else
+      _ -> []
+    end
+  end
+
+  defp spell_progression_choices(_id, _meta, _decisions, _resolved, _concept_metadata, _active),
+    do: []
+
+  defp spell_options(filter, concept_metadata, active, resolved) do
+    level_filter = spell_level_filter(filter, resolved)
+
+    concept_metadata
+    |> Enum.filter(fn {{type, _id}, meta} ->
+      type == "spell" and
+        level_filter.(meta["level"] || 0) and
+        Enum.any?(meta["classes"] || [], fn cls -> MapSet.member?(active, {"class", cls}) end)
+    end)
+    |> Enum.map(fn {{_type, id}, _meta} -> id end)
+    |> Enum.sort()
+  end
+
+  defp spell_level_filter(%{"level" => exact_level}, _resolved) do
+    fn level -> level == exact_level end
+  end
+
+  defp spell_level_filter(%{"min_level" => min, "max_level_node" => max_node}, resolved) do
+    max_level =
+      case Expression.evaluate(max_node, resolved) do
+        {:ok, val} -> trunc(val)
+        _ -> 0
+      end
+
+    fn level -> level >= min and level <= max_level end
+  end
+
+  defp spell_level_filter(_filter, _resolved), do: fn _level -> true end
 
   defp progression_choices(id, %{"required_count" => required_str} = meta, decisions, resolved) do
     with {:ok, required} <- Expression.evaluate(required_str, resolved),
