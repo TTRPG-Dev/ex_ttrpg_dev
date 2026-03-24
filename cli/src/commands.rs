@@ -8,7 +8,7 @@ use serde_json::json;
 
 use crate::display;
 use crate::engine::Engine;
-use crate::prompts::{prompt_integer, prompt_string_from_list, prompt_yes_no};
+use crate::prompts::{prompt_from_options, prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
     ConceptsList, DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult,
@@ -386,11 +386,7 @@ fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
 
 fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {
     if let Some(options) = &choice.options {
-        println!("\nAvailable {}s:", choice.name.to_lowercase());
-        for opt in options {
-            println!("  {opt}");
-        }
-        let selection = prompt_string_from_list(&format!("Select {}:", choice.name), options)?;
+        let selection = prompt_from_options(&choice.name, options)?;
         return Some((0, selection));
     }
 
