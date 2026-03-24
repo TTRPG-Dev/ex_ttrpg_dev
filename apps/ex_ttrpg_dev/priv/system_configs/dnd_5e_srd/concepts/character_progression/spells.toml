@@ -1,0 +1,16 @@
+[character_progression.cantrips]
+name = "Cantrip"
+required_count = "character_trait('cantrips_known').count"
+type = "spell"
+
+[character_progression.cantrips.filter]
+level = 0
+
+[character_progression.spells_known]
+name = "Spell"
+required_count = "character_trait('spells_known').count"
+type = "spell"
+
+[character_progression.spells_known.filter]
+min_level = 1
+max_level_node = "character_trait('max_spell_level').level"
