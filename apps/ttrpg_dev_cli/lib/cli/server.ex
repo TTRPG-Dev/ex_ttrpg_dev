@@ -456,7 +456,8 @@ defmodule ExTTRPGDev.CLI.Server do
       slug: slug,
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active),
-      concept_types: serialize_concept_type_values(system, resolved_by_concept, inventory_ids)
+      concept_types:
+        serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active)
     }
   end
 
@@ -579,12 +580,24 @@ defmodule ExTTRPGDev.CLI.Server do
     end)
   end
 
-  defp serialize_concept_type_values(%LoadedSystem{} = system, resolved_by_concept, inventory_ids) do
+  defp serialize_concept_type_values(
+         %LoadedSystem{} = system,
+         resolved_by_concept,
+         inventory_ids,
+         active
+       ) do
+    choice_types =
+      system.module.character_building_choices
+      |> Enum.map(& &1.concept_type)
+      |> MapSet.new()
+
     ctx = %{
       concept_metadata: system.concept_metadata,
       inventory_rules: system.inventory_rules,
       inventory_ids: inventory_ids,
-      signed: MapSet.new(system.module.display_config.signed_fields)
+      signed: MapSet.new(system.module.display_config.signed_fields),
+      choice_types: choice_types,
+      active: active
     }
 
     Enum.flat_map(
@@ -595,6 +608,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp serialize_concept_type(concept_type, resolved_by_concept, ctx) do
     inventoriable = InventoryRules.inventoriable?(ctx.inventory_rules, concept_type.id)
+    choice_driven = MapSet.member?(ctx.choice_types, concept_type.id)
 
     concepts =
       ctx.concept_metadata
@@ -602,7 +616,8 @@ defmodule ExTTRPGDev.CLI.Server do
       |> Enum.sort_by(fn {{_type, id}, _} -> id end)
       |> Enum.filter(fn {{type, id}, _} ->
         Map.has_key?(resolved_by_concept, {type, id}) and
-          (not inventoriable or MapSet.member?(ctx.inventory_ids, {type, id}))
+          (not inventoriable or MapSet.member?(ctx.inventory_ids, {type, id})) and
+          (not choice_driven or MapSet.member?(ctx.active, {type, id}))
       end)
 
     if concepts == [] do
