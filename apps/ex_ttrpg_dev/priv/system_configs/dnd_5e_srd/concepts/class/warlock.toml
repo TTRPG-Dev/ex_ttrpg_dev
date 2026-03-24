@@ -70,7 +70,7 @@ value = "class('warlock').pact_slot_level"
 [class.warlock.pact_slot_count]
 type = "mapping"
 input = "character_trait('character_level').level"
-steps = [[1, 1], [2, 2], [5, 3], [7, 4], [9, 5], [11, 3], [17, 4]]
+steps = [[1, 1], [2, 2], [11, 3], [17, 4]]
 
 [class.warlock.pact_slot_level]
 type = "mapping"

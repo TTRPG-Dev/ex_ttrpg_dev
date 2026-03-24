@@ -571,10 +571,10 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 1
     end
 
-    test "warlock level 5: 3 slots at spell level 3", %{system: system, generated: generated} do
+    test "warlock level 5: 2 slots at spell level 3", %{system: system, generated: generated} do
       effects = class_effects(system, "warlock") ++ [xp_effect(6500)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
-      assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 3
+      assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 2
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 3
     end
 
