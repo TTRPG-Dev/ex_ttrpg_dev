@@ -471,8 +471,37 @@ defmodule ExTTRPGDev.CLI.Server do
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active),
       concept_types:
-        serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active)
+        serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
+      known_spells: serialize_known_spells(system, character)
     }
+  end
+
+  defp serialize_known_spells(%LoadedSystem{} = system, %Character{} = character) do
+    spell_progression_ids =
+      system.concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "character_progression" and meta["type"] == "spell"
+      end)
+      |> MapSet.new(fn {{_type, id}, _} -> id end)
+
+    selected_spell_ids =
+      character.decisions
+      |> Enum.filter(fn
+        %{scope: {"character_progression", prog_id}} ->
+          MapSet.member?(spell_progression_ids, prog_id)
+
+        _ ->
+          false
+      end)
+      |> Enum.map(& &1.selection)
+      |> Enum.uniq()
+
+    selected_spell_ids
+    |> Enum.map(fn id ->
+      meta = system.concept_metadata[{"spell", id}] || %{}
+      %{id: id, name: meta["name"] || id, level: meta["level"] || 0}
+    end)
+    |> Enum.sort_by(fn %{level: level, name: name} -> {level, name} end)
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do
@@ -704,6 +733,9 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp serialize_choices_list(choices) do
     Enum.map(choices, fn
+      %{type: :pending, options: options} = c ->
+        %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll, options: options}
+
       %{type: :pending} = c ->
         %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll}
 
