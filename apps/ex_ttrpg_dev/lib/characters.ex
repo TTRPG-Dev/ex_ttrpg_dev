@@ -301,7 +301,7 @@ defmodule ExTTRPGDev.Characters do
   defp spell_progression_choices(_id, _meta, _decisions, _resolved, _concept_metadata, _active),
     do: []
 
-  defp spell_options(filter, concept_metadata, active, resolved) do
+  def spell_options(filter, concept_metadata, active, resolved) do
     level_filter = spell_level_filter(filter, resolved)
 
     concept_metadata

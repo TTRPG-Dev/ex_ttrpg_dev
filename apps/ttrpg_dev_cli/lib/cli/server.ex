@@ -239,18 +239,17 @@ defmodule ExTTRPGDev.CLI.Server do
            "command" => "characters.resolve_choice",
            "character" => slug,
            "progression" => progression_id,
-           "value" => value,
            "selection" => selection
-         },
+         } = msg,
          state
        ) do
     try do
-      unless is_integer(value), do: raise("value must be an integer")
-
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      parsed_target = load_progression_target!(system, progression_id)
+      meta =
+        system.concept_metadata[{"character_progression", progression_id}] ||
+          raise("unknown progression: #{inspect(progression_id)}")
 
       choice_number =
         Enum.count(character.decisions, fn
@@ -258,19 +257,34 @@ defmodule ExTTRPGDev.CLI.Server do
           _ -> false
         end) + 1
 
-      updated = %{
-        character
-        | effects: character.effects ++ [%{target: parsed_target, value: value}],
-          decisions:
-            character.decisions ++
-              [
-                %{
-                  scope: {"character_progression", progression_id},
-                  choice: "choice_#{choice_number}",
-                  selection: selection
-                }
-              ]
+      decision = %{
+        scope: {"character_progression", progression_id},
+        choice: "choice_#{choice_number}",
+        selection: selection
       }
+
+      updated =
+        if meta["type"] == "spell" do
+          resolved = resolve_character(system, character)
+          active = Characters.active_concepts(character.decisions, system.concept_metadata)
+          filter = meta["filter"] || %{}
+
+          options =
+            Characters.spell_options(filter, system.concept_metadata, active, resolved)
+
+          validate_spell_selection!(selection, options)
+          %{character | decisions: character.decisions ++ [decision]}
+        else
+          value = Map.fetch!(msg, "value")
+          unless is_integer(value), do: raise("value must be an integer")
+          parsed_target = load_progression_target!(system, progression_id)
+
+          %{
+            character
+            | effects: character.effects ++ [%{target: parsed_target, value: value}],
+              decisions: character.decisions ++ [decision]
+          }
+        end
 
       Characters.save_character!(updated, true)
 
@@ -661,6 +675,12 @@ defmodule ExTTRPGDev.CLI.Server do
 
     effect_target = meta["effect_target"] || raise("progression has no effect_target")
     parse_effect_target!(effect_target)
+  end
+
+  defp validate_spell_selection!(selection, valid_options) do
+    unless selection in valid_options do
+      raise("spell #{inspect(selection)} is not available for this character and progression")
+    end
   end
 
   @effect_target_regex ~r/^(\w+)\('([^']+)'\)\.(\w+)$/
