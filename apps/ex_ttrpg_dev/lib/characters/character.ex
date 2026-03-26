@@ -15,9 +15,20 @@ defmodule ExTTRPGDev.Characters.Character do
     recording each concept selection made during character creation (defaults to [])
   - `inventory` — list of `%InventoryItem{}` representing items the character is carrying
     (defaults to [])
+  - `pending_choice_slots` — list of `%{progression_id: string, earned_at_level: integer, max_level_cap: integer}`
+    tracking unresolved selection slots with the max concept level available when they were earned
+    (defaults to [])
   """
   @type t :: %__MODULE__{}
-  defstruct [:name, :generated_values, :metadata, effects: [], decisions: [], inventory: []]
+  defstruct [
+    :name,
+    :generated_values,
+    :metadata,
+    effects: [],
+    decisions: [],
+    inventory: [],
+    pending_choice_slots: []
+  ]
 
   @doc """
   Generates a character for the given loaded rule system.
@@ -78,6 +89,14 @@ defmodule ExTTRPGDev.Characters.Character do
           }
         end),
       "decisions" => Enum.map(char.decisions, &serialize_decision/1),
+      "pending_choice_slots" =>
+        Enum.map(char.pending_choice_slots, fn %{
+                                                 progression_id: pid,
+                                                 earned_at_level: level,
+                                                 max_level_cap: cap
+                                               } ->
+          %{"progression_id" => pid, "earned_at_level" => level, "max_level_cap" => cap}
+        end),
       "metadata" => %{
         "slug" => char.metadata.slug,
         "rule_system" => char.metadata.rule_system
@@ -114,12 +133,22 @@ defmodule ExTTRPGDev.Characters.Character do
 
     decisions = Enum.map(map["decisions"] || [], &deserialize_decision/1)
 
+    pending_choice_slots =
+      Enum.map(map["pending_choice_slots"] || [], fn slot ->
+        %{
+          progression_id: slot["progression_id"],
+          earned_at_level: slot["earned_at_level"],
+          max_level_cap: slot["max_level_cap"]
+        }
+      end)
+
     %Character{
       name: map["name"],
       generated_values: generated_values,
       effects: effects,
       inventory: inventory,
       decisions: decisions,
+      pending_choice_slots: pending_choice_slots,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
         rule_system: map["metadata"]["rule_system"]
