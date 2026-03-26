@@ -55,7 +55,7 @@ defmodule ExTTRPGDev.MixProject do
 
   defp package do
     [
-      licenses: ["GPL-3.0-only"],
+      licenses: ["AGPL-3.0-or-later"],
       links: %{"GitHub" => "https://github.com/TTRPG-Dev/ex_ttrpg_dev"}
     ]
   end
