@@ -258,7 +258,8 @@ defmodule ExTTRPGDev.Characters do
           character.decisions,
           resolved,
           system.concept_metadata,
-          active
+          active,
+          character.pending_choice_slots
         )
       else
         progression_choices(id, meta_with_roll, character.decisions, resolved)
@@ -267,13 +268,87 @@ defmodule ExTTRPGDev.Characters do
     |> Enum.sort_by(& &1.id)
   end
 
+  @doc """
+  Computes the list of pending selection progression choice slots for a character,
+  taking into account the character's current level and decisions already made.
+
+  Each slot carries `progression_id`, `earned_at_level`, and `max_level_cap` —
+  the maximum concept level that was available when that slot was unlocked.
+  Decisions already made are excluded; the returned list contains only unresolved slots.
+
+  This should be called after any change that affects character level (e.g. an XP award)
+  and stored on the character so that `pending_choices/3` can filter spell options to the
+  cap appropriate when each slot was earned, rather than using the current level's cap for
+  all pending slots.
+
+  Only applies to progressions whose filter includes `max_level_node`. Progressions with a
+  fixed level filter (e.g. cantrips, filtered by `level = 0`) are unaffected.
+  """
+  def compute_pending_choice_slots(%LoadedSystem{} = system, %Character{} = character) do
+    all_effects = active_effects(system, character)
+    resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
+    current_level = trunc(resolved[{"character_trait", "character_level", "level"}] || 1)
+
+    thresholds = level_xp_thresholds(system)
+    xp_target = xp_effect_target(system)
+
+    selection_progressions =
+      Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
+        type == "character_progression" and
+          Map.has_key?(meta, "type") and
+          get_in(meta, ["filter", "max_level_node"]) != nil
+      end)
+
+    if Enum.empty?(selection_progressions) do
+      []
+    else
+      level_resolved =
+        Map.new(1..current_level, fn level ->
+          {level, evaluate_at_level(system, character, level, thresholds, xp_target, all_effects)}
+        end)
+
+      Enum.flat_map(selection_progressions, fn {{_type, id}, meta} ->
+        decisions_made = count_progression_decisions(character.decisions, id)
+
+        slots_for_progression(id, meta, level_resolved, current_level)
+        |> Enum.drop(decisions_made)
+      end)
+    end
+  end
+
+  defp slots_for_progression(progression_id, meta, level_resolved, current_level) do
+    required_str = meta["required_count"]
+    max_level_node = get_in(meta, ["filter", "max_level_node"])
+
+    Enum.flat_map(1..current_level, fn level ->
+      resolved_at = level_resolved[level]
+
+      count_at = eval_int(required_str, resolved_at)
+      count_at_prev = if level > 1, do: eval_int(required_str, level_resolved[level - 1]), else: 0
+      max_level_cap = eval_int(max_level_node, resolved_at)
+
+      List.duplicate(
+        %{progression_id: progression_id, earned_at_level: level, max_level_cap: max_level_cap},
+        max(0, count_at - count_at_prev)
+      )
+    end)
+  end
+
+  defp eval_int(expr, resolved) do
+    case Expression.evaluate(expr, resolved) do
+      {:ok, v} -> trunc(v)
+      _ -> 0
+    end
+  end
+
   defp selection_progression_choices(
          id,
          %{"required_count" => required_str} = meta,
          decisions,
          resolved,
          concept_metadata,
-         active
+         active,
+         pending_choice_slots
        ) do
     with {:ok, required} <- Expression.evaluate(required_str, resolved),
          made = count_progression_decisions(decisions, id),
@@ -284,8 +359,11 @@ defmodule ExTTRPGDev.Characters do
         |> Enum.filter(fn d -> d.scope == {"character_progression", id} end)
         |> MapSet.new(& &1.selection)
 
+      max_level_cap = find_next_slot_cap(pending_choice_slots, id)
+      capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
+
       options =
-        concept_options(meta, concept_metadata, active, resolved)
+        concept_options(meta, concept_metadata, active, capped_resolved)
         |> Enum.reject(&MapSet.member?(already_selected, &1))
 
       [
@@ -310,7 +388,8 @@ defmodule ExTTRPGDev.Characters do
          _decisions,
          _resolved,
          _concept_metadata,
-         _active
+         _active,
+         _pending_choice_slots
        ),
        do: []
 
@@ -351,6 +430,35 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp level_filter(_filter, _resolved), do: fn _level -> true end
+
+  defp find_next_slot_cap(pending_choice_slots, progression_id) do
+    case Enum.find(pending_choice_slots, &(&1.progression_id == progression_id)) do
+      %{max_level_cap: cap} -> cap
+      nil -> nil
+    end
+  end
+
+  @doc """
+  Overrides the `max_level_node` binding in `resolved` with `cap` so that
+  `concept_options/4` filters against the given cap rather than the current
+  character level.
+
+  Used when a `pending_choice_slots` entry carries a `max_level_cap` that
+  reflects the spell level access available when the slot was earned, rather
+  than the level at which the choice is ultimately made.
+
+  Returns `resolved` unchanged when `cap` is `nil`.
+  """
+  def apply_slot_cap(resolved, _meta, nil), do: resolved
+
+  def apply_slot_cap(resolved, meta, cap) do
+    max_level_node = get_in(meta, ["filter", "max_level_node"])
+
+    case max_level_node && Expression.extract_refs(max_level_node) do
+      [node_key | _] -> Map.put(resolved, node_key, cap)
+      _ -> resolved
+    end
+  end
 
   defp progression_choices(id, %{"required_count" => required_str} = meta, decisions, resolved) do
     with {:ok, required} <- Expression.evaluate(required_str, resolved),
@@ -508,5 +616,49 @@ defmodule ExTTRPGDev.Characters do
         acc
       end
     end)
+  end
+
+  defp level_xp_thresholds(%LoadedSystem{} = system) do
+    case system.concept_metadata[{"character_trait", "character_level"}] do
+      %{"level" => %{"steps" => steps}} ->
+        Map.new(steps, fn [threshold, level] -> {level, threshold} end)
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp xp_effect_target(%LoadedSystem{} = system) do
+    case system.concept_metadata[{"character_trait", "character_level"}] do
+      %{"level" => %{"input" => input}} ->
+        case Expression.extract_refs(input) do
+          [node_key | _] -> node_key
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp evaluate_at_level(
+         %LoadedSystem{} = system,
+         %Character{} = character,
+         level,
+         thresholds,
+         xp_target,
+         all_effects
+       ) do
+    xp_for_level = Map.get(thresholds, level, 0)
+    non_xp_effects = Enum.reject(all_effects, &(&1.target == xp_target))
+
+    level_effects =
+      if xp_target && xp_for_level > 0 do
+        [%{target: xp_target, value: xp_for_level} | non_xp_effects]
+      else
+        non_xp_effects
+      end
+
+    Evaluator.evaluate!(system, character.generated_values, level_effects)
   end
 end
