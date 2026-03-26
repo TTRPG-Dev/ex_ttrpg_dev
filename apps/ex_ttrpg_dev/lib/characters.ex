@@ -285,23 +285,22 @@ defmodule ExTTRPGDev.Characters do
   fixed level filter (e.g. cantrips, filtered by `level = 0`) are unaffected.
   """
   def compute_pending_choice_slots(%LoadedSystem{} = system, %Character{} = character) do
-    all_effects = active_effects(system, character)
-    resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
-    current_level = trunc(resolved[{"character_trait", "character_level", "level"}] || 1)
+    with level_node when not is_nil(level_node) <- system.module.level_node,
+         [level_node_key | _] <- Expression.extract_refs(level_node) do
+      all_effects = active_effects(system, character)
+      resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
+      current_level = trunc(resolved[level_node_key] || 1)
 
-    thresholds = level_xp_thresholds(system)
-    xp_target = xp_effect_target(system)
+      thresholds = level_xp_thresholds(system)
+      xp_target = xp_effect_target(system)
 
-    selection_progressions =
-      Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
-        type == "character_progression" and
-          Map.has_key?(meta, "type") and
-          get_in(meta, ["filter", "max_level_node"]) != nil
-      end)
+      selection_progressions =
+        Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
+          type == "character_progression" and
+            Map.has_key?(meta, "type") and
+            get_in(meta, ["filter", "max_level_node"]) != nil
+        end)
 
-    if Enum.empty?(selection_progressions) do
-      []
-    else
       level_resolved =
         Map.new(1..current_level, fn level ->
           {level, evaluate_at_level(system, character, level, thresholds, xp_target, all_effects)}
@@ -313,6 +312,8 @@ defmodule ExTTRPGDev.Characters do
         slots_for_progression(id, meta, level_resolved, current_level)
         |> Enum.drop(decisions_made)
       end)
+    else
+      _ -> []
     end
   end
 
@@ -619,25 +620,27 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp level_xp_thresholds(%LoadedSystem{} = system) do
-    case system.concept_metadata[{"character_trait", "character_level"}] do
-      %{"level" => %{"steps" => steps}} ->
-        Map.new(steps, fn [threshold, level] -> {level, threshold} end)
-
-      _ ->
-        %{}
+    with level_node when not is_nil(level_node) <- system.module.level_node,
+         [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
+         concept_meta when not is_nil(concept_meta) <-
+           system.concept_metadata[{type_id, concept_id}],
+         %{"steps" => steps} <- Map.get(concept_meta, field_name, %{}) do
+      Map.new(steps, fn [threshold, level] -> {level, threshold} end)
+    else
+      _ -> %{}
     end
   end
 
   defp xp_effect_target(%LoadedSystem{} = system) do
-    case system.concept_metadata[{"character_trait", "character_level"}] do
-      %{"level" => %{"input" => input}} ->
-        case Expression.extract_refs(input) do
-          [node_key | _] -> node_key
-          _ -> nil
-        end
-
-      _ ->
-        nil
+    with level_node when not is_nil(level_node) <- system.module.level_node,
+         [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
+         concept_meta when not is_nil(concept_meta) <-
+           system.concept_metadata[{type_id, concept_id}],
+         %{"input" => input} <- Map.get(concept_meta, field_name, %{}),
+         [node_key | _] <- Expression.extract_refs(input) do
+      node_key
+    else
+      _ -> nil
     end
   end
 

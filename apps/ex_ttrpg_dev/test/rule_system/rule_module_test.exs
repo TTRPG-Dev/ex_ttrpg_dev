@@ -57,6 +57,17 @@ defmodule ExTTRPGDev.RuleSystem.RuleModuleTest do
     assert pkg.metadata_contributions == []
   end
 
+  test "from_map/1 parses level_node when present" do
+    map = put_in(@valid_map, ["module", "level_node"], "character_trait('character_level').level")
+    {:ok, pkg} = RuleModule.from_map(map)
+    assert pkg.level_node == "character_trait('character_level').level"
+  end
+
+  test "from_map/1 defaults level_node to nil when absent" do
+    {:ok, pkg} = RuleModule.from_map(@valid_map)
+    assert pkg.level_node == nil
+  end
+
   test "from_map/1 parses metadata_contributions with label_filters" do
     map =
       Map.put(@valid_map, "metadata_contributions", [
