@@ -239,18 +239,17 @@ defmodule ExTTRPGDev.CLI.Server do
            "command" => "characters.resolve_choice",
            "character" => slug,
            "progression" => progression_id,
-           "value" => value,
            "selection" => selection
-         },
+         } = msg,
          state
        ) do
     try do
-      unless is_integer(value), do: raise("value must be an integer")
-
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      parsed_target = load_progression_target!(system, progression_id)
+      meta =
+        system.concept_metadata[{"character_progression", progression_id}] ||
+          raise("unknown progression: #{inspect(progression_id)}")
 
       choice_number =
         Enum.count(character.decisions, fn
@@ -258,19 +257,39 @@ defmodule ExTTRPGDev.CLI.Server do
           _ -> false
         end) + 1
 
-      updated = %{
-        character
-        | effects: character.effects ++ [%{target: parsed_target, value: value}],
-          decisions:
-            character.decisions ++
-              [
-                %{
-                  scope: {"character_progression", progression_id},
-                  choice: "choice_#{choice_number}",
-                  selection: selection
-                }
-              ]
+      decision = %{
+        scope: {"character_progression", progression_id},
+        choice: "choice_#{choice_number}",
+        selection: selection
       }
+
+      updated =
+        if Map.has_key?(meta, "type") do
+          resolved = resolve_character(system, character)
+          active = Characters.active_concepts(character.decisions, system.concept_metadata)
+
+          already_selected =
+            character.decisions
+            |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
+            |> MapSet.new(& &1.selection)
+
+          options =
+            Characters.concept_options(meta, system.concept_metadata, active, resolved)
+            |> Enum.reject(&MapSet.member?(already_selected, &1))
+
+          validate_concept_selection!(selection, options)
+          %{character | decisions: character.decisions ++ [decision]}
+        else
+          value = Map.fetch!(msg, "value")
+          unless is_integer(value), do: raise("value must be an integer")
+          parsed_target = load_progression_target!(system, progression_id)
+
+          %{
+            character
+            | effects: character.effects ++ [%{target: parsed_target, value: value}],
+              decisions: character.decisions ++ [decision]
+          }
+        end
 
       Characters.save_character!(updated, true)
 
@@ -457,8 +476,36 @@ defmodule ExTTRPGDev.CLI.Server do
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active),
       concept_types:
-        serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active)
+        serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
+      selected_concepts: serialize_selected_concepts(system, character)
     }
+  end
+
+  defp serialize_selected_concepts(%LoadedSystem{} = system, %Character{} = character) do
+    selection_progression_types =
+      system.concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "character_progression" and Map.has_key?(meta, "type")
+      end)
+      |> Map.new(fn {{_type, id}, meta} -> {id, meta["type"]} end)
+
+    character.decisions
+    |> Enum.filter(fn
+      %{scope: {"character_progression", prog_id}} ->
+        Map.has_key?(selection_progression_types, prog_id)
+
+      _ ->
+        false
+    end)
+    |> Enum.map(fn %{scope: {"character_progression", prog_id}, selection: selection} ->
+      {selection_progression_types[prog_id], selection}
+    end)
+    |> Enum.uniq()
+    |> Enum.map(fn {concept_type, id} ->
+      meta = system.concept_metadata[{concept_type, id}] || %{}
+      %{id: id, name: meta["name"] || id, level: meta["level"] || 0}
+    end)
+    |> Enum.sort_by(fn %{level: level, name: name} -> {level, name} end)
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do
@@ -663,6 +710,12 @@ defmodule ExTTRPGDev.CLI.Server do
     parse_effect_target!(effect_target)
   end
 
+  defp validate_concept_selection!(selection, valid_options) do
+    unless selection in valid_options do
+      raise("#{inspect(selection)} is not available for this character and progression")
+    end
+  end
+
   @effect_target_regex ~r/^(\w+)\('([^']+)'\)\.(\w+)$/
 
   defp parse_effect_target!(target) do
@@ -684,6 +737,9 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp serialize_choices_list(choices) do
     Enum.map(choices, fn
+      %{type: :pending, options: options} = c ->
+        %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll, options: options}
+
       %{type: :pending} = c ->
         %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll}
 

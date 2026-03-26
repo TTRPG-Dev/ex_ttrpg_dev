@@ -77,7 +77,15 @@ pub(crate) struct CharacterData {
     pub(crate) choices: Vec<ChoiceEntry>,
     pub(crate) character_lists: Vec<CharacterListCategory>,
     pub(crate) concept_types: Vec<ConceptTypeValues>,
+    #[serde(default)]
+    pub(crate) selected_concepts: Vec<SelectedConcept>,
     pub(crate) pending_choices: Option<Vec<PendingChoice>>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct SelectedConcept {
+    pub(crate) name: String,
+    pub(crate) level: i64,
 }
 
 #[derive(Deserialize)]
@@ -88,6 +96,7 @@ pub(crate) struct PendingChoice {
     pub(crate) name: String,
     pub(crate) count: Option<i64>,
     pub(crate) roll: Option<String>,
+    pub(crate) options: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]

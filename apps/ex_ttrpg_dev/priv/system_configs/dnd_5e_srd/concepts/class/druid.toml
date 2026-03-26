@@ -98,5 +98,23 @@ value = "character_trait('full_caster_slots').level_8"
 target = "character_trait('spell_slots').level_9"
 value = "character_trait('full_caster_slots').level_9"
 
+[[class.druid.contributes]]
+target = "character_trait('cantrips_known').count"
+value = "class('druid').cantrips_known_count"
+
+[[class.druid.contributes]]
+target = "character_trait('max_spell_level').level"
+value = "class('druid').max_spell_level"
+
+[class.druid.cantrips_known_count]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 2], [4, 3], [10, 4]]
+
+[class.druid.max_spell_level]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+
 [class.circle_of_the_land]
 name = "Circle of the Land"

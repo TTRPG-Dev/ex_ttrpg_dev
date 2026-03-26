@@ -588,6 +588,76 @@ defmodule ExTTRPGDevTest.Characters do
       result = Characters.pending_choices(system, minimal_character([]), @level_binding)
       assert Enum.map(result, & &1.id) |> Enum.sort() == ["hp_per_level", "other"]
     end
+
+    @cantrip_progression %{
+      "name" => "Cantrip",
+      "required_count" => "2",
+      "type" => "spell",
+      "filter" => %{
+        "level" => 0,
+        "active_in" => %{"field" => "classes", "type" => "class"}
+      }
+    }
+
+    @spell_meta %{
+      {"spell", "fire_bolt"} => %{"level" => 0, "classes" => ["wizard"]},
+      {"spell", "mage_hand"} => %{"level" => 0, "classes" => ["wizard"]},
+      {"spell", "cure_wounds"} => %{"level" => 1, "classes" => ["cleric"]},
+      {"spell", "sacred_flame"} => %{"level" => 0, "classes" => ["cleric"]}
+    }
+
+    defp spell_system(progressions, spell_meta) do
+      minimal_system(
+        [],
+        Map.merge(
+          Map.new(progressions, fn {id, meta} -> {{"character_progression", id}, meta} end),
+          spell_meta
+        )
+      )
+    end
+
+    test "spell progression includes options filtered by level and active class" do
+      system = spell_system(%{"cantrips" => @cantrip_progression}, @spell_meta)
+
+      decisions = [%{scope: nil, choice: "class", selection: "wizard"}]
+      [entry] = Characters.pending_choices(system, minimal_character(decisions), %{})
+
+      assert entry.id == "cantrips"
+      assert entry.count == 2
+      assert entry.effect_target == nil
+      assert entry.roll == nil
+      assert Enum.sort(entry.options) == ["fire_bolt", "mage_hand"]
+    end
+
+    test "spell progression returns no options when no class active" do
+      system = spell_system(%{"cantrips" => @cantrip_progression}, @spell_meta)
+
+      [entry] = Characters.pending_choices(system, minimal_character([]), %{})
+
+      assert entry.options == []
+    end
+
+    test "spell progression with min/max level filter" do
+      progression = %{
+        "name" => "Spell",
+        "required_count" => "2",
+        "type" => "spell",
+        "filter" => %{
+          "min_level" => 1,
+          "max_level_node" => "character_trait('max_spell_level').level",
+          "active_in" => %{"field" => "classes", "type" => "class"}
+        }
+      }
+
+      system = spell_system(%{"spells_known" => progression}, @spell_meta)
+      resolved = %{{"character_trait", "max_spell_level", "level"} => 1}
+      decisions = [%{scope: nil, choice: "class", selection: "cleric"}]
+
+      [entry] = Characters.pending_choices(system, minimal_character(decisions), resolved)
+
+      assert entry.id == "spells_known"
+      assert entry.options == ["cure_wounds"]
+    end
   end
 
   describe "concept_roll!/4" do

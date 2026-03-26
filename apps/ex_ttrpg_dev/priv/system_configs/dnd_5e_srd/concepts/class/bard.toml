@@ -158,5 +158,32 @@ value = "character_trait('full_caster_slots').level_8"
 target = "character_trait('spell_slots').level_9"
 value = "character_trait('full_caster_slots').level_9"
 
+[[class.bard.contributes]]
+target = "character_trait('cantrips_known').count"
+value = "class('bard').cantrips_known_count"
+
+[[class.bard.contributes]]
+target = "character_trait('spells_known').count"
+value = "class('bard').spells_known_count"
+
+[[class.bard.contributes]]
+target = "character_trait('max_spell_level').level"
+value = "class('bard').max_spell_level"
+
+[class.bard.cantrips_known_count]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 2], [4, 3], [10, 4]]
+
+[class.bard.spells_known_count]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 4], [2, 5], [3, 6], [4, 7], [5, 8], [6, 9], [7, 10], [8, 11], [9, 12], [10, 14], [11, 15], [13, 16], [14, 18], [15, 19], [17, 20], [18, 22]]
+
+[class.bard.max_spell_level]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+
 [class.college_of_lore]
 name = "College of Lore"
