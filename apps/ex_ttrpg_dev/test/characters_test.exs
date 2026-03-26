@@ -658,6 +658,122 @@ defmodule ExTTRPGDevTest.Characters do
       assert entry.id == "spells_known"
       assert entry.options == ["cure_wounds"]
     end
+
+    test "spell progression uses pending_choice_slots cap instead of resolved max level" do
+      spell_meta =
+        Map.merge(@spell_meta, %{
+          {"spell", "fireball"} => %{"level" => 3, "classes" => ["cleric"]}
+        })
+
+      progression = %{
+        "name" => "Spell",
+        "required_count" => "2",
+        "type" => "spell",
+        "filter" => %{
+          "min_level" => 1,
+          "max_level_node" => "character_trait('max_spell_level').level",
+          "active_in" => %{"field" => "classes", "type" => "class"}
+        }
+      }
+
+      system = spell_system(%{"spells_known" => progression}, spell_meta)
+      # resolved says max_spell_level = 3, but the slot was earned when only level 1 was available
+      resolved = %{{"character_trait", "max_spell_level", "level"} => 3}
+      decisions = [%{scope: nil, choice: "class", selection: "cleric"}]
+
+      pending_choice_slots = [
+        %{progression_id: "spells_known", earned_at_level: 1, max_level_cap: 1}
+      ]
+
+      character = %{minimal_character(decisions) | pending_choice_slots: pending_choice_slots}
+      [entry] = Characters.pending_choices(system, character, resolved)
+
+      # fireball (level 3) should be excluded despite resolved allowing level 3
+      assert entry.options == ["cure_wounds"]
+    end
+  end
+
+  describe "compute_pending_choice_slots/2" do
+    setup do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      attrs = ~w[strength dexterity constitution wisdom intelligence charisma]
+      generated = Map.new(attrs, &{{"ability", &1, "base_score"}, 10})
+
+      decisions = [
+        %{scope: nil, choice: "class", selection: "sorcerer"},
+        %{scope: nil, choice: "race", selection: "human"},
+        %{scope: nil, choice: "background", selection: "acolyte"}
+      ]
+
+      character = %Character{
+        name: "Test",
+        generated_values: generated,
+        effects: [],
+        decisions: decisions,
+        pending_choice_slots: [],
+        metadata: %ExTTRPGDev.Characters.Metadata{slug: "test_slots", rule_system: "dnd_5e_srd"}
+      }
+
+      {:ok, system: system, character: character}
+    end
+
+    test "level 1 character gets slots with cap 1 for initial spell choices",
+         %{system: system, character: character} do
+      slots = Characters.compute_pending_choice_slots(system, character)
+      spells_known = Enum.filter(slots, &(&1.progression_id == "spells_known"))
+
+      # sorcerer starts with 2 spells known at level 1
+      assert length(spells_known) == 2
+      assert Enum.all?(spells_known, &(&1.earned_at_level == 1))
+      assert Enum.all?(spells_known, &(&1.max_level_cap == 1))
+    end
+
+    test "higher-level slots get appropriate caps reflecting spell access at that level",
+         %{system: system, character: character} do
+      # XP for level 5 (6500)
+      xp_effect = %{target: {"character_trait", "experience_points", "total"}, value: 6500}
+      character = %{character | effects: [xp_effect]}
+
+      slots = Characters.compute_pending_choice_slots(system, character)
+      spells_known = Enum.filter(slots, &(&1.progression_id == "spells_known"))
+
+      # At level 5, a sorcerer knows 6 spells total; all 6 slots are pending
+      assert length(spells_known) == 6
+
+      # Slots earned early should have lower caps than slots earned later
+      early_slot = List.first(spells_known)
+      late_slot = List.last(spells_known)
+      assert early_slot.max_level_cap <= late_slot.max_level_cap
+    end
+
+    test "already-decided slots are excluded from result",
+         %{system: system, character: character} do
+      # Pre-make one spell decision
+      spell_decision = %{
+        scope: {"character_progression", "spells_known"},
+        choice: "choice_1",
+        selection: "fire_bolt"
+      }
+
+      character = %{character | decisions: character.decisions ++ [spell_decision]}
+      slots = Characters.compute_pending_choice_slots(system, character)
+      spells_known = Enum.filter(slots, &(&1.progression_id == "spells_known"))
+
+      # 2 total at level 1, minus 1 decided = 1 remaining
+      assert length(spells_known) == 1
+    end
+
+    test "returns empty list when no level-capped progressions exist",
+         %{system: system, character: character} do
+      # Remove all character_progression metadata that has max_level_node
+      concept_metadata =
+        Map.reject(system.concept_metadata, fn {{type, _id}, meta} ->
+          type == "character_progression" and get_in(meta, ["filter", "max_level_node"]) != nil
+        end)
+
+      system = %{system | concept_metadata: concept_metadata}
+      assert Characters.compute_pending_choice_slots(system, character) == []
+    end
   end
 
   describe "concept_roll!/4" do

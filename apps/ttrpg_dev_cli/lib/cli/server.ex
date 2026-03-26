@@ -205,6 +205,8 @@ defmodule ExTTRPGDev.CLI.Server do
           raise("unknown award: #{inspect(award_id)}")
 
       updated = apply_award!(character, award_meta, value)
+      new_slots = Characters.compute_pending_choice_slots(system, updated)
+      updated = %{updated | pending_choice_slots: new_slots}
       Characters.save_character!(updated, true)
 
       resolved = resolve_character(system, updated)
@@ -273,12 +275,19 @@ defmodule ExTTRPGDev.CLI.Server do
             |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
             |> MapSet.new(& &1.selection)
 
+          capped_resolved = cap_resolved_for_slot(character, progression_id, meta, resolved)
+
           options =
-            Characters.concept_options(meta, system.concept_metadata, active, resolved)
+            Characters.concept_options(meta, system.concept_metadata, active, capped_resolved)
             |> Enum.reject(&MapSet.member?(already_selected, &1))
 
           validate_concept_selection!(selection, options)
-          %{character | decisions: character.decisions ++ [decision]}
+
+          %{
+            character
+            | decisions: character.decisions ++ [decision],
+              pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
+          }
         else
           value = Map.fetch!(msg, "value")
           unless is_integer(value), do: raise("value must be an integer")
@@ -722,6 +731,20 @@ defmodule ExTTRPGDev.CLI.Server do
     case Regex.run(@effect_target_regex, target, capture: :all_but_first) do
       [type_id, concept_id, field] -> {type_id, concept_id, field}
       _ -> raise("invalid effect target: #{inspect(target)}")
+    end
+  end
+
+  defp cap_resolved_for_slot(character, progression_id, meta, resolved) do
+    case Enum.find(character.pending_choice_slots, &(&1.progression_id == progression_id)) do
+      %{max_level_cap: cap} -> Characters.apply_slot_cap(resolved, meta, cap)
+      nil -> resolved
+    end
+  end
+
+  defp consume_slot(pending_choice_slots, progression_id) do
+    case Enum.split_while(pending_choice_slots, &(&1.progression_id != progression_id)) do
+      {before_slots, [_ | after_slots]} -> before_slots ++ after_slots
+      _ -> pending_choice_slots
     end
   end
 
