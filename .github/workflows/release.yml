@@ -66,6 +66,10 @@ jobs:
           ROOT_CURRENT=$(grep -m1 'version:' mix.exs | sed 's/.*version: "//;s/".*//')
           sed -i "0,/version: \"${ROOT_CURRENT}\"/s/version: \"${ROOT_CURRENT}\"/version: \"${CLI_NEW}\"/" mix.exs
 
+          # ---- Rust CLI (tracks CLI version) ----
+          CARGO_CURRENT=$(grep -m1 '^version' cli/Cargo.toml | sed 's/version = "//;s/".*//')
+          sed -i "0,/^version = \"${CARGO_CURRENT}\"/s/^version = \"${CARGO_CURRENT}\"/version = \"${CLI_NEW}\"/" cli/Cargo.toml
+
           # ---- Library ----
           LIB_CURRENT=$(grep -m1 'version:' apps/ex_ttrpg_dev/mix.exs | sed 's/.*version: "//;s/".*//')
           LIB_NEW="$LIB_CURRENT"
@@ -84,7 +88,7 @@ jobs:
       - name: Commit and push version bumps
         id: commit
         run: |
-          git add mix.exs apps/ttrpg_dev_cli/mix.exs
+          git add mix.exs apps/ttrpg_dev_cli/mix.exs cli/Cargo.toml
 
           if [ "${{ steps.bump.outputs.lib_changed }}" == "true" ]; then
             git add apps/ex_ttrpg_dev/mix.exs
