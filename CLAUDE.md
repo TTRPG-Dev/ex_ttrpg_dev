@@ -75,6 +75,16 @@ values may decrease (e.g. warlock pact slot count drops at level 11).
 calculations (e.g. `full_caster_slots`, `half_caster_slots`) and should not appear on
 the character sheet.
 
+## Library vs. System Configuration Boundary
+
+`apps/ex_ttrpg_dev/` is a generic TTRPG library. It must not hardcode any concept IDs, type IDs, field names, or other values that belong to a specific rule system (e.g. `"character_trait"`, `"character_level"`, `"dnd_5e_srd"`).
+
+**The rule:** if the library needs to know *which* node or concept to use, that information must come from the loaded `RuleModule` (declared in `module.toml`) or be passed in by the caller — never embedded in library source.
+
+When implementing a feature, ask before writing code: *does this require knowing what something is called in a specific system?* If yes, the name belongs in config, and the library receives it as data.
+
+`apps/ttrpg_dev_cli/` and `priv/system_configs/` are allowed to be system-aware.
+
 ## Conventions
 
 - Functions return `{:ok, result}` / `{:error, reason}`; bang variants raise.
