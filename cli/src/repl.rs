@@ -14,7 +14,7 @@ use reedline::{
 
 use crate::commands;
 use crate::engine::Engine;
-use crate::protocol::CharactersList;
+use crate::protocol::{CharactersList, SystemsList};
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +68,9 @@ static COMMANDS: &[&str] = &[
     "quit",
 ];
 
+// Commands where the next token after the subcommand is a system slug.
+static SYSTEM_COMMANDS: &[&str] = &["characters gen", "systems show"];
+
 // Commands where the next token after the subcommand is a character slug.
 static SLUG_COMMANDS: &[&str] = &[
     "characters show",
@@ -84,16 +87,24 @@ struct CommandCompleter {
 }
 
 impl CommandCompleter {
-    fn fetch_character_slugs(&mut self) -> Vec<String> {
-        let engine = match &self.engine {
-            Some(e) => e,
-            None => return vec![],
-        };
-        let req = serde_json::json!({"command": "characters.list"});
-        match engine.lock().unwrap().call::<_, CharactersList>(&req) {
-            Ok(r) => r.characters.into_iter().map(|c| c.slug).collect(),
-            Err(_) => vec![],
-        }
+    fn call_engine<T: for<'de> serde::Deserialize<'de>>(
+        &self,
+        req: serde_json::Value,
+    ) -> Option<T> {
+        let engine = self.engine.as_ref()?;
+        engine.lock().unwrap().call::<_, T>(&req).ok()
+    }
+
+    fn fetch_character_slugs(&self) -> Vec<String> {
+        self.call_engine(serde_json::json!({"command": "characters.list"}))
+            .map(|r: CharactersList| r.characters.into_iter().map(|c| c.slug).collect())
+            .unwrap_or_default()
+    }
+
+    fn fetch_system_slugs(&self) -> Vec<String> {
+        self.call_engine(serde_json::json!({"command": "systems.list"}))
+            .map(|r: SystemsList| r.systems)
+            .unwrap_or_default()
     }
 }
 
@@ -104,13 +115,20 @@ impl Completer for CommandCompleter {
         let context = prefix[..word_start].trim();
         let current_word = &prefix[word_start..];
 
-        if SLUG_COMMANDS.contains(&context) {
-            let slugs = self.fetch_character_slugs();
-            return slugs
+        let completions: Option<Vec<String>> = if SLUG_COMMANDS.contains(&context) {
+            Some(self.fetch_character_slugs())
+        } else if SYSTEM_COMMANDS.contains(&context) {
+            Some(self.fetch_system_slugs())
+        } else {
+            None
+        };
+
+        if let Some(values) = completions {
+            return values
                 .into_iter()
                 .filter(|s| s.starts_with(current_word))
-                .map(|slug| Suggestion {
-                    value: slug,
+                .map(|value| Suggestion {
+                    value,
                     description: None,
                     style: None,
                     extra: None,
@@ -250,38 +268,52 @@ mod tests {
     use reedline::Completer;
 
     #[test]
-    fn completes_empty_input_with_top_level_commands() {
+    fn static_completions() {
+        struct Case {
+            input: &'static str,
+            contains: &'static [&'static str],
+            excludes: &'static [&'static str],
+        }
+        let cases = [
+            Case {
+                input: "",
+                contains: &["roll", "characters", "systems", "help", "exit"],
+                excludes: &[],
+            },
+            Case {
+                input: "ch",
+                contains: &["characters"],
+                excludes: &["roll", "systems"],
+            },
+            Case {
+                input: "characters ",
+                contains: &["list", "gen", "show", "roll", "inventory"],
+                excludes: &[],
+            },
+        ];
         let mut c = CommandCompleter { engine: None };
-        let values: Vec<String> = c.complete("", 0).into_iter().map(|s| s.value).collect();
-        assert!(values.contains(&"roll".to_string()));
-        assert!(values.contains(&"characters".to_string()));
-        assert!(values.contains(&"systems".to_string()));
-        assert!(values.contains(&"help".to_string()));
-        assert!(values.contains(&"exit".to_string()));
-    }
-
-    #[test]
-    fn completes_partial_top_level_command() {
-        let mut c = CommandCompleter { engine: None };
-        let values: Vec<String> = c.complete("ch", 2).into_iter().map(|s| s.value).collect();
-        assert!(values.contains(&"characters".to_string()));
-        assert!(!values.contains(&"roll".to_string()));
-        assert!(!values.contains(&"systems".to_string()));
-    }
-
-    #[test]
-    fn completes_subcommand_after_space() {
-        let mut c = CommandCompleter { engine: None };
-        let values: Vec<String> = c
-            .complete("characters ", 11)
-            .into_iter()
-            .map(|s| s.value)
-            .collect();
-        assert!(values.contains(&"list".to_string()));
-        assert!(values.contains(&"gen".to_string()));
-        assert!(values.contains(&"show".to_string()));
-        assert!(values.contains(&"roll".to_string()));
-        assert!(values.contains(&"inventory".to_string()));
+        for case in &cases {
+            let pos = case.input.len();
+            let values: Vec<String> = c
+                .complete(case.input, pos)
+                .into_iter()
+                .map(|s| s.value)
+                .collect();
+            for token in case.contains {
+                assert!(
+                    values.contains(&token.to_string()),
+                    "expected '{token}' in completions for '{}'",
+                    case.input
+                );
+            }
+            for token in case.excludes {
+                assert!(
+                    !values.contains(&token.to_string()),
+                    "did not expect '{token}' in completions for '{}'",
+                    case.input
+                );
+            }
+        }
     }
 
     #[test]
@@ -315,5 +347,17 @@ mod tests {
             .map(|s| s.value)
             .collect();
         assert!(values.is_empty());
+    }
+
+    #[test]
+    fn system_position_returns_no_static_completions() {
+        // Without an engine, system slug completion returns empty rather than
+        // falling through to static command completions.
+        let mut c = CommandCompleter { engine: None };
+        for cmd in &["characters gen ", "systems show "] {
+            let pos = cmd.len();
+            let values: Vec<String> = c.complete(cmd, pos).into_iter().map(|s| s.value).collect();
+            assert!(values.is_empty(), "expected empty for '{cmd}'");
+        }
     }
 }
