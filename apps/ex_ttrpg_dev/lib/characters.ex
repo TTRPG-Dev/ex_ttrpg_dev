@@ -360,7 +360,7 @@ defmodule ExTTRPGDev.Characters do
         |> Enum.filter(fn d -> d.scope == {"character_progression", id} end)
         |> MapSet.new(& &1.selection)
 
-      max_level_cap = find_next_slot_cap(pending_choice_slots, id)
+      {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
       capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
 
       options =
@@ -375,6 +375,7 @@ defmodule ExTTRPGDev.Characters do
           count: pending_count,
           effect_target: nil,
           roll: nil,
+          earned_at_level: earned_at_level,
           options: options
         }
       ]
@@ -432,10 +433,10 @@ defmodule ExTTRPGDev.Characters do
 
   defp level_filter(_filter, _resolved), do: fn _level -> true end
 
-  defp find_next_slot_cap(pending_choice_slots, progression_id) do
+  defp find_next_slot(pending_choice_slots, progression_id) do
     case Enum.find(pending_choice_slots, &(&1.progression_id == progression_id)) do
-      %{max_level_cap: cap} -> cap
-      nil -> nil
+      %{max_level_cap: cap, earned_at_level: level} -> {cap, level}
+      nil -> {nil, nil}
     end
   end
 
@@ -622,9 +623,8 @@ defmodule ExTTRPGDev.Characters do
   defp level_xp_thresholds(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         concept_meta when not is_nil(concept_meta) <-
-           system.concept_metadata[{type_id, concept_id}],
-         %{"steps" => steps} <- Map.get(concept_meta, field_name, %{}) do
+         %{type: :mapping, steps: steps} when not is_nil(steps) <-
+           Map.get(system.nodes, {type_id, concept_id, field_name}) do
       Map.new(steps, fn [threshold, level] -> {level, threshold} end)
     else
       _ -> %{}
@@ -634,9 +634,8 @@ defmodule ExTTRPGDev.Characters do
   defp xp_effect_target(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         concept_meta when not is_nil(concept_meta) <-
-           system.concept_metadata[{type_id, concept_id}],
-         %{"input" => input} <- Map.get(concept_meta, field_name, %{}),
+         %{type: :mapping, input: input} when not is_nil(input) <-
+           Map.get(system.nodes, {type_id, concept_id, field_name}),
          [node_key | _] <- Expression.extract_refs(input) do
       node_key
     else

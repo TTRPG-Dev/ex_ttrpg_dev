@@ -79,12 +79,21 @@ target = "character_trait('spell_slots').level_9"
 value = "character_trait('full_caster_slots').level_9"
 
 [[class.wizard.contributes]]
+target = "character_trait('spells_known').count"
+value = "class('wizard').spells_known_count"
+
+[[class.wizard.contributes]]
 target = "character_trait('cantrips_known').count"
 value = "class('wizard').cantrips_known_count"
 
 [[class.wizard.contributes]]
 target = "character_trait('max_spell_level').level"
 value = "class('wizard').max_spell_level"
+
+[class.wizard.spells_known_count]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 6], [2, 8], [3, 10], [4, 12], [5, 14], [6, 16], [7, 18], [8, 20], [9, 22], [10, 24], [11, 26], [12, 28], [13, 30], [14, 32], [15, 34], [16, 36], [17, 38], [18, 40], [19, 42], [20, 44]]
 
 [class.wizard.cantrips_known_count]
 type = "mapping"
