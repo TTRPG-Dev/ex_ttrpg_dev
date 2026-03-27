@@ -622,9 +622,8 @@ defmodule ExTTRPGDev.Characters do
   defp level_xp_thresholds(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         concept_meta when not is_nil(concept_meta) <-
-           system.concept_metadata[{type_id, concept_id}],
-         %{"steps" => steps} <- Map.get(concept_meta, field_name, %{}) do
+         %{type: :mapping, steps: steps} when not is_nil(steps) <-
+           Map.get(system.nodes, {type_id, concept_id, field_name}) do
       Map.new(steps, fn [threshold, level] -> {level, threshold} end)
     else
       _ -> %{}
@@ -634,9 +633,8 @@ defmodule ExTTRPGDev.Characters do
   defp xp_effect_target(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         concept_meta when not is_nil(concept_meta) <-
-           system.concept_metadata[{type_id, concept_id}],
-         %{"input" => input} <- Map.get(concept_meta, field_name, %{}),
+         %{type: :mapping, input: input} when not is_nil(input) <-
+           Map.get(system.nodes, {type_id, concept_id, field_name}),
          [node_key | _] <- Expression.extract_refs(input) do
       node_key
     else

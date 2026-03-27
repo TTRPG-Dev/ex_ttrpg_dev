@@ -740,10 +740,10 @@ defmodule ExTTRPGDevTest.Characters do
       # At level 5, a sorcerer knows 6 spells total; all 6 slots are pending
       assert length(spells_known) == 6
 
-      # Slots earned early should have lower caps than slots earned later
-      early_slot = List.first(spells_known)
-      late_slot = List.last(spells_known)
-      assert early_slot.max_level_cap <= late_slot.max_level_cap
+      # Each slot's cap should reflect the max spell level available when that slot was earned:
+      # levels 1-2 cap at 1, levels 3-4 cap at 2, level 5 caps at 3
+      caps = Enum.map(spells_known, & &1.max_level_cap)
+      assert caps == [1, 1, 1, 2, 2, 3]
     end
 
     test "already-decided slots are excluded from result",
