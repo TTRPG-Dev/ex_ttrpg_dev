@@ -84,8 +84,10 @@ pub(crate) struct CharacterData {
 
 #[derive(Deserialize)]
 pub(crate) struct SelectedConcept {
-    pub(crate) name: String,
-    pub(crate) level: i64,
+    pub(crate) progression: String,
+    #[allow(dead_code)]
+    pub(crate) id: String,
+    pub(crate) label: String,
 }
 
 #[derive(Deserialize)]
@@ -173,11 +175,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deserialize_roll_result() {
+    fn deserialize_roll_result_structure() {
         let json = r#"{"results":[{"spec":"2d6","rolls":[3,4],"total":7}]}"#;
         let r: RollResult = serde_json::from_str(json).unwrap();
         assert_eq!(r.results.len(), 1);
         assert_eq!(r.results[0].spec, "2d6");
+    }
+
+    #[test]
+    fn deserialize_roll_result_values() {
+        let json = r#"{"results":[{"spec":"2d6","rolls":[3,4],"total":7}]}"#;
+        let r: RollResult = serde_json::from_str(json).unwrap();
         assert_eq!(r.results[0].rolls, vec![3, 4]);
         assert_eq!(r.results[0].total, 7);
     }
@@ -238,6 +246,15 @@ mod tests {
         assert_eq!(p.id, "feat_1");
         assert!(p.count.is_none());
         assert!(p.roll.is_none());
+    }
+
+    #[test]
+    fn deserialize_selected_concept() {
+        let json = r#"{"progression":"Spells Known","id":"fire_bolt","label":"Fire Bolt: Level 0, evocation (VS)"}"#;
+        let s: SelectedConcept = serde_json::from_str(json).unwrap();
+        assert_eq!(s.progression, "Spells Known");
+        assert_eq!(s.id, "fire_bolt");
+        assert_eq!(s.label, "Fire Bolt: Level 0, evocation (VS)");
     }
 
     #[test]

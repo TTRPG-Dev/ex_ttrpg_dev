@@ -141,7 +141,7 @@ defmodule ExTTRPGDev.CLI.Server do
           next_id: state.next_id + 1
       }
 
-      data = Map.put(serialize_character(system, character, nil), :temp_id, temp_id)
+      data = Map.put(serialize_character(system, character, nil, :default), :temp_id, temp_id)
       {ok(data), new_state}
     rescue
       e -> {error(Exception.message(e)), state}
@@ -214,7 +214,7 @@ defmodule ExTTRPGDev.CLI.Server do
       choices = Characters.pending_choices(system, updated, resolved)
 
       data =
-        serialize_character(system, updated, slug)
+        serialize_character(system, updated, slug, parse_display_mode(msg))
         |> Map.put(
           :pending_choices,
           serialize_choices_list(choices, system, parse_display_mode(msg))
@@ -311,7 +311,7 @@ defmodule ExTTRPGDev.CLI.Server do
       choices = Characters.pending_choices(system, updated, resolved)
 
       data =
-        serialize_character(system, updated, slug)
+        serialize_character(system, updated, slug, parse_display_mode(msg))
         |> Map.put(
           :pending_choices,
           serialize_choices_list(choices, system, parse_display_mode(msg))
@@ -330,11 +330,11 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
-  defp handle(%{"command" => "characters.show", "character" => slug}, state) do
+  defp handle(%{"command" => "characters.show", "character" => slug} = msg, state) do
     try do
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
-      data = serialize_character(system, character, slug)
+      data = serialize_character(system, character, slug, parse_display_mode(msg))
       {ok(data), state}
     rescue
       e -> {error(Exception.message(e)), state}
@@ -480,7 +480,7 @@ defmodule ExTTRPGDev.CLI.Server do
     %{concept_type: concept_type, concepts: concepts}
   end
 
-  defp serialize_character(%LoadedSystem{} = system, %Character{} = character, slug) do
+  defp serialize_character(%LoadedSystem{} = system, %Character{} = character, slug, display_mode) do
     active = Characters.active_concepts(character.decisions, system.concept_metadata)
     resolved = resolve_character(system, character)
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
@@ -494,35 +494,44 @@ defmodule ExTTRPGDev.CLI.Server do
       character_lists: serialize_character_lists(system, character, active),
       concept_types:
         serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
-      selected_concepts: serialize_selected_concepts(system, character)
+      selected_concepts: serialize_selected_concepts(system, character, display_mode)
     }
   end
 
-  defp serialize_selected_concepts(%LoadedSystem{} = system, %Character{} = character) do
-    selection_progression_types =
+  defp serialize_selected_concepts(
+         %LoadedSystem{} = system,
+         %Character{} = character,
+         display_mode
+       ) do
+    selection_progressions =
       system.concept_metadata
       |> Enum.filter(fn {{type, _id}, meta} ->
         type == "character_progression" and Map.has_key?(meta, "type")
       end)
-      |> Map.new(fn {{_type, id}, meta} -> {id, meta["type"]} end)
+      |> Map.new(fn {{_type, id}, meta} ->
+        {id, %{concept_type: meta["type"], name: meta["name"] || id}}
+      end)
 
     character.decisions
     |> Enum.filter(fn
       %{scope: {"character_progression", prog_id}} ->
-        Map.has_key?(selection_progression_types, prog_id)
+        Map.has_key?(selection_progressions, prog_id)
 
       _ ->
         false
     end)
     |> Enum.map(fn %{scope: {"character_progression", prog_id}, selection: selection} ->
-      {selection_progression_types[prog_id], selection}
+      prog = selection_progressions[prog_id]
+      {prog.concept_type, prog.name, selection}
     end)
     |> Enum.uniq()
-    |> Enum.map(fn {concept_type, id} ->
-      meta = system.concept_metadata[{concept_type, id}] || %{}
-      %{id: id, name: meta["name"] || id, level: meta["level"] || 0}
+    |> Enum.map(fn {concept_type, progression_name, id} ->
+      meta = system.concept_metadata[{concept_type, id}] || %{"name" => id}
+      template = find_display_template(system, concept_type)
+      label = ConceptDisplay.render(template, meta, display_mode)
+      %{progression: progression_name, id: id, label: label}
     end)
-    |> Enum.sort_by(fn %{level: level, name: name} -> {level, name} end)
+    |> Enum.sort_by(fn %{progression: prog, label: label} -> {prog, label} end)
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do
