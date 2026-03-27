@@ -40,6 +40,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
+  alias ExTTRPGDev.CLI.ConceptDisplay
   alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystem.{Evaluator, InventoryRules}
   alias ExTTRPGDev.RuleSystems
@@ -193,7 +194,7 @@ defmodule ExTTRPGDev.CLI.Server do
            "character" => slug,
            "award" => award_id,
            "value" => value
-         },
+         } = msg,
          state
        ) do
     try do
@@ -214,7 +215,10 @@ defmodule ExTTRPGDev.CLI.Server do
 
       data =
         serialize_character(system, updated, slug)
-        |> Map.put(:pending_choices, serialize_choices_list(choices))
+        |> Map.put(
+          :pending_choices,
+          serialize_choices_list(choices, system, parse_display_mode(msg))
+        )
 
       {ok(data), state}
     rescue
@@ -222,7 +226,7 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
-  defp handle(%{"command" => "characters.choices", "character" => slug}, state) do
+  defp handle(%{"command" => "characters.choices", "character" => slug} = msg, state) do
     try do
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
@@ -230,7 +234,8 @@ defmodule ExTTRPGDev.CLI.Server do
       resolved = resolve_character(system, character)
       choices = Characters.pending_choices(system, character, resolved)
 
-      {ok(%{pending_choices: serialize_choices_list(choices)}), state}
+      {ok(%{pending_choices: serialize_choices_list(choices, system, parse_display_mode(msg))}),
+       state}
     rescue
       e -> {error(Exception.message(e)), state}
     end
@@ -307,7 +312,10 @@ defmodule ExTTRPGDev.CLI.Server do
 
       data =
         serialize_character(system, updated, slug)
-        |> Map.put(:pending_choices, serialize_choices_list(choices))
+        |> Map.put(
+          :pending_choices,
+          serialize_choices_list(choices, system, parse_display_mode(msg))
+        )
 
       {ok(data), state}
     rescue
@@ -758,16 +766,27 @@ defmodule ExTTRPGDev.CLI.Server do
     raise("unsupported award value_type: #{inspect(value_type)}")
   end
 
-  defp serialize_choices_list(choices) do
+  defp serialize_choices_list(choices, system, display_mode) do
     Enum.map(choices, fn
       %{type: :pending, options: options} = c ->
+        concept_type =
+          get_in(system.concept_metadata, [{"character_progression", c.id}, "type"])
+
+        template = find_display_template(system, concept_type)
+
+        rendered_options =
+          Enum.map(options, fn id ->
+            fields = system.concept_metadata[{concept_type, id}] || %{"name" => id}
+            %{id: id, label: ConceptDisplay.render(template, fields, display_mode)}
+          end)
+
         %{
           type: "pending",
           id: c.id,
           name: c.name,
           count: c.count,
           roll: c.roll,
-          options: options,
+          options: rendered_options,
           earned_at_level: Map.get(c, :earned_at_level)
         }
 
@@ -777,6 +796,20 @@ defmodule ExTTRPGDev.CLI.Server do
       %{type: :available} = c ->
         %{type: "available", id: c.id, name: c.name, roll: c.roll}
     end)
+  end
+
+  defp find_display_template(system, concept_type) do
+    Enum.find_value(system.module.concept_types, fn ct ->
+      if ct.id == concept_type, do: ct.display_template
+    end)
+  end
+
+  defp parse_display_mode(msg) do
+    case Map.get(msg, "display_mode", "default") do
+      "verbose" -> :verbose
+      "succinct" -> :succinct
+      _ -> :default
+    end
   end
 
   # --- Response helpers ---
