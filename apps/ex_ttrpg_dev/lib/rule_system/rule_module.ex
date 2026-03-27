@@ -5,7 +5,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
 
   defmodule ConceptType do
     @moduledoc "A declared concept type within a rule system module."
-    defstruct [:id, :name]
+    defstruct [:id, :name, :display_template]
   end
 
   defmodule CharacterChoice do
@@ -88,7 +88,13 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
       concept_types =
         map
         |> Map.get("concept_type", [])
-        |> Enum.map(fn et -> %ConceptType{id: et["id"], name: et["name"]} end)
+        |> Enum.map(fn et ->
+          %ConceptType{
+            id: et["id"],
+            name: et["name"],
+            display_template: get_in(et, ["display", "template"])
+          }
+        end)
 
       character_lists =
         map
