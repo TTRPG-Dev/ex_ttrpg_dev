@@ -89,6 +89,12 @@ pub(crate) struct SelectedConcept {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct OptionEntry {
+    pub(crate) id: String,
+    pub(crate) label: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct PendingChoice {
     #[serde(rename = "type")]
     pub(crate) choice_type: String,
@@ -96,7 +102,7 @@ pub(crate) struct PendingChoice {
     pub(crate) name: String,
     pub(crate) count: Option<i64>,
     pub(crate) roll: Option<String>,
-    pub(crate) options: Option<Vec<String>>,
+    pub(crate) options: Option<Vec<OptionEntry>>,
     pub(crate) earned_at_level: Option<i64>,
 }
 
@@ -210,7 +216,7 @@ mod tests {
             "choices": [{"type_name":"Race","value":"Elf"}],
             "character_lists": [{"label":"Skill Proficiencies","items":["Stealth"]},{"label":"Languages","items":["Common"]}],
             "concept_types": [],
-            "pending_choices": [{"type":"pending","id":"hp_1","name":"Level 1 HP","count":1,"roll":"d8"}]
+            "pending_choices": [{"type":"pending","id":"hp_1","name":"Level 1 HP","count":1,"roll":"d8","options":[{"id":"fire_bolt","label":"Fire Bolt: Level 0, evocation (VS)"}]}]
         }"#;
         let c: CharacterData = serde_json::from_str(json).unwrap();
         assert_eq!(c.slug.as_deref(), Some("aria-1"));

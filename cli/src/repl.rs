@@ -12,7 +12,7 @@ use reedline::{
     ReedlineEvent, ReedlineMenu, Signal, Suggestion, default_emacs_keybindings,
 };
 
-use crate::commands;
+use crate::commands::{self, DisplayMode};
 use crate::engine::Engine;
 use crate::protocol::{CharactersList, SystemsList};
 
@@ -63,6 +63,9 @@ static COMMANDS: &[&str] = &[
     "characters inventory",
     "characters inventory add",
     "characters inventory set",
+    "set display succinct",
+    "set display default",
+    "set display verbose",
     "help",
     "exit",
     "quit",
@@ -169,7 +172,7 @@ impl Completer for CommandCompleter {
 
 // ── Command dispatch ───────────────────────────────────────────────────────────
 
-fn handle_line(line: &str, engine: &mut Engine) -> bool {
+fn handle_line(line: &str, engine: &mut Engine, display_mode: &mut DisplayMode) -> bool {
     let tokens: Vec<&str> = line.split_whitespace().collect();
     if tokens.is_empty() {
         return true;
@@ -177,12 +180,21 @@ fn handle_line(line: &str, engine: &mut Engine) -> bool {
     match tokens.as_slice() {
         ["exit" | "quit" | "exit()"] => return false,
         ["help"] => commands::print_help(),
+        ["set", "display", mode] => match *mode {
+            "succinct" => *display_mode = DisplayMode::Succinct,
+            "default" => *display_mode = DisplayMode::Default,
+            "verbose" => *display_mode = DisplayMode::Verbose,
+            other => eprintln!("Unknown display mode '{other}'. Use: succinct, default, verbose"),
+        },
+        ["set", ..] => eprintln!("Unknown set command. Try: set display succinct|default|verbose"),
         ["roll"] | ["roll", "--help"] => {
             println!("Usage: roll <dice>  e.g. roll 3d6, roll 1d20, roll 2d8+3d6")
         }
         ["roll", rest @ ..] => commands::handle_roll(&rest.join(" "), engine),
         ["systems" | "system", rest @ ..] => commands::handle_systems(rest, engine),
-        ["characters" | "character", rest @ ..] => commands::handle_characters(rest, engine),
+        ["characters" | "character", rest @ ..] => {
+            commands::handle_characters(rest, *display_mode, engine)
+        }
         _ => eprintln!("Unknown command. Type `help` for available commands."),
     }
     true
@@ -231,6 +243,8 @@ pub fn run() {
     println!("TTRPG Dev — interactive shell");
     println!("Type `help` for available commands, `exit` to quit.\n");
 
+    let mut display_mode = DisplayMode::Default;
+
     loop {
         match line_editor.read_line(&prompt) {
             Ok(Signal::Success(line)) => {
@@ -238,7 +252,7 @@ pub fn run() {
                 if trimmed.is_empty() {
                     continue;
                 }
-                if !handle_line(trimmed, &mut engine.lock().unwrap()) {
+                if !handle_line(trimmed, &mut engine.lock().unwrap(), &mut display_mode) {
                     println!("Goodbye!");
                     break;
                 }

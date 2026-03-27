@@ -8,12 +8,45 @@ use serde_json::json;
 
 use crate::display;
 use crate::engine::Engine;
-use crate::prompts::{prompt_from_options, prompt_integer, prompt_yes_no};
+use crate::prompts::{prompt_from_option_entries, prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
     ConceptsList, DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult,
     SystemInfo, SystemsList,
 };
+
+#[derive(Clone, Copy)]
+pub(crate) enum DisplayMode {
+    Succinct,
+    Default,
+    Verbose,
+}
+
+impl DisplayMode {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            DisplayMode::Succinct => "succinct",
+            DisplayMode::Default => "default",
+            DisplayMode::Verbose => "verbose",
+        }
+    }
+}
+
+fn strip_display_flags<'a>(
+    tokens: &[&'a str],
+    session_mode: DisplayMode,
+) -> (Vec<&'a str>, DisplayMode) {
+    let mut mode = session_mode;
+    let mut remaining = Vec::new();
+    for &t in tokens {
+        match t {
+            "--verbose" => mode = DisplayMode::Verbose,
+            "--succinct" => mode = DisplayMode::Succinct,
+            other => remaining.push(other),
+        }
+    }
+    (remaining, mode)
+}
 
 // ── Argument bundles ──────────────────────────────────────────────────────────
 
@@ -117,7 +150,9 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
 
 // ── characters ────────────────────────────────────────────────────────────────
 
-pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
+pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
+    let (tokens, display_mode) = strip_display_flags(tokens, session_mode);
+    let tokens = tokens.as_slice();
     match tokens {
         ["gen", "--help"] => println!("Usage: characters gen <system>"),
         ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
@@ -138,7 +173,7 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
         ["list"] => handle_characters_list(None, engine),
         ["list", "--system", system] => handle_characters_list(Some(system), engine),
         ["gen", system] => handle_characters_gen(system, engine),
-        ["show", slug] => handle_characters_show(slug, engine),
+        ["show", slug] => handle_characters_show(slug, display_mode, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
             slug,
             ConceptRollArgs {
@@ -153,6 +188,7 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
                 award_id,
                 value_str: value,
             },
+            display_mode,
             engine,
         ),
         ["delete", slug] => handle_characters_delete(slug, engine),
@@ -161,8 +197,8 @@ pub(crate) fn handle_characters(tokens: &[&str], engine: &mut Engine) {
                 handle_characters_delete_all(engine, args);
             }
         }
-        ["choices", slug] => handle_characters_choices(slug, engine),
-        ["resolve_choice", slug] => handle_characters_resolve_choice(slug, engine),
+        ["choices", slug] => handle_characters_choices(slug, display_mode, engine),
+        ["resolve_choice", slug] => handle_characters_resolve_choice(slug, display_mode, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         [] | ["--help"] => println!(
             "Usage: characters list | gen <system> | show <slug> | delete <slug> | delete-all\n\
@@ -254,8 +290,8 @@ fn handle_characters_delete(slug: &str, engine: &mut Engine) {
     }
 }
 
-fn handle_characters_show(slug: &str, engine: &mut Engine) {
-    let req = json!({"command": "characters.show", "character": slug});
+fn handle_characters_show(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+    let req = json!({"command": "characters.show", "character": slug, "display_mode": display_mode.as_str()});
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => display::page_output(&display::format_character(&c)),
         Err(e) => eprintln!("Error: {e}"),
@@ -290,14 +326,20 @@ fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut En
     }
 }
 
-fn handle_characters_award(slug: &str, args: CharacterAwardArgs<'_>, engine: &mut Engine) {
+fn handle_characters_award(
+    slug: &str,
+    args: CharacterAwardArgs<'_>,
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) {
     // Send value as integer if it parses as one, otherwise as a string.
     // The server uses the award's value_type to validate; string values support
     // future award types (equipment IDs, feat names, etc.).
+    let mode = display_mode.as_str();
     let req = if let Ok(n) = args.value_str.parse::<i64>() {
-        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": n})
+        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": n, "display_mode": mode})
     } else {
-        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": args.value_str})
+        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": args.value_str, "display_mode": mode})
     };
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => {
@@ -310,8 +352,8 @@ fn handle_characters_award(slug: &str, args: CharacterAwardArgs<'_>, engine: &mu
     }
 }
 
-fn handle_characters_choices(slug: &str, engine: &mut Engine) {
-    let req = json!({"command": "characters.choices", "character": slug});
+fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+    let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
     match engine.call::<_, ChoicesResponse>(&req) {
         Ok(r) => {
             if r.pending_choices.is_empty() {
@@ -324,8 +366,8 @@ fn handle_characters_choices(slug: &str, engine: &mut Engine) {
     }
 }
 
-fn handle_characters_resolve_choice(slug: &str, engine: &mut Engine) {
-    let req = json!({"command": "characters.choices", "character": slug});
+fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+    let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
     let choices = match engine.call::<_, ChoicesResponse>(&req) {
         Ok(r) => r.pending_choices,
         Err(e) => {
@@ -386,7 +428,7 @@ fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
 
 fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {
     if let Some(options) = &choice.options {
-        let selection = prompt_from_options(&choice.name, options)?;
+        let selection = prompt_from_option_entries(&choice.name, options)?;
         return Some((0, selection));
     }
 
