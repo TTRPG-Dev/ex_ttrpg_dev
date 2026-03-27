@@ -97,6 +97,7 @@ pub(crate) struct PendingChoice {
     pub(crate) count: Option<i64>,
     pub(crate) roll: Option<String>,
     pub(crate) options: Option<Vec<String>>,
+    pub(crate) earned_at_level: Option<i64>,
 }
 
 #[derive(Deserialize)]

@@ -761,7 +761,15 @@ defmodule ExTTRPGDev.CLI.Server do
   defp serialize_choices_list(choices) do
     Enum.map(choices, fn
       %{type: :pending, options: options} = c ->
-        %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll, options: options}
+        %{
+          type: "pending",
+          id: c.id,
+          name: c.name,
+          count: c.count,
+          roll: c.roll,
+          options: options,
+          earned_at_level: Map.get(c, :earned_at_level)
+        }
 
       %{type: :pending} = c ->
         %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll}

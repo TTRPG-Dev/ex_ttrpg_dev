@@ -150,7 +150,14 @@ pub(crate) fn print_pending_choices(choices: &[PendingChoice]) {
         match c.choice_type.as_str() {
             "pending" => {
                 let count = c.count.unwrap_or(1);
-                println!("  • {} — {} remaining{}", c.name, count, roll_info);
+                let level_info = c
+                    .earned_at_level
+                    .map(|l| format!(" [level {}]", l))
+                    .unwrap_or_default();
+                println!(
+                    "  • {} — {} remaining{}{}",
+                    c.name, count, roll_info, level_info
+                );
             }
             _ => println!("  • {}{} (available)", c.name, roll_info),
         }

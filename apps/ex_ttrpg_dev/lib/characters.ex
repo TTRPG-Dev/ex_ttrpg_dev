@@ -360,7 +360,7 @@ defmodule ExTTRPGDev.Characters do
         |> Enum.filter(fn d -> d.scope == {"character_progression", id} end)
         |> MapSet.new(& &1.selection)
 
-      max_level_cap = find_next_slot_cap(pending_choice_slots, id)
+      {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
       capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
 
       options =
@@ -375,6 +375,7 @@ defmodule ExTTRPGDev.Characters do
           count: pending_count,
           effect_target: nil,
           roll: nil,
+          earned_at_level: earned_at_level,
           options: options
         }
       ]
@@ -432,10 +433,10 @@ defmodule ExTTRPGDev.Characters do
 
   defp level_filter(_filter, _resolved), do: fn _level -> true end
 
-  defp find_next_slot_cap(pending_choice_slots, progression_id) do
+  defp find_next_slot(pending_choice_slots, progression_id) do
     case Enum.find(pending_choice_slots, &(&1.progression_id == progression_id)) do
-      %{max_level_cap: cap} -> cap
-      nil -> nil
+      %{max_level_cap: cap, earned_at_level: level} -> {cap, level}
+      nil -> {nil, nil}
     end
   end
 
