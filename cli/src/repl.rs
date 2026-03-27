@@ -57,6 +57,8 @@ static COMMANDS: &[&str] = &[
     "characters roll",
     "characters award",
     "characters choices",
+    "characters delete",
+    "characters delete-all",
     "characters resolve_choice",
     "characters inventory",
     "characters inventory add",
