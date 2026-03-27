@@ -70,6 +70,7 @@ name = "Damage Type"
 [[concept_type]]
 id = "spell"
 name = "Spell"
+display.template = "{{name}}: Level {{level}}, {{school}} ({{?verbal:V}}{{?somatic:S}}{{?material:M}})"
 
 [[character_list]]
 label = "Skill Proficiencies"
