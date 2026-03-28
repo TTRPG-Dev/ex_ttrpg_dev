@@ -80,6 +80,8 @@ pub(crate) struct CharacterData {
     #[serde(default)]
     pub(crate) selected_concepts: Vec<SelectedConcept>,
     pub(crate) pending_choices: Option<Vec<PendingChoice>>,
+    #[serde(default)]
+    pub(crate) awarded_xp: Option<i64>,
 }
 
 #[derive(Deserialize)]

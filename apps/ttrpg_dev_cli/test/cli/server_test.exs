@@ -229,6 +229,19 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert is_list(data.pending_choices)
     end
 
+    test "characters.award with level_up awards xp to reach next level", %{slug: slug} do
+      data =
+        run(%{
+          "command" => "characters.award",
+          "character" => slug,
+          "award" => "level_up"
+        }).data
+
+      assert is_list(data.pending_choices)
+      assert is_integer(data.awarded_xp)
+      assert data.awarded_xp > 0
+    end
+
     test "characters.roll returns concept name and dice result", %{slug: slug} do
       data =
         run(%{
@@ -258,6 +271,16 @@ defmodule ExTTRPGDev.CLI.ServerTest do
                  "character" => slug,
                  "award" => "nonexistent",
                  "value" => 1
+               }).status
+    end
+
+    test "characters.award without value errors for an award that requires an explicit value",
+         %{slug: slug} do
+      assert "error" ==
+               run(%{
+                 "command" => "characters.award",
+                 "character" => slug,
+                 "award" => "experience_points"
                }).status
     end
   end

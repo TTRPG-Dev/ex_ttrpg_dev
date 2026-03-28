@@ -1,0 +1,4 @@
+[award.level_up]
+name = "Level Up"
+value_type = "next_level_xp"
+effect_target = "character_trait('experience_points').total"

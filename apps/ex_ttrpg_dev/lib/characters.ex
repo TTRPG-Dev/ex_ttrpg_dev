@@ -146,6 +146,51 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Returns the XP needed for a character to reach the next level in the given system.
+
+  Returns `{:ok, xp_needed, next_level}` when a next level exists, or `{:error, :max_level}`
+  if the character is already at the highest level defined by the system.
+
+  Returns `{:error, :no_level_thresholds}` if the system does not define a level mapping.
+  """
+  def xp_to_next_level(%LoadedSystem{} = system, %Character{} = character) do
+    thresholds = level_xp_thresholds(system)
+
+    if map_size(thresholds) == 0 do
+      {:error, :no_level_thresholds}
+    else
+      xp_target = xp_effect_target(system)
+
+      current_xp =
+        character.effects
+        |> Enum.filter(&(&1.target == xp_target))
+        |> Enum.map(& &1.value)
+        |> Enum.sum()
+
+      current_level =
+        thresholds
+        |> Enum.filter(fn {_level, threshold} -> threshold <= current_xp end)
+        |> Enum.max_by(fn {_level, threshold} -> threshold end, fn -> nil end)
+        |> case do
+          nil -> 1
+          {level, _} -> level
+        end
+
+      next_level =
+        thresholds
+        |> Map.keys()
+        |> Enum.sort()
+        |> Enum.find(&(&1 > current_level))
+
+      if is_nil(next_level) do
+        {:error, :max_level}
+      else
+        {:ok, Map.fetch!(thresholds, next_level) - current_xp, next_level}
+      end
+    end
+  end
+
+  @doc """
   Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
 
   Walks the decisions tree starting from root decisions (scope: nil), adding each selected

@@ -162,7 +162,10 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         }
         ["show", "--help"] => println!("Usage: characters show <slug>"),
         ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
-        ["award", "--help"] => println!("Usage: characters award <slug> <award_id> <value>"),
+        ["award", "--help"] => println!(
+            "Usage: characters award <slug> <award_id> <value>\n\
+             \x20      characters award <slug> level_up"
+        ),
         ["choices", "--help"] => println!("Usage: characters choices <slug>"),
         ["resolve_choice", "--help"] => println!("Usage: characters resolve_choice <slug>"),
         ["inventory", "--help"] => println!(
@@ -182,6 +185,9 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
             },
             engine,
         ),
+        ["award", slug, award_id] => {
+            handle_characters_award_no_value(slug, award_id, display_mode, engine)
+        }
         ["award", slug, award_id, value] => handle_characters_award(
             slug,
             CharacterAwardArgs {
@@ -344,6 +350,28 @@ fn handle_characters_award(
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => {
             display::print_character(&c);
+            if let Some(choices) = &c.pending_choices {
+                display::print_pending_choices(choices);
+            }
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_award_no_value(
+    slug: &str,
+    award_id: &str,
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) {
+    let mode = display_mode.as_str();
+    let req = json!({"command": "characters.award", "character": slug, "award": award_id, "display_mode": mode});
+    match engine.call::<_, CharacterData>(&req) {
+        Ok(c) => {
+            display::print_character(&c);
+            if let Some(xp) = c.awarded_xp {
+                println!("Awarded {award_id}: +{xp} XP");
+            }
             if let Some(choices) = &c.pending_choices {
                 display::print_pending_choices(choices);
             }
@@ -537,6 +565,7 @@ Commands:
   characters delete-all --system <system>                Delete all characters for a system
   characters roll <slug> <type> <concept>                Roll for a character concept
   characters award <slug> <award_id> <value>             Award something to a character
+  characters award <slug> level_up                       Advance to next level (milestone leveling)
   characters choices <slug>                              Show pending progression choices
   characters resolve_choice <slug>                       Interactively resolve a pending choice
   characters inventory <slug>                            Show a character's inventory
