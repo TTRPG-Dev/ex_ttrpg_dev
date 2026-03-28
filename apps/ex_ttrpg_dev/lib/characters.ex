@@ -319,6 +319,93 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Randomly resolves all pending progression choices earned at level 1.
+
+  Intended to be called immediately after `Character.gen_character!/2` so that
+  the returned character has no level-1 pending choices. Choices earned at higher
+  levels (tracked in `pending_choice_slots`) are left untouched for manual resolution.
+
+  - Selection progressions (cantrips, spells known) pick a random valid option.
+  - Value progressions (HP) roll the associated die.
+  - Sub-choices are picked randomly from their declared options.
+
+  Loops until `pending_choices/3` returns no resolvable level-1 entries.
+  """
+  def auto_resolve_pending(%LoadedSystem{} = system, %Character{} = character) do
+    all_effects = active_effects(system, character)
+    resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
+    choices = pending_choices(system, character, resolved)
+
+    case Enum.find(choices, &resolvable_at_level_1?/1) do
+      nil ->
+        character
+
+      entry ->
+        character |> apply_auto_resolution(entry) |> then(&auto_resolve_pending(system, &1))
+    end
+  end
+
+  defp resolvable_at_level_1?(%{type: :pending, options: [], earned_at_level: level})
+       when level in [nil, 1],
+       do: false
+
+  defp resolvable_at_level_1?(%{type: :pending, earned_at_level: level})
+       when level in [nil, 1],
+       do: true
+
+  defp resolvable_at_level_1?(_), do: false
+
+  defp apply_auto_resolution(character, %{type: :pending} = entry) do
+    cond do
+      Map.has_key?(entry, :scope_type) -> apply_auto_sub_choice(character, entry)
+      Map.has_key?(entry, :options) -> apply_auto_selection(character, entry)
+      true -> apply_auto_value(character, entry)
+    end
+  end
+
+  defp apply_auto_selection(character, %{id: prog_id, options: options}) do
+    n = count_progression_decisions(character.decisions, prog_id) + 1
+
+    decision = %{
+      scope: {"character_progression", prog_id},
+      choice: "choice_#{n}",
+      selection: Enum.random(options)
+    }
+
+    %{character | decisions: character.decisions ++ [decision]}
+  end
+
+  defp apply_auto_sub_choice(character, %{
+         id: choice_id,
+         scope_type: st,
+         scope_id: si,
+         options: opts
+       }) do
+    decision = %{scope: {st, si}, choice: choice_id, selection: Enum.random(opts)}
+    %{character | decisions: character.decisions ++ [decision]}
+  end
+
+  defp apply_auto_value(character, %{id: prog_id, effect_target: target_str, roll: roll}) do
+    n = count_progression_decisions(character.decisions, prog_id) + 1
+    [node_key | _] = Expression.extract_refs(target_str)
+    value = Dice.roll("1#{roll}") |> Enum.sum()
+
+    decision = %{
+      scope: {"character_progression", prog_id},
+      choice: "choice_#{n}",
+      selection: "rolled"
+    }
+
+    effect = %{target: node_key, value: value}
+
+    %{
+      character
+      | decisions: character.decisions ++ [decision],
+        effects: character.effects ++ [effect]
+    }
+  end
+
+  @doc """
   Computes the list of pending selection progression choice slots for a character,
   taking into account the character's current level and decisions already made.
 
