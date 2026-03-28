@@ -412,13 +412,23 @@ fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engin
         return;
     };
 
-    let req = json!({
-        "command": "characters.resolve_choice",
-        "character": slug,
-        "progression": choice.id,
-        "value": value,
-        "selection": selection,
-    });
+    let req = match (&choice.scope_type, &choice.scope_id) {
+        (Some(scope_type), Some(scope_id)) => json!({
+            "command": "characters.resolve_choice",
+            "character": slug,
+            "scope_type": scope_type,
+            "scope_id": scope_id,
+            "choice": choice.id,
+            "selection": selection,
+        }),
+        _ => json!({
+            "command": "characters.resolve_choice",
+            "character": slug,
+            "progression": choice.id,
+            "value": value,
+            "selection": selection,
+        }),
+    };
     match engine.call::<_, CharacterData>(&req) {
         Ok(c) => {
             display::print_character(&c);
