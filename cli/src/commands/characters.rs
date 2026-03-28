@@ -1,154 +1,14 @@
-//! Command handlers — one function per CLI command or subcommand group.
-//!
-//! Each `handle_*` function receives the remaining tokens after the top-level
-//! command word and an `Engine` reference, then dispatches to the engine and
-//! prints results via `display`.
-
 use serde_json::json;
 
+use super::inventory::handle_inventory;
+use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode};
 use crate::display;
 use crate::engine::Engine;
 use crate::prompts::{prompt_from_option_entries, prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
-    ConceptsList, DeletedCharacter, InventoryResponse, PendingChoice, RollResult, SaveResult,
-    SystemInfo, SystemsList,
+    PendingChoice, RollResult, SaveResult,
 };
-
-#[derive(Clone, Copy)]
-pub(crate) enum DisplayMode {
-    Succinct,
-    Default,
-    Verbose,
-}
-
-impl DisplayMode {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            DisplayMode::Succinct => "succinct",
-            DisplayMode::Default => "default",
-            DisplayMode::Verbose => "verbose",
-        }
-    }
-}
-
-fn strip_display_flags<'a>(
-    tokens: &[&'a str],
-    session_mode: DisplayMode,
-) -> (Vec<&'a str>, DisplayMode) {
-    let mut mode = session_mode;
-    let mut remaining = Vec::new();
-    for &t in tokens {
-        match t {
-            "--verbose" => mode = DisplayMode::Verbose,
-            "--succinct" => mode = DisplayMode::Succinct,
-            other => remaining.push(other),
-        }
-    }
-    (remaining, mode)
-}
-
-// ── Argument bundles ──────────────────────────────────────────────────────────
-
-pub(crate) struct ConceptRollArgs<'a> {
-    pub(crate) concept_type: &'a str,
-    pub(crate) concept_id: &'a str,
-}
-
-pub(crate) struct CharacterAwardArgs<'a> {
-    pub(crate) award_id: &'a str,
-    pub(crate) value_str: &'a str,
-}
-
-struct DeleteAllArgs<'a> {
-    yes: bool,
-    system: Option<&'a str>,
-}
-
-fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
-    let mut yes = false;
-    let mut system = None;
-    let mut i = 0;
-    while i < tokens.len() {
-        match tokens[i] {
-            "--yes" | "-y" => yes = true,
-            "--system" => {
-                i += 1;
-                match tokens.get(i) {
-                    Some(s) => system = Some(*s),
-                    None => {
-                        eprintln!("Error: --system requires a value");
-                        return None;
-                    }
-                }
-            }
-            unknown => {
-                eprintln!("Unknown flag '{unknown}'. Try `characters delete-all --help`.");
-                return None;
-            }
-        }
-        i += 1;
-    }
-    Some(DeleteAllArgs { yes, system })
-}
-
-// ── roll ──────────────────────────────────────────────────────────────────────
-
-pub(crate) fn handle_roll(dice: &str, engine: &mut Engine) {
-    match engine.call::<_, RollResult>(&json!({"command": "roll", "dice": dice})) {
-        Ok(result) => {
-            for r in &result.results {
-                let rolls_str: Vec<String> = r.rolls.iter().map(|n| n.to_string()).collect();
-                println!("{}: [{}] = {}", r.spec, rolls_str.join(", "), r.total);
-            }
-        }
-        Err(e) => eprintln!("Error: {e}"),
-    }
-}
-
-// ── systems ───────────────────────────────────────────────────────────────────
-
-pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
-    match tokens {
-        ["list", "--help"] => println!("Usage: systems list"),
-        ["show", "--help"] => {
-            println!("Usage: systems show <slug> [--concept-type <type>]")
-        }
-        ["list"] => match engine.call::<_, SystemsList>(&json!({"command": "systems.list"})) {
-            Ok(result) => {
-                if result.systems.is_empty() {
-                    println!("No configured systems found.");
-                } else {
-                    println!("Configured Systems:");
-                    for s in &result.systems {
-                        println!("  - {s}");
-                    }
-                }
-            }
-            Err(e) => eprintln!("Error: {e}"),
-        },
-        ["show", slug] => {
-            let req = json!({"command": "systems.show", "system": slug});
-            match engine.call::<_, SystemInfo>(&req) {
-                Ok(info) => display::print_system_info(info),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
-        ["show", slug, "--concept-type", ct] => {
-            let req = json!({"command": "systems.show", "system": slug, "concept_type": ct});
-            match engine.call::<_, ConceptsList>(&req) {
-                Ok(cl) => display::print_concepts_list(&cl),
-                Err(e) => eprintln!("Error: {e}"),
-            }
-        }
-        [] | ["--help"] => {
-            println!("Usage: systems list | systems show <slug> [--concept-type <type>]")
-        }
-        [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `systems --help`."),
-    }
-}
-
-// ── characters ────────────────────────────────────────────────────────────────
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
     let (tokens, display_mode) = strip_display_flags(tokens, session_mode);
@@ -216,6 +76,54 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ),
         [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `characters --help`."),
     }
+}
+
+fn strip_display_flags<'a>(
+    tokens: &[&'a str],
+    session_mode: DisplayMode,
+) -> (Vec<&'a str>, DisplayMode) {
+    let mut mode = session_mode;
+    let mut remaining = Vec::new();
+    for &t in tokens {
+        match t {
+            "--verbose" => mode = DisplayMode::Verbose,
+            "--succinct" => mode = DisplayMode::Succinct,
+            other => remaining.push(other),
+        }
+    }
+    (remaining, mode)
+}
+
+struct DeleteAllArgs<'a> {
+    yes: bool,
+    system: Option<&'a str>,
+}
+
+fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
+    let mut yes = false;
+    let mut system = None;
+    let mut i = 0;
+    while i < tokens.len() {
+        match tokens[i] {
+            "--yes" | "-y" => yes = true,
+            "--system" => {
+                i += 1;
+                match tokens.get(i) {
+                    Some(s) => system = Some(*s),
+                    None => {
+                        eprintln!("Error: --system requires a value");
+                        return None;
+                    }
+                }
+            }
+            unknown => {
+                eprintln!("Unknown flag '{unknown}'. Try `characters delete-all --help`.");
+                return None;
+            }
+        }
+        i += 1;
+    }
+    Some(DeleteAllArgs { yes, system })
 }
 
 fn handle_characters_gen(system: &str, engine: &mut Engine) {
@@ -290,7 +198,7 @@ fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
 
 fn handle_characters_delete(slug: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.delete", "character": slug});
-    match engine.call::<_, DeletedCharacter>(&req) {
+    match engine.call::<_, crate::protocol::DeletedCharacter>(&req) {
         Ok(r) => println!("Deleted character: {}", r.deleted),
         Err(e) => eprintln!("Error: {e}"),
     }
@@ -507,92 +415,4 @@ fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i
             None
         }
     }
-}
-
-// ── inventory ─────────────────────────────────────────────────────────────────
-
-fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
-    match tokens {
-        ["add", "--help"] => {
-            println!("Usage: characters inventory add <slug> <type> <id> [--equipped]")
-        }
-        ["set", "--help"] => {
-            println!("Usage: characters inventory set <slug> <index> <field> <value>")
-        }
-        [slug] => {
-            let req = json!({"command": "characters.inventory", "character": slug});
-            call_inventory(&req, engine);
-        }
-        ["add", slug, type_id, id] => call_inventory(
-            &json!({"command": "characters.inventory.add", "character": slug,
-                    "type": type_id, "id": id, "fields": {}}),
-            engine,
-        ),
-        ["add", slug, type_id, id, "--equipped"] => call_inventory(
-            &json!({"command": "characters.inventory.add", "character": slug,
-                    "type": type_id, "id": id, "fields": {"equipped": true}}),
-            engine,
-        ),
-        ["set", slug, index_str, field, value_str] => {
-            let Ok(index) = index_str.parse::<u64>() else {
-                eprintln!("Error: index must be a non-negative integer");
-                return;
-            };
-            let value: serde_json::Value = match *value_str {
-                "true" => json!(true),
-                "false" => json!(false),
-                s => s.parse::<f64>().map_or_else(|_| json!(s), |n| json!(n)),
-            };
-            call_inventory(
-                &json!({"command": "characters.inventory.set", "character": slug,
-                        "index": index, "field": field, "value": value}),
-                engine,
-            );
-        }
-        _ => eprintln!(
-            "Usage: characters inventory <slug>\n\
-             \x20       characters inventory add <slug> <type> <id> [--equipped]\n\
-             \x20       characters inventory set <slug> <index> <field> <value>"
-        ),
-    }
-}
-
-fn call_inventory(req: &serde_json::Value, engine: &mut Engine) {
-    match engine.call::<_, InventoryResponse>(req) {
-        Ok(r) => display::print_inventory(&r.inventory),
-        Err(e) => eprintln!("Error: {e}"),
-    }
-}
-
-// ── Help ──────────────────────────────────────────────────────────────────────
-
-pub(crate) fn print_help() {
-    println!(
-        r#"
-Commands:
-  roll <dice>                                            Roll dice, e.g. roll 3d6, 1d20
-  systems list                                           List configured rule systems
-  systems show <system>                                  Show system info
-  systems show <system> --concept-type <t>               List concepts of a type
-  characters gen <system>                                Generate a character
-  characters list                                        List saved characters
-  characters list --system <system>                      List characters for a system
-  characters show <slug>                                 Show a saved character
-  characters delete <slug>                               Delete a saved character
-  characters delete-all                                  Delete all characters (confirms each)
-  characters delete-all --yes                            Delete all characters without confirmation
-  characters delete-all --system <system>                Delete all characters for a system
-  characters roll <slug> <type> <concept>                Roll for a character concept
-  characters award <slug> <award_id> <value>             Award something to a character
-  characters award <slug> level_up                       Advance to next level (milestone leveling)
-  characters choices <slug>                              Show pending progression choices
-  characters resolve_choice <slug>                       Interactively resolve a pending choice
-  characters inventory <slug>                            Show a character's inventory
-  characters inventory add <slug> <type> <id>            Add an item to inventory
-  characters inventory add <slug> <type> <id> --equipped Add an item and equip it
-  characters inventory set <slug> <index> <field> <val>  Update an inventory item field
-  help                                                   Show this help
-  exit / quit                                            Exit
-"#
-    );
 }
