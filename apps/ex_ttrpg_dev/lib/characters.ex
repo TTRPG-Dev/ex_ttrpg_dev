@@ -450,10 +450,22 @@ defmodule ExTTRPGDev.Characters do
     |> Enum.filter(fn {{type, _id}, concept_meta} ->
       type == concept_type and
         level_fn.(concept_meta["level"] || 0) and
-        passes_active_in_filter?(concept_meta, active_in, active)
+        passes_active_in_filter?(concept_meta, active_in, active) and
+        passes_requires?(concept_meta["requires"], resolved)
     end)
     |> Enum.map(fn {{_type, id}, _} -> id end)
     |> Enum.sort()
+  end
+
+  defp passes_requires?(nil, _resolved), do: true
+
+  defp passes_requires?(requires, resolved) do
+    Enum.all?(requires, fn %{"node" => node, "min" => min} ->
+      case Expression.evaluate(node, resolved) do
+        {:ok, val} -> val >= min
+        _ -> false
+      end
+    end)
   end
 
   defp passes_active_in_filter?(_meta, nil, _active), do: true
