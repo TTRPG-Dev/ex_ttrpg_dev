@@ -290,26 +290,31 @@ defmodule ExTTRPGDev.Characters do
   def pending_choices(%LoadedSystem{} = system, %Character{} = character, resolved) do
     active = active_concepts(character.decisions, system.concept_metadata)
 
-    system.concept_metadata
-    |> Enum.filter(fn {{type, _id}, _} -> type == "character_progression" end)
-    |> Enum.flat_map(fn {{_type, id}, meta} ->
-      roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
-      meta_with_roll = Map.put(meta, "roll", roll)
+    progression_choices =
+      system.concept_metadata
+      |> Enum.filter(fn {{type, _id}, _} -> type == "character_progression" end)
+      |> Enum.flat_map(fn {{_type, id}, meta} ->
+        roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
+        meta_with_roll = Map.put(meta, "roll", roll)
 
-      if Map.has_key?(meta, "type") do
-        selection_progression_choices(
-          id,
-          meta_with_roll,
-          character.decisions,
-          resolved,
-          system.concept_metadata,
-          active,
-          character.pending_choice_slots
-        )
-      else
-        progression_choices(id, meta_with_roll, character.decisions, resolved)
-      end
-    end)
+        if Map.has_key?(meta, "type") do
+          selection_progression_choices(
+            id,
+            meta_with_roll,
+            character.decisions,
+            resolved,
+            system.concept_metadata,
+            active,
+            character.pending_choice_slots
+          )
+        else
+          progression_choices(id, meta_with_roll, character.decisions, resolved)
+        end
+      end)
+
+    sub_choices = pending_sub_choices(character.decisions, system.concept_metadata)
+
+    (progression_choices ++ sub_choices)
     |> Enum.sort_by(& &1.id)
   end
 
@@ -384,6 +389,75 @@ defmodule ExTTRPGDev.Characters do
     case Expression.evaluate(expr, resolved) do
       {:ok, v} -> trunc(v)
       _ -> 0
+    end
+  end
+
+  defp pending_sub_choices(decisions, concept_metadata) do
+    # Collect all selections made via character_progression decisions, grouped by {type, id}.
+    # The progression's "type" field tells us which concept type was selected.
+    progression_type_map =
+      concept_metadata
+      |> Enum.filter(fn {{type, _id}, meta} ->
+        type == "character_progression" and Map.has_key?(meta, "type")
+      end)
+      |> Map.new(fn {{_type, id}, meta} -> {id, meta["type"]} end)
+
+    selection_counts =
+      decisions
+      |> Enum.filter(fn d ->
+        case d.scope do
+          {"character_progression", prog_id} -> Map.has_key?(progression_type_map, prog_id)
+          _ -> false
+        end
+      end)
+      |> Enum.reduce(%{}, fn d, acc ->
+        {"character_progression", prog_id} = d.scope
+        concept_type = Map.fetch!(progression_type_map, prog_id)
+        Map.update(acc, {concept_type, d.selection}, 1, &(&1 + 1))
+      end)
+
+    Enum.flat_map(selection_counts, fn {{type, id}, selected_count} ->
+      choices = get_in(concept_metadata, [{type, id}, "choices"]) || %{}
+
+      Enum.flat_map(
+        choices,
+        &pending_choice_entry(&1, decisions, concept_metadata, type, id, selected_count)
+      )
+    end)
+  end
+
+  defp pending_choice_entry(
+         {choice_id, choice_def},
+         decisions,
+         concept_metadata,
+         type,
+         id,
+         selected_count
+       ) do
+    resolved_count = Enum.count(decisions, &(&1.scope == {type, id} and &1.choice == choice_id))
+    pending_count = max(0, selected_count - resolved_count)
+
+    if pending_count > 0 do
+      options =
+        concept_metadata
+        |> Enum.filter(fn {{t, _cid}, _} -> t == choice_def["type"] end)
+        |> Enum.map(fn {{_t, cid}, _} -> cid end)
+        |> Enum.sort()
+
+      [
+        %{
+          type: :pending,
+          id: choice_id,
+          scope_type: type,
+          scope_id: id,
+          name: choice_def["name"] || choice_id,
+          count: pending_count,
+          earned_at_level: nil,
+          options: options
+        }
+      ]
+    else
+      []
     end
   end
 
