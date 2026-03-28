@@ -44,6 +44,7 @@ script = "Draconic"
 
 [language.deep_speech]
 name = "Deep Speech"
+script = "Unknown"
 
 [language.infernal]
 name = "Infernal"

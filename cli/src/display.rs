@@ -54,21 +54,13 @@ pub(crate) fn format_character_lists(lists: &[CharacterListCategory]) -> String 
 pub(crate) fn format_selected_concepts(concepts: &[SelectedConcept]) -> String {
     use std::fmt::Write;
     let mut out = String::new();
-    let cantrips: Vec<&str> = concepts
-        .iter()
-        .filter(|c| c.level == 0)
-        .map(|c| c.name.as_str())
-        .collect();
-    let spells: Vec<String> = concepts
-        .iter()
-        .filter(|c| c.level > 0)
-        .map(|c| format!("{} ({})", c.name, c.level))
-        .collect();
-    if !cantrips.is_empty() {
-        writeln!(out, "Cantrips: {}", cantrips.join(", ")).unwrap();
-    }
-    if !spells.is_empty() {
-        writeln!(out, "Spells Known: {}", spells.join(", ")).unwrap();
+    let mut last_progression: Option<&str> = None;
+    for concept in concepts {
+        if last_progression != Some(concept.progression.as_str()) {
+            writeln!(out, "{}:", concept.progression).unwrap();
+            last_progression = Some(&concept.progression);
+        }
+        writeln!(out, "  {}", concept.label).unwrap();
     }
     out
 }
@@ -267,6 +259,52 @@ mod tests {
         let out = format_character(&c);
         assert!(out.contains("Strength"));
         assert!(out.contains("score: 16"));
+    }
+
+    fn selected(progression: &str, id: &str, label: &str) -> SelectedConcept {
+        SelectedConcept {
+            progression: progression.to_string(),
+            id: id.to_string(),
+            label: label.to_string(),
+        }
+    }
+
+    #[test]
+    fn format_selected_concepts_empty() {
+        assert_eq!(format_selected_concepts(&[]), "");
+    }
+
+    #[test]
+    fn format_selected_concepts_groups_by_progression() {
+        let concepts = vec![
+            selected(
+                "Spells Known",
+                "fire_bolt",
+                "Fire Bolt: Level 0, evocation (VS)",
+            ),
+            selected(
+                "Spells Known",
+                "magic_missile",
+                "Magic Missile: Level 1, evocation (S)",
+            ),
+        ];
+        let out = format_selected_concepts(&concepts);
+        assert!(out.contains("Spells Known:"));
+        assert!(out.contains("  Fire Bolt: Level 0, evocation (VS)"));
+        assert!(out.contains("  Magic Missile: Level 1, evocation (S)"));
+    }
+
+    #[test]
+    fn format_selected_concepts_multiple_progressions() {
+        let concepts = vec![
+            selected("Spells Known", "fire_bolt", "Fire Bolt"),
+            selected("Blessings", "second_wind", "Second Wind"),
+        ];
+        let out = format_selected_concepts(&concepts);
+        assert!(out.contains("Spells Known:"));
+        assert!(out.contains("  Fire Bolt"));
+        assert!(out.contains("Blessings:"));
+        assert!(out.contains("  Second Wind"));
     }
 
     #[test]

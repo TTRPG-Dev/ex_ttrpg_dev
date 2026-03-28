@@ -22,6 +22,7 @@ name = "Rolling Method"
 [[concept_type]]
 id = "language"
 name = "Language"
+display.template = "{{name}} ({{script}})"
 
 [[concept_type]]
 id = "roll"
@@ -70,6 +71,7 @@ name = "Damage Type"
 [[concept_type]]
 id = "spell"
 name = "Spell"
+display.template = "{{name}}: Level {{level}}, {{school}} ({{?verbal:V}}{{?somatic:S}}{{?material:M}})"
 
 [[character_list]]
 label = "Skill Proficiencies"
