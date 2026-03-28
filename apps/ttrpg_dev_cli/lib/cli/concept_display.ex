@@ -65,10 +65,13 @@ defmodule ExTTRPGDev.CLI.ConceptDisplay do
       fields
       |> Map.drop(["name", "hidden"])
       |> Enum.sort_by(fn {k, _} -> k end)
-      |> Enum.map_join("  ", fn {k, v} -> "#{k}: #{v}" end)
+      |> Enum.map_join("  ", fn {k, v} -> "#{k}: #{value_to_string(v)}" end)
 
     if details == "", do: name, else: "#{name}  #{details}"
   end
+
+  defp value_to_string(v) when is_map(v) or is_list(v), do: inspect(v)
+  defp value_to_string(v), do: to_string(v)
 
   defp truthy?(nil), do: false
   defp truthy?(false), do: false

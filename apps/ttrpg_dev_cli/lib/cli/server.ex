@@ -52,6 +52,9 @@ defmodule ExTTRPGDev.CLI.Server do
     loop(%{pending: %{}, next_id: 1})
   end
 
+  @doc false
+  def handle_command(msg, state), do: handle(msg, state)
+
   defp loop(state) do
     case IO.gets("") do
       :eof ->
@@ -128,7 +131,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
   # --- Characters ---
 
-  defp handle(%{"command" => "characters.gen", "system" => slug}, state) do
+  defp handle(%{"command" => "characters.gen", "system" => slug} = msg, state) do
     try do
       system = RuleSystems.load_system!(slug)
       decisions = Characters.random_decisions(system)
@@ -141,7 +144,13 @@ defmodule ExTTRPGDev.CLI.Server do
           next_id: state.next_id + 1
       }
 
-      data = Map.put(serialize_character(system, character, nil, :default), :temp_id, temp_id)
+      data =
+        Map.put(
+          serialize_character(system, character, nil, parse_display_mode(msg)),
+          :temp_id,
+          temp_id
+        )
+
       {ok(data), new_state}
     rescue
       e -> {error(Exception.message(e)), state}
