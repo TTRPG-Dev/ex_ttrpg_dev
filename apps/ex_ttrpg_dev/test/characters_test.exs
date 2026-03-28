@@ -856,4 +856,164 @@ defmodule ExTTRPGDevTest.Characters do
                Characters.xp_to_next_level(system_no_thresholds, character)
     end
   end
+
+  describe "requires filtering in concept_options/4" do
+    setup do
+      {:ok, system: RuleSystems.load_system!("dnd_5e_srd")}
+    end
+
+    defp feat_options(system, str_score) do
+      meta = %{"type" => "feat", "required_count" => "1"}
+      resolved = %{{"ability", "strength", "total_score"} => str_score}
+      Characters.concept_options(meta, system.concept_metadata, MapSet.new(), resolved)
+    end
+
+    test "grappler requires STR >= 13 and ability_score_improvement is always available",
+         %{system: system} do
+      below = feat_options(system, 12)
+      refute "grappler" in below
+      assert "ability_score_improvement" in below
+
+      assert "grappler" in feat_options(system, 13)
+    end
+  end
+
+  describe "pending sub-choices from selected progression concepts" do
+    @asi_progression %{
+      "name" => "ASI or Feat",
+      "required_count" => "1",
+      "type" => "feat"
+    }
+
+    @asi_feat_meta %{
+      "name" => "Ability Score Improvement",
+      "choices" => %{
+        "asi_point_1" => %{
+          "type" => "ability",
+          "contributes_field" => "total_score",
+          "contributes_value" => 1
+        },
+        "asi_point_2" => %{
+          "type" => "ability",
+          "contributes_field" => "total_score",
+          "contributes_value" => 1
+        }
+      }
+    }
+
+    @ability_meta %{
+      {"ability", "strength"} => %{"name" => "Strength"},
+      {"ability", "dexterity"} => %{"name" => "Dexterity"}
+    }
+
+    defp asi_system do
+      concept_metadata =
+        Map.merge(
+          %{
+            {"character_progression", "asi_or_feat"} => @asi_progression,
+            {"feat", "ability_score_improvement"} => @asi_feat_meta
+          },
+          @ability_meta
+        )
+
+      %ExTTRPGDev.RuleSystems.LoadedSystem{
+        module: nil,
+        graph: nil,
+        nodes: %{},
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata
+      }
+    end
+
+    defp asi_character(decisions) do
+      %Character{
+        name: "Test",
+        generated_values: %{},
+        effects: [],
+        decisions: decisions,
+        metadata: %ExTTRPGDev.Characters.Metadata{slug: "test", rule_system: "dnd_5e_srd"}
+      }
+    end
+
+    test "no sub-choices when feat has not been selected" do
+      system = asi_system()
+      choices = Characters.pending_choices(system, asi_character([]), %{})
+
+      sub = Enum.filter(choices, &Map.has_key?(&1, :scope_type))
+      assert sub == []
+    end
+
+    defp asi_sub_choices do
+      decisions = [
+        %{
+          scope: {"character_progression", "asi_or_feat"},
+          choice: "choice_1",
+          selection: "ability_score_improvement"
+        }
+      ]
+
+      choices = Characters.pending_choices(asi_system(), asi_character(decisions), %{})
+      Enum.filter(choices, &Map.has_key?(&1, :scope_type))
+    end
+
+    test "two sub-choices appear after selecting ability_score_improvement" do
+      sub = asi_sub_choices()
+      assert length(sub) == 2
+      assert Enum.map(sub, & &1.id) |> Enum.sort() == ["asi_point_1", "asi_point_2"]
+    end
+
+    test "sub-choices carry correct scope and options" do
+      [c | _] = asi_sub_choices()
+      assert c.scope_type == "feat"
+      assert c.scope_id == "ability_score_improvement"
+      assert Enum.sort(c.options) == ["dexterity", "strength"]
+    end
+
+    test "sub-choice count decreases as decisions are resolved" do
+      decisions = [
+        %{
+          scope: {"character_progression", "asi_or_feat"},
+          choice: "choice_1",
+          selection: "ability_score_improvement"
+        },
+        %{
+          scope: {"feat", "ability_score_improvement"},
+          choice: "asi_point_1",
+          selection: "strength"
+        }
+      ]
+
+      choices = Characters.pending_choices(asi_system(), asi_character(decisions), %{})
+
+      sub = Enum.filter(choices, &Map.has_key?(&1, :scope_type))
+      assert length(sub) == 1
+      assert hd(sub).id == "asi_point_2"
+    end
+
+    test "no sub-choices remain after all points resolved" do
+      decisions = [
+        %{
+          scope: {"character_progression", "asi_or_feat"},
+          choice: "choice_1",
+          selection: "ability_score_improvement"
+        },
+        %{
+          scope: {"feat", "ability_score_improvement"},
+          choice: "asi_point_1",
+          selection: "strength"
+        },
+        %{
+          scope: {"feat", "ability_score_improvement"},
+          choice: "asi_point_2",
+          selection: "dexterity"
+        }
+      ]
+
+      choices = Characters.pending_choices(asi_system(), asi_character(decisions), %{})
+
+      sub = Enum.filter(choices, &Map.has_key?(&1, :scope_type))
+      assert sub == []
+    end
+  end
 end
