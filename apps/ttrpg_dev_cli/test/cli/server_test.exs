@@ -266,7 +266,7 @@ defmodule ExTTRPGDev.CLI.ServerTest do
 
     test "characters.resolve_choice for a sub-choice records decision and returns choices",
          %{slug: slug} do
-      # First award enough XP to reach level 4 (first ASI slot)
+      # 6500 XP = level 5; every class has ASI at level 4, so 1 slot is always pending
       run(%{
         "command" => "characters.award",
         "character" => slug,
@@ -274,54 +274,48 @@ defmodule ExTTRPGDev.CLI.ServerTest do
         "value" => 6500
       })
 
-      choices_data =
-        run(%{"command" => "characters.choices", "character" => slug}).data
+      choices_data = run(%{"command" => "characters.choices", "character" => slug}).data
+      asi = Enum.find(choices_data.pending_choices, &(&1[:id] == "asi_or_feat"))
+      assert asi != nil, "expected asi_or_feat to be pending at level 5"
 
-      # Find the asi_or_feat pending choice if present (depends on rolled class)
-      asi = Enum.find(choices_data.pending_choices, &(&1["id"] == "asi_or_feat"))
+      run(%{
+        "command" => "characters.resolve_choice",
+        "character" => slug,
+        "progression" => "asi_or_feat",
+        "selection" => "ability_score_improvement"
+      })
 
-      if asi do
-        # Resolve asi_or_feat with ability_score_improvement
+      updated = run(%{"command" => "characters.choices", "character" => slug}).data
+      sub = Enum.filter(updated.pending_choices, &Map.has_key?(&1, :scope_type))
+      point_1 = Enum.find(sub, &(&1[:id] == "asi_point_1"))
+      assert point_1[:scope_type] == "feat"
+      assert point_1[:scope_id] == "ability_score_improvement"
+
+      first_option = hd(point_1[:options])[:id]
+
+      data =
         run(%{
           "command" => "characters.resolve_choice",
           "character" => slug,
-          "progression" => "asi_or_feat",
-          "selection" => "ability_score_improvement"
-        })
+          "scope_type" => "feat",
+          "scope_id" => "ability_score_improvement",
+          "choice" => "asi_point_1",
+          "selection" => first_option
+        }).data
 
-        # Now sub-choices should appear
-        updated_choices = run(%{"command" => "characters.choices", "character" => slug}).data
+      assert is_list(data.pending_choices)
+    end
 
-        sub =
-          Enum.filter(updated_choices.pending_choices, fn c ->
-            Map.has_key?(c, "scope_type")
-          end)
-
-        if sub != [] do
-          point_1 = Enum.find(sub, &(&1["id"] == "asi_point_1"))
-          assert point_1["scope_type"] == "feat"
-          assert point_1["scope_id"] == "ability_score_improvement"
-          assert is_list(point_1["options"])
-
-          # Resolve asi_point_1
-          first_option = hd(point_1["options"])["id"]
-
-          data =
-            run(%{
-              "command" => "characters.resolve_choice",
-              "character" => slug,
-              "scope_type" => "feat",
-              "scope_id" => "ability_score_improvement",
-              "choice" => "asi_point_1",
-              "selection" => first_option
-            }).data
-
-          assert is_list(data.pending_choices)
-        end
-      end
-
-      # The test passes regardless of class — we're verifying the server path doesn't error
-      assert true
+    test "characters.resolve_choice sub-choice errors for unknown choice", %{slug: slug} do
+      assert "error" ==
+               run(%{
+                 "command" => "characters.resolve_choice",
+                 "character" => slug,
+                 "scope_type" => "feat",
+                 "scope_id" => "ability_score_improvement",
+                 "choice" => "nonexistent",
+                 "selection" => "strength"
+               }).status
     end
 
     test "characters.award errors for unknown award", %{slug: slug} do
