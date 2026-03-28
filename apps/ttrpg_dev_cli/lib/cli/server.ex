@@ -25,6 +25,7 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.award", "character": "thorin-stoneback", "award": "level_up"}
       {"command": "characters.choices", "character": "thorin-stoneback"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
+      {"command": "characters.resolve_choice", "character": "thorin-stoneback", "scope_type": "feat", "scope_id": "ability_score_improvement", "choice": "asi_point_1", "selection": "strength"}
       {"command": "characters.inventory", "character": "thorin-stoneback"}
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "longsword"}
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "chain_mail", "fields": {"equipped": true}}
@@ -491,6 +492,52 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  defp handle(
+         %{
+           "command" => "characters.resolve_choice",
+           "character" => slug,
+           "scope_type" => scope_type,
+           "scope_id" => scope_id,
+           "choice" => choice_id,
+           "selection" => selection
+         } = msg,
+         state
+       ) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      choice_def =
+        get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice_id]) ||
+          raise("unknown choice #{inspect(choice_id)} on #{scope_type}(#{scope_id})")
+
+      options =
+        system.concept_metadata
+        |> Enum.filter(fn {{t, _id}, _} -> t == choice_def["type"] end)
+        |> Enum.map(fn {{_t, id}, _} -> id end)
+
+      validate_concept_selection!(selection, options)
+
+      decision = %{scope: {scope_type, scope_id}, choice: choice_id, selection: selection}
+      updated = %{character | decisions: character.decisions ++ [decision]}
+      Characters.save_character!(updated, true)
+
+      resolved = resolve_character(system, updated)
+      choices = Characters.pending_choices(system, updated, resolved)
+
+      data =
+        serialize_character(system, updated, slug, parse_display_mode(msg))
+        |> Map.put(
+          :pending_choices,
+          serialize_choices_list(choices, system, parse_display_mode(msg))
+        )
+
+      {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => cmd}, state) do
     {error("unknown command: #{inspect(cmd)}"), state}
   end
@@ -859,9 +906,7 @@ defmodule ExTTRPGDev.CLI.Server do
   defp serialize_choices_list(choices, system, display_mode) do
     Enum.map(choices, fn
       %{type: :pending, options: options} = c ->
-        concept_type =
-          get_in(system.concept_metadata, [{"character_progression", c.id}, "type"])
-
+        concept_type = pending_choice_concept_type(c, system)
         template = find_display_template(system, concept_type)
 
         rendered_options =
@@ -870,23 +915,41 @@ defmodule ExTTRPGDev.CLI.Server do
             %{id: id, label: ConceptDisplay.render(template, fields, display_mode)}
           end)
 
-        %{
+        base = %{
           type: "pending",
           id: c.id,
           name: c.name,
           count: c.count,
-          roll: c.roll,
+          roll: Map.get(c, :roll),
           options: rendered_options,
           earned_at_level: Map.get(c, :earned_at_level)
         }
 
+        base
+        |> maybe_put(:scope_type, Map.get(c, :scope_type))
+        |> maybe_put(:scope_id, Map.get(c, :scope_id))
+
       %{type: :pending} = c ->
-        %{type: "pending", id: c.id, name: c.name, count: c.count, roll: c.roll}
+        %{type: "pending", id: c.id, name: c.name, count: c.count, roll: Map.get(c, :roll)}
 
       %{type: :available} = c ->
-        %{type: "available", id: c.id, name: c.name, roll: c.roll}
+        %{type: "available", id: c.id, name: c.name, roll: Map.get(c, :roll)}
     end)
   end
+
+  defp pending_choice_concept_type(
+         %{scope_type: scope_type, scope_id: scope_id, id: choice_id},
+         system
+       ) do
+    get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice_id, "type"])
+  end
+
+  defp pending_choice_concept_type(%{id: id}, system) do
+    get_in(system.concept_metadata, [{"character_progression", id}, "type"])
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp find_display_template(system, concept_type) do
     Enum.find_value(system.module.concept_types, fn ct ->
