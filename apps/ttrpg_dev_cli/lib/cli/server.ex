@@ -22,6 +22,7 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.show", "character": "thorin-stoneback"}
       {"command": "characters.roll", "character": "thorin-stoneback", "type": "skill", "concept": "acrobatics"}
       {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
+      {"command": "characters.award", "character": "thorin-stoneback", "award": "level_up"}
       {"command": "characters.choices", "character": "thorin-stoneback"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
       {"command": "characters.inventory", "character": "thorin-stoneback"}
@@ -228,6 +229,41 @@ defmodule ExTTRPGDev.CLI.Server do
           :pending_choices,
           serialize_choices_list(choices, system, parse_display_mode(msg))
         )
+
+      {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{"command" => "characters.award", "character" => slug, "award" => award_id} = msg,
+         state
+       ) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      award_meta =
+        system.concept_metadata[{"award", award_id}] ||
+          raise("unknown award: #{inspect(award_id)}")
+
+      xp_needed = compute_next_level_xp!(system, character, award_meta)
+      updated = apply_award!(character, award_meta, xp_needed)
+      new_slots = Characters.compute_pending_choice_slots(system, updated)
+      updated = %{updated | pending_choice_slots: new_slots}
+      Characters.save_character!(updated, true)
+
+      resolved = resolve_character(system, updated)
+      choices = Characters.pending_choices(system, updated, resolved)
+
+      data =
+        serialize_character(system, updated, slug, parse_display_mode(msg))
+        |> Map.put(
+          :pending_choices,
+          serialize_choices_list(choices, system, parse_display_mode(msg))
+        )
+        |> Map.put(:awarded_xp, xp_needed)
 
       {ok(data), state}
     rescue
@@ -793,8 +829,31 @@ defmodule ExTTRPGDev.CLI.Server do
     %{character | effects: character.effects ++ [%{target: parsed_target, value: value}]}
   end
 
+  defp apply_award!(
+         character,
+         %{"value_type" => "next_level_xp", "effect_target" => target},
+         xp_needed
+       ) do
+    parsed_target = parse_effect_target!(target)
+    %{character | effects: character.effects ++ [%{target: parsed_target, value: xp_needed}]}
+  end
+
   defp apply_award!(_character, %{"value_type" => value_type}, _value) do
     raise("unsupported award value_type: #{inspect(value_type)}")
+  end
+
+  defp compute_next_level_xp!(system, character, %{"value_type" => "next_level_xp"}) do
+    case Characters.xp_to_next_level(system, character) do
+      {:ok, xp_needed, _next_level} -> xp_needed
+      {:error, :max_level} -> raise("character is already at max level")
+      {:error, :no_level_thresholds} -> raise("system does not define level XP thresholds")
+    end
+  end
+
+  defp compute_next_level_xp!(_system, _character, %{"value_type" => value_type}) do
+    raise(
+      "award #{inspect(value_type)} requires an explicit value; use: characters award <slug> #{value_type} <value>"
+    )
   end
 
   defp serialize_choices_list(choices, system, display_mode) do
