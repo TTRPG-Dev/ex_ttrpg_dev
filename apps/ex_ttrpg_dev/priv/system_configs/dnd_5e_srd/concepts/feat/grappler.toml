@@ -1,0 +1,3 @@
+[feat.grappler]
+name = "Grappler"
+requires = [{node = "ability('strength').total_score", min = 13}]
