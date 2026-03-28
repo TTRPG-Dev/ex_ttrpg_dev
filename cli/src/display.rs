@@ -173,6 +173,7 @@ mod tests {
             concept_types: vec![],
             selected_concepts: vec![],
             pending_choices: None,
+            awarded_xp: None,
         }
     }
 
