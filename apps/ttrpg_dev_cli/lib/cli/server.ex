@@ -491,7 +491,7 @@ defmodule ExTTRPGDev.CLI.Server do
       rule_system: character.metadata.rule_system,
       slug: slug,
       choices: serialize_choices(system, character),
-      character_lists: serialize_character_lists(system, character, active),
+      character_lists: serialize_character_lists(system, character, active, display_mode),
       concept_types:
         serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
       selected_concepts: serialize_selected_concepts(system, character, display_mode)
@@ -586,34 +586,47 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
-  defp serialize_character_lists(%LoadedSystem{} = system, %Character{} = character, active) do
+  defp serialize_character_lists(system, character, active, display_mode) do
+    ctx = {system, display_mode}
+
     system.module.character_lists
-    |> Enum.map(&serialize_character_list_category(&1, system, character, active))
+    |> Enum.map(&serialize_character_list_category(&1, ctx, character, active))
     |> Enum.reject(fn %{items: items} -> items == [] end)
   end
 
-  defp serialize_character_list_category(cat, system, character, active) do
+  defp serialize_character_list_category(cat, {system, display_mode}, character, active) do
+    template = find_display_template(system, cat.concept_type)
     ids = collect_from_active(active, system.concept_metadata, cat.metadata_key)
-    items = resolve_concept_names(ids, cat.concept_type, system.concept_metadata)
+
+    items =
+      case cat.concept_type do
+        nil ->
+          ids
+
+        concept_type ->
+          Enum.map(ids, fn id ->
+            meta = system.concept_metadata[{concept_type, id}] || %{"name" => id}
+            ConceptDisplay.render(template, meta, display_mode)
+          end)
+      end
+
+    choice_template = find_display_template(system, cat.choice_concept_type)
 
     choice_items =
-      resolve_choice_names(character.decisions, system.concept_metadata, cat.choice_concept_type)
+      case cat.choice_concept_type do
+        nil ->
+          []
+
+        concept_type ->
+          character.decisions
+          |> chosen_by_type(system.concept_metadata, concept_type)
+          |> Enum.map(fn id ->
+            meta = system.concept_metadata[{concept_type, id}] || %{"name" => id}
+            ConceptDisplay.render(choice_template, meta, display_mode)
+          end)
+      end
 
     %{label: cat.label, items: (items ++ choice_items) |> Enum.uniq() |> Enum.sort()}
-  end
-
-  defp resolve_concept_names(ids, nil, _metadata), do: ids
-
-  defp resolve_concept_names(ids, concept_type, metadata) do
-    Enum.map(ids, &(get_in(metadata, [{concept_type, &1}, "name"]) || &1))
-  end
-
-  defp resolve_choice_names(_decisions, _metadata, nil), do: []
-
-  defp resolve_choice_names(decisions, metadata, concept_type) do
-    decisions
-    |> chosen_by_type(metadata, concept_type)
-    |> Enum.map(&(get_in(metadata, [{concept_type, &1}, "name"]) || &1))
   end
 
   defp collect_from_active(active, concept_metadata, key) do
