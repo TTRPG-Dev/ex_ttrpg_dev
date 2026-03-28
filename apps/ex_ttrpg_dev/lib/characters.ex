@@ -159,7 +159,6 @@ defmodule ExTTRPGDev.Characters do
     if map_size(thresholds) == 0 do
       {:error, :no_level_thresholds}
     else
-      max_level = thresholds |> Map.keys() |> Enum.max()
       xp_target = xp_effect_target(system)
 
       current_xp =
@@ -177,10 +176,15 @@ defmodule ExTTRPGDev.Characters do
           {level, _} -> level
         end
 
-      if current_level >= max_level do
+      next_level =
+        thresholds
+        |> Map.keys()
+        |> Enum.sort()
+        |> Enum.find(&(&1 > current_level))
+
+      if is_nil(next_level) do
         {:error, :max_level}
       else
-        next_level = current_level + 1
         {:ok, Map.fetch!(thresholds, next_level) - current_xp, next_level}
       end
     end
