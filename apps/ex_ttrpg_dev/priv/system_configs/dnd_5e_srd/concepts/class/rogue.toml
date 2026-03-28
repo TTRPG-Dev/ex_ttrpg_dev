@@ -5,6 +5,9 @@ armor_proficiencies = ["Light Armor"]
 weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier", "Shortsword"]
 tool_proficiencies = ["Thieves' Tools"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [10, 3], [12, 4], [16, 5], [19, 6]]
 [class.rogue.choices.subclass]
 required = true
 type = "class"
@@ -101,6 +104,10 @@ value = "ability('constitution').modifier + 8"
 [[class.rogue.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
+[[class.rogue.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('rogue').asi_slots"
 
 [class.thief]
 name = "Thief"

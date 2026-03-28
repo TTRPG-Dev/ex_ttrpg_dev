@@ -4,6 +4,9 @@ hit_die = "d12"
 armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.barbarian.choices.subclass]
 required = true
 type = "class"
@@ -52,6 +55,10 @@ value = "ability('constitution').modifier + 12"
 [[class.barbarian.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
+[[class.barbarian.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('barbarian').asi_slots"
 
 [class.berserker]
 name = "Berserker"

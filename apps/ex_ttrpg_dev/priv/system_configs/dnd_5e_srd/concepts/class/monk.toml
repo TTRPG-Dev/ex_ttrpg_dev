@@ -3,6 +3,9 @@ name = "Monk"
 hit_die = "d8"
 weapon_proficiencies = ["Simple Weapons", "Shortsword"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.monk.choices.subclass]
 required = true
 type = "class"
@@ -70,6 +73,10 @@ value = "ability('constitution').modifier + 8"
 [[class.monk.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
+[[class.monk.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('monk').asi_slots"
 
 [class.way_of_the_open_hand]
 name = "Way of the Open Hand"
