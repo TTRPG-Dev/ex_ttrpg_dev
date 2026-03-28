@@ -73,6 +73,10 @@ id = "spell"
 name = "Spell"
 display.template = "{{name}}: Level {{level}}, {{school}} ({{?verbal:V}}{{?somatic:S}}{{?material:M}})"
 
+[[concept_type]]
+id = "feat"
+name = "Feat"
+
 [[character_list]]
 label = "Skill Proficiencies"
 metadata_key = "skill_proficiencies"
