@@ -374,6 +374,26 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  defp handle(%{"command" => "characters.random_resolve", "character" => slug} = msg, state) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+      slots = Characters.compute_pending_choice_slots(system, character)
+      character = %{character | pending_choice_slots: slots}
+
+      {updated, resolutions} = Characters.random_resolve_all(system, character)
+      Characters.save_character!(updated, true)
+
+      data =
+        serialize_character(system, updated, slug, parse_display_mode(msg))
+        |> Map.put(:resolutions, serialize_resolutions(resolutions, system))
+
+      {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => "characters.delete", "character" => slug}, state) do
     case Characters.delete_character(slug) do
       :ok -> {ok(%{deleted: slug}), state}
@@ -951,6 +971,24 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp pending_choice_concept_type(%{id: id}, system) do
     get_in(system.concept_metadata, [{"character_progression", id}, "type"])
+  end
+
+  defp serialize_resolutions(resolutions, system) do
+    Enum.map(resolutions, fn r ->
+      selection_name =
+        r.concept_type &&
+          r.selection_id &&
+          get_in(system.concept_metadata, [{r.concept_type, r.selection_id}, "name"])
+
+      %{
+        name: r.name,
+        selection_id: r.selection_id,
+        selection_name: selection_name,
+        rolled_value: r.rolled_value,
+        method: r.method,
+        earned_at_level: r.earned_at_level
+      }
+    end)
   end
 
   defp maybe_put(map, _key, nil), do: map
