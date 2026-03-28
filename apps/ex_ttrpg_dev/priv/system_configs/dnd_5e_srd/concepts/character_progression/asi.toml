@@ -1,0 +1,4 @@
+[character_progression.asi_or_feat]
+name = "ASI or Feat"
+required_count = "character_trait('asi_count').count"
+type = "feat"

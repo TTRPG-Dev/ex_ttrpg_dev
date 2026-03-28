@@ -4,6 +4,9 @@ hit_die = "d8"
 armor_proficiencies = ["Light Armor"]
 weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier", "Shortsword"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.bard.choices.subclass]
 required = true
 type = "class"
@@ -184,6 +187,10 @@ steps = [[1, 4], [2, 5], [3, 6], [4, 7], [5, 8], [6, 9], [7, 10], [8, 11], [9, 1
 type = "mapping"
 input = "character_trait('character_level').level"
 steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+
+[[class.bard.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('bard').asi_slots"
 
 [class.college_of_lore]
 name = "College of Lore"

@@ -264,6 +264,60 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert slugless.(%{"command" => "characters.show"}) == "error"
     end
 
+    test "characters.resolve_choice for a sub-choice records decision and returns choices",
+         %{slug: slug} do
+      # 6500 XP = level 5; every class has ASI at level 4, so 1 slot is always pending
+      run(%{
+        "command" => "characters.award",
+        "character" => slug,
+        "award" => "experience_points",
+        "value" => 6500
+      })
+
+      choices_data = run(%{"command" => "characters.choices", "character" => slug}).data
+      asi = Enum.find(choices_data.pending_choices, &(&1[:id] == "asi_or_feat"))
+      assert asi != nil, "expected asi_or_feat to be pending at level 5"
+
+      run(%{
+        "command" => "characters.resolve_choice",
+        "character" => slug,
+        "progression" => "asi_or_feat",
+        "selection" => "ability_score_improvement"
+      })
+
+      updated = run(%{"command" => "characters.choices", "character" => slug}).data
+      sub = Enum.filter(updated.pending_choices, &Map.has_key?(&1, :scope_type))
+      point_1 = Enum.find(sub, &(&1[:id] == "asi_point_1"))
+      assert point_1[:scope_type] == "feat"
+      assert point_1[:scope_id] == "ability_score_improvement"
+
+      first_option = hd(point_1[:options])[:id]
+
+      data =
+        run(%{
+          "command" => "characters.resolve_choice",
+          "character" => slug,
+          "scope_type" => "feat",
+          "scope_id" => "ability_score_improvement",
+          "choice" => "asi_point_1",
+          "selection" => first_option
+        }).data
+
+      assert is_list(data.pending_choices)
+    end
+
+    test "characters.resolve_choice sub-choice errors for unknown choice", %{slug: slug} do
+      assert "error" ==
+               run(%{
+                 "command" => "characters.resolve_choice",
+                 "character" => slug,
+                 "scope_type" => "feat",
+                 "scope_id" => "ability_score_improvement",
+                 "choice" => "nonexistent",
+                 "selection" => "strength"
+               }).status
+    end
+
     test "characters.award errors for unknown award", %{slug: slug} do
       assert "error" ==
                run(%{

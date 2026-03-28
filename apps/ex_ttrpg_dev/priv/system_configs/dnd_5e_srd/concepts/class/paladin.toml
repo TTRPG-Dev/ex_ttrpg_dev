@@ -4,6 +4,9 @@ hit_die = "d10"
 armor_proficiencies = ["Light Armor", "Medium Armor", "Heavy Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.paladin.choices.subclass]
 required = true
 type = "class"
@@ -71,6 +74,10 @@ value = "class('paladin').max_spell_level"
 type = "mapping"
 input = "character_trait('character_level').level"
 steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+
+[[class.paladin.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('paladin').asi_slots"
 
 [class.oath_of_devotion]
 name = "Oath of Devotion"

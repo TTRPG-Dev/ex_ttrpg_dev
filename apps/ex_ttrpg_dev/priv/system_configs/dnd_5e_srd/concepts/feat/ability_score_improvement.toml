@@ -1,0 +1,12 @@
+[feat.ability_score_improvement]
+name = "Ability Score Improvement"
+
+[feat.ability_score_improvement.choices.asi_point_1]
+type = "ability"
+contributes_field = "total_score"
+contributes_value = 1
+
+[feat.ability_score_improvement.choices.asi_point_2]
+type = "ability"
+contributes_field = "total_score"
+contributes_value = 1

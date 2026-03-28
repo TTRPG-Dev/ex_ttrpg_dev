@@ -5,6 +5,9 @@ armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
 weapon_proficiencies = ["Club", "Dagger", "Dart", "Javelin", "Mace", "Quarterstaff", "Scimitar", "Sickle", "Sling", "Spear"]
 tool_proficiencies = ["Herbalism Kit"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.druid.choices.subclass]
 required = true
 type = "class"
@@ -115,6 +118,10 @@ steps = [[1, 2], [4, 3], [10, 4]]
 type = "mapping"
 input = "character_trait('character_level').level"
 steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+
+[[class.druid.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('druid').asi_slots"
 
 [class.circle_of_the_land]
 name = "Circle of the Land"

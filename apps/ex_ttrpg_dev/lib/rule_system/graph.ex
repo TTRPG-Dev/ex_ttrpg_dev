@@ -66,17 +66,23 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     end)
   end
 
-  defp add_contributes_choice_edges(graph, nodes, choice_def) do
-    %{
-      "contributes_field" => field,
-      "contributes_value" => value,
-      "type" => target_type,
-      "options" => options
-    } = choice_def
+  defp add_contributes_choice_edges(graph, _nodes, %{"options" => nil}), do: {:ok, graph}
 
-    Enum.reduce_while(options, {:ok, graph}, fn option_id, {:ok, g} ->
-      add_contributes_option_edge(g, nodes, {target_type, option_id, field}, value)
-    end)
+  defp add_contributes_choice_edges(graph, nodes, choice_def) do
+    case choice_def do
+      %{
+        "contributes_field" => field,
+        "contributes_value" => value,
+        "type" => target_type,
+        "options" => options
+      } ->
+        Enum.reduce_while(options, {:ok, graph}, fn option_id, {:ok, g} ->
+          add_contributes_option_edge(g, nodes, {target_type, option_id, field}, value)
+        end)
+
+      _ ->
+        {:ok, graph}
+    end
   end
 
   defp add_contributes_option_edge(graph, nodes, target_key, value) do

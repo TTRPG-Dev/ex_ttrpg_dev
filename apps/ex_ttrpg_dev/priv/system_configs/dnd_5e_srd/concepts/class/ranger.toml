@@ -4,6 +4,9 @@ hit_die = "d10"
 armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.ranger.choices.subclass]
 required = true
 type = "class"
@@ -114,6 +117,10 @@ steps = [[1, 0], [2, 2], [3, 3], [5, 4], [7, 5], [9, 6], [11, 7], [13, 8], [15, 
 type = "mapping"
 input = "character_trait('character_level').level"
 steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+
+[[class.ranger.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('ranger').asi_slots"
 
 [class.hunter]
 name = "Hunter"

@@ -3,6 +3,9 @@ name = "Wizard"
 hit_die = "d6"
 weapon_proficiencies = ["Dagger", "Dart", "Sling", "Quarterstaff", "Light Crossbow"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.wizard.choices.subclass]
 required = true
 type = "class"
@@ -104,6 +107,10 @@ steps = [[1, 3], [4, 4], [10, 5]]
 type = "mapping"
 input = "character_trait('character_level').level"
 steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+
+[[class.wizard.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('wizard').asi_slots"
 
 [class.school_of_evocation]
 name = "School of Evocation"

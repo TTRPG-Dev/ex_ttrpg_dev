@@ -4,6 +4,9 @@ hit_die = "d8"
 armor_proficiencies = ["Light Armor"]
 weapon_proficiencies = ["Simple Weapons"]
 
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 [class.warlock.choices.subclass]
 required = true
 type = "class"
@@ -98,6 +101,10 @@ steps = [[1, 2], [4, 3], [10, 4]]
 type = "mapping"
 input = "character_trait('character_level').level"
 steps = [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [11, 11], [13, 12], [15, 13], [17, 14], [19, 15]]
+
+[[class.warlock.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('warlock').asi_slots"
 
 [class.the_fiend]
 name = "The Fiend"

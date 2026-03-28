@@ -5,6 +5,9 @@ armor_proficiencies = ["Light Armor", "Medium Armor", "Heavy Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
 # Starting equipment choices (per D&D 5e SRD)
+asi_slots.type = "mapping"
+asi_slots.input = "character_trait('character_level').level"
+asi_slots.steps = [[1, 0], [4, 1], [6, 2], [8, 3], [12, 4], [14, 5], [16, 6], [19, 7]]
 [class.fighter.choices.starting_armor]
 required = true
 type = "equipment"
@@ -77,6 +80,10 @@ value = "ability('constitution').modifier + 10"
 [[class.fighter.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+
+[[class.fighter.contributes]]
+target = "character_trait('asi_count').count"
+value = "class('fighter').asi_slots"
 
 [class.champion]
 name = "Champion"

@@ -177,3 +177,9 @@ name = "Max Spell Level"
 hidden = true
 level.type = "accumulator"
 level.base = "0"
+
+[character_trait.asi_count]
+name = "ASI/Feat Slots"
+hidden = true
+count.type = "accumulator"
+count.base = "0"
