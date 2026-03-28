@@ -96,6 +96,34 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert Enum.all?(lang_items.("verbose"), &String.contains?(&1, "script:"))
     end
 
+    test "gen auto-resolves all level-1 pending choices" do
+      {gen_resp, state} =
+        Server.handle_command(
+          %{"command" => "characters.gen", "system" => "dnd_5e_srd"},
+          @initial_state
+        )
+
+      assert gen_resp.status == "ok"
+
+      {save_resp, _} =
+        Server.handle_command(
+          %{"command" => "characters.save", "temp_id" => gen_resp.data.temp_id},
+          state
+        )
+
+      slug = save_resp.data.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      data = run(%{"command" => "characters.choices", "character" => slug}).data
+
+      level_1_pending =
+        Enum.filter(data.pending_choices, fn c ->
+          c[:type] == "pending" and c[:earned_at_level] in [nil, 1]
+        end)
+
+      assert level_1_pending == []
+    end
+
     test "errors for unknown system without touching pending state" do
       {response, state} =
         Server.handle_command(

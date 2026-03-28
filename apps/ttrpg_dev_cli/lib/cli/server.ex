@@ -138,6 +138,11 @@ defmodule ExTTRPGDev.CLI.Server do
       system = RuleSystems.load_system!(slug)
       decisions = Characters.random_decisions(system)
       character = Character.gen_character!(system, decisions)
+      slots = Characters.compute_pending_choice_slots(system, character)
+
+      character =
+        Characters.auto_resolve_pending(system, %{character | pending_choice_slots: slots})
+
       temp_id = Integer.to_string(state.next_id)
 
       new_state = %{
