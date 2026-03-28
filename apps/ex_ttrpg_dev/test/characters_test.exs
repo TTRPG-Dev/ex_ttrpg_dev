@@ -1016,4 +1016,70 @@ defmodule ExTTRPGDevTest.Characters do
       assert sub == []
     end
   end
+
+  describe "auto_resolve_pending/2" do
+    setup do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      decisions = Characters.random_decisions(system)
+      character = Character.gen_character!(system, decisions)
+      slots = Characters.compute_pending_choice_slots(system, character)
+      character = %{character | pending_choice_slots: slots}
+      %{system: system, character: character}
+    end
+
+    test "clears all level-1 pending choices for a fresh character", %{
+      system: system,
+      character: character
+    } do
+      resolved_character = Characters.auto_resolve_pending(system, character)
+
+      all_effects = Characters.active_effects(system, resolved_character)
+
+      resolved =
+        ExTTRPGDev.RuleSystem.Evaluator.evaluate!(
+          system,
+          resolved_character.generated_values,
+          all_effects
+        )
+
+      choices = Characters.pending_choices(system, resolved_character, resolved)
+
+      level_1_pending =
+        Enum.filter(choices, fn c ->
+          c.type == :pending and c[:earned_at_level] in [nil, 1]
+        end)
+
+      assert level_1_pending == []
+    end
+
+    test "is a no-op when called again after all level-1 choices are resolved", %{
+      system: system,
+      character: character
+    } do
+      resolved_once = Characters.auto_resolve_pending(system, character)
+      resolved_twice = Characters.auto_resolve_pending(system, resolved_once)
+      assert resolved_once == resolved_twice
+    end
+
+    test "selection progressions add decisions pointing to valid concepts", %{
+      system: system,
+      character: character
+    } do
+      resolved_character = Characters.auto_resolve_pending(system, character)
+
+      resolved_character.decisions
+      |> Enum.filter(fn d -> match?({"character_progression", _}, d.scope) end)
+      |> Enum.each(fn decision ->
+        {"character_progression", prog_id} = decision.scope
+        meta = system.concept_metadata[{"character_progression", prog_id}]
+
+        if meta && Map.has_key?(meta, "type") do
+          concept_type = meta["type"]
+
+          assert system.concept_metadata[{concept_type, decision.selection}] != nil,
+                 "selection #{inspect(decision.selection)} not found in #{concept_type} concepts"
+        end
+      end)
+    end
+  end
 end
