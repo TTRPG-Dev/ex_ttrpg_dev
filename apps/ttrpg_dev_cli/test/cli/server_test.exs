@@ -283,6 +283,7 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       data = run(%{"command" => "characters.random_resolve", "character" => slug}).data
 
       assert is_list(data.resolutions)
+      assert data.resolutions != []
       assert is_list(data.character_lists)
     end
 
