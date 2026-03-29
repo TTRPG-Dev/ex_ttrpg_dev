@@ -209,6 +209,12 @@ pub(crate) struct BuildSubChoiceResult {
     pub(crate) sub_choices: Vec<PendingChoice>,
 }
 
+#[derive(Deserialize)]
+pub(crate) struct ConceptDetail {
+    pub(crate) concept_type: String,
+    pub(crate) fields: serde_json::Value,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

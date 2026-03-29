@@ -142,7 +142,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
           new_effects =
             Enum.map(value, &parse_effect({type_id, concept_id}, &1))
 
-          {nodes, meta, effects ++ new_effects}
+          {nodes, Map.put(meta, field_name, value), effects ++ new_effects}
 
         is_map(value) and (Map.has_key?(value, "type") or Map.has_key?(value, "formula")) ->
           node_key = {type_id, concept_id, field_name}
