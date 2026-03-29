@@ -174,6 +174,23 @@ pub(crate) struct ConceptRollResult {
     pub(crate) total: i64,
 }
 
+#[derive(Deserialize)]
+pub(crate) struct RandomResolveResult {
+    pub(crate) name: String,
+    pub(crate) character_lists: Vec<CharacterListCategory>,
+    pub(crate) resolutions: Vec<ResolutionEntry>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct ResolutionEntry {
+    pub(crate) name: String,
+    pub(crate) selection_id: Option<String>,
+    pub(crate) selection_name: Option<String>,
+    pub(crate) rolled_value: Option<i64>,
+    pub(crate) method: Option<String>,
+    pub(crate) earned_at_level: Option<i64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

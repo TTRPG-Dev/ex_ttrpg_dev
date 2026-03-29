@@ -406,6 +406,148 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Randomly resolves all pending progression choices for a character, regardless of level.
+
+  Returns `{updated_character, resolutions}` where `resolutions` is a list of maps
+  describing each resolved choice:
+
+  - Selection progressions: `%{name, concept_type, selection_id, rolled_value: nil, method: nil, earned_at_level}`
+  - Value progressions: `%{name, concept_type: nil, selection_id: nil, rolled_value, method, earned_at_level}`
+
+  Intended for the `--random-resolve` CLI flag. Choices with no available options are skipped.
+  Value progressions randomly choose between "rolled" (actual dice roll) and "average" (sides/2 + 1).
+  """
+  def random_resolve_all(%LoadedSystem{} = system, %Character{} = character) do
+    do_random_resolve_all(system, character, [])
+  end
+
+  defp do_random_resolve_all(%LoadedSystem{} = system, %Character{} = character, acc) do
+    all_effects = active_effects(system, character)
+    resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
+    choices = pending_choices(system, character, resolved)
+
+    case Enum.find(choices, &resolvable?/1) do
+      nil ->
+        {character, Enum.reverse(acc)}
+
+      entry ->
+        {updated, resolution} = apply_tracked_resolution(system, entry, character)
+        do_random_resolve_all(system, updated, [resolution | acc])
+    end
+  end
+
+  defp resolvable?(%{type: :pending, options: [_ | _]}), do: true
+  defp resolvable?(%{type: :pending, options: []}), do: false
+  defp resolvable?(%{type: :pending, roll: roll}) when is_binary(roll), do: true
+  defp resolvable?(_), do: false
+
+  defp apply_tracked_resolution(system, %{type: :pending} = entry, character) do
+    cond do
+      Map.has_key?(entry, :scope_type) -> track_sub_choice_resolution(system, entry, character)
+      Map.has_key?(entry, :options) -> track_selection_resolution(system, entry, character)
+      true -> track_value_resolution(entry, character)
+    end
+  end
+
+  defp track_sub_choice_resolution(system, entry, character) do
+    selection = Enum.random(entry.options)
+
+    decision = %{
+      scope: {entry.scope_type, entry.scope_id},
+      choice: entry.id,
+      selection: selection
+    }
+
+    updated = %{character | decisions: character.decisions ++ [decision]}
+
+    concept_type =
+      get_in(system.concept_metadata, [
+        {entry.scope_type, entry.scope_id},
+        "choices",
+        entry.id,
+        "type"
+      ])
+
+    resolution = %{
+      name: entry.name,
+      concept_type: concept_type,
+      selection_id: selection,
+      rolled_value: nil,
+      method: nil,
+      earned_at_level: Map.get(entry, :earned_at_level)
+    }
+
+    {updated, resolution}
+  end
+
+  defp track_selection_resolution(system, entry, character) do
+    selection = Enum.random(entry.options)
+    n = count_progression_decisions(character.decisions, entry.id) + 1
+
+    decision = %{
+      scope: {"character_progression", entry.id},
+      choice: "choice_#{n}",
+      selection: selection
+    }
+
+    updated = %{character | decisions: character.decisions ++ [decision]}
+    meta = system.concept_metadata[{"character_progression", entry.id}]
+
+    resolution = %{
+      name: entry.name,
+      concept_type: meta && meta["type"],
+      selection_id: selection,
+      rolled_value: nil,
+      method: nil,
+      earned_at_level: Map.get(entry, :earned_at_level)
+    }
+
+    {updated, resolution}
+  end
+
+  defp track_value_resolution(entry, character) do
+    {method, value} = random_value_method(entry.roll)
+    n = count_progression_decisions(character.decisions, entry.id) + 1
+    [node_key | _] = Expression.extract_refs(entry.effect_target)
+
+    decision = %{
+      scope: {"character_progression", entry.id},
+      choice: "choice_#{n}",
+      selection: method
+    }
+
+    effect = %{target: node_key, value: value}
+
+    updated = %{
+      character
+      | decisions: character.decisions ++ [decision],
+        effects: character.effects ++ [effect]
+    }
+
+    resolution = %{
+      name: entry.name,
+      concept_type: nil,
+      selection_id: nil,
+      rolled_value: value,
+      method: method,
+      earned_at_level: Map.get(entry, :earned_at_level)
+    }
+
+    {updated, resolution}
+  end
+
+  defp random_value_method(die_str) do
+    sides = die_str |> String.trim_leading("d") |> String.to_integer()
+    average = div(sides, 2) + 1
+
+    if :rand.uniform(2) == 1 do
+      {"rolled", Dice.roll("1#{die_str}") |> Enum.sum()}
+    else
+      {"average", average}
+    end
+  end
+
+  @doc """
   Computes the list of pending selection progression choice slots for a character,
   taking into account the character's current level and decisions already made.
 

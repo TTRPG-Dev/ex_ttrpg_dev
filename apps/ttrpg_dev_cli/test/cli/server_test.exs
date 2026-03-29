@@ -270,6 +270,23 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert data.awarded_xp > 0
     end
 
+    test "characters.random_resolve resolves all pending choices and returns resolutions",
+         %{slug: slug} do
+      # Award enough XP to reach level 2 so HP becomes pending
+      run(%{
+        "command" => "characters.award",
+        "character" => slug,
+        "award" => "experience_points",
+        "value" => 300
+      })
+
+      data = run(%{"command" => "characters.random_resolve", "character" => slug}).data
+
+      assert is_list(data.resolutions)
+      assert data.resolutions != []
+      assert is_list(data.character_lists)
+    end
+
     test "characters.roll returns concept name and dice result", %{slug: slug} do
       data =
         run(%{

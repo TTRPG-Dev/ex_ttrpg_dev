@@ -7,7 +7,7 @@ use crate::engine::Engine;
 use crate::prompts::{prompt_from_option_entries, prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
-    PendingChoice, RollResult, SaveResult,
+    PendingChoice, RandomResolveResult, RollResult, SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -27,7 +27,7 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
              \x20      characters award <slug> level_up"
         ),
         ["choices", "--help"] => println!("Usage: characters choices <slug>"),
-        ["resolve_choice", "--help"] => println!("Usage: characters resolve_choice <slug>"),
+
         ["inventory", "--help"] => println!(
             "Usage: characters inventory <slug>\n\
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
@@ -64,12 +64,13 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
             }
         }
         ["choices", slug] => handle_characters_choices(slug, display_mode, engine),
-        ["resolve_choice", slug] => handle_characters_resolve_choice(slug, display_mode, engine),
+        ["resolve_choice", rest @ ..] => dispatch_resolve_choice(rest, display_mode, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         [] | ["--help"] => println!(
             "Usage: characters list | gen <system> | show <slug> | delete <slug> | delete-all\n\
              \x20      characters roll <slug> <type> <concept>\n\
-             \x20      characters award <slug> <award_id> <value> | choices <slug> | resolve_choice <slug>\n\
+             \x20      characters award <slug> <award_id> <value> | choices <slug>\n\
+             \x20      characters resolve_choice <slug> [--random-resolve]\n\
              \x20      characters inventory <slug>\n\
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
              \x20      characters inventory set <slug> <index> <field> <value>"
@@ -288,6 +289,47 @@ fn handle_characters_award_no_value(
     }
 }
 
+fn format_resolution_line(r: &crate::protocol::ResolutionEntry) -> String {
+    let level_str = r
+        .earned_at_level
+        .map(|l| format!(" (level {l})"))
+        .unwrap_or_default();
+    let detail = if let Some(name) = &r.selection_name {
+        name.clone()
+    } else if let Some(id) = &r.selection_id {
+        id.clone()
+    } else if let (Some(v), Some(m)) = (r.rolled_value, &r.method) {
+        format!("{v} ({m})")
+    } else {
+        String::new()
+    };
+    if detail.is_empty() {
+        format!("  • {}{}", r.name, level_str)
+    } else {
+        format!("  • {}: {}{}", r.name, detail, level_str)
+    }
+}
+
+fn handle_characters_random_resolve(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+    let req = json!({"command": "characters.random_resolve", "character": slug, "display_mode": display_mode.as_str()});
+    match engine.call::<_, RandomResolveResult>(&req) {
+        Ok(result) => {
+            let header = format!("# {}\n\n", result.name);
+            let body = display::format_character_lists(&result.character_lists);
+            display::page_output(&format!("{header}{body}"));
+            if result.resolutions.is_empty() {
+                println!("No pending choices to resolve.");
+            } else {
+                println!("\nResolved {} choice(s):", result.resolutions.len());
+                for r in &result.resolutions {
+                    println!("{}", format_resolution_line(r));
+                }
+            }
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
 fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
     let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
     match engine.call::<_, ChoicesResponse>(&req) {
@@ -324,6 +366,15 @@ fn build_resolve_choice_request(
             "value": value,
             "selection": selection,
         }),
+    }
+}
+
+fn dispatch_resolve_choice(rest: &[&str], display_mode: DisplayMode, engine: &mut Engine) {
+    match rest {
+        ["--help"] => println!("Usage: characters resolve_choice <slug> [--random-resolve]"),
+        [slug] => handle_characters_resolve_choice(slug, display_mode, engine),
+        [slug, "--random-resolve"] => handle_characters_random_resolve(slug, display_mode, engine),
+        _ => eprintln!("Unknown subcommand. Try `characters resolve_choice --help`."),
     }
 }
 
