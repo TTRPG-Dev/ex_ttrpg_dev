@@ -19,6 +19,7 @@ Commands:
   characters award <slug> level_up                       Advance to next level (milestone leveling)
   characters choices <slug>                              Show pending progression choices
   characters resolve_choice <slug>                       Interactively resolve a pending choice
+  characters resolve_choice <slug> --random-resolve      Randomly resolve all pending choices
   characters inventory <slug>                            Show a character's inventory
   characters inventory add <slug> <type> <id>            Add an item to inventory
   characters inventory add <slug> <type> <id> --equipped Add an item and equip it
