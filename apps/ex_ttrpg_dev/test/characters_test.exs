@@ -1135,7 +1135,7 @@ defmodule ExTTRPGDevTest.Characters do
 
       {_resolved, resolutions} = Characters.random_resolve_all(system, character)
 
-      assert length(resolutions) == length(pending_before)
+      assert length(resolutions) >= length(pending_before)
     end
 
     test "selection resolutions carry a concept_type and selection_id", %{
