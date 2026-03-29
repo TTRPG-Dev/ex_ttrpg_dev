@@ -174,19 +174,11 @@ defmodule ExTTRPGDev.CLI.Server do
       system = RuleSystems.load_system!(slug)
       character = Character.gen_character!(system, [])
 
-      character = %{
-        character
-        | name: name,
-          metadata: %{character.metadata | slug: slugify_name(name)}
-      }
-
+      slug = slugify_name(name)
+      character = %{character | name: name, metadata: %{character.metadata | slug: slug}}
       temp_id = Integer.to_string(state.next_id)
-
-      new_state = %{
-        state
-        | pending: Map.put(state.pending, temp_id, character),
-          next_id: state.next_id + 1
-      }
+      pending = Map.put(state.pending, temp_id, character)
+      new_state = %{state | pending: pending, next_id: state.next_id + 1}
 
       building_choices = serialize_building_choices(system)
       {ok(%{temp_id: temp_id, building_choices: building_choices}), new_state}
@@ -243,6 +235,27 @@ defmodule ExTTRPGDev.CLI.Server do
       sub_choices = serialize_concept_sub_choices(scope_type, scope_id, updated.decisions, system)
       new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
       {ok(%{sub_choices: sub_choices}), new_state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(%{"command" => "characters.build_finish", "temp_id" => temp_id} = msg, state) do
+    try do
+      char = fetch_pending!(state, temp_id)
+      sys = RuleSystems.load_system!(char.metadata.rule_system)
+      inv = Character.inventory_from_decisions(char.decisions, sys)
+      slots = Characters.compute_pending_choice_slots(sys, %{char | inventory: inv})
+      updated = %{char | inventory: inv, pending_choice_slots: slots}
+      Characters.save_character!(updated)
+      new_state = %{state | pending: Map.delete(state.pending, temp_id)}
+      resolved = resolve_character(sys, updated)
+      choices = Characters.pending_choices(sys, updated, resolved)
+      mode = parse_display_mode(msg)
+      ser = serialize_character(sys, updated, updated.metadata.slug, mode)
+      data = Map.put(ser, :pending_choices, serialize_choices_list(choices, sys, mode))
+
+      {ok(data), new_state}
     rescue
       e -> {error(Exception.message(e)), state}
     end
@@ -1034,9 +1047,8 @@ defmodule ExTTRPGDev.CLI.Server do
           earned_at_level: Map.get(c, :earned_at_level)
         }
 
-        base
-        |> maybe_put(:scope_type, Map.get(c, :scope_type))
-        |> maybe_put(:scope_id, Map.get(c, :scope_id))
+        scope_extras = %{scope_type: Map.get(c, :scope_type), scope_id: Map.get(c, :scope_id)}
+        Map.merge(base, Map.reject(scope_extras, fn {_, v} -> is_nil(v) end))
 
       %{type: :pending} = c ->
         %{type: "pending", id: c.id, name: c.name, count: c.count, roll: Map.get(c, :roll)}
@@ -1075,9 +1087,6 @@ defmodule ExTTRPGDev.CLI.Server do
     end)
   end
 
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
   defp find_display_template(system, concept_type) do
     Enum.find_value(system.module.concept_types, fn ct ->
       if ct.id == concept_type, do: ct.display_template
@@ -1085,26 +1094,17 @@ defmodule ExTTRPGDev.CLI.Server do
   end
 
   defp serialize_concept_sub_choices(concept_type, concept_id, decisions, system) do
-    choices = get_in(system.concept_metadata, [{concept_type, concept_id}, "choices"]) || %{}
+    scope_key = {concept_type, concept_id}
+    choices = get_in(system.concept_metadata, [scope_key, "choices"]) || %{}
 
     already_chosen_by_type =
       decisions
-      |> Enum.filter(&(&1.scope == {concept_type, concept_id}))
-      |> Enum.group_by(
-        fn d ->
-          (get_in(system.concept_metadata, [{concept_type, concept_id}, "choices", d.choice]) ||
-             %{})["type"]
-        end,
-        & &1.selection
-      )
+      |> Enum.filter(&(&1.scope == scope_key))
+      |> Enum.group_by(&(choices[&1.choice] || %{})["type"], & &1.selection)
 
     choices
     |> Enum.flat_map(fn {choice_id, choice_def} ->
-      resolved =
-        Enum.count(
-          decisions,
-          &(&1.scope == {concept_type, concept_id} and &1.choice == choice_id)
-        )
+      resolved = Enum.count(decisions, &(&1.scope == scope_key and &1.choice == choice_id))
 
       pending_count = if choice_def["required"] == true, do: max(0, 1 - resolved), else: 0
 

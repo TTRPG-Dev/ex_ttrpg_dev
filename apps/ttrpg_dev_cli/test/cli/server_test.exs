@@ -470,6 +470,20 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert is_list(resolve_resp.data.sub_choices)
     end
 
+    test "build_finish saves character and returns slug with pending_choices",
+         %{state: state, temp_id: temp_id} do
+      {resp, _} =
+        Server.handle_command(
+          %{"command" => "characters.build_finish", "temp_id" => temp_id},
+          state
+        )
+
+      assert resp.status == "ok"
+      assert is_binary(resp.data.slug)
+      assert is_list(resp.data.pending_choices)
+      on_exit(fn -> Characters.delete_character(resp.data.slug) end)
+    end
+
     test "build_start errors for unknown system" do
       {resp, _} =
         Server.handle_command(
