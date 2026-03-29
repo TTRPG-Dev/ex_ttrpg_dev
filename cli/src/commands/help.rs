@@ -6,7 +6,8 @@ Commands:
   systems list                                           List configured rule systems
   systems show <system>                                  Show system info
   systems show <system> --concept-type <t>               List concepts of a type
-  characters gen <system>                                Generate a character
+  characters gen <system>                                Generate a character (random)
+  characters build <system>                              Build a character interactively
   characters list                                        List saved characters
   characters list --system <system>                      List characters for a system
   characters show <slug>                                 Show a saved character

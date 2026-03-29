@@ -4,10 +4,11 @@ use super::inventory::handle_inventory;
 use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode};
 use crate::display;
 use crate::engine::Engine;
-use crate::prompts::{prompt_from_option_entries, prompt_integer, prompt_yes_no};
+use crate::prompts::{prompt_from_option_entries, prompt_integer, prompt_string, prompt_yes_no};
 use crate::protocol::{
-    CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
-    PendingChoice, RandomResolveResult, RollResult, SaveResult,
+    BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
+    ChoicesResponse, ConceptRollResult, OptionEntry, PendingChoice, RandomResolveResult,
+    RollResult, SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -27,6 +28,7 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
              \x20      characters award <slug> level_up"
         ),
         ["choices", "--help"] => println!("Usage: characters choices <slug>"),
+        ["build", "--help"] => println!("Usage: characters build <system>"),
 
         ["inventory", "--help"] => println!(
             "Usage: characters inventory <slug>\n\
@@ -36,6 +38,7 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ["list"] => handle_characters_list(None, engine),
         ["list", "--system", system] => handle_characters_list(Some(system), engine),
         ["gen", system] => handle_characters_gen(system, engine),
+        ["build", system] => handle_characters_build(system, engine),
         ["show", slug] => handle_characters_show(slug, display_mode, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
             slug,
@@ -67,7 +70,7 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ["resolve_choice", rest @ ..] => dispatch_resolve_choice(rest, display_mode, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         [] | ["--help"] => println!(
-            "Usage: characters list | gen <system> | show <slug> | delete <slug> | delete-all\n\
+            "Usage: characters list | gen <system> | build <system> | show <slug> | delete <slug> | delete-all\n\
              \x20      characters roll <slug> <type> <concept>\n\
              \x20      characters award <slug> <award_id> <value> | choices <slug>\n\
              \x20      characters resolve_choice <slug> [--random-resolve]\n\
@@ -430,6 +433,140 @@ fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
             None
         }
     }
+}
+
+fn resolve_build_progressions(
+    slug: &str,
+    mut character: CharacterData,
+    engine: &mut Engine,
+) -> Option<CharacterData> {
+    loop {
+        let pending: Vec<PendingChoice> = match &character.pending_choices {
+            Some(p) if !p.is_empty() => p.clone(),
+            _ => return Some(character),
+        };
+        let choice = select_pending_choice(&pending)?.clone();
+        let (value, selection) = prompt_choice_value(&choice, engine)?;
+        let req = build_resolve_choice_request(slug, &choice, value, &selection);
+        character = match engine.call::<_, CharacterData>(&req) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return None;
+            }
+        };
+    }
+}
+
+fn resolve_sub_choices(
+    temp_id: &str,
+    mut sub_choices: Vec<PendingChoice>,
+    engine: &mut Engine,
+) -> bool {
+    while let Some(choice) = sub_choices.first() {
+        let options: Vec<OptionEntry> = match &choice.options {
+            Some(opts) if !opts.is_empty() => opts.clone(),
+            _ => {
+                sub_choices.remove(0);
+                continue;
+            }
+        };
+        let scope_type = choice.scope_type.clone().unwrap_or_default();
+        let scope_id = choice.scope_id.clone().unwrap_or_default();
+        let choice_id = choice.id.clone();
+        let Some(selection) = prompt_from_option_entries(&choice.name, &options) else {
+            return false;
+        };
+        let req = json!({
+            "command": "characters.build_resolve_sub",
+            "temp_id": temp_id,
+            "scope_type": scope_type,
+            "scope_id": scope_id,
+            "choice": choice_id,
+            "selection": selection,
+        });
+        sub_choices = match engine.call::<_, BuildSubChoiceResult>(&req) {
+            Ok(r) => r.sub_choices,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return false;
+            }
+        };
+    }
+    true
+}
+
+fn resolve_building_choices(
+    temp_id: &str,
+    groups: &[crate::protocol::BuildingChoiceGroup],
+    engine: &mut Engine,
+) -> bool {
+    for group in groups {
+        let Some(concept_id) = prompt_from_option_entries(&group.name, &group.concepts) else {
+            return false;
+        };
+        let req = json!({
+            "command": "characters.build_select",
+            "temp_id": temp_id,
+            "concept_type": group.concept_type,
+            "concept_id": concept_id,
+        });
+        let sub_choices = match engine.call::<_, BuildSubChoiceResult>(&req) {
+            Ok(r) => r.sub_choices,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return false;
+            }
+        };
+        if !resolve_sub_choices(temp_id, sub_choices, engine) {
+            return false;
+        }
+    }
+    true
+}
+
+fn handle_characters_build(system: &str, engine: &mut Engine) {
+    let name = loop {
+        let Some(input) = prompt_string("Character name:") else {
+            return;
+        };
+        let trimmed = input.trim().to_string();
+        if !trimmed.is_empty() {
+            break trimmed;
+        }
+    };
+    let req = json!({"command": "characters.build_start", "system": system, "name": name});
+    let build_start = match engine.call::<_, BuildStartResult>(&req) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return;
+        }
+    };
+    let temp_id = build_start.temp_id;
+    if !resolve_building_choices(&temp_id, &build_start.building_choices, engine) {
+        return;
+    }
+    let finish_req = json!({"command": "characters.build_finish", "temp_id": temp_id});
+    let character = match engine.call::<_, CharacterData>(&finish_req) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return;
+        }
+    };
+    let slug = match &character.slug {
+        Some(s) => s.clone(),
+        None => {
+            eprintln!("Error: build_finish did not return a slug");
+            return;
+        }
+    };
+    let final_char = match resolve_build_progressions(&slug, character, engine) {
+        Some(c) => c,
+        None => return,
+    };
+    display::print_character(&final_char);
 }
 
 fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {
