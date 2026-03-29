@@ -116,14 +116,23 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp handle(%{"command" => "systems.show", "system" => slug} = cmd, state) do
     concept_type = Map.get(cmd, "concept_type")
+    concept_id = Map.get(cmd, "concept_id")
 
     try do
       system = RuleSystems.load_system!(slug)
 
       data =
-        if concept_type,
-          do: serialize_concepts(system, concept_type),
-          else: serialize_system(system)
+        cond do
+          concept_id != nil ->
+            meta = system.concept_metadata[{concept_type, concept_id}] || %{}
+            %{id: concept_id, concept_type: concept_type, fields: meta}
+
+          concept_type != nil ->
+            serialize_concepts(system, concept_type)
+
+          true ->
+            serialize_system(system)
+        end
 
       {ok(data), state}
     rescue
@@ -1222,16 +1231,9 @@ defmodule ExTTRPGDev.CLI.Server do
           %{id: id, label: ConceptDisplay.render(template, fields, :default)}
         end)
 
-      %{
-        concept_type: concept_type,
-        name:
-          Enum.find_value(
-            system.module.concept_types,
-            concept_type,
-            &(&1.id == concept_type && &1.name)
-          ),
-        concepts: concepts
-      }
+      types = system.module.concept_types
+      ct_name = Enum.find_value(types, concept_type, &(&1.id == concept_type && &1.name))
+      %{concept_type: concept_type, name: ct_name, concepts: concepts}
     end)
   end
 

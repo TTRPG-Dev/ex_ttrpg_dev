@@ -4,11 +4,14 @@ use super::inventory::handle_inventory;
 use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode};
 use crate::display;
 use crate::engine::Engine;
-use crate::prompts::{prompt_from_option_entries, prompt_integer, prompt_string, prompt_yes_no};
+use crate::prompts::{
+    EntryAction, prompt_from_option_entries, prompt_from_option_entries_or_detail, prompt_integer,
+    prompt_string, prompt_yes_no,
+};
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
-    ChoicesResponse, ConceptRollResult, OptionEntry, PendingChoice, RandomResolveResult,
-    RollResult, SaveResult,
+    ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice,
+    RandomResolveResult, RollResult, SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -496,14 +499,105 @@ fn resolve_sub_choices(
     true
 }
 
+fn format_field_value(val: &serde_json::Value) -> Option<String> {
+    if let Some(s) = val.as_str() {
+        return if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        };
+    }
+    let arr = val.as_array()?;
+    let text = arr
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    if text.is_empty() { None } else { Some(text) }
+}
+
+fn format_choice_entry(cd: &serde_json::Value) -> String {
+    let cname = cd["name"].as_str().unwrap_or("?");
+    let count = cd.get("count").and_then(|v| v.as_u64()).unwrap_or(1);
+    let from = match cd.get("options").and_then(|v| v.as_array()) {
+        Some(o) => format!("{} option(s)", o.len()),
+        None => format!("all {}", cd["type"].as_str().unwrap_or("?")),
+    };
+    format!("  • {cname} (pick {count} from {from})")
+}
+
+fn format_required_choices(f: &serde_json::Value) -> Vec<String> {
+    let Some(choices) = f.get("choices").and_then(|c| c.as_object()) else {
+        return vec![];
+    };
+    choices
+        .values()
+        .filter(|cd| {
+            cd.get("required")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        })
+        .map(format_choice_entry)
+        .collect()
+}
+
+fn format_concept_detail(detail: &ConceptDetail) -> String {
+    const FIELDS: &[(&str, &str)] = &[
+        ("hit_die", "Hit die"),
+        ("armor_proficiencies", "Armor"),
+        ("weapon_proficiencies", "Weapons"),
+        ("languages", "Languages"),
+        ("damage_resistances", "Resistances"),
+    ];
+    let f = &detail.fields;
+    let name = f["name"].as_str().unwrap_or(&detail.concept_type);
+    let mut lines = vec![format!("=== {name} ===")];
+    lines.extend(FIELDS.iter().filter_map(|(key, label)| {
+        f.get(*key)
+            .and_then(format_field_value)
+            .map(|t| format!("{label}: {t}"))
+    }));
+    let required = format_required_choices(f);
+    if !required.is_empty() {
+        lines.push("Choices to make:".to_string());
+        lines.extend(required);
+    }
+    lines.join("\n")
+}
+
+fn show_concept_detail(system: &str, concept_type: &str, concept_id: &str, engine: &mut Engine) {
+    let req = json!({
+        "command": "systems.show",
+        "system": system,
+        "concept_type": concept_type,
+        "concept_id": concept_id,
+    });
+    match engine.call::<_, ConceptDetail>(&req) {
+        Ok(detail) => println!("\n{}\n", format_concept_detail(&detail)),
+        Err(e) => eprintln!("Could not load details: {e}"),
+    }
+}
+
 fn resolve_building_choices(
     temp_id: &str,
     groups: &[crate::protocol::BuildingChoiceGroup],
+    system: &str,
     engine: &mut Engine,
 ) -> bool {
     for group in groups {
-        let Some(concept_id) = prompt_from_option_entries(&group.name, &group.concepts) else {
-            return false;
+        let concept_id = loop {
+            match prompt_from_option_entries_or_detail(&group.name, &group.concepts) {
+                None => return false,
+                Some(EntryAction::Selected(id)) => break id,
+                Some(EntryAction::ShowDetail(idx)) => {
+                    show_concept_detail(
+                        system,
+                        &group.concept_type,
+                        &group.concepts[idx].id,
+                        engine,
+                    );
+                }
+            }
         };
         let req = json!({
             "command": "characters.build_select",
@@ -544,7 +638,7 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
         }
     };
     let temp_id = build_start.temp_id;
-    if !resolve_building_choices(&temp_id, &build_start.building_choices, engine) {
+    if !resolve_building_choices(&temp_id, &build_start.building_choices, system, engine) {
         return;
     }
     let finish_req = json!({"command": "characters.build_finish", "temp_id": temp_id});
