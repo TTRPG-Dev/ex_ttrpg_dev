@@ -516,8 +516,8 @@ fn format_field_value(val: &serde_json::Value) -> Option<String> {
     if text.is_empty() { None } else { Some(text) }
 }
 
-fn format_choice_entry(cd: &serde_json::Value) -> String {
-    let cname = cd["name"].as_str().unwrap_or("?");
+fn format_choice_entry(id: &str, cd: &serde_json::Value) -> String {
+    let cname = cd["name"].as_str().unwrap_or(id).replace('_', " ");
     let count = cd.get("count").and_then(|v| v.as_u64()).unwrap_or(1);
     let from = match cd.get("options").and_then(|v| v.as_array()) {
         Some(o) => format!("{} option(s)", o.len()),
@@ -547,13 +547,13 @@ fn format_required_choices(f: &serde_json::Value) -> Vec<String> {
         return vec![];
     };
     choices
-        .values()
-        .filter(|cd| {
+        .iter()
+        .filter(|(_, cd)| {
             cd.get("required")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
         })
-        .map(format_choice_entry)
+        .map(|(id, cd)| format_choice_entry(id, cd))
         .collect()
 }
 
