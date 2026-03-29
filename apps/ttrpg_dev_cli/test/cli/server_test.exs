@@ -384,6 +384,103 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  # ── character builder ─────────────────────────────────────────────────────────
+
+  describe "characters build flow" do
+    setup do
+      {resp, state} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_start",
+            "system" => "dnd_5e_srd",
+            "name" => "Aria Test"
+          },
+          @initial_state
+        )
+
+      assert resp.status == "ok"
+      %{temp_id: resp.data.temp_id, state: state}
+    end
+
+    test "build_start returns temp_id and ordered building_choices", %{temp_id: temp_id} do
+      assert is_binary(temp_id)
+    end
+
+    test "build_start building_choices include race, background, class" do
+      data =
+        run(%{"command" => "characters.build_start", "system" => "dnd_5e_srd", "name" => "X"}).data
+
+      types = Enum.map(data.building_choices, & &1.concept_type)
+      assert "race" in types
+      assert "class" in types
+      assert "background" in types
+    end
+
+    test "build_select adds root decision and returns sub_choices", %{
+      state: state,
+      temp_id: temp_id
+    } do
+      {resp, _} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_select",
+            "temp_id" => temp_id,
+            "concept_type" => "race",
+            "concept_id" => "human"
+          },
+          state
+        )
+
+      assert resp.status == "ok"
+      assert is_list(resp.data.sub_choices)
+    end
+
+    test "build_resolve_sub applies decision and returns remaining sub_choices",
+         %{state: state, temp_id: temp_id} do
+      {select_resp, state2} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_select",
+            "temp_id" => temp_id,
+            "concept_type" => "race",
+            "concept_id" => "human"
+          },
+          state
+        )
+
+      assert select_resp.status == "ok"
+      sub = hd(select_resp.data.sub_choices)
+
+      first_option = hd(sub.options).id
+
+      {resolve_resp, _} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_resolve_sub",
+            "temp_id" => temp_id,
+            "scope_type" => sub.scope_type,
+            "scope_id" => sub.scope_id,
+            "choice" => sub.id,
+            "selection" => first_option
+          },
+          state2
+        )
+
+      assert resolve_resp.status == "ok"
+      assert is_list(resolve_resp.data.sub_choices)
+    end
+
+    test "build_start errors for unknown system" do
+      {resp, _} =
+        Server.handle_command(
+          %{"command" => "characters.build_start", "system" => "nonexistent", "name" => "X"},
+          @initial_state
+        )
+
+      assert resp.status == "error"
+    end
+  end
+
   # ── error handling ────────────────────────────────────────────────────────────
 
   describe "error handling" do
