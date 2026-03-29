@@ -164,6 +164,37 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  # --- Character Build ---
+
+  defp handle(
+         %{"command" => "characters.build_start", "system" => slug, "name" => name},
+         state
+       ) do
+    try do
+      system = RuleSystems.load_system!(slug)
+      character = Character.gen_character!(system, [])
+
+      character = %{
+        character
+        | name: name,
+          metadata: %{character.metadata | slug: slugify_name(name)}
+      }
+
+      temp_id = Integer.to_string(state.next_id)
+
+      new_state = %{
+        state
+        | pending: Map.put(state.pending, temp_id, character),
+          next_id: state.next_id + 1
+      }
+
+      building_choices = serialize_building_choices(system)
+      {ok(%{temp_id: temp_id, building_choices: building_choices}), new_state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => "characters.save", "temp_id" => temp_id}, state) do
     case Map.get(state.pending, temp_id) do
       nil ->
@@ -997,6 +1028,37 @@ defmodule ExTTRPGDev.CLI.Server do
   defp find_display_template(system, concept_type) do
     Enum.find_value(system.module.concept_types, fn ct ->
       if ct.id == concept_type, do: ct.display_template
+    end)
+  end
+
+  defp slugify_name(name) do
+    name
+    |> String.downcase()
+    |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
+    |> String.replace(" ", "_")
+  end
+
+  defp serialize_building_choices(%LoadedSystem{} = system) do
+    Enum.map(system.module.character_building_choices, fn cc ->
+      concept_type = cc.concept_type
+      template = find_display_template(system, concept_type)
+
+      concepts =
+        system.concept_metadata
+        |> Enum.filter(fn {{type, _id}, _} -> type == concept_type end)
+        |> Enum.sort_by(fn {{_type, id}, _} -> id end)
+        |> Enum.map(fn {{_type, id}, fields} ->
+          label = ConceptDisplay.render(template, fields, :default)
+          %{id: id, label: label}
+        end)
+
+      type_meta = Enum.find(system.module.concept_types, &(&1.id == concept_type))
+
+      %{
+        concept_type: concept_type,
+        name: (type_meta && type_meta.name) || concept_type,
+        concepts: concepts
+      }
     end)
   end
 
