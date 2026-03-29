@@ -526,6 +526,22 @@ fn format_choice_entry(cd: &serde_json::Value) -> String {
     format!("  • {cname} (pick {count} from {from})")
 }
 
+fn format_contribute_entry(c: &serde_json::Value) -> Option<String> {
+    let target = c.get("target")?.as_str()?;
+    let value = c.get("value")?;
+    Some(match c.get("when").and_then(|w| w.as_str()) {
+        Some(w) => format!("  • {target}: {value} (when {w})"),
+        None => format!("  • {target}: {value}"),
+    })
+}
+
+fn format_contributes(f: &serde_json::Value) -> Vec<String> {
+    let Some(arr) = f.get("contributes").and_then(|v| v.as_array()) else {
+        return vec![];
+    };
+    arr.iter().filter_map(format_contribute_entry).collect()
+}
+
 fn format_required_choices(f: &serde_json::Value) -> Vec<String> {
     let Some(choices) = f.get("choices").and_then(|c| c.as_object()) else {
         return vec![];
@@ -557,6 +573,11 @@ fn format_concept_detail(detail: &ConceptDetail) -> String {
             .and_then(format_field_value)
             .map(|t| format!("{label}: {t}"))
     }));
+    let contributes = format_contributes(f);
+    if !contributes.is_empty() {
+        lines.push("Contributes:".to_string());
+        lines.extend(contributes);
+    }
     let required = format_required_choices(f);
     if !required.is_empty() {
         lines.push("Choices to make:".to_string());
