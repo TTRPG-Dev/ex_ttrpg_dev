@@ -49,7 +49,7 @@ defmodule ExTTRPGDev.Characters.Character do
         {node_key, roll_generated_value(node, system.rolling_methods)}
       end)
 
-    starting_inventory = starting_inventory_from_decisions(decisions, system)
+    starting_inventory = inventory_from_decisions(decisions, system)
 
     %Character{
       name: character_name,
@@ -173,7 +173,7 @@ defmodule ExTTRPGDev.Characters.Character do
     %{scope: {type, id}, choice: choice, selection: selection}
   end
 
-  defp starting_inventory_from_decisions(decisions, system) do
+  def inventory_from_decisions(decisions, system) do
     static = starting_equipment_items(decisions, system)
     chosen = equipment_choice_items(decisions, system)
     static ++ chosen
