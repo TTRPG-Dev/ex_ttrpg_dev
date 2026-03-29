@@ -921,7 +921,7 @@ defmodule ExTTRPGDev.Characters do
     end)
   end
 
-  defp root_concept_ids(concept_metadata, type_id) do
+  def root_concept_ids(concept_metadata, type_id) do
     all_ids =
       concept_metadata
       |> Enum.filter(fn {{t, _}, _} -> t == type_id end)

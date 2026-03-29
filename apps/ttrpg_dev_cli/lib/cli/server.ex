@@ -1210,9 +1210,13 @@ defmodule ExTTRPGDev.CLI.Server do
       concept_type = cc.concept_type
       template = find_display_template(system, concept_type)
 
+      root_ids = MapSet.new(Characters.root_concept_ids(system.concept_metadata, concept_type))
+
       concepts =
         system.concept_metadata
-        |> Enum.filter(fn {{type, _id}, _} -> type == concept_type end)
+        |> Enum.filter(fn {{type, id}, _} ->
+          type == concept_type and MapSet.member?(root_ids, id)
+        end)
         |> Enum.sort_by(fn {{_type, id}, _} -> id end)
         |> Enum.map(fn {{_type, id}, fields} ->
           %{id: id, label: ConceptDisplay.render(template, fields, :default)}
