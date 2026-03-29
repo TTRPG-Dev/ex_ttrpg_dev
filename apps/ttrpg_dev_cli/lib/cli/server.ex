@@ -164,6 +164,103 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
+  # --- Character Build ---
+
+  defp handle(
+         %{"command" => "characters.build_start", "system" => slug, "name" => name},
+         state
+       ) do
+    try do
+      system = RuleSystems.load_system!(slug)
+      character = Character.gen_character!(system, [])
+
+      slug = slugify_name(name)
+      character = %{character | name: name, metadata: %{character.metadata | slug: slug}}
+      temp_id = Integer.to_string(state.next_id)
+      pending = Map.put(state.pending, temp_id, character)
+      new_state = %{state | pending: pending, next_id: state.next_id + 1}
+
+      building_choices = serialize_building_choices(system)
+      {ok(%{temp_id: temp_id, building_choices: building_choices}), new_state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{
+           "command" => "characters.build_select",
+           "temp_id" => temp_id,
+           "concept_type" => concept_type,
+           "concept_id" => concept_id
+         },
+         state
+       ) do
+    try do
+      character = fetch_pending!(state, temp_id)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+      decision = %{scope: nil, choice: concept_type, selection: concept_id}
+      updated = %{character | decisions: character.decisions ++ [decision]}
+
+      sub_choices =
+        serialize_concept_sub_choices(concept_type, concept_id, updated.decisions, system)
+
+      new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
+      {ok(%{sub_choices: sub_choices}), new_state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{
+           "command" => "characters.build_resolve_sub",
+           "temp_id" => temp_id,
+           "scope_type" => scope_type,
+           "scope_id" => scope_id,
+           "choice" => choice_id,
+           "selection" => selection
+         },
+         state
+       ) do
+    try do
+      character = fetch_pending!(state, temp_id)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+      scope = {scope_type, scope_id}
+      choice_def = fetch_choice_def!(system, scope, choice_id)
+      valid = valid_sub_choices(system, scope, choice_def, character.decisions)
+      validate_concept_selection!(selection, valid)
+      decision = %{scope: scope, choice: choice_id, selection: selection}
+      updated = %{character | decisions: character.decisions ++ [decision]}
+      sub_choices = serialize_concept_sub_choices(scope_type, scope_id, updated.decisions, system)
+      new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
+      {ok(%{sub_choices: sub_choices}), new_state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(%{"command" => "characters.build_finish", "temp_id" => temp_id} = msg, state) do
+    try do
+      char = fetch_pending!(state, temp_id)
+      sys = RuleSystems.load_system!(char.metadata.rule_system)
+      inv = Character.inventory_from_decisions(char.decisions, sys)
+      slots = Characters.compute_pending_choice_slots(sys, %{char | inventory: inv})
+      updated = %{char | inventory: inv, pending_choice_slots: slots}
+      Characters.save_character!(updated)
+      new_state = %{state | pending: Map.delete(state.pending, temp_id)}
+      resolved = resolve_character(sys, updated)
+      choices = Characters.pending_choices(sys, updated, resolved)
+      mode = parse_display_mode(msg)
+      ser = serialize_character(sys, updated, updated.metadata.slug, mode)
+      data = Map.put(ser, :pending_choices, serialize_choices_list(choices, sys, mode))
+
+      {ok(data), new_state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
   defp handle(%{"command" => "characters.save", "temp_id" => temp_id}, state) do
     case Map.get(state.pending, temp_id) do
       nil ->
@@ -950,9 +1047,8 @@ defmodule ExTTRPGDev.CLI.Server do
           earned_at_level: Map.get(c, :earned_at_level)
         }
 
-        base
-        |> maybe_put(:scope_type, Map.get(c, :scope_type))
-        |> maybe_put(:scope_id, Map.get(c, :scope_id))
+        scope_extras = %{scope_type: Map.get(c, :scope_type), scope_id: Map.get(c, :scope_id)}
+        Map.merge(base, Map.reject(scope_extras, fn {_, v} -> is_nil(v) end))
 
       %{type: :pending} = c ->
         %{type: "pending", id: c.id, name: c.name, count: c.count, roll: Map.get(c, :roll)}
@@ -991,12 +1087,151 @@ defmodule ExTTRPGDev.CLI.Server do
     end)
   end
 
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
   defp find_display_template(system, concept_type) do
     Enum.find_value(system.module.concept_types, fn ct ->
       if ct.id == concept_type, do: ct.display_template
+    end)
+  end
+
+  defp serialize_concept_sub_choices(concept_type, concept_id, decisions, system) do
+    scope_key = {concept_type, concept_id}
+    choices = get_in(system.concept_metadata, [scope_key, "choices"]) || %{}
+
+    already_chosen_by_type =
+      decisions
+      |> Enum.filter(&(&1.scope == scope_key))
+      |> Enum.group_by(&(choices[&1.choice] || %{})["type"], & &1.selection)
+
+    choices
+    |> Enum.flat_map(fn {choice_id, choice_def} ->
+      resolved = Enum.count(decisions, &(&1.scope == scope_key and &1.choice == choice_id))
+
+      pending_count = if choice_def["required"] == true, do: max(0, 1 - resolved), else: 0
+
+      render_pending_sub_choice_entry(
+        choice_id,
+        choice_def,
+        concept_type,
+        concept_id,
+        pending_count,
+        already_chosen_by_type,
+        system
+      )
+    end)
+    |> Enum.sort_by(& &1.id)
+  end
+
+  defp render_pending_sub_choice_entry(_, _, _, _, 0, _, _), do: []
+
+  defp render_pending_sub_choice_entry(
+         choice_id,
+         choice_def,
+         concept_type,
+         concept_id,
+         pending_count,
+         already_chosen_by_type,
+         system
+       ) do
+    choice_type = choice_def["type"]
+    raw_options = build_sub_choice_options(choice_def, choice_type, system)
+    excluded = MapSet.new(Map.get(already_chosen_by_type, choice_type, []))
+    filtered = Enum.reject(raw_options, &MapSet.member?(excluded, &1))
+    template = find_display_template(system, choice_type)
+
+    rendered =
+      Enum.map(filtered, fn id ->
+        fields = system.concept_metadata[{choice_type, id}] || %{"name" => id}
+        %{id: id, label: ConceptDisplay.render(template, fields, :default)}
+      end)
+
+    [
+      %{
+        type: "pending",
+        id: choice_id,
+        scope_type: concept_type,
+        scope_id: concept_id,
+        name: choice_def["name"] || choice_id,
+        count: pending_count,
+        options: rendered
+      }
+    ]
+  end
+
+  defp build_sub_choice_options(choice_def, choice_type, system) do
+    case choice_def["options"] do
+      options when is_list(options) ->
+        options
+
+      _ ->
+        system.concept_metadata
+        |> Enum.filter(fn {{t, _}, _} -> t == choice_type end)
+        |> Enum.map(fn {{_, id}, _} -> id end)
+        |> Enum.sort()
+    end
+  end
+
+  defp fetch_choice_def!(system, {type, id}, choice_id) do
+    get_in(system.concept_metadata, [{type, id}, "choices", choice_id]) ||
+      raise("unknown choice #{inspect(choice_id)} on #{type}(#{id})")
+  end
+
+  defp valid_sub_choices(system, {scope_type, scope_id} = scope, choice_def, decisions) do
+    choice_type = choice_def["type"]
+    raw_options = build_sub_choice_options(choice_def, choice_type, system)
+
+    already_chosen =
+      decisions
+      |> Enum.filter(fn
+        %{scope: ^scope, choice: choice} ->
+          cd = get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice]) || %{}
+          cd["type"] == choice_type
+
+        _ ->
+          false
+      end)
+      |> MapSet.new(& &1.selection)
+
+    Enum.reject(raw_options, &MapSet.member?(already_chosen, &1))
+  end
+
+  defp fetch_pending!(state, temp_id) do
+    Map.get(state.pending, temp_id) || raise("no pending character: #{inspect(temp_id)}")
+  end
+
+  defp slugify_name(name) do
+    name
+    |> String.downcase()
+    |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
+    |> String.replace(" ", "_")
+  end
+
+  defp serialize_building_choices(%LoadedSystem{} = system) do
+    Enum.map(system.module.character_building_choices, fn cc ->
+      concept_type = cc.concept_type
+      template = find_display_template(system, concept_type)
+
+      root_ids = MapSet.new(Characters.root_concept_ids(system.concept_metadata, concept_type))
+
+      concepts =
+        system.concept_metadata
+        |> Enum.filter(fn {{type, id}, _} ->
+          type == concept_type and MapSet.member?(root_ids, id)
+        end)
+        |> Enum.sort_by(fn {{_type, id}, _} -> id end)
+        |> Enum.map(fn {{_type, id}, fields} ->
+          %{id: id, label: ConceptDisplay.render(template, fields, :default)}
+        end)
+
+      %{
+        concept_type: concept_type,
+        name:
+          Enum.find_value(
+            system.module.concept_types,
+            concept_type,
+            &(&1.id == concept_type && &1.name)
+          ),
+        concepts: concepts
+      }
     end)
   end
 

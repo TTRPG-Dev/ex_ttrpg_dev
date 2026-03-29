@@ -52,6 +52,7 @@ static COMMANDS: &[&str] = &[
     "systems list",
     "systems show",
     "characters gen",
+    "characters build",
     "characters list",
     "characters show",
     "characters roll",
@@ -72,7 +73,7 @@ static COMMANDS: &[&str] = &[
 ];
 
 // Commands where the next token after the subcommand is a system slug.
-static SYSTEM_COMMANDS: &[&str] = &["characters gen", "systems show"];
+static SYSTEM_COMMANDS: &[&str] = &["characters gen", "characters build", "systems show"];
 
 // Commands where the next token after the subcommand is a character slug.
 static SLUG_COMMANDS: &[&str] = &[

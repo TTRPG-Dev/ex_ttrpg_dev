@@ -921,7 +921,16 @@ defmodule ExTTRPGDev.Characters do
     end)
   end
 
-  defp root_concept_ids(concept_metadata, type_id) do
+  @doc """
+  Returns the IDs of root (non-sub) concepts of `type_id` from `concept_metadata`.
+
+  A concept is considered a sub-concept if its ID appears in the `options` list of
+  another concept's choice whose `type` matches `type_id` — for example, subclasses
+  like `"berserker"` appear in `barbarian`'s `choices.subclass.options`, so they are
+  excluded. Only the top-level selectable concepts (e.g. `"barbarian"`, `"wizard"`)
+  are returned.
+  """
+  def root_concept_ids(concept_metadata, type_id) do
     all_ids =
       concept_metadata
       |> Enum.filter(fn {{t, _}, _} -> t == type_id end)

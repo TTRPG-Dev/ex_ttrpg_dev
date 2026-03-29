@@ -24,6 +24,19 @@ pub(crate) fn prompt_integer(question: &str) -> Option<i64> {
     }
 }
 
+pub(crate) fn prompt_string(question: &str) -> Option<String> {
+    print!("{question} ");
+    let _ = std::io::Write::flush(&mut io::stdout());
+    let stdin = io::stdin();
+    match stdin.lock().lines().next() {
+        None | Some(Err(_)) => {
+            println!();
+            None
+        }
+        Some(Ok(line)) => Some(line),
+    }
+}
+
 pub(crate) fn prompt_yes_no(question: &str) -> Option<bool> {
     print!("(y/n) {question} ");
     let _ = std::io::Write::flush(&mut io::stdout());

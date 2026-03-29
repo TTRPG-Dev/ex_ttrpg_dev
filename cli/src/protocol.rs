@@ -92,13 +92,13 @@ pub(crate) struct SelectedConcept {
     pub(crate) label: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub(crate) struct OptionEntry {
     pub(crate) id: String,
     pub(crate) label: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub(crate) struct PendingChoice {
     #[serde(rename = "type")]
     pub(crate) choice_type: String,
@@ -189,6 +189,24 @@ pub(crate) struct ResolutionEntry {
     pub(crate) rolled_value: Option<i64>,
     pub(crate) method: Option<String>,
     pub(crate) earned_at_level: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct BuildStartResult {
+    pub(crate) temp_id: String,
+    pub(crate) building_choices: Vec<BuildingChoiceGroup>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct BuildingChoiceGroup {
+    pub(crate) concept_type: String,
+    pub(crate) name: String,
+    pub(crate) concepts: Vec<OptionEntry>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct BuildSubChoiceResult {
+    pub(crate) sub_choices: Vec<PendingChoice>,
 }
 
 #[cfg(test)]
