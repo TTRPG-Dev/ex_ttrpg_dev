@@ -148,6 +148,13 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end)
   end
 
+  test "load/1 preserves contributes list in concept_metadata" do
+    {:ok, data} = Loader.load(dnd_path())
+    meta = data.concept_metadata[{"race", "half_elf"}]
+    assert is_list(meta["contributes"])
+    assert Enum.all?(meta["contributes"], &(is_map(&1) and Map.has_key?(&1, "target")))
+  end
+
   test "load/1 expands metadata_contributions via label_filters into effects" do
     with_tmp_system(["class", "equipment"], fn dir ->
       write_label_filter_contribution_system(dir)
