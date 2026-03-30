@@ -213,6 +213,40 @@ pub fn run() {
         }
     };
 
+    println!("TTRPG Dev — interactive shell");
+    println!("Type `help` for available commands, `exit` to quit.\n");
+
+    let mut display_mode = DisplayMode::Default;
+
+    if std::env::var("TTRPG_NO_REEDLINE").is_ok() {
+        run_pipe(engine, &mut display_mode);
+        return;
+    }
+
+    run_reedline(engine, &mut display_mode);
+}
+
+fn run_pipe(engine: Arc<Mutex<Engine>>, display_mode: &mut DisplayMode) {
+    use std::io::BufRead;
+    loop {
+        let line = std::io::stdin().lock().lines().next();
+        match line {
+            None | Some(Err(_)) => break,
+            Some(Ok(l)) => {
+                let trimmed = l.trim().to_string();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if !handle_line(&trimmed, &mut engine.lock().unwrap(), display_mode) {
+                    println!("Goodbye!");
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn run_reedline(engine: Arc<Mutex<Engine>>, display_mode: &mut DisplayMode) {
     let history: Box<dyn reedline::History> = Box::new(
         crate::history::DeduplicatingHistory::with_file(1000, history_path()),
     );
@@ -241,11 +275,6 @@ pub fn run() {
 
     let prompt = TtrpgPrompt;
 
-    println!("TTRPG Dev — interactive shell");
-    println!("Type `help` for available commands, `exit` to quit.\n");
-
-    let mut display_mode = DisplayMode::Default;
-
     loop {
         match line_editor.read_line(&prompt) {
             Ok(Signal::Success(line)) => {
@@ -253,7 +282,7 @@ pub fn run() {
                 if trimmed.is_empty() {
                     continue;
                 }
-                if !handle_line(trimmed, &mut engine.lock().unwrap(), &mut display_mode) {
+                if !handle_line(trimmed, &mut engine.lock().unwrap(), display_mode) {
                     println!("Goodbye!");
                     break;
                 }

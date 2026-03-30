@@ -71,7 +71,7 @@ jobs:
       run: cargo clippy -- -D warnings
     - name: Test and coverage
       working-directory: cli
-      run: cargo llvm-cov --lcov --output-path lcov.info
+      run: cargo llvm-cov --lcov --output-path lcov.info --bin ttrpg-dev
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
@@ -91,3 +91,52 @@ jobs:
       uses: EmbarkStudios/cargo-deny-action@v2
       with:
         manifest-path: cli/Cargo.toml
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.19.5'
+        otp-version: '28.3.1'
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          cli/target
+        key: ${{ runner.os }}-cargo-integration-${{ hashFiles('cli/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-integration-
+    - name: Cache Mix deps
+      uses: actions/cache@v4
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+    - name: Install dependencies
+      run: mix deps.get
+    - name: Compile Elixir app
+      run: mix compile
+    - name: Build Rust CLI
+      working-directory: cli
+      run: cargo build
+    - name: Install engine dev wrapper
+      run: |
+        cat <<'EOF' > cli/target/debug/ttrpg-dev-engine
+        #!/usr/bin/env bash
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+        cd "$REPO_ROOT"
+        exec mix run --no-compile -e 'ExTTRPGDev.CLI.main(["--server"])' 2>/dev/null
+        EOF
+        chmod +x cli/target/debug/ttrpg-dev-engine
+    - name: Run integration tests
+      working-directory: cli
+      run: cargo test --test workflow
