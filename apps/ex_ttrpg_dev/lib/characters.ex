@@ -191,6 +191,147 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Returns the preparation cap for a character's class — the maximum number of
+  spells they may have prepared at once.
+
+  Evaluates the `preparation_cap` formula node for the given class concept.
+  Returns `{:ok, integer}` where the value is clamped to a minimum of 1, or
+  `{:error, :no_preparation_cap}` if the class does not define a cap node.
+  """
+  def preparation_cap(
+        %LoadedSystem{} = system,
+        %Character{} = character,
+        {class_type, class_id}
+      ) do
+    effects = active_effects(system, character)
+    resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+
+    case Map.fetch(resolved, {class_type, class_id, "preparation_cap"}) do
+      {:ok, val} -> {:ok, max(1, trunc(val))}
+      :error -> {:error, :no_preparation_cap}
+    end
+  end
+
+  @doc """
+  Returns spell IDs that are always prepared for a character due to their
+  subclass feature.
+
+  Reads the `always_prepared` list from the active subclass metadata and
+  filters it to spells with level <= the character's current `max_spell_level`.
+
+  The subclass is identified via the `"subclass"` choice on the class concept.
+  Always-prepared spells are not stored on the character — they are computed
+  at read time so that future subclass changes are reflected automatically.
+
+  Returns an empty list if the class has no subclass selected or the subclass
+  declares no `always_prepared` spells.
+  """
+  def always_prepared_spells(
+        %LoadedSystem{} = system,
+        %Character{} = character,
+        {class_type, class_id}
+      ) do
+    effects = active_effects(system, character)
+    resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+    max_level = trunc(resolved[{"character_trait", "max_spell_level", "level"}] || 0)
+    subclass_id = find_subclass(character.decisions, class_type, class_id)
+    do_always_prepared(system, class_type, subclass_id, max_level)
+  end
+
+  defp find_subclass(decisions, class_type, class_id) do
+    Enum.find_value(decisions, fn
+      %{scope: {^class_type, ^class_id}, choice: "subclass", selection: id} -> id
+      _ -> nil
+    end)
+  end
+
+  defp do_always_prepared(_system, _class_type, nil, _max_level), do: []
+  defp do_always_prepared(_system, _class_type, _subclass_id, 0), do: []
+
+  defp do_always_prepared(system, class_type, subclass_id, max_level) do
+    subclass_meta = Map.get(system.concept_metadata, {class_type, subclass_id}, %{})
+    always = Map.get(subclass_meta, "always_prepared", [])
+    Enum.filter(always, &spell_within_level?(system, &1, max_level))
+  end
+
+  defp spell_within_level?(system, spell_id, max_level) do
+    spell_meta = Map.get(system.concept_metadata, {"spell", spell_id}, %{})
+    Map.get(spell_meta, "level", 0) <= max_level
+  end
+
+  @doc """
+  Returns spell IDs eligible for preparation by a character's class.
+
+  The pool of eligible spells is determined by the class's `preparation_pool`
+  metadata field:
+
+  - `"class_spells"` — all spells of concept type `"spell"` whose `classes`
+    list includes `class_id`, with level between 1 and the character's current
+    `max_spell_level` (inclusive).
+  - `"spellbook"` — spells added to the character's spellbook via
+    `character_progression.spells_known` decisions, filtered to the current
+    `max_spell_level`.
+  - Any other value (or absent) — returns an empty list.
+
+  Always-prepared spells (from subclass features) are NOT excluded here; the
+  caller is responsible for tracking both lists separately.
+  """
+  def eligible_preparation_spells(
+        %LoadedSystem{} = system,
+        %Character{} = character,
+        {_class_type, class_id} = class_key
+      ) do
+    class_meta = Map.get(system.concept_metadata, class_key, %{})
+    pool = class_meta["preparation_pool"]
+
+    if pool do
+      effects = active_effects(system, character)
+      resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+      max_level = trunc(resolved[{"character_trait", "max_spell_level", "level"}] || 0)
+
+      case pool do
+        "class_spells" -> class_spells(system, class_id, max_level)
+        "spellbook" -> spellbook_spells(character, system, max_level)
+        _ -> []
+      end
+    else
+      []
+    end
+  end
+
+  defp class_spells(system, class_id, max_level) when max_level > 0 do
+    system.concept_metadata
+    |> Enum.filter(fn {{type, _id}, meta} ->
+      type == "spell" and
+        meta["level"] in 1..max_level and
+        class_id in (meta["classes"] || [])
+    end)
+    |> Enum.map(fn {{_type, id}, _} -> id end)
+    |> Enum.sort()
+  end
+
+  defp class_spells(_system, _class_id, _max_level), do: []
+
+  defp spellbook_spells(character, system, max_level) when max_level > 0 do
+    spellbook_ids =
+      character.decisions
+      |> Enum.filter(fn d -> d.scope == {"character_progression", "spells_known"} end)
+      |> Enum.map(& &1.selection)
+      |> MapSet.new()
+
+    system.concept_metadata
+    |> Enum.filter(fn {{type, id}, meta} ->
+      type == "spell" and
+        meta["level"] in 1..max_level and
+        MapSet.member?(spellbook_ids, id)
+    end)
+    |> Enum.map(fn {{_type, id}, _} -> id end)
+    |> Enum.sort()
+  end
+
+  defp spellbook_spells(_character, _system, _max_level), do: []
+
+  @doc """
   Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
 
   Walks the decisions tree starting from root decisions (scope: nil), adding each selected
