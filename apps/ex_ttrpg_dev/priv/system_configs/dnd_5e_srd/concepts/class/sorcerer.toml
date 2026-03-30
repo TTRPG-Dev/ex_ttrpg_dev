@@ -2,6 +2,7 @@
 name = "Sorcerer"
 hit_die = "d6"
 weapon_proficiencies = ["Dagger", "Dart", "Sling", "Quarterstaff", "Light Crossbow"]
+preparation_mode = "all"
 
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
