@@ -82,6 +82,8 @@ pub(crate) struct CharacterData {
     pub(crate) pending_choices: Option<Vec<PendingChoice>>,
     #[serde(default)]
     pub(crate) awarded_xp: Option<i64>,
+    #[serde(default)]
+    pub(crate) prepared_spells: Vec<String>,
 }
 
 #[derive(Deserialize)]

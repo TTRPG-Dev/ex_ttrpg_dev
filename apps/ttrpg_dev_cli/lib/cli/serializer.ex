@@ -55,7 +55,8 @@ defmodule ExTTRPGDev.CLI.Serializer do
       character_lists: serialize_character_lists(system, character, active, display_mode),
       concept_types:
         serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
-      selected_concepts: serialize_selected_concepts(system, character, display_mode)
+      selected_concepts: serialize_selected_concepts(system, character, display_mode),
+      prepared_spells: serialize_prepared_spells(system, character, display_mode)
     }
   end
 
@@ -233,6 +234,15 @@ defmodule ExTTRPGDev.CLI.Serializer do
       %{progression: progression_name, id: id, label: label}
     end)
     |> Enum.sort_by(fn %{progression: prog, label: label} -> {prog, label} end)
+  end
+
+  defp serialize_prepared_spells(system, %Character{} = character, display_mode) do
+    template = find_display_template(system, "spell")
+
+    Enum.map(character.prepared_spells, fn spell_id ->
+      meta = system.concept_metadata[{"spell", spell_id}] || %{"name" => spell_id}
+      ConceptDisplay.render(template, meta, display_mode)
+    end)
   end
 
   defp serialize_choices(%LoadedSystem{} = system, %Character{} = character) do

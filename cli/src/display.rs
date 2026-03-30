@@ -21,6 +21,9 @@ pub(crate) fn format_character(c: &CharacterData) -> String {
     }
     out.push_str(&format_character_lists(&c.character_lists));
     out.push_str(&format_selected_concepts(&c.selected_concepts));
+    if !c.prepared_spells.is_empty() {
+        writeln!(out, "Prepared Spells: {}", c.prepared_spells.join(", ")).unwrap();
+    }
     for ct in &c.concept_types {
         writeln!(out, "\n{}s:", ct.name).unwrap();
         for concept in &ct.concepts {
@@ -211,6 +214,7 @@ mod tests {
             selected_concepts: vec![],
             pending_choices: None,
             awarded_xp: None,
+            prepared_spells: vec![],
         }
     }
 
