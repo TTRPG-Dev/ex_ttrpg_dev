@@ -71,7 +71,7 @@ jobs:
       run: cargo clippy -- -D warnings
     - name: Test and coverage
       working-directory: cli
-      run: cargo llvm-cov --lcov --output-path lcov.info
+      run: cargo llvm-cov --lcov --output-path lcov.info --bin ttrpg-dev
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
