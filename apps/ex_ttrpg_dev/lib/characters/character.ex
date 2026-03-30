@@ -18,6 +18,9 @@ defmodule ExTTRPGDev.Characters.Character do
   - `pending_choice_slots` — list of `%{progression_id: string, earned_at_level: integer, max_level_cap: integer}`
     tracking unresolved selection slots with the max concept level available when they were earned
     (defaults to [])
+  - `prepared_spells` — list of spell concept IDs the player has manually prepared (defaults to []).
+    Only used for classes with `preparation_mode = "prepared"` (Cleric, Druid, Paladin, Wizard).
+    Always-prepared spells from subclass features are computed at read time and are not stored here.
   """
   @type t :: %__MODULE__{}
   defstruct [
@@ -27,7 +30,8 @@ defmodule ExTTRPGDev.Characters.Character do
     effects: [],
     decisions: [],
     inventory: [],
-    pending_choice_slots: []
+    pending_choice_slots: [],
+    prepared_spells: []
   ]
 
   @doc """
@@ -97,6 +101,7 @@ defmodule ExTTRPGDev.Characters.Character do
                                                } ->
           %{"progression_id" => pid, "earned_at_level" => level, "max_level_cap" => cap}
         end),
+      "prepared_spells" => char.prepared_spells,
       "metadata" => %{
         "slug" => char.metadata.slug,
         "rule_system" => char.metadata.rule_system
@@ -149,6 +154,7 @@ defmodule ExTTRPGDev.Characters.Character do
       inventory: inventory,
       decisions: decisions,
       pending_choice_slots: pending_choice_slots,
+      prepared_spells: map["prepared_spells"] || [],
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
         rule_system: map["metadata"]["rule_system"]
