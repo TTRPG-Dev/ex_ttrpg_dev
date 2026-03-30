@@ -69,21 +69,21 @@ fn gen_saves_character_and_it_appears_in_list() {
     );
 
     s.send_line("y").unwrap();
-    let saved = s.exp_string("Saved as").unwrap();
-    // The slug is on the same line as "Saved as"; grab everything after for cleanup.
-    let slug_hint = saved.trim().to_string();
+    // Extract the slug from "Saved as 'some-character-slug'." so we can
+    // assert it appears in the list and clean up the file afterwards.
+    let (_, save_line) = s.exp_regex(r"Saved as '[^']+'").unwrap();
+    let slug = save_line
+        .strip_prefix("Saved as '")
+        .and_then(|t| t.strip_suffix('\''))
+        .expect("unexpected Saved as format");
 
     s.send_line("characters list").unwrap();
-    s.exp_string("dnd_5e_srd").unwrap();
+    s.exp_string(slug).unwrap();
 
     s.send_line("exit").unwrap();
     s.exp_eof().unwrap();
 
-    // Best-effort cleanup: slug_hint contains any text before "Saved as",
-    // so find the slug from the list output instead.
-    // For now, remove any newly created characters from this test run.
-    // A more precise cleanup would parse the "Saved as 'slug'." line.
-    drop(slug_hint); // used only to show intent above
+    cleanup_character(slug);
 }
 
 // ── build workflow ────────────────────────────────────────────────────────────
