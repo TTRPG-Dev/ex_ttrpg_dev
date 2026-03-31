@@ -92,3 +92,10 @@ formula = "ability('charisma').modifier + class('paladin').half_level"
 
 [class.oath_of_devotion]
 name = "Oath of Devotion"
+always_prepared = [
+  "protection_from_evil_and_good", "sanctuary",
+  "lesser_restoration", "zone_of_truth",
+  "beacon_of_hope", "dispel_magic",
+  "freedom_of_movement", "guardian_of_faith",
+  "commune", "flame_strike",
+]

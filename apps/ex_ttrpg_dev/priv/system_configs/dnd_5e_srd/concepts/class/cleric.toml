@@ -113,3 +113,10 @@ formula = "ability('wisdom').modifier + character_trait('character_level').level
 [class.life_domain]
 name = "Life Domain"
 armor_proficiencies = ["Heavy Armor"]
+always_prepared = [
+  "bless", "cure_wounds",
+  "lesser_restoration", "spiritual_weapon",
+  "beacon_of_hope", "revivify",
+  "death_ward", "guardian_of_faith",
+  "mass_cure_wounds", "raise_dead",
+]
