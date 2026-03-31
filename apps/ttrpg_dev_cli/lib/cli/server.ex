@@ -458,11 +458,13 @@ defmodule ExTTRPGDev.CLI.Server do
 
           validate_concept_selection!(selection, options)
 
-          %{
+          with_decision = %{
             character
             | decisions: character.decisions ++ [decision],
               pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
           }
+
+          apply_inventory_addition!(system, with_decision, progression_id, selection)
         else
           value = Map.fetch!(msg, "value")
           unless is_integer(value), do: raise("value must be an integer")
@@ -782,6 +784,13 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp format_activate_error(:no_preparation_cap), do: "class has no preparation cap"
   defp format_activate_error(reason), do: inspect(reason)
+
+  defp apply_inventory_addition!(system, character, progression_id, selection) do
+    case Characters.add_to_typed_inventory(system, character, progression_id, selection) do
+      {:ok, result} -> result
+      {:error, reason} -> raise("failed to add to inventory: #{inspect(reason)}")
+    end
+  end
 
   defp resolve_character(%LoadedSystem{} = system, %Character{} = character) do
     system
