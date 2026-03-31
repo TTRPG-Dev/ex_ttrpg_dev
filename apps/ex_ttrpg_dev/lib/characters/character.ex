@@ -1,7 +1,7 @@
 defmodule ExTTRPGDev.Characters.Character do
   alias __MODULE__
+  alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
-  alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 

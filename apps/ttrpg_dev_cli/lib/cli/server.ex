@@ -40,10 +40,10 @@ defmodule ExTTRPGDev.CLI.Server do
   `characters.save` is called or the server exits.
   """
 
+  alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.ConceptDisplay
-  alias ExTTRPGDev.Dice
   alias ExTTRPGDev.RuleSystem.{Evaluator, InventoryRules}
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
