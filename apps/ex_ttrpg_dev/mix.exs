@@ -45,7 +45,8 @@ defmodule ExTTRPGDev.MixProject do
       {:faker, "~> 0.18"},
       {:toml_elixir, "~> 3.1"},
       {:abacus, "~> 2.1"},
-      {:libgraph, "~> 0.16"}
+      {:libgraph, "~> 0.16"},
+      {:dice_lib, "~>0.1"}
     ]
   end
 
