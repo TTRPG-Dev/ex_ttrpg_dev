@@ -9,6 +9,7 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
@@ -330,6 +331,96 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp spellbook_spells(_character, _system, _max_level), do: []
+
+  @doc """
+  Activates or prepares items of the given inventory type for a character.
+
+  For preparation-managed types (e.g. spell): validates `item_ids` against the
+  eligible pool and preparation cap, then updates the character's inventory to
+  reflect the new prepared state. Items not in `item_ids` are deactivated or
+  removed depending on the pool's management strategy.
+
+  Returns `{:ok, updated_character}` or `{:error, reason}`.
+  """
+  def activate(%LoadedSystem{} = system, %Character{} = character, type_id, item_ids) do
+    case InventoryRules.type_config(system.inventory_rules, type_id) do
+      nil ->
+        {:error, {:unknown_inventory_type, type_id}}
+
+      %{preparation: nil} ->
+        {:error, {:not_a_preparation_type, type_id}}
+
+      %{preparation: prep, activation_field: activation_field} ->
+        with {:ok, {class_type, class_id} = class_key} <-
+               find_prep_class_for_activate(character, system, prep),
+             mode = get_in(system.concept_metadata, [class_key, prep.mode_field]),
+             :ok <- require_prepared_mode_for_activate(mode),
+             effects = active_effects(system, character),
+             resolved = Evaluator.evaluate!(system, character.generated_values, effects),
+             {:ok, cap} <- resolve_activation_cap(resolved, class_type, class_id, prep),
+             max_level = trunc(resolved[prep.max_level_node] || 0),
+             pool_name = get_in(system.concept_metadata, [class_key, prep.pool_field]),
+             {:ok, pool_config} <- fetch_pool_config(prep, pool_name),
+             ctx = %{
+               type_id: type_id,
+               class_id: class_id,
+               max_level: max_level,
+               level_field: prep.level_field
+             },
+             eligible = compute_eligible_pool(system, character, pool_config, ctx),
+             :ok <- validate_eligible_items(item_ids, eligible),
+             :ok <- validate_cap_limit(item_ids, cap) do
+          apply_activation(
+            character,
+            type_id,
+            item_ids,
+            system.inventory_rules,
+            activation_field,
+            pool_config
+          )
+        end
+    end
+  end
+
+  @doc """
+  Adds a concept to the appropriate typed inventory when a qualifying character
+  progression is resolved.
+
+  Looks up the inventory type that lists `progression_id` in `add_on_progression`.
+  If none matches, returns `{:ok, character}` unchanged.
+
+  The initial activation value is determined by:
+  1. Per-progression `auto_activate` flag (e.g. cantrips — always `true`)
+  2. The `auto_activate_when` class condition (e.g. Bard `preparation_mode: "all"`)
+  3. Default: `false`
+
+  Returns `{:ok, updated_character}` or `{:error, reason}`.
+  """
+  def add_to_typed_inventory(
+        %LoadedSystem{} = system,
+        %Character{} = character,
+        progression_id,
+        concept_id
+      ) do
+    case InventoryRules.type_for_progression(system.inventory_rules, progression_id) do
+      nil ->
+        {:ok, character}
+
+      {type_id, prog_config} ->
+        type_config = InventoryRules.type_config(system.inventory_rules, type_id)
+        activated = resolve_auto_activate(system, character, prog_config, type_config)
+
+        initial_fields =
+          if activated and type_config.activation_field,
+            do: %{type_config.activation_field => true},
+            else: %{}
+
+        case InventoryItem.new(type_id, concept_id, system.inventory_rules, initial_fields) do
+          {:ok, item} -> {:ok, %{character | inventory: character.inventory ++ [item]}}
+          error -> error
+        end
+    end
+  end
 
   @doc """
   Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
@@ -1172,5 +1263,169 @@ defmodule ExTTRPGDev.Characters do
       end
 
     Evaluator.evaluate!(system, character.generated_values, level_effects)
+  end
+
+  # --- activate/4 helpers ---
+
+  defp find_prep_class_for_activate(character, system, prep) do
+    result =
+      Enum.find_value(system.module.character_building_choices, fn %{concept_type: type_id} ->
+        find_prep_concept(character.decisions, system.concept_metadata, type_id, prep.mode_field)
+      end)
+
+    if result, do: {:ok, result}, else: {:error, :no_preparation_class}
+  end
+
+  defp find_prep_concept(decisions, concept_metadata, type_id, mode_field) do
+    Enum.find_value(decisions, fn
+      %{scope: nil, choice: ^type_id, selection: concept_id} ->
+        meta = Map.get(concept_metadata, {type_id, concept_id}, %{})
+        if Map.has_key?(meta, mode_field), do: {type_id, concept_id}, else: nil
+
+      _ ->
+        nil
+    end)
+  end
+
+  defp require_prepared_mode_for_activate("prepared"), do: :ok
+  defp require_prepared_mode_for_activate(mode), do: {:error, {:mode_not_prepared, mode}}
+
+  defp resolve_activation_cap(resolved, class_type, class_id, prep) do
+    case Map.fetch(resolved, {class_type, class_id, prep.cap_field}) do
+      {:ok, val} -> {:ok, max(1, trunc(val))}
+      :error -> {:error, :no_preparation_cap}
+    end
+  end
+
+  defp fetch_pool_config(prep, pool_name) when is_binary(pool_name) do
+    case Map.fetch(prep.pools, pool_name) do
+      {:ok, config} -> {:ok, config}
+      :error -> {:error, {:unknown_pool, pool_name}}
+    end
+  end
+
+  defp fetch_pool_config(_prep, _), do: {:error, :no_pool_configured}
+
+  # ctx: %{type_id, class_id, max_level, level_field}
+  defp compute_eligible_pool(system, character, pool_config, ctx) when ctx.max_level > 0 do
+    case pool_config.management do
+      "add_remove" ->
+        add_remove_eligible(system.concept_metadata, pool_config, ctx)
+
+      "toggle_field" ->
+        toggle_field_eligible(character.decisions, system.concept_metadata, pool_config, ctx)
+
+      _ ->
+        []
+    end
+  end
+
+  defp compute_eligible_pool(_system, _character, _pool_config, _ctx), do: []
+
+  defp add_remove_eligible(concept_metadata, pool_config, ctx) do
+    %{type_id: type_id, class_id: class_id, max_level: max_level, level_field: level_field} = ctx
+    filter_field = pool_config.class_filter_field
+
+    concept_metadata
+    |> Enum.filter(fn {{type, _id}, meta} ->
+      type == type_id and meta[level_field] in 1..max_level and
+        class_id in (meta[filter_field] || [])
+    end)
+    |> Enum.map(fn {{_type, id}, _} -> id end)
+  end
+
+  defp toggle_field_eligible(decisions, concept_metadata, pool_config, ctx) do
+    %{type_id: type_id, max_level: max_level, level_field: level_field} = ctx
+    scope = {pool_config.scope_type, pool_config.scope_id}
+    spellbook_ids = decisions |> Enum.filter(&(&1.scope == scope)) |> MapSet.new(& &1.selection)
+
+    concept_metadata
+    |> Enum.filter(fn {{type, id}, meta} ->
+      type == type_id and meta[level_field] in 1..max_level and MapSet.member?(spellbook_ids, id)
+    end)
+    |> Enum.map(fn {{_type, id}, _} -> id end)
+  end
+
+  defp validate_eligible_items(item_ids, eligible) do
+    eligible_set = MapSet.new(eligible)
+    invalid = Enum.reject(item_ids, &MapSet.member?(eligible_set, &1))
+    if Enum.empty?(invalid), do: :ok, else: {:error, {:ineligible_items, invalid}}
+  end
+
+  defp validate_cap_limit(item_ids, cap) do
+    if length(item_ids) <= cap,
+      do: :ok,
+      else: {:error, {:exceeds_cap, length(item_ids), cap}}
+  end
+
+  defp apply_activation(character, type_id, item_ids, inv_rules, activation_field, %{
+         management: "add_remove"
+       }) do
+    other_items = Enum.reject(character.inventory, &(&1.concept_type == type_id))
+
+    new_items =
+      Enum.flat_map(item_ids, fn id ->
+        case InventoryItem.new(type_id, id, inv_rules, %{activation_field => true}) do
+          {:ok, item} -> [item]
+          _ -> []
+        end
+      end)
+
+    {:ok, %{character | inventory: other_items ++ new_items}}
+  end
+
+  defp apply_activation(character, type_id, item_ids, _inv_rules, activation_field, %{
+         management: "toggle_field"
+       }) do
+    prepared_set = MapSet.new(item_ids)
+
+    updated_inventory =
+      Enum.map(character.inventory, fn item ->
+        if item.concept_type == type_id do
+          %{
+            item
+            | fields:
+                Map.put(
+                  item.fields,
+                  activation_field,
+                  MapSet.member?(prepared_set, item.concept_id)
+                )
+          }
+        else
+          item
+        end
+      end)
+
+    {:ok, %{character | inventory: updated_inventory}}
+  end
+
+  # --- add_to_typed_inventory/4 helpers ---
+
+  defp resolve_auto_activate(_system, _character, %{auto_activate: true}, _type_config), do: true
+
+  defp resolve_auto_activate(system, character, %{auto_activate: false}, type_config) do
+    case type_config && type_config.preparation do
+      %{auto_activate_when_field: field, auto_activate_when_value: value}
+      when not is_nil(field) ->
+        auto_activate_when_met?(system, character, field, value)
+
+      _ ->
+        false
+    end
+  end
+
+  defp auto_activate_when_met?(system, character, field, expected_value) do
+    choices = if system.module, do: system.module.character_building_choices, else: []
+
+    Enum.any?(choices, fn %{concept_type: class_type} ->
+      Enum.any?(character.decisions, fn
+        %{scope: nil, choice: ^class_type, selection: class_id} ->
+          meta = Map.get(system.concept_metadata, {class_type, class_id}, %{})
+          meta[field] == expected_value
+
+        _ ->
+          false
+      end)
+    end)
   end
 end
