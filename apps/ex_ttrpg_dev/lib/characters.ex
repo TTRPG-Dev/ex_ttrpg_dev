@@ -2,10 +2,10 @@ defmodule ExTTRPGDev.Characters do
   @moduledoc """
   This module handles handles character operations
   """
+  alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Characters.InventoryItem
-  alias ExTTRPGDev.Dice
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
