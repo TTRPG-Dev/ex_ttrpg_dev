@@ -10,8 +10,8 @@ use crate::prompts::{
 };
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
-    ChoicesResponse, ConceptDetail, ConceptRollResult, InventoryResponse, OptionEntry,
-    PendingChoice, RandomResolveResult, RollResult, SaveResult, SpellsResponse,
+    ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice,
+    RandomResolveResult, RollResult, SaveResult, SpellsResponse,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -714,20 +714,8 @@ fn handle_characters_spells(slug: &str, engine: &mut Engine) {
 fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) {
     let req =
         json!({"command": "characters.activate", "character": slug, "verb": verb, "items": items});
-    match engine.call::<_, InventoryResponse>(&req) {
-        Ok(r) => {
-            let activated = r
-                .inventory
-                .iter()
-                .filter(|item| {
-                    item.fields
-                        .as_object()
-                        .map(|m| m.values().any(|v| v == &serde_json::Value::Bool(true)))
-                        .unwrap_or(false)
-                })
-                .count();
-            println!("{activated} item(s) active.");
-        }
+    match engine.call::<_, serde_json::Value>(&req) {
+        Ok(_) => println!("Done."),
         Err(e) => eprintln!("Error: {e}"),
     }
 }
