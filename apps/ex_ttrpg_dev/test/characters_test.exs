@@ -2,7 +2,9 @@ defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   doctest ExTTRPGDev.Characters,
     except: [
@@ -1164,6 +1166,268 @@ defmodule ExTTRPGDevTest.Characters do
         assert is_integer(r.rolled_value) and r.rolled_value > 0
         assert r.method in ["rolled", "average"]
       end)
+    end
+  end
+
+  describe "activate/4" do
+    defp spell_inv_rules do
+      {:ok, rules} =
+        InventoryRules.from_map(%{
+          "inventory_type" => %{
+            "equipment" => %{
+              "activation_field" => "equipped",
+              "schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+            },
+            "spell" => %{
+              "activation_field" => "prepared",
+              "activate_command" => "prepare",
+              "schema" => %{"prepared" => %{"type" => "boolean", "default" => false}},
+              "add_on_progression" => [
+                %{"progression" => "cantrips", "auto_activate" => true},
+                %{"progression" => "spells_known"}
+              ],
+              "preparation" => %{
+                "mode_field" => "preparation_mode",
+                "pool_field" => "preparation_pool",
+                "cap_field" => "preparation_cap",
+                "level_field" => "level",
+                "max_level_node" => ["character_trait", "max_spell_level", "level"],
+                "auto_activate_when" => %{
+                  "class_field" => "preparation_mode",
+                  "class_value" => "all"
+                },
+                "pool" => %{
+                  "spellbook" => %{
+                    "scope_type" => "character_progression",
+                    "scope_id" => "spells_known",
+                    "management" => "toggle_field"
+                  }
+                }
+              }
+            }
+          }
+        })
+
+      rules
+    end
+
+    defp spell_system(concept_metadata \\ %{}) do
+      %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}]},
+        graph: nil,
+        nodes: %{},
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+    end
+
+    test "returns error for unknown inventory type" do
+      assert {:error, {:unknown_inventory_type, "weapon"}} =
+               Characters.activate(spell_system(), minimal_character([]), "weapon", [])
+    end
+
+    test "returns error for non-preparation type" do
+      assert {:error, {:not_a_preparation_type, "equipment"}} =
+               Characters.activate(spell_system(), minimal_character([]), "equipment", [])
+    end
+
+    test "returns error when no class decision has preparation mode" do
+      assert {:error, :no_preparation_class} =
+               Characters.activate(spell_system(), minimal_character([]), "spell", [])
+    end
+
+    test "returns error when class preparation mode is not prepared" do
+      meta = %{{"class", "bard"} => %{"preparation_mode" => "all"}}
+      character = minimal_character([%{scope: nil, choice: "class", selection: "bard"}])
+
+      assert {:error, {:mode_not_prepared, "all"}} =
+               Characters.activate(spell_system(meta), character, "spell", [])
+    end
+
+    test "toggle_field: sets prepared true for listed items and false for others" do
+      nodes = %{
+        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+      }
+
+      concept_metadata = %{
+        {"class", "wizard"} => %{
+          "preparation_mode" => "prepared",
+          "preparation_pool" => "spellbook"
+        },
+        {"spell", "fire_bolt"} => %{"level" => 1},
+        {"spell", "cure_wounds"} => %{"level" => 1}
+      }
+
+      {:ok, built} =
+        ExTTRPGDev.RuleSystem.Graph.build(%{
+          nodes: nodes,
+          effects: [],
+          concept_metadata: concept_metadata,
+          rolling_methods: %{}
+        })
+
+      system = %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}]},
+        graph: built.graph,
+        nodes: built.nodes,
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+
+      decisions = [
+        %{scope: nil, choice: "class", selection: "wizard"},
+        %{
+          scope: {"character_progression", "spells_known"},
+          choice: "choice_1",
+          selection: "fire_bolt"
+        },
+        %{
+          scope: {"character_progression", "spells_known"},
+          choice: "choice_2",
+          selection: "cure_wounds"
+        }
+      ]
+
+      inventory = [
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "fire_bolt",
+          fields: %{"prepared" => false}
+        },
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "cure_wounds",
+          fields: %{"prepared" => false}
+        }
+      ]
+
+      character = %{minimal_character(decisions) | inventory: inventory}
+
+      assert {:ok, updated} = Characters.activate(system, character, "spell", ["fire_bolt"])
+
+      assert Enum.find(updated.inventory, &(&1.concept_id == "fire_bolt")).fields["prepared"] ==
+               true
+
+      assert Enum.find(updated.inventory, &(&1.concept_id == "cure_wounds")).fields["prepared"] ==
+               false
+    end
+  end
+
+  describe "add_to_typed_inventory/4" do
+    test "returns character unchanged when progression has no inventory type" do
+      {:ok, inv_rules} = InventoryRules.from_map(%{})
+
+      system = %LoadedSystem{
+        module: nil,
+        graph: nil,
+        nodes: %{},
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: %{},
+        inventory_rules: inv_rules
+      }
+
+      character = minimal_character([])
+
+      assert {:ok, ^character} =
+               Characters.add_to_typed_inventory(system, character, "spells_known", "fire_bolt")
+    end
+
+    test "determines initial activation from progression config and class condition" do
+      meta = %{{"class", "bard"} => %{"preparation_mode" => "all"}}
+      bard_char = minimal_character([%{scope: nil, choice: "class", selection: "bard"}])
+
+      {:ok, cantrip_char} =
+        Characters.add_to_typed_inventory(
+          spell_system(),
+          minimal_character([]),
+          "cantrips",
+          "fire_bolt"
+        )
+
+      {:ok, spell_char} =
+        Characters.add_to_typed_inventory(
+          spell_system(),
+          minimal_character([]),
+          "spells_known",
+          "cure_wounds"
+        )
+
+      {:ok, bard_spell_char} =
+        Characters.add_to_typed_inventory(
+          spell_system(meta),
+          bard_char,
+          "spells_known",
+          "vicious_mockery"
+        )
+
+      assert hd(cantrip_char.inventory).fields["prepared"] == true
+      assert hd(spell_char.inventory).fields["prepared"] == false
+      assert hd(bard_spell_char.inventory).fields["prepared"] == true
+    end
+  end
+
+  describe "preparation_state/3" do
+    test "returns error, nil mode, and structured state across cases" do
+      nodes = %{
+        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+      }
+
+      concept_metadata = %{
+        {"class", "wizard"} => %{
+          "preparation_mode" => "prepared",
+          "preparation_pool" => "spellbook"
+        },
+        {"spell", "fire_bolt"} => %{"level" => 1}
+      }
+
+      {:ok, built} =
+        ExTTRPGDev.RuleSystem.Graph.build(%{
+          nodes: nodes,
+          effects: [],
+          concept_metadata: concept_metadata,
+          rolling_methods: %{}
+        })
+
+      full_system = %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}]},
+        graph: built.graph,
+        nodes: built.nodes,
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+
+      decisions = [
+        %{scope: nil, choice: "class", selection: "wizard"},
+        %{scope: {"character_progression", "spells_known"}, choice: "c1", selection: "fire_bolt"}
+      ]
+
+      inventory = [
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "fire_bolt",
+          fields: %{"prepared" => true}
+        }
+      ]
+
+      character = %{minimal_character(decisions) | inventory: inventory}
+
+      assert {:error, {:unknown_inventory_type, "weapon"}} =
+               Characters.preparation_state(spell_system(), minimal_character([]), "weapon")
+
+      assert {:ok, %{mode: nil}} =
+               Characters.preparation_state(spell_system(), minimal_character([]), "spell")
+
+      assert {:ok, %{mode: "prepared", cap: 3, prepared: ["fire_bolt"]}} =
+               Characters.preparation_state(full_system, character, "spell")
     end
   end
 end
