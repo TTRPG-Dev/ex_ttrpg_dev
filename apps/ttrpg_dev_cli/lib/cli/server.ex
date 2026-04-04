@@ -762,9 +762,9 @@ defmodule ExTTRPGDev.CLI.Server do
        }) do
     base = %{
       preparation_mode: mode,
-      eligible_spells: eligible,
-      prepared_spells: prepared,
-      always_prepared: always
+      eligible_items: eligible,
+      prepared_items: prepared,
+      always_active: always
     }
 
     if cap, do: Map.put(base, :cap, cap), else: base

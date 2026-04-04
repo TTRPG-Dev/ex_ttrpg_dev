@@ -220,11 +220,11 @@ pub(crate) struct PreparationStateResponse {
     pub(crate) preparation_mode: Option<String>,
     pub(crate) cap: Option<i64>,
     #[serde(default)]
-    pub(crate) eligible_spells: Vec<String>,
+    pub(crate) eligible_items: Vec<String>,
     #[serde(default)]
-    pub(crate) prepared_spells: Vec<String>,
+    pub(crate) prepared_items: Vec<String>,
     #[serde(default)]
-    pub(crate) always_prepared: Vec<String>,
+    pub(crate) always_active: Vec<String>,
 }
 
 #[cfg(test)]
@@ -328,14 +328,14 @@ mod tests {
         let json = r#"{
             "preparation_mode": "prepared",
             "cap": 5,
-            "eligible_spells": ["bless","cure_wounds","guiding_bolt"],
-            "prepared_spells": ["bless","cure_wounds"],
-            "always_prepared": ["sacred_flame"]
+            "eligible_items": ["bless","cure_wounds","guiding_bolt"],
+            "prepared_items": ["bless","cure_wounds"],
+            "always_active": ["sacred_flame"]
         }"#;
         let r: PreparationStateResponse = serde_json::from_str(json).unwrap();
         assert_eq!(r.preparation_mode.as_deref(), Some("prepared"));
-        assert_eq!(r.prepared_spells, vec!["bless", "cure_wounds"]);
-        assert_eq!(r.always_prepared, vec!["sacred_flame"]);
+        assert_eq!(r.prepared_items, vec!["bless", "cure_wounds"]);
+        assert_eq!(r.always_active, vec!["sacred_flame"]);
     }
 
     #[test]
@@ -344,6 +344,6 @@ mod tests {
         let r: PreparationStateResponse = serde_json::from_str(json).unwrap();
         assert!(r.preparation_mode.is_none());
         assert!(r.cap.is_none());
-        assert!(r.eligible_spells.is_empty());
+        assert!(r.eligible_items.is_empty());
     }
 }

@@ -139,28 +139,28 @@ pub(crate) fn print_spells(r: &PreparationStateResponse) {
         Some("all") => {
             println!(
                 "All {} spell(s) prepared (no manual preparation needed).",
-                r.prepared_spells.len()
+                r.prepared_items.len()
             );
-            if !r.always_prepared.is_empty() {
-                println!("Always prepared: {}", r.always_prepared.join(", "));
+            if !r.always_active.is_empty() {
+                println!("Always prepared: {}", r.always_active.join(", "));
             }
-            if !r.prepared_spells.is_empty() {
-                println!("Prepared: {}", r.prepared_spells.join(", "));
+            if !r.prepared_items.is_empty() {
+                println!("Prepared: {}", r.prepared_items.join(", "));
             }
         }
         Some("prepared") => {
-            let prepared = r.prepared_spells.len();
+            let prepared = r.prepared_items.len();
             let cap = r.cap.unwrap_or(0);
             println!("Prepared spells: {prepared}/{cap}");
-            if !r.always_prepared.is_empty() {
-                println!("Always prepared: {}", r.always_prepared.join(", "));
+            if !r.always_active.is_empty() {
+                println!("Always prepared: {}", r.always_active.join(", "));
             }
-            if !r.prepared_spells.is_empty() {
-                println!("Prepared: {}", r.prepared_spells.join(", "));
+            if !r.prepared_items.is_empty() {
+                println!("Prepared: {}", r.prepared_items.join(", "));
             } else {
                 println!("Prepared: (none)");
             }
-            println!("Eligible pool: {} spell(s)", r.eligible_spells.len());
+            println!("Eligible pool: {} spell(s)", r.eligible_items.len());
         }
         Some(mode) => {
             println!("Preparation mode: {mode}");
