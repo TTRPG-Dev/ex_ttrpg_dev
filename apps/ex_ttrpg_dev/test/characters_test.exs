@@ -1371,4 +1371,63 @@ defmodule ExTTRPGDevTest.Characters do
       assert hd(bard_spell_char.inventory).fields["prepared"] == true
     end
   end
+
+  describe "preparation_state/3" do
+    test "returns error, nil mode, and structured state across cases" do
+      nodes = %{
+        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+      }
+
+      concept_metadata = %{
+        {"class", "wizard"} => %{
+          "preparation_mode" => "prepared",
+          "preparation_pool" => "spellbook"
+        },
+        {"spell", "fire_bolt"} => %{"level" => 1}
+      }
+
+      {:ok, built} =
+        ExTTRPGDev.RuleSystem.Graph.build(%{
+          nodes: nodes,
+          effects: [],
+          concept_metadata: concept_metadata,
+          rolling_methods: %{}
+        })
+
+      full_system = %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}]},
+        graph: built.graph,
+        nodes: built.nodes,
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+
+      decisions = [
+        %{scope: nil, choice: "class", selection: "wizard"},
+        %{scope: {"character_progression", "spells_known"}, choice: "c1", selection: "fire_bolt"}
+      ]
+
+      inventory = [
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "fire_bolt",
+          fields: %{"prepared" => true}
+        }
+      ]
+
+      character = %{minimal_character(decisions) | inventory: inventory}
+
+      assert {:error, {:unknown_inventory_type, "weapon"}} =
+               Characters.preparation_state(spell_system(), minimal_character([]), "weapon")
+
+      assert {:ok, %{mode: nil}} =
+               Characters.preparation_state(spell_system(), minimal_character([]), "spell")
+
+      assert {:ok, %{mode: "prepared", cap: 3, prepared: ["fire_bolt"]}} =
+               Characters.preparation_state(full_system, character, "spell")
+    end
+  end
 end

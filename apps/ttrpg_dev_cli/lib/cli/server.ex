@@ -31,7 +31,8 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "chain_mail", "fields": {"equipped": true}}
       {"command": "characters.inventory.set", "character": "thorin-stoneback", "index": 0, "field": "equipped", "value": true}
       {"command": "characters.spells", "character": "thorin-stoneback"}
-      {"command": "characters.prepare", "character": "thorin-stoneback", "spells": ["bless", "cure_wounds"]}
+      {"command": "characters.activate", "character": "thorin-stoneback", "verb": "prepare", "items": ["bless", "cure_wounds"]}
+      {"command": "characters.activate", "character": "thorin-stoneback", "verb": "equip", "items": [0]}
 
   Each response is a single line of JSON:
 
@@ -46,8 +47,7 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
-  alias ExTTRPGDev.CLI.SpellPrep
-  alias ExTTRPGDev.RuleSystem.Evaluator
+  alias ExTTRPGDev.RuleSystem.{Evaluator, InventoryRules}
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -684,22 +684,59 @@ defmodule ExTTRPGDev.CLI.Server do
 
   # --- Spell preparation ---
 
-  defp handle(%{"command" => cmd, "character" => slug} = msg, state)
-       when cmd in ["characters.spells", "characters.prepare"] do
+  defp handle(%{"command" => "characters.spells", "character" => slug}, state) do
     try do
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
       result =
-        if cmd == "characters.spells" do
-          {:ok, SpellPrep.query(system, character)}
-        else
-          SpellPrep.prepare(system, character, Map.fetch!(msg, "spells"))
+        case InventoryRules.preparation_types(system.inventory_rules) do
+          [] ->
+            {:ok, %{preparation_mode: nil}}
+
+          [{type_id, _} | _] ->
+            case Characters.preparation_state(system, character, type_id) do
+              {:ok, %{mode: nil}} -> {:ok, %{preparation_mode: nil}}
+              {:ok, s} -> {:ok, format_prep_response(s)}
+              error -> error
+            end
         end
 
       case result do
         {:ok, data} -> {ok(data), state}
-        {:error, reason} -> {error(reason), state}
+        {:error, reason} -> {error(inspect(reason)), state}
+      end
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  defp handle(
+         %{
+           "command" => "characters.activate",
+           "character" => slug,
+           "verb" => verb,
+           "items" => item_ids
+         },
+         state
+       ) do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      case InventoryRules.type_for_activate_command(system.inventory_rules, verb) do
+        nil ->
+          {error("unknown activate verb: #{inspect(verb)}"), state}
+
+        {type_id, _config} ->
+          case Characters.activate(system, character, type_id, item_ids) do
+            {:ok, updated} ->
+              Characters.save_character!(updated, true)
+              {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+
+            {:error, reason} ->
+              {error(format_activate_error(reason)), state}
+          end
       end
     rescue
       e -> {error(Exception.message(e)), state}
@@ -713,6 +750,38 @@ defmodule ExTTRPGDev.CLI.Server do
   defp handle(_, state) do
     {error("request must have a \"command\" field"), state}
   end
+
+  defp format_prep_response(%{
+         mode: mode,
+         cap: cap,
+         eligible: eligible,
+         always_prepared: always,
+         prepared: prepared
+       }) do
+    base = %{
+      preparation_mode: mode,
+      eligible_spells: eligible,
+      prepared_spells: prepared,
+      always_prepared: always
+    }
+
+    if cap, do: Map.put(base, :cap, cap), else: base
+  end
+
+  defp format_activate_error({:ineligible_items, ids}),
+    do: "ineligible items: #{Enum.join(ids, ", ")}"
+
+  defp format_activate_error({:exceeds_cap, count, cap}),
+    do: "cannot prepare more than #{cap} (given: #{count})"
+
+  defp format_activate_error({:mode_not_prepared, _}),
+    do: "spells for this class are not manually prepared"
+
+  defp format_activate_error(:no_preparation_class),
+    do: "no class with preparation_mode found for this character"
+
+  defp format_activate_error(:no_preparation_cap), do: "class has no preparation cap"
+  defp format_activate_error(reason), do: inspect(reason)
 
   defp resolve_character(%LoadedSystem{} = system, %Character{} = character) do
     system
