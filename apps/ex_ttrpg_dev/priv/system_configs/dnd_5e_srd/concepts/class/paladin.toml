@@ -84,7 +84,7 @@ value = "class('paladin').asi_slots"
 [class.paladin.half_level]
 type = "mapping"
 input = "character_trait('character_level').level"
-steps = [[1, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
+steps = [[1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
 
 [class.paladin.preparation_cap]
 type = "formula"
