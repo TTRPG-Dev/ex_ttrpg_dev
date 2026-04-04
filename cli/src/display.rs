@@ -4,7 +4,7 @@
 
 use crate::protocol::{
     CharacterData, CharacterListCategory, CharacterSummary, ConceptsList, InventoryItemData,
-    PendingChoice, SelectedConcept, SpellsResponse, SystemInfo,
+    PendingChoice, PreparationStateResponse, SelectedConcept, SystemInfo,
 };
 
 pub(crate) fn format_character(c: &CharacterData) -> String {
@@ -131,7 +131,7 @@ pub(crate) fn print_characters_list(characters: &[CharacterSummary], empty_msg: 
     }
 }
 
-pub(crate) fn print_spells(r: &SpellsResponse) {
+pub(crate) fn print_spells(r: &PreparationStateResponse) {
     match r.preparation_mode.as_deref() {
         None | Some("") => {
             println!("No spellcasting class found for this character.");

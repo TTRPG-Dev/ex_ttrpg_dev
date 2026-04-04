@@ -216,7 +216,7 @@ pub(crate) struct ConceptDetail {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct SpellsResponse {
+pub(crate) struct PreparationStateResponse {
     pub(crate) preparation_mode: Option<String>,
     pub(crate) cap: Option<i64>,
     #[serde(default)]
@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_spells_response_prepared_mode() {
+    fn deserialize_preparation_state_prepared_mode() {
         let json = r#"{
             "preparation_mode": "prepared",
             "cap": 5,
@@ -332,16 +332,16 @@ mod tests {
             "prepared_spells": ["bless","cure_wounds"],
             "always_prepared": ["sacred_flame"]
         }"#;
-        let r: SpellsResponse = serde_json::from_str(json).unwrap();
+        let r: PreparationStateResponse = serde_json::from_str(json).unwrap();
         assert_eq!(r.preparation_mode.as_deref(), Some("prepared"));
         assert_eq!(r.prepared_spells, vec!["bless", "cure_wounds"]);
         assert_eq!(r.always_prepared, vec!["sacred_flame"]);
     }
 
     #[test]
-    fn deserialize_spells_response_no_class() {
+    fn deserialize_preparation_state_no_class() {
         let json = r#"{"preparation_mode": null}"#;
-        let r: SpellsResponse = serde_json::from_str(json).unwrap();
+        let r: PreparationStateResponse = serde_json::from_str(json).unwrap();
         assert!(r.preparation_mode.is_none());
         assert!(r.cap.is_none());
         assert!(r.eligible_spells.is_empty());

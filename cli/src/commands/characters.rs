@@ -11,7 +11,7 @@ use crate::prompts::{
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
     ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice,
-    RandomResolveResult, RollResult, SaveResult, SpellsResponse,
+    PreparationStateResponse, RandomResolveResult, RollResult, SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -705,7 +705,7 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
 
 fn handle_characters_spells(slug: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.spells", "character": slug});
-    match engine.call::<_, SpellsResponse>(&req) {
+    match engine.call::<_, PreparationStateResponse>(&req) {
         Ok(r) => display::print_spells(&r),
         Err(e) => eprintln!("Error: {e}"),
     }
