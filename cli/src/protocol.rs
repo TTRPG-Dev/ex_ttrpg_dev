@@ -82,8 +82,6 @@ pub(crate) struct CharacterData {
     pub(crate) pending_choices: Option<Vec<PendingChoice>>,
     #[serde(default)]
     pub(crate) awarded_xp: Option<i64>,
-    #[serde(default)]
-    pub(crate) prepared_spells: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -229,14 +227,6 @@ pub(crate) struct SpellsResponse {
     pub(crate) always_prepared: Vec<String>,
 }
 
-#[derive(Deserialize)]
-pub(crate) struct PrepareResult {
-    pub(crate) prepared_spells: Vec<String>,
-    #[serde(default)]
-    pub(crate) always_prepared: Vec<String>,
-    pub(crate) cap: i64,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,18 +345,5 @@ mod tests {
         assert!(r.preparation_mode.is_none());
         assert!(r.cap.is_none());
         assert!(r.eligible_spells.is_empty());
-    }
-
-    #[test]
-    fn deserialize_prepare_result() {
-        let json = r#"{
-            "prepared_spells": ["bless","cure_wounds"],
-            "always_prepared": ["sacred_flame"],
-            "cap": 5
-        }"#;
-        let r: PrepareResult = serde_json::from_str(json).unwrap();
-        assert_eq!(r.prepared_spells, vec!["bless", "cure_wounds"]);
-        assert_eq!(r.always_prepared, vec!["sacred_flame"]);
-        assert_eq!(r.cap, 5);
     }
 }

@@ -10,8 +10,8 @@ use crate::prompts::{
 };
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
-    ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice, PrepareResult,
-    RandomResolveResult, RollResult, SaveResult, SpellsResponse,
+    ChoicesResponse, ConceptDetail, ConceptRollResult, InventoryResponse, OptionEntry,
+    PendingChoice, RandomResolveResult, RollResult, SaveResult, SpellsResponse,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -56,8 +56,8 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ["resolve_choice", rest @ ..] => dispatch_resolve_choice(rest, display_mode, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
         ["spells", slug] => handle_characters_spells(slug, engine),
-        ["prepare", slug, spells @ ..] if !spells.is_empty() => {
-            handle_characters_prepare(slug, spells, engine)
+        ["prepare", slug, items @ ..] if !items.is_empty() => {
+            handle_activate("prepare", slug, items, engine)
         }
         [] | ["--help"] => println!(
             "Usage: characters list | gen <system> | build <system> | show <slug> | delete <slug> | delete-all\n\
@@ -97,7 +97,7 @@ fn dispatch_characters_help(tokens: &[&str]) -> bool {
         ),
         ["spells", "--help"] => println!("Usage: characters spells <slug>"),
         ["prepare", "--help"] => {
-            println!("Usage: characters prepare <slug> <spell_id> [spell_id ...]")
+            println!("Usage: characters prepare <slug> <spell_id> [spell_id ...]");
         }
         _ => return false,
     }
@@ -711,16 +711,22 @@ fn handle_characters_spells(slug: &str, engine: &mut Engine) {
     }
 }
 
-fn handle_characters_prepare(slug: &str, spells: &[&str], engine: &mut Engine) {
-    let spell_ids: Vec<&str> = spells.to_vec();
-    let req = json!({"command": "characters.prepare", "character": slug, "spells": spell_ids});
-    match engine.call::<_, PrepareResult>(&req) {
+fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) {
+    let req =
+        json!({"command": "characters.activate", "character": slug, "verb": verb, "items": items});
+    match engine.call::<_, InventoryResponse>(&req) {
         Ok(r) => {
-            println!("Prepared {}/{} spells.", r.prepared_spells.len(), r.cap);
-            if !r.always_prepared.is_empty() {
-                println!("Always prepared: {}", r.always_prepared.join(", "));
-            }
-            println!("Prepared: {}", r.prepared_spells.join(", "));
+            let activated = r
+                .inventory
+                .iter()
+                .filter(|item| {
+                    item.fields
+                        .as_object()
+                        .map(|m| m.values().any(|v| v == &serde_json::Value::Bool(true)))
+                        .unwrap_or(false)
+                })
+                .count();
+            println!("{activated} item(s) active.");
         }
         Err(e) => eprintln!("Error: {e}"),
     }
