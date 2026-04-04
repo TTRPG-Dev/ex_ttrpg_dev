@@ -215,6 +215,26 @@ pub(crate) struct ConceptDetail {
     pub(crate) fields: serde_json::Value,
 }
 
+#[derive(Deserialize)]
+pub(crate) struct SpellsResponse {
+    pub(crate) preparation_mode: Option<String>,
+    pub(crate) cap: Option<i64>,
+    #[serde(default)]
+    pub(crate) eligible_spells: Vec<String>,
+    #[serde(default)]
+    pub(crate) prepared_spells: Vec<String>,
+    #[serde(default)]
+    pub(crate) always_prepared: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct PrepareResult {
+    pub(crate) prepared_spells: Vec<String>,
+    #[serde(default)]
+    pub(crate) always_prepared: Vec<String>,
+    pub(crate) cap: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,5 +329,42 @@ mod tests {
         assert_eq!(r.inventory.len(), 1);
         assert_eq!(r.inventory[0].concept_id, "shortsword");
         assert_eq!(r.inventory[0].fields["equipped"], true);
+    }
+
+    #[test]
+    fn deserialize_spells_response_prepared_mode() {
+        let json = r#"{
+            "preparation_mode": "prepared",
+            "cap": 5,
+            "eligible_spells": ["bless","cure_wounds","guiding_bolt"],
+            "prepared_spells": ["bless","cure_wounds"],
+            "always_prepared": ["sacred_flame"]
+        }"#;
+        let r: SpellsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(r.preparation_mode.as_deref(), Some("prepared"));
+        assert_eq!(r.prepared_spells, vec!["bless", "cure_wounds"]);
+        assert_eq!(r.always_prepared, vec!["sacred_flame"]);
+    }
+
+    #[test]
+    fn deserialize_spells_response_no_class() {
+        let json = r#"{"preparation_mode": null}"#;
+        let r: SpellsResponse = serde_json::from_str(json).unwrap();
+        assert!(r.preparation_mode.is_none());
+        assert!(r.cap.is_none());
+        assert!(r.eligible_spells.is_empty());
+    }
+
+    #[test]
+    fn deserialize_prepare_result() {
+        let json = r#"{
+            "prepared_spells": ["bless","cure_wounds"],
+            "always_prepared": ["sacred_flame"],
+            "cap": 5
+        }"#;
+        let r: PrepareResult = serde_json::from_str(json).unwrap();
+        assert_eq!(r.prepared_spells, vec!["bless", "cure_wounds"]);
+        assert_eq!(r.always_prepared, vec!["sacred_flame"]);
+        assert_eq!(r.cap, 5);
     }
 }

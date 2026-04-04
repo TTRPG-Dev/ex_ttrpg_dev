@@ -10,34 +10,17 @@ use crate::prompts::{
 };
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
-    ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice,
-    RandomResolveResult, RollResult, SaveResult,
+    ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice, PrepareResult,
+    RandomResolveResult, RollResult, SaveResult, SpellsResponse,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
     let (tokens, display_mode) = strip_display_flags(tokens, session_mode);
     let tokens = tokens.as_slice();
+    if dispatch_characters_help(tokens) {
+        return;
+    }
     match tokens {
-        ["gen", "--help"] => println!("Usage: characters gen <system>"),
-        ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
-        ["delete", "--help"] => println!("Usage: characters delete <slug>"),
-        ["delete-all", "--help"] => {
-            println!("Usage: characters delete-all [-y|--yes] [--system <system>]")
-        }
-        ["show", "--help"] => println!("Usage: characters show <slug>"),
-        ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
-        ["award", "--help"] => println!(
-            "Usage: characters award <slug> <award_id> <value>\n\
-             \x20      characters award <slug> level_up"
-        ),
-        ["choices", "--help"] => println!("Usage: characters choices <slug>"),
-        ["build", "--help"] => println!("Usage: characters build <system>"),
-
-        ["inventory", "--help"] => println!(
-            "Usage: characters inventory <slug>\n\
-             \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
-             \x20      characters inventory set <slug> <index> <field> <value>"
-        ),
         ["list"] => handle_characters_list(None, engine),
         ["list", "--system", system] => handle_characters_list(Some(system), engine),
         ["gen", system] => handle_characters_gen(system, engine),
@@ -72,6 +55,10 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ["choices", slug] => handle_characters_choices(slug, display_mode, engine),
         ["resolve_choice", rest @ ..] => dispatch_resolve_choice(rest, display_mode, engine),
         ["inventory", rest @ ..] => handle_inventory(rest, engine),
+        ["spells", slug] => handle_characters_spells(slug, engine),
+        ["prepare", slug, spells @ ..] if !spells.is_empty() => {
+            handle_characters_prepare(slug, spells, engine)
+        }
         [] | ["--help"] => println!(
             "Usage: characters list | gen <system> | build <system> | show <slug> | delete <slug> | delete-all\n\
              \x20      characters roll <slug> <type> <concept>\n\
@@ -79,10 +66,42 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
              \x20      characters resolve_choice <slug> [--random-resolve]\n\
              \x20      characters inventory <slug>\n\
              \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
-             \x20      characters inventory set <slug> <index> <field> <value>"
+             \x20      characters inventory set <slug> <index> <field> <value>\n\
+             \x20      characters spells <slug>\n\
+             \x20      characters prepare <slug> <spell_id> [spell_id ...]"
         ),
         [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `characters --help`."),
     }
+}
+
+fn dispatch_characters_help(tokens: &[&str]) -> bool {
+    match tokens {
+        ["gen", "--help"] => println!("Usage: characters gen <system>"),
+        ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
+        ["delete", "--help"] => println!("Usage: characters delete <slug>"),
+        ["delete-all", "--help"] => {
+            println!("Usage: characters delete-all [-y|--yes] [--system <system>]")
+        }
+        ["show", "--help"] => println!("Usage: characters show <slug>"),
+        ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
+        ["award", "--help"] => println!(
+            "Usage: characters award <slug> <award_id> <value>\n\
+             \x20      characters award <slug> level_up"
+        ),
+        ["choices", "--help"] => println!("Usage: characters choices <slug>"),
+        ["build", "--help"] => println!("Usage: characters build <system>"),
+        ["inventory", "--help"] => println!(
+            "Usage: characters inventory <slug>\n\
+             \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
+             \x20      characters inventory set <slug> <index> <field> <value>"
+        ),
+        ["spells", "--help"] => println!("Usage: characters spells <slug>"),
+        ["prepare", "--help"] => {
+            println!("Usage: characters prepare <slug> <spell_id> [spell_id ...]")
+        }
+        _ => return false,
+    }
+    true
 }
 
 fn strip_display_flags<'a>(
@@ -682,6 +701,29 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
         None => return,
     };
     display::print_character(&final_char);
+}
+
+fn handle_characters_spells(slug: &str, engine: &mut Engine) {
+    let req = json!({"command": "characters.spells", "character": slug});
+    match engine.call::<_, SpellsResponse>(&req) {
+        Ok(r) => display::print_spells(&r),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+fn handle_characters_prepare(slug: &str, spells: &[&str], engine: &mut Engine) {
+    let spell_ids: Vec<&str> = spells.to_vec();
+    let req = json!({"command": "characters.prepare", "character": slug, "spells": spell_ids});
+    match engine.call::<_, PrepareResult>(&req) {
+        Ok(r) => {
+            println!("Prepared {}/{} spells.", r.prepared_spells.len(), r.cap);
+            if !r.always_prepared.is_empty() {
+                println!("Always prepared: {}", r.always_prepared.join(", "));
+            }
+            println!("Prepared: {}", r.prepared_spells.join(", "));
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
 }
 
 fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {
