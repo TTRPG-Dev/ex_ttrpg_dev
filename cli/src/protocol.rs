@@ -215,6 +215,18 @@ pub(crate) struct ConceptDetail {
     pub(crate) fields: serde_json::Value,
 }
 
+#[derive(Deserialize)]
+pub(crate) struct PreparationStateResponse {
+    pub(crate) preparation_mode: Option<String>,
+    pub(crate) cap: Option<i64>,
+    #[serde(default)]
+    pub(crate) eligible_items: Vec<String>,
+    #[serde(default)]
+    pub(crate) prepared_items: Vec<String>,
+    #[serde(default)]
+    pub(crate) always_active: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,5 +321,29 @@ mod tests {
         assert_eq!(r.inventory.len(), 1);
         assert_eq!(r.inventory[0].concept_id, "shortsword");
         assert_eq!(r.inventory[0].fields["equipped"], true);
+    }
+
+    #[test]
+    fn deserialize_preparation_state_prepared_mode() {
+        let json = r#"{
+            "preparation_mode": "prepared",
+            "cap": 5,
+            "eligible_items": ["bless","cure_wounds","guiding_bolt"],
+            "prepared_items": ["bless","cure_wounds"],
+            "always_active": ["sacred_flame"]
+        }"#;
+        let r: PreparationStateResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(r.preparation_mode.as_deref(), Some("prepared"));
+        assert_eq!(r.prepared_items, vec!["bless", "cure_wounds"]);
+        assert_eq!(r.always_active, vec!["sacred_flame"]);
+    }
+
+    #[test]
+    fn deserialize_preparation_state_no_class() {
+        let json = r#"{"preparation_mode": null}"#;
+        let r: PreparationStateResponse = serde_json::from_str(json).unwrap();
+        assert!(r.preparation_mode.is_none());
+        assert!(r.cap.is_none());
+        assert!(r.eligible_items.is_empty());
     }
 }

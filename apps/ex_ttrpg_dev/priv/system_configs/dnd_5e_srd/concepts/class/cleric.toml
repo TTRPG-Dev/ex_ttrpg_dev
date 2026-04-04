@@ -3,6 +3,8 @@ name = "Cleric"
 hit_die = "d8"
 armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons"]
+preparation_mode = "prepared"
+preparation_pool = "class_spells"
 
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
@@ -104,6 +106,17 @@ steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17,
 target = "character_trait('asi_count').count"
 value = "class('cleric').asi_slots"
 
+[class.cleric.preparation_cap]
+type = "formula"
+formula = "ability('wisdom').modifier + character_trait('character_level').level"
+
 [class.life_domain]
 name = "Life Domain"
 armor_proficiencies = ["Heavy Armor"]
+always_prepared = [
+  "bless", "cure_wounds",
+  "lesser_restoration", "spiritual_weapon",
+  "beacon_of_hope", "revivify",
+  "death_ward", "guardian_of_faith",
+  "mass_cure_wounds", "raise_dead",
+]
