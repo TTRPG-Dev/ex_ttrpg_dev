@@ -30,6 +30,8 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "longsword"}
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "chain_mail", "fields": {"equipped": true}}
       {"command": "characters.inventory.set", "character": "thorin-stoneback", "index": 0, "field": "equipped", "value": true}
+      {"command": "characters.spells", "character": "thorin-stoneback"}
+      {"command": "characters.prepare", "character": "thorin-stoneback", "spells": ["bless", "cure_wounds"]}
 
   Each response is a single line of JSON:
 
@@ -44,6 +46,7 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
+  alias ExTTRPGDev.CLI.SpellPrep
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
@@ -674,6 +677,30 @@ defmodule ExTTRPGDev.CLI.Server do
         )
 
       {ok(data), state}
+    rescue
+      e -> {error(Exception.message(e)), state}
+    end
+  end
+
+  # --- Spell preparation ---
+
+  defp handle(%{"command" => cmd, "character" => slug} = msg, state)
+       when cmd in ["characters.spells", "characters.prepare"] do
+    try do
+      character = Characters.load_character!(slug)
+      system = RuleSystems.load_system!(character.metadata.rule_system)
+
+      result =
+        if cmd == "characters.spells" do
+          {:ok, SpellPrep.query(system, character)}
+        else
+          SpellPrep.prepare(system, character, Map.fetch!(msg, "spells"))
+        end
+
+      case result do
+        {:ok, data} -> {ok(data), state}
+        {:error, reason} -> {error(reason), state}
+      end
     rescue
       e -> {error(Exception.message(e)), state}
     end
