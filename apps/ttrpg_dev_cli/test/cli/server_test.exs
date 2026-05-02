@@ -495,6 +495,116 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  # ── resolve_choice spell inventory integration ────────────────────────────────
+
+  describe "characters.resolve_choice spell inventory" do
+    setup do
+      # Build a Wizard character so the class is known and deterministic.
+      # build_finish does not require all sub-choices to be resolved, so we
+      # can skip language/skill sub-choices and rely on pending_choice_slots
+      # for the spell progressions.
+      {start_resp, state1} =
+        Server.handle_command(
+          %{"command" => "characters.build_start", "system" => "dnd_5e_srd", "name" => "Aria"},
+          @initial_state
+        )
+
+      assert start_resp.status == "ok"
+      temp_id = start_resp.data.temp_id
+
+      {_, state2} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_select",
+            "temp_id" => temp_id,
+            "concept_type" => "class",
+            "concept_id" => "wizard"
+          },
+          state1
+        )
+
+      {_, state3} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_select",
+            "temp_id" => temp_id,
+            "concept_type" => "race",
+            "concept_id" => "human"
+          },
+          state2
+        )
+
+      {_, state4} =
+        Server.handle_command(
+          %{
+            "command" => "characters.build_select",
+            "temp_id" => temp_id,
+            "concept_type" => "background",
+            "concept_id" => "soldier"
+          },
+          state3
+        )
+
+      {finish_resp, _} =
+        Server.handle_command(
+          %{"command" => "characters.build_finish", "temp_id" => temp_id},
+          state4
+        )
+
+      assert finish_resp.status == "ok"
+      slug = finish_resp.data.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      %{slug: slug, pending_choices: finish_resp.data.pending_choices}
+    end
+
+    test "resolving a cantrip adds the spell to inventory with prepared: true",
+         %{slug: slug, pending_choices: pending_choices} do
+      cantrip = Enum.find(pending_choices, &(&1[:id] == "cantrips"))
+      assert cantrip != nil, "expected cantrips pending choice for Wizard"
+
+      spell_id = hd(cantrip[:options])[:id]
+
+      resp =
+        run(%{
+          "command" => "characters.resolve_choice",
+          "character" => slug,
+          "progression" => "cantrips",
+          "selection" => spell_id
+        })
+
+      assert resp.status == "ok"
+
+      inventory = run(%{"command" => "characters.inventory", "character" => slug}).data.inventory
+      item = Enum.find(inventory, &(&1[:concept_id] == spell_id))
+      assert item != nil, "expected #{spell_id} in inventory after resolving cantrip"
+      assert item[:fields]["prepared"] == true
+    end
+
+    test "resolving a spells_known choice adds the spell to inventory with prepared: false",
+         %{slug: slug, pending_choices: pending_choices} do
+      spells_known = Enum.find(pending_choices, &(&1[:id] == "spells_known"))
+      assert spells_known != nil, "expected spells_known pending choice for Wizard"
+
+      spell_id = hd(spells_known[:options])[:id]
+
+      resp =
+        run(%{
+          "command" => "characters.resolve_choice",
+          "character" => slug,
+          "progression" => "spells_known",
+          "selection" => spell_id
+        })
+
+      assert resp.status == "ok"
+
+      inventory = run(%{"command" => "characters.inventory", "character" => slug}).data.inventory
+      item = Enum.find(inventory, &(&1[:concept_id] == spell_id))
+      assert item != nil, "expected #{spell_id} in inventory after resolving spells_known"
+      assert item[:fields]["prepared"] == false
+    end
+  end
+
   # ── error handling ────────────────────────────────────────────────────────────
 
   describe "error handling" do
