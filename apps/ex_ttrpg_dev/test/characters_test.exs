@@ -1162,6 +1162,7 @@ defmodule ExTTRPGDevTest.Characters do
               ],
               "preparation" => %{
                 "mode_field" => "preparation_mode",
+                "activation_mode" => "prepared",
                 "pool_field" => "preparation_pool",
                 "cap_field" => "preparation_cap",
                 "level_field" => "level",

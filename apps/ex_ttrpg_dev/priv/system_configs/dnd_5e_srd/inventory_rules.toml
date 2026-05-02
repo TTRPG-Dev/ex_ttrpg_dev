@@ -45,8 +45,9 @@ excludes_from_cap = true
 progression = "spells_known"
 
 [inventory_type.spell.preparation]
-mode_field     = "preparation_mode"
-pool_field     = "preparation_pool"
+mode_field      = "preparation_mode"
+activation_mode = "prepared"
+pool_field      = "preparation_pool"
 cap_field      = "preparation_cap"
 level_field    = "level"
 # Tuple-as-list: [type_id, concept_id, field_name] for the max-spell-level resolved node.

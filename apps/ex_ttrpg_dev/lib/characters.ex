@@ -321,7 +321,7 @@ defmodule ExTTRPGDev.Characters do
         with {:ok, {class_type, class_id} = class_key} <-
                find_prep_class_for_activate(character, system, prep),
              mode = get_in(system.concept_metadata, [class_key, prep.mode_field]),
-             :ok <- require_prepared_mode_for_activate(mode),
+             :ok <- require_prepared_mode_for_activate(mode, prep.activation_mode),
              effects = active_effects(system, character),
              resolved = Evaluator.evaluate!(system, character.generated_values, effects),
              {:ok, cap} <- resolve_activation_cap(resolved, class_type, class_id, prep),
@@ -1256,8 +1256,8 @@ defmodule ExTTRPGDev.Characters do
     end)
   end
 
-  defp require_prepared_mode_for_activate("prepared"), do: :ok
-  defp require_prepared_mode_for_activate(mode), do: {:error, {:mode_not_prepared, mode}}
+  defp require_prepared_mode_for_activate(mode, mode), do: :ok
+  defp require_prepared_mode_for_activate(mode, _), do: {:error, {:mode_not_prepared, mode}}
 
   defp resolve_activation_cap(resolved, class_type, class_id, prep) do
     case Map.fetch(resolved, {class_type, class_id, prep.cap_field}) do

@@ -38,6 +38,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
     """
     defstruct [
       :mode_field,
+      :activation_mode,
       :pool_field,
       :cap_field,
       :level_field,
@@ -228,6 +229,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
     {:ok,
      %PreparationConfig{
        mode_field: prep_map["mode_field"],
+       activation_mode: prep_map["activation_mode"],
        pool_field: prep_map["pool_field"],
        cap_field: prep_map["cap_field"],
        level_field: prep_map["level_field"],

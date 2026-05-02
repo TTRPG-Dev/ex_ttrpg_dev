@@ -219,6 +219,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
           "schema" => %{"prepared" => %{"type" => "boolean", "default" => false}},
           "preparation" => %{
             "mode_field" => "preparation_mode",
+            "activation_mode" => "prepared",
             "pool_field" => "preparation_pool",
             "cap_field" => "preparation_cap",
             "level_field" => "level",
@@ -241,6 +242,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
           "schema" => %{"prepared" => %{"type" => "boolean", "default" => false}},
           "preparation" => %{
             "mode_field" => "preparation_mode",
+            "activation_mode" => "prepared",
             "pool_field" => "preparation_pool",
             "cap_field" => "preparation_cap",
             "level_field" => "level",
@@ -273,6 +275,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
 
     assert %InventoryRules.PreparationConfig{
              mode_field: "preparation_mode",
+             activation_mode: "prepared",
              cap_field: "preparation_cap",
              max_level_node: {"character_trait", "max_spell_level", "level"}
            } = prep
