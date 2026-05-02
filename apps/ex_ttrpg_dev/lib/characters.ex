@@ -1344,15 +1344,18 @@ defmodule ExTTRPGDev.Characters do
         item.concept_type == type_id and MapSet.member?(eligible_set, item.concept_id)
       end)
 
-    new_items =
-      Enum.flat_map(item_ids, fn id ->
+    result =
+      Enum.reduce_while(item_ids, {:ok, []}, fn id, {:ok, acc} ->
         case InventoryItem.new(type_id, id, inv_rules, %{activation_field => true}) do
-          {:ok, item} -> [item]
-          _ -> []
+          {:ok, item} -> {:cont, {:ok, [item | acc]}}
+          error -> {:halt, error}
         end
       end)
 
-    {:ok, %{character | inventory: other_items ++ new_items}}
+    case result do
+      {:ok, new_items} -> {:ok, %{character | inventory: other_items ++ Enum.reverse(new_items)}}
+      error -> error
+    end
   end
 
   defp apply_activation(
