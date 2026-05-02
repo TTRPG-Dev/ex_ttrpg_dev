@@ -780,8 +780,8 @@ defmodule ExTTRPGDev.CLI.Server do
   defp format_activate_error({:exceeds_cap, count, cap}),
     do: "cannot prepare more than #{cap} (given: #{count})"
 
-  defp format_activate_error({:mode_not_prepared, _}),
-    do: "spells for this class are not manually prepared"
+  defp format_activate_error({:mode_not_prepared, mode}),
+    do: "items of this type cannot be manually activated (mode: \"#{mode}\")"
 
   defp format_activate_error(:no_preparation_class),
     do: "no class with preparation_mode found for this character"
