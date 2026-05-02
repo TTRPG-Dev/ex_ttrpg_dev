@@ -1368,13 +1368,14 @@ defmodule ExTTRPGDev.Characters do
          %{
            management: "toggle_field"
          },
-         _eligible
+         eligible
        ) do
     prepared_set = MapSet.new(item_ids)
+    eligible_set = MapSet.new(eligible)
 
     updated_inventory =
       Enum.map(character.inventory, fn item ->
-        if item.concept_type == type_id do
+        if item.concept_type == type_id and MapSet.member?(eligible_set, item.concept_id) do
           %{
             item
             | fields:

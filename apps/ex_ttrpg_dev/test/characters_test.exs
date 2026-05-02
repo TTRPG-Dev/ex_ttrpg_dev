@@ -242,6 +242,12 @@ defmodule ExTTRPGDevTest.Characters do
   end
 
   describe "active_effects/2" do
+    @fighter_effect %{
+      source: {"class", "fighter"},
+      target: {"saving_throw", "strength", "modifier"},
+      value: 2
+    }
+
     defp minimal_system(effects, concept_metadata) do
       %ExTTRPGDev.RuleSystems.LoadedSystem{
         module: nil,
@@ -264,36 +270,14 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     test "includes system effects for active concepts" do
-      system =
-        minimal_system(
-          [
-            %{
-              source: {"class", "fighter"},
-              target: {"saving_throw", "strength", "modifier"},
-              value: 2
-            }
-          ],
-          %{{"class", "fighter"} => %{}}
-        )
-
+      system = minimal_system([@fighter_effect], %{{"class", "fighter"} => %{}})
       character = minimal_character([%{scope: nil, choice: "class", selection: "fighter"}])
       effects = Characters.active_effects(system, character)
       assert Enum.any?(effects, &(&1.source == {"class", "fighter"}))
     end
 
     test "excludes system effects for inactive concepts" do
-      system =
-        minimal_system(
-          [
-            %{
-              source: {"class", "fighter"},
-              target: {"saving_throw", "strength", "modifier"},
-              value: 2
-            }
-          ],
-          %{}
-        )
-
+      system = minimal_system([@fighter_effect], %{})
       character = minimal_character([])
       effects = Characters.active_effects(system, character)
       refute Enum.any?(effects, &(&1.source == {"class", "fighter"}))
@@ -403,6 +387,12 @@ defmodule ExTTRPGDevTest.Characters do
       "effect_target" => "character_trait('max_hit_points').points"
     }
 
+    @spend_xp_progression %{
+      "name" => "Spend XP",
+      "available_when" => "character_trait('experience_points').total",
+      "effect_target" => "skill('athletics').modifier"
+    }
+
     defp progression_system(progressions) do
       minimal_system(
         [],
@@ -484,13 +474,7 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     test "returns an available entry when available_when is truthy" do
-      progression = %{
-        "name" => "Spend XP",
-        "available_when" => "character_trait('experience_points').total",
-        "effect_target" => "skill('athletics').modifier"
-      }
-
-      system = progression_system(%{"spend_xp" => progression})
+      system = progression_system(%{"spend_xp" => @spend_xp_progression})
       resolved = %{{"character_trait", "experience_points", "total"} => 100}
       [entry] = Characters.pending_choices(system, minimal_character([]), resolved)
       assert entry.type == :available
@@ -499,23 +483,18 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     test "returns empty when available_when evaluates to 0" do
-      progression = %{
-        "name" => "Spend XP",
-        "available_when" => "character_trait('experience_points').total",
-        "effect_target" => "skill('athletics').modifier"
-      }
-
-      system = progression_system(%{"spend_xp" => progression})
+      system = progression_system(%{"spend_xp" => @spend_xp_progression})
       resolved = %{{"character_trait", "experience_points", "total"} => 0}
       assert Characters.pending_choices(system, minimal_character([]), resolved) == []
     end
 
     test "returns empty when available_when evaluates to false" do
-      progression = %{
-        "name" => "Spend XP",
-        "available_when" => "character_trait('experience_points').total > 0",
-        "effect_target" => "skill('athletics').modifier"
-      }
+      progression =
+        Map.put(
+          @spend_xp_progression,
+          "available_when",
+          "character_trait('experience_points').total > 0"
+        )
 
       system = progression_system(%{"spend_xp" => progression})
       resolved = %{{"character_trait", "experience_points", "total"} => 0}
@@ -523,12 +502,7 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     test "returns empty for available_when when formula binding is missing" do
-      progression = %{
-        "available_when" => "character_trait('experience_points').total",
-        "effect_target" => "skill('athletics').modifier"
-      }
-
-      system = progression_system(%{"spend_xp" => progression})
+      system = progression_system(%{"spend_xp" => Map.delete(@spend_xp_progression, "name")})
       assert Characters.pending_choices(system, minimal_character([]), %{}) == []
     end
 
@@ -1323,6 +1297,73 @@ defmodule ExTTRPGDevTest.Characters do
 
       assert Enum.find(updated.inventory, &(&1.concept_id == "cure_wounds")).fields["prepared"] ==
                false
+    end
+
+    test "toggle_field: preserves cantrips (outside eligible pool) when preparing leveled spells" do
+      nodes = %{
+        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+      }
+
+      concept_metadata = %{
+        {"class", "wizard"} => %{
+          "preparation_mode" => "prepared",
+          "preparation_pool" => "spellbook"
+        },
+        {"spell", "prestidigitation"} => %{"level" => 0},
+        {"spell", "magic_missile"} => %{"level" => 1}
+      }
+
+      {:ok, built} =
+        ExTTRPGDev.RuleSystem.Graph.build(%{
+          nodes: nodes,
+          effects: [],
+          concept_metadata: concept_metadata,
+          rolling_methods: %{}
+        })
+
+      system = %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}]},
+        graph: built.graph,
+        nodes: built.nodes,
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+
+      decisions = [
+        %{scope: nil, choice: "class", selection: "wizard"},
+        %{
+          scope: {"character_progression", "spells_known"},
+          choice: "choice_1",
+          selection: "magic_missile"
+        }
+      ]
+
+      inventory = [
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "prestidigitation",
+          fields: %{"prepared" => true}
+        },
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "magic_missile",
+          fields: %{"prepared" => false}
+        }
+      ]
+
+      character = %{minimal_character(decisions) | inventory: inventory}
+
+      assert {:ok, updated} = Characters.activate(system, character, "spell", ["magic_missile"])
+
+      assert Enum.find(updated.inventory, &(&1.concept_id == "magic_missile")).fields["prepared"] ==
+               true
+
+      assert Enum.find(updated.inventory, &(&1.concept_id == "prestidigitation")).fields[
+               "prepared"
+             ] == true
     end
 
     test "add_remove: preserves cantrips when preparing leveled spells" do
