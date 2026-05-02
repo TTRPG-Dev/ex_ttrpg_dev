@@ -335,6 +335,7 @@ defmodule ExTTRPGDev.Characters do
                level_field: prep.level_field
              },
              eligible = compute_eligible_pool(system, character, pool_config, ctx),
+             item_ids = Enum.uniq(item_ids),
              :ok <- validate_eligible_items(item_ids, eligible),
              :ok <- validate_cap_limit(item_ids, cap) do
           apply_activation(
