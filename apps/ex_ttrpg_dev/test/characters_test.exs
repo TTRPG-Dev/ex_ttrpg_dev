@@ -1436,7 +1436,17 @@ defmodule ExTTRPGDevTest.Characters do
   end
 
   describe "preparation_state/3" do
-    test "returns error, nil mode, and structured state across cases" do
+    test "returns error for unknown inventory type" do
+      assert {:error, {:unknown_inventory_type, "weapon"}} =
+               Characters.preparation_state(spell_system(), minimal_character([]), "weapon")
+    end
+
+    test "returns mode nil when character has no class with preparation config" do
+      assert {:ok, %{mode: nil}} =
+               Characters.preparation_state(spell_system(), minimal_character([]), "spell")
+    end
+
+    test "returns full preparation state for a character with a prepared-mode class" do
       nodes = %{
         {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
         {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
@@ -1458,7 +1468,7 @@ defmodule ExTTRPGDevTest.Characters do
           rolling_methods: %{}
         })
 
-      full_system = %LoadedSystem{
+      system = %LoadedSystem{
         module: %{character_building_choices: [%{concept_type: "class"}]},
         graph: built.graph,
         nodes: built.nodes,
@@ -1483,14 +1493,8 @@ defmodule ExTTRPGDevTest.Characters do
 
       character = %{minimal_character(decisions) | inventory: inventory}
 
-      assert {:error, {:unknown_inventory_type, "weapon"}} =
-               Characters.preparation_state(spell_system(), minimal_character([]), "weapon")
-
-      assert {:ok, %{mode: nil}} =
-               Characters.preparation_state(spell_system(), minimal_character([]), "spell")
-
       assert {:ok, %{mode: "prepared", cap: 3, prepared: ["fire_bolt"]}} =
-               Characters.preparation_state(full_system, character, "spell")
+               Characters.preparation_state(system, character, "spell")
     end
 
     test "always_prepared spells from subclass appear and are filtered by max spell level" do
