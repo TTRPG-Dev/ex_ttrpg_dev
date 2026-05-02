@@ -691,6 +691,10 @@ defmodule ExTTRPGDev.CLI.Server do
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
+      # Only the first preparation type is returned. Returning multiple types
+      # would require a protocol change on both this handler and the Rust
+      # PreparationStateResponse struct. dnd_5e_srd has one preparation type
+      # ("spell"), so this is sufficient for now.
       result =
         case InventoryRules.preparation_types(system.inventory_rules) do
           [] ->
