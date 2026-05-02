@@ -1201,6 +1201,10 @@ defmodule ExTTRPGDevTest.Characters do
                     "scope_type" => "character_progression",
                     "scope_id" => "spells_known",
                     "management" => "toggle_field"
+                  },
+                  "class_spells" => %{
+                    "class_filter_field" => "classes",
+                    "management" => "add_remove"
                   }
                 }
               }
@@ -1315,6 +1319,61 @@ defmodule ExTTRPGDevTest.Characters do
 
       assert Enum.find(updated.inventory, &(&1.concept_id == "cure_wounds")).fields["prepared"] ==
                false
+    end
+
+    test "add_remove: preserves cantrips when preparing leveled spells" do
+      nodes = %{
+        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+      }
+
+      concept_metadata = %{
+        {"class", "cleric"} => %{
+          "preparation_mode" => "prepared",
+          "preparation_pool" => "class_spells"
+        },
+        {"spell", "sacred_flame"} => %{"level" => 0, "classes" => ["cleric"]},
+        {"spell", "bless"} => %{"level" => 1, "classes" => ["cleric"]},
+        {"spell", "cure_wounds"} => %{"level" => 1, "classes" => ["cleric"]}
+      }
+
+      {:ok, built} =
+        ExTTRPGDev.RuleSystem.Graph.build(%{
+          nodes: nodes,
+          effects: [],
+          concept_metadata: concept_metadata,
+          rolling_methods: %{}
+        })
+
+      system = %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}]},
+        graph: built.graph,
+        nodes: built.nodes,
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+
+      decisions = [%{scope: nil, choice: "class", selection: "cleric"}]
+
+      inventory = [
+        %InventoryItem{
+          concept_type: "spell",
+          concept_id: "sacred_flame",
+          fields: %{"prepared" => true}
+        }
+      ]
+
+      character = %{minimal_character(decisions) | inventory: inventory}
+
+      assert {:ok, updated} = Characters.activate(system, character, "spell", ["bless"])
+
+      spell_inventory = Enum.filter(updated.inventory, &(&1.concept_type == "spell"))
+
+      # sacred_flame (cantrip) preserved; bless added; cure_wounds (eligible, not requested) absent
+      assert MapSet.new(spell_inventory, & &1.concept_id) == MapSet.new(["sacred_flame", "bless"])
+      assert Enum.all?(spell_inventory, &(&1.fields["prepared"] == true))
     end
   end
 
