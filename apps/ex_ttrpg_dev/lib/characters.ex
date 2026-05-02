@@ -343,7 +343,8 @@ defmodule ExTTRPGDev.Characters do
             item_ids,
             system.inventory_rules,
             activation_field,
-            pool_config
+            pool_config,
+            eligible
           )
         end
     end
@@ -1325,10 +1326,23 @@ defmodule ExTTRPGDev.Characters do
       else: {:error, {:exceeds_cap, length(item_ids), cap}}
   end
 
-  defp apply_activation(character, type_id, item_ids, inv_rules, activation_field, %{
-         management: "add_remove"
-       }) do
-    other_items = Enum.reject(character.inventory, &(&1.concept_type == type_id))
+  defp apply_activation(
+         character,
+         type_id,
+         item_ids,
+         inv_rules,
+         activation_field,
+         %{
+           management: "add_remove"
+         },
+         eligible
+       ) do
+    eligible_set = MapSet.new(eligible)
+
+    other_items =
+      Enum.reject(character.inventory, fn item ->
+        item.concept_type == type_id and MapSet.member?(eligible_set, item.concept_id)
+      end)
 
     new_items =
       Enum.flat_map(item_ids, fn id ->
@@ -1341,9 +1355,17 @@ defmodule ExTTRPGDev.Characters do
     {:ok, %{character | inventory: other_items ++ new_items}}
   end
 
-  defp apply_activation(character, type_id, item_ids, _inv_rules, activation_field, %{
-         management: "toggle_field"
-       }) do
+  defp apply_activation(
+         character,
+         type_id,
+         item_ids,
+         _inv_rules,
+         activation_field,
+         %{
+           management: "toggle_field"
+         },
+         _eligible
+       ) do
     prepared_set = MapSet.new(item_ids)
 
     updated_inventory =
