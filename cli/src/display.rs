@@ -150,8 +150,8 @@ pub(crate) fn print_spells(r: &PreparationStateResponse) {
         }
         Some("prepared") => {
             let prepared = r.prepared_items.len();
-            let cap = r.cap.unwrap_or(0);
-            println!("Prepared spells: {prepared}/{cap}");
+            let cap_str = r.cap.map_or_else(|| "?".to_string(), |c| c.to_string());
+            println!("Prepared spells: {prepared}/{cap_str}");
             if !r.always_active.is_empty() {
                 println!("Always prepared: {}", r.always_active.join(", "));
             }
