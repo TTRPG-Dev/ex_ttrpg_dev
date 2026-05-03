@@ -1167,10 +1167,7 @@ defmodule ExTTRPGDevTest.Characters do
                 "cap_field" => "preparation_cap",
                 "level_field" => "level",
                 "max_level_node" => ["character_trait", "max_spell_level", "level"],
-                "always_prepared" => %{
-                  "subclass_choice" => "subclass",
-                  "metadata_key" => "always_prepared"
-                },
+                "always_prepared" => %{"metadata_key" => "always_prepared"},
                 "auto_activate_when" => %{
                   "class_field" => "preparation_mode",
                   "class_value" => "all"
@@ -1548,7 +1545,8 @@ defmodule ExTTRPGDevTest.Characters do
       concept_metadata = %{
         {"class", "cleric"} => %{
           "preparation_mode" => "prepared",
-          "preparation_pool" => "class_spells"
+          "preparation_pool" => "class_spells",
+          "choices" => %{"subclass" => %{"type" => "class"}}
         },
         {"class", "life_domain"} => %{
           "always_prepared" => ["bless", "cure_wounds", "hold_person"]
@@ -1587,6 +1585,56 @@ defmodule ExTTRPGDevTest.Characters do
       assert state.mode == "prepared"
       # bless and cure_wounds are within max_spell_level 1; hold_person (level 2) is filtered out
       assert Enum.sort(state.always_prepared) == ["bless", "cure_wounds"]
+    end
+
+    test "always_prepared accumulates from all active concepts, not just subclass" do
+      nodes = %{
+        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+      }
+
+      concept_metadata = %{
+        {"class", "cleric"} => %{
+          "preparation_mode" => "prepared",
+          "preparation_pool" => "class_spells",
+          "choices" => %{"subclass" => %{"type" => "class"}}
+        },
+        # subclass contributes one spell
+        {"class", "life_domain"} => %{"always_prepared" => ["bless"]},
+        # race contributes a different spell via the same metadata key
+        {"race", "aasimar"} => %{"always_prepared" => ["guiding_bolt"]},
+        {"spell", "bless"} => %{"level" => 1, "classes" => ["cleric"]},
+        {"spell", "guiding_bolt"} => %{"level" => 1, "classes" => ["cleric"]}
+      }
+
+      {:ok, built} =
+        ExTTRPGDev.RuleSystem.Graph.build(%{
+          nodes: nodes,
+          effects: [],
+          concept_metadata: concept_metadata,
+          rolling_methods: %{}
+        })
+
+      system = %LoadedSystem{
+        module: %{character_building_choices: [%{concept_type: "class"}, %{concept_type: "race"}]},
+        graph: built.graph,
+        nodes: built.nodes,
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: concept_metadata,
+        inventory_rules: spell_inv_rules()
+      }
+
+      decisions = [
+        %{scope: nil, choice: "class", selection: "cleric"},
+        %{scope: {"class", "cleric"}, choice: "subclass", selection: "life_domain"},
+        %{scope: nil, choice: "race", selection: "aasimar"}
+      ]
+
+      character = minimal_character(decisions)
+
+      assert {:ok, state} = Characters.preparation_state(system, character, "spell")
+      assert Enum.sort(state.always_prepared) == ["bless", "guiding_bolt"]
     end
   end
 end

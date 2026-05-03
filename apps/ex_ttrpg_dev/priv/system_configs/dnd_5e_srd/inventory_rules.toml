@@ -54,8 +54,7 @@ level_field    = "level"
 max_level_node = ["character_trait", "max_spell_level", "level"]
 
 [inventory_type.spell.preparation.always_prepared]
-subclass_choice = "subclass"
-metadata_key    = "always_prepared"
+metadata_key = "always_prepared"
 
 [inventory_type.spell.preparation.auto_activate_when]
 class_field = "preparation_mode"

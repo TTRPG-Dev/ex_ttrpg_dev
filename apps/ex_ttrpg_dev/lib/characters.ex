@@ -236,15 +236,12 @@ defmodule ExTTRPGDev.Characters do
 
     eligible = pool_eligible(system, character, prep, pool_ctx)
 
-    always_ctx = %{
-      class_type: class_type,
-      class_id: class_id,
-      prep: prep,
-      max_level: max_level,
-      type_id: type_id
-    }
-
-    always = prep_always_prepared(system, character, always_ctx)
+    always =
+      prep_always_prepared(system, character, %{
+        prep: prep,
+        max_level: max_level,
+        type_id: type_id
+      })
 
     prepared =
       character.inventory
@@ -269,17 +266,19 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp prep_always_prepared(system, character, ctx) do
-    %{class_type: ct, class_id: ci, prep: prep, max_level: max_level, type_id: type_id} = ctx
+    %{prep: prep, max_level: max_level, type_id: type_id} = ctx
 
-    with choice when not is_nil(choice) <- prep.always_prepared_subclass_choice,
-         key when not is_nil(key) <- prep.always_prepared_metadata_key,
-         true <- max_level > 0,
-         sub_id when not is_nil(sub_id) <-
-           find_subclass_choice(character.decisions, ct, ci, choice) do
-      subclass_meta = Map.get(system.concept_metadata, {ct, sub_id}, %{})
-      always = Map.get(subclass_meta, key, [])
+    with key when not is_nil(key) <- prep.always_prepared_metadata_key,
+         true <- max_level > 0 do
       level_ctx = %{type_id: type_id, level_field: prep.level_field, max_level: max_level}
-      filter_within_level(always, system.concept_metadata, level_ctx)
+      active = active_concepts(character.decisions, system.concept_metadata)
+
+      active
+      |> Enum.flat_map(fn {concept_type, concept_id} ->
+        meta = Map.get(system.concept_metadata, {concept_type, concept_id}, %{})
+        Map.get(meta, key, [])
+      end)
+      |> filter_within_level(system.concept_metadata, level_ctx)
     else
       _ -> []
     end
@@ -289,13 +288,6 @@ defmodule ExTTRPGDev.Characters do
     Enum.filter(ids, fn id ->
       meta = Map.get(concept_metadata, {ctx.type_id, id}, %{})
       Map.get(meta, ctx.level_field, 0) <= ctx.max_level
-    end)
-  end
-
-  defp find_subclass_choice(decisions, class_type, class_id, choice_name) do
-    Enum.find_value(decisions, fn
-      %{scope: {^class_type, ^class_id}, choice: ^choice_name, selection: id} -> id
-      _ -> nil
     end)
   end
 

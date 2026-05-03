@@ -247,10 +247,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
             "cap_field" => "preparation_cap",
             "level_field" => "level",
             "max_level_node" => ["character_trait", "max_spell_level", "level"],
-            "always_prepared" => %{
-              "subclass_choice" => "subclass",
-              "metadata_key" => "always_prepared"
-            },
+            "always_prepared" => %{"metadata_key" => "always_prepared"},
             "auto_activate_when" => %{"class_field" => "preparation_mode", "class_value" => "all"},
             "pool" => %{
               "class_spells" => %{
@@ -285,7 +282,6 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
     assert {:ok, rules} = InventoryRules.from_map(preparation_map())
     prep = rules.types["spell"].preparation
 
-    assert prep.always_prepared_subclass_choice == "subclass"
     assert prep.always_prepared_metadata_key == "always_prepared"
     assert prep.auto_activate_when_field == "preparation_mode"
     assert prep.auto_activate_when_value == "all"
