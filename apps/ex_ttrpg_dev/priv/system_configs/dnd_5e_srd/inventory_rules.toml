@@ -37,9 +37,8 @@ default = false
 # Cantrips enter spell inventory already activated and never count toward the cap.
 # Leveled spells enter inactivated; activation is manual (or auto for bard).
 [[inventory_type.spell.add_on_progression]]
-progression       = "cantrips"
-auto_activate     = true
-excludes_from_cap = true
+progression   = "cantrips"
+auto_activate = true
 
 [[inventory_type.spell.add_on_progression]]
 progression = "spells_known"

@@ -21,7 +21,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
     Config for a `character_progression` that feeds resolved selections into an
     inventory type automatically (via the `resolve_choice` hook).
     """
-    defstruct [:progression, auto_activate: false, excludes_from_cap: false]
+    defstruct [:progression, auto_activate: false]
   end
 
   defmodule PoolConfig do
@@ -195,8 +195,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
     Enum.map(list, fn prog_map ->
       %ProgressionConfig{
         progression: prog_map["progression"],
-        auto_activate: Map.get(prog_map, "auto_activate", false),
-        excludes_from_cap: Map.get(prog_map, "excludes_from_cap", false)
+        auto_activate: Map.get(prog_map, "auto_activate", false)
       }
     end)
   end

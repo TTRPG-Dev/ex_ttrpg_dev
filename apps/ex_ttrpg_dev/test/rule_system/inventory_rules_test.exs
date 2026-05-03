@@ -159,7 +159,7 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
           "activation_field" => "prepared",
           "schema" => %{"prepared" => %{"type" => "boolean", "default" => false}},
           "add_on_progression" => [
-            %{"progression" => "cantrips", "auto_activate" => true, "excludes_from_cap" => true},
+            %{"progression" => "cantrips", "auto_activate" => true},
             %{"progression" => "spells_known"}
           ]
         }
@@ -171,22 +171,16 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
     assert {:ok, rules} = InventoryRules.from_map(spell_type_with_progressions())
     [cantrip_prog, _] = rules.types["spell"].add_on_progression
 
-    assert %InventoryRules.ProgressionConfig{
-             progression: "cantrips",
-             auto_activate: true,
-             excludes_from_cap: true
-           } = cantrip_prog
+    assert %InventoryRules.ProgressionConfig{progression: "cantrips", auto_activate: true} =
+             cantrip_prog
   end
 
   test "from_map/1 parses default progression config" do
     assert {:ok, rules} = InventoryRules.from_map(spell_type_with_progressions())
     [_, spells_prog] = rules.types["spell"].add_on_progression
 
-    assert %InventoryRules.ProgressionConfig{
-             progression: "spells_known",
-             auto_activate: false,
-             excludes_from_cap: false
-           } = spells_prog
+    assert %InventoryRules.ProgressionConfig{progression: "spells_known", auto_activate: false} =
+             spells_prog
   end
 
   test "type_for_progression/2 returns type and config for a matching progression" do
