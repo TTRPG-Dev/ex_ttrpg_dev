@@ -6,10 +6,15 @@ defmodule ExTTRPGDev.Characters.InventoryItemTest do
   defp rules do
     {:ok, rules} =
       InventoryRules.from_map(%{
-        "inventory" => %{"inventoriable_types" => ["equipment"]},
-        "inventory_item_schema" => %{
-          "equipped" => %{"type" => "boolean", "default" => false},
-          "condition" => %{"type" => "float", "default" => 1.0, "min" => 0.0, "max" => 1.0}
+        "inventory_type" => %{
+          "equipment" => %{
+            "activate_command" => "equip",
+            "activation_field" => "equipped",
+            "schema" => %{
+              "equipped" => %{"type" => "boolean", "default" => false},
+              "condition" => %{"type" => "float", "default" => 1.0, "min" => 0.0, "max" => 1.0}
+            }
+          }
         }
       })
 
@@ -75,13 +80,16 @@ defmodule ExTTRPGDev.Characters.InventoryItemTest do
   defp rules_with_int_and_enum do
     {:ok, rules} =
       InventoryRules.from_map(%{
-        "inventory" => %{"inventoriable_types" => ["equipment"]},
-        "inventory_item_schema" => %{
-          "charges" => %{"type" => "integer", "default" => 3, "min" => 0, "max" => 10},
-          "quality" => %{
-            "type" => "enum",
-            "default" => "common",
-            "values" => ["poor", "common", "good"]
+        "inventory_type" => %{
+          "equipment" => %{
+            "schema" => %{
+              "charges" => %{"type" => "integer", "default" => 3, "min" => 0, "max" => 10},
+              "quality" => %{
+                "type" => "enum",
+                "default" => "common",
+                "values" => ["poor", "common", "good"]
+              }
+            }
           }
         }
       })

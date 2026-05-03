@@ -188,7 +188,8 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     # + 17 class mapping nodes (cantrips/spells known/max spell level per spellcasting class) = 20 nodes (total: 177)
     # + 1 untracked node (equipment or class field not listed above) = 178 nodes
     # + 12 class asi_slots mapping nodes + 1 character_trait asi_count accumulator = 13 nodes (total: 191)
-    assert map_size(system.nodes) == 191
+    # + 4 preparation_cap formula nodes (cleric, druid, paladin, wizard) + 1 paladin half_level mapping = 5 nodes (total: 196)
+    assert map_size(system.nodes) == 196
     # topological_order returns false if cyclic, a list if acyclic
     assert is_list(Graph.topological_order(system))
   end

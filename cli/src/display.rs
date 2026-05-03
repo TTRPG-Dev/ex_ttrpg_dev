@@ -4,7 +4,7 @@
 
 use crate::protocol::{
     CharacterData, CharacterListCategory, CharacterSummary, ConceptsList, InventoryItemData,
-    PendingChoice, SelectedConcept, SystemInfo,
+    PendingChoice, PreparationStateResponse, SelectedConcept, SystemInfo,
 };
 
 pub(crate) fn format_character(c: &CharacterData) -> String {
@@ -127,6 +127,43 @@ pub(crate) fn print_characters_list(characters: &[CharacterSummary], empty_msg: 
     } else {
         for c in characters {
             println!("  - {}: {} [{}]", c.slug, c.name, c.rule_system);
+        }
+    }
+}
+
+pub(crate) fn print_spells(r: &PreparationStateResponse) {
+    match r.preparation_mode.as_deref() {
+        None | Some("") => {
+            println!("No spellcasting class found for this character.");
+        }
+        Some("all") => {
+            println!(
+                "All {} spell(s) prepared (no manual preparation needed).",
+                r.prepared_items.len()
+            );
+            if !r.always_active.is_empty() {
+                println!("Always prepared: {}", r.always_active.join(", "));
+            }
+            if !r.prepared_items.is_empty() {
+                println!("Prepared: {}", r.prepared_items.join(", "));
+            }
+        }
+        Some("prepared") => {
+            let prepared = r.prepared_items.len();
+            let cap = r.cap.unwrap_or(0);
+            println!("Prepared spells: {prepared}/{cap}");
+            if !r.always_active.is_empty() {
+                println!("Always prepared: {}", r.always_active.join(", "));
+            }
+            if !r.prepared_items.is_empty() {
+                println!("Prepared: {}", r.prepared_items.join(", "));
+            } else {
+                println!("Prepared: (none)");
+            }
+            println!("Eligible pool: {} spell(s)", r.eligible_items.len());
+        }
+        Some(mode) => {
+            println!("Preparation mode: {mode}");
         }
     }
 }
