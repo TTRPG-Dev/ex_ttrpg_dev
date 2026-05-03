@@ -1278,14 +1278,11 @@ defmodule ExTTRPGDev.Characters do
   # ctx: %{type_id, class_id, max_level, level_field}
   defp compute_eligible_pool(system, character, pool_config, ctx) when ctx.max_level > 0 do
     case pool_config.management do
-      "add_remove" ->
+      :add_remove ->
         add_remove_eligible(system.concept_metadata, pool_config, ctx)
 
-      "toggle_field" ->
+      :toggle_field ->
         toggle_field_eligible(character.decisions, system.concept_metadata, pool_config, ctx)
-
-      _ ->
-        []
     end
   end
 
@@ -1334,7 +1331,7 @@ defmodule ExTTRPGDev.Characters do
          inv_rules,
          activation_field,
          %{
-           management: "add_remove"
+           management: :add_remove
          },
          eligible
        ) do
@@ -1366,7 +1363,7 @@ defmodule ExTTRPGDev.Characters do
          _inv_rules,
          activation_field,
          %{
-           management: "toggle_field"
+           management: :toggle_field
          },
          eligible
        ) do

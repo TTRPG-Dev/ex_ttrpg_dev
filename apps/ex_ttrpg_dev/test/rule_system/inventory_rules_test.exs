@@ -295,13 +295,37 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRulesTest do
     assert {:ok, rules} = InventoryRules.from_map(preparation_map())
     prep = rules.types["spell"].preparation
 
-    assert %InventoryRules.PoolConfig{class_filter_field: "classes", management: "add_remove"} =
+    assert %InventoryRules.PoolConfig{class_filter_field: "classes", management: :add_remove} =
              prep.pools["class_spells"]
 
     assert %InventoryRules.PoolConfig{
              scope_type: "character_progression",
              scope_id: "spells_known",
-             management: "toggle_field"
+             management: :toggle_field
            } = prep.pools["spellbook"]
+  end
+
+  test "from_map/1 returns error for unknown pool management strategy" do
+    map = %{
+      "inventory_type" => %{
+        "spell" => %{
+          "schema" => %{"prepared" => %{"type" => "boolean", "default" => false}},
+          "preparation" => %{
+            "mode_field" => "preparation_mode",
+            "activation_mode" => "prepared",
+            "pool_field" => "preparation_pool",
+            "cap_field" => "preparation_cap",
+            "level_field" => "level",
+            "max_level_node" => ["character_trait", "max_spell_level", "level"],
+            "pool" => %{
+              "bad_pool" => %{"management" => "some_unknown_strategy"}
+            }
+          }
+        }
+      }
+    }
+
+    assert {:error, {:unknown_pool_management, "some_unknown_strategy"}} =
+             InventoryRules.from_map(map)
   end
 end

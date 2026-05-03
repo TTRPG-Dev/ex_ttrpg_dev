@@ -205,18 +205,6 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
   defp parse_preparation(nil), do: {:ok, nil}
 
   defp parse_preparation(prep_map) do
-    pools =
-      (prep_map["pool"] || %{})
-      |> Map.new(fn {pool_name, pool_map} ->
-        {pool_name,
-         %PoolConfig{
-           class_filter_field: pool_map["class_filter_field"],
-           scope_type: pool_map["scope_type"],
-           scope_id: pool_map["scope_id"],
-           management: pool_map["management"]
-         }}
-      end)
-
     always = prep_map["always_prepared"] || %{}
     auto_when = prep_map["auto_activate_when"] || %{}
 
@@ -226,21 +214,48 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
         _ -> nil
       end
 
-    {:ok,
-     %PreparationConfig{
-       mode_field: prep_map["mode_field"],
-       activation_mode: prep_map["activation_mode"],
-       pool_field: prep_map["pool_field"],
-       cap_field: prep_map["cap_field"],
-       level_field: prep_map["level_field"],
-       max_level_node: max_level_node,
-       always_prepared_subclass_choice: always["subclass_choice"],
-       always_prepared_metadata_key: always["metadata_key"],
-       auto_activate_when_field: auto_when["class_field"],
-       auto_activate_when_value: auto_when["class_value"],
-       pools: pools
-     }}
+    with {:ok, pools} <- parse_pools(Map.get(prep_map, "pool", %{})) do
+      {:ok,
+       %PreparationConfig{
+         mode_field: prep_map["mode_field"],
+         activation_mode: prep_map["activation_mode"],
+         pool_field: prep_map["pool_field"],
+         cap_field: prep_map["cap_field"],
+         level_field: prep_map["level_field"],
+         max_level_node: max_level_node,
+         always_prepared_subclass_choice: always["subclass_choice"],
+         always_prepared_metadata_key: always["metadata_key"],
+         auto_activate_when_field: auto_when["class_field"],
+         auto_activate_when_value: auto_when["class_value"],
+         pools: pools
+       }}
+    end
   end
+
+  defp parse_pools(pool_map) do
+    Enum.reduce_while(pool_map, {:ok, %{}}, fn {name, pm}, {:ok, acc} ->
+      case parse_pool_config(pm) do
+        {:ok, config} -> {:cont, {:ok, Map.put(acc, name, config)}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp parse_pool_config(pool_map) do
+    with {:ok, management} <- parse_management(pool_map["management"]) do
+      {:ok,
+       %PoolConfig{
+         class_filter_field: pool_map["class_filter_field"],
+         scope_type: pool_map["scope_type"],
+         scope_id: pool_map["scope_id"],
+         management: management
+       }}
+    end
+  end
+
+  defp parse_management("add_remove"), do: {:ok, :add_remove}
+  defp parse_management("toggle_field"), do: {:ok, :toggle_field}
+  defp parse_management(other), do: {:error, {:unknown_pool_management, other}}
 
   defp parse_field_schema(name, map) do
     case parse_type(map["type"]) do
