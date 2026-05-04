@@ -77,11 +77,15 @@ the character sheet.
 
 ## Library vs. System Configuration Boundary
 
-`apps/ex_ttrpg_dev/` is a generic TTRPG library. It must not hardcode any concept IDs, type IDs, field names, or other values that belong to a specific rule system (e.g. `"character_trait"`, `"character_level"`, `"dnd_5e_srd"`).
+`apps/ex_ttrpg_dev/` is a generic TTRPG library. It owns two categories of names:
 
-**The rule:** if the library needs to know *which* node or concept to use, that information must come from the loaded `RuleModule` (declared in `module.toml`) or be passed in by the caller — never embedded in library source.
+**Domain vocabulary** — concept IDs, type IDs, and names that belong to a specific rule system (e.g. `"character_trait"`, `"character_level"`, `"dnd_5e_srd"`, `"fireball"`). These must never be hardcoded in library source. If the library needs to know *which* node or concept to use, that information must come from the loaded `RuleModule` (declared in `module.toml`) or be passed in by the caller.
 
-When implementing a feature, ask before writing code: *does this require knowing what something is called in a specific system?* If yes, the name belongs in config, and the library receives it as data.
+**Structural vocabulary** — keys the library itself defines to interpret concept metadata and config (e.g. `"required_count"`, `"available_when"`, `"preparation_mode"`, `"always_prepared"`). These are the library's own language; it owns and documents them. They must be listed in one place and validated at load time — but they are *not* subject to the "must come from config" rule.
+
+When implementing a feature, ask before writing code: *is this name domain vocabulary (belongs in system config) or structural vocabulary (belongs in the library)?* Domain names go in config. Structural names go in library source, with documentation.
+
+As a heuristic: if no realistic second rule system would ever need a different value for this name, it is structural vocabulary. If a second system might reasonably call it something else, it is domain vocabulary and belongs in config.
 
 `apps/ttrpg_dev_cli/` and `priv/system_configs/` are allowed to be system-aware.
 
