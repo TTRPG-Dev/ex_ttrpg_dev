@@ -1,10 +1,73 @@
-[inventory]
-inventoriable_types = ["equipment"]
+# Each [inventory_type.<id>] section declares one typed inventory.
+# The type id must match the concept type that holds the items (e.g. "equipment", "spell").
+#
+# Fields:
+#   activate_command   — CLI verb that activates an item (e.g. "equip", "prepare")
+#   deactivate_command — CLI verb that deactivates an item (optional)
+#   activation_field   — the schema field toggled by the activate/deactivate commands
+#
+# [inventory_type.<id>.schema.<field>]
+#   type, default, and optional min/max/values — same as before.
+#
+# [[inventory_type.<id>.add_on_progression]]
+#   progression       — character_progression id whose resolved selections enter this inventory
+#   auto_activate     — if true, items are activated (field = true) immediately on entry
+#   excludes_from_cap — if true, these items are not counted against the preparation cap
+#
+# [inventory_type.<id>.preparation]
+#   Configures a preparation-managed inventory (eligible pool + cap enforcement).
 
-# Fields present on every inventory item instance.
-# Rule system TOML can reference these in `when` conditions and `value`
-# formulas via `item.<field_name>` (e.g. `when = "item.equipped"`).
+[inventory_type.equipment]
+activate_command   = "equip"
+deactivate_command = "unequip"
+activation_field   = "equipped"
 
-[inventory_item_schema.equipped]
-type = "boolean"
+[inventory_type.equipment.schema.equipped]
+type    = "boolean"
 default = false
+
+[inventory_type.spell]
+activate_command = "prepare"
+activation_field = "prepared"
+
+[inventory_type.spell.schema.prepared]
+type    = "boolean"
+default = false
+
+# Cantrips enter spell inventory already activated and never count toward the cap.
+# Leveled spells enter inactivated; activation is manual (or auto for bard).
+[[inventory_type.spell.add_on_progression]]
+progression   = "cantrips"
+auto_activate = true
+
+[[inventory_type.spell.add_on_progression]]
+progression = "spells_known"
+
+[inventory_type.spell.preparation]
+mode_field      = "preparation_mode"
+activation_mode = "prepared"
+pool_field      = "preparation_pool"
+cap_field      = "preparation_cap"
+level_field    = "level"
+# Tuple-as-list: [type_id, concept_id, field_name] for the max-spell-level resolved node.
+max_level_node = ["character_trait", "max_spell_level", "level"]
+
+[inventory_type.spell.preparation.always_prepared]
+metadata_key = "always_prepared"
+
+[inventory_type.spell.preparation.auto_activate_when]
+class_field = "preparation_mode"
+class_value = "all"
+
+# class_spells pool: eligible spells come from all spells whose `classes` list includes the
+# character's class. Items are added on prepare and removed on un-prepare (add_remove).
+[inventory_type.spell.preparation.pool.class_spells]
+class_filter_field = "classes"
+management         = "add_remove"
+
+# spellbook pool: eligible spells are the character's spells_known decisions already in
+# inventory. Items stay; only the `prepared` field is toggled (toggle_field).
+[inventory_type.spell.preparation.pool.spellbook]
+scope_type = "character_progression"
+scope_id   = "spells_known"
+management = "toggle_field"

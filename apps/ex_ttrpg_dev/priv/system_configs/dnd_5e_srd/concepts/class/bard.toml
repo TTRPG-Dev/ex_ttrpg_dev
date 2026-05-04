@@ -3,6 +3,7 @@ name = "Bard"
 hit_die = "d8"
 armor_proficiencies = ["Light Armor"]
 weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier", "Shortsword"]
+preparation_mode = "all"
 
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"

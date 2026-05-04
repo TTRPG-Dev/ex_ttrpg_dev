@@ -4,7 +4,7 @@ defmodule ExTTRPGDev.Characters.InventoryItem do
 
   Holds a reference to a concept (by type and id) and a map of instance fields
   as defined by the rule system's `inventory_rules.toml`. Field values are
-  validated against the schema when creating or updating items.
+  validated against the per-type schema when creating or updating items.
   """
 
   alias ExTTRPGDev.RuleSystem.InventoryRules
@@ -14,15 +14,18 @@ defmodule ExTTRPGDev.Characters.InventoryItem do
 
   @doc """
   Creates a new `InventoryItem`, merging defaults with any provided fields and
-  validating against the system's inventory rules.
+  validating against the system's inventory rules for that type.
 
   Returns `{:ok, %InventoryItem{}}` or `{:error, reason}`.
   """
   def new(concept_type, concept_id, %InventoryRules{} = inventory_rules, custom_fields \\ %{}) do
     if InventoryRules.inventoriable?(inventory_rules, concept_type) do
-      fields = Map.merge(InventoryRules.default_fields(inventory_rules), custom_fields)
+      fields =
+        Map.merge(InventoryRules.default_fields(inventory_rules, concept_type), custom_fields)
 
-      case validate_fields(fields, inventory_rules.schema) do
+      schema = InventoryRules.type_schema(inventory_rules, concept_type)
+
+      case validate_fields(fields, schema) do
         :ok ->
           {:ok, %__MODULE__{concept_type: concept_type, concept_id: concept_id, fields: fields}}
 
@@ -35,14 +38,17 @@ defmodule ExTTRPGDev.Characters.InventoryItem do
   end
 
   @doc """
-  Updates a single field value on an inventory item, validating against the schema.
+  Updates a single field value on an inventory item, validating against the
+  schema for the item's concept type.
 
   Returns `{:ok, updated_item}` or `{:error, reason}`.
   """
   def set_field(%__MODULE__{} = item, field_name, value, %InventoryRules{} = inventory_rules) do
-    case Map.fetch(inventory_rules.schema, field_name) do
-      {:ok, schema} ->
-        case validate_field_value(value, schema) do
+    schema = InventoryRules.type_schema(inventory_rules, item.concept_type)
+
+    case Map.fetch(schema, field_name) do
+      {:ok, field_schema} ->
+        case validate_field_value(value, field_schema) do
           :ok -> {:ok, %{item | fields: Map.put(item.fields, field_name, value)}}
           error -> error
         end

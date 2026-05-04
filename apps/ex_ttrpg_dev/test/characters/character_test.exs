@@ -52,8 +52,12 @@ defmodule ExTTRPGDevTest.Characters.Character do
   test "gen_character!/2 populates inventory from starting_equipment on chosen concepts" do
     {:ok, inventory_rules} =
       ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
-        "inventory" => %{"inventoriable_types" => ["equipment"]},
-        "inventory_item_schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+        "inventory_type" => %{
+          "equipment" => %{
+            "activation_field" => "equipped",
+            "schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+          }
+        }
       })
 
     system =
@@ -101,8 +105,12 @@ defmodule ExTTRPGDevTest.Characters.Character do
   test "gen_character!/2 adds inventory item for equipment choice decision" do
     {:ok, inventory_rules} =
       ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
-        "inventory" => %{"inventoriable_types" => ["equipment"]},
-        "inventory_item_schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+        "inventory_type" => %{
+          "equipment" => %{
+            "activation_field" => "equipped",
+            "schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+          }
+        }
       })
 
     system =

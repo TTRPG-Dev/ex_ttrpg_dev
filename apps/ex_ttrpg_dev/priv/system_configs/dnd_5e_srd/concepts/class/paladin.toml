@@ -3,6 +3,8 @@ name = "Paladin"
 hit_die = "d10"
 armor_proficiencies = ["Light Armor", "Medium Armor", "Heavy Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+preparation_mode = "prepared"
+preparation_pool = "class_spells"
 
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
@@ -79,5 +81,21 @@ steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
 target = "character_trait('asi_count').count"
 value = "class('paladin').asi_slots"
 
+[class.paladin.half_level]
+type = "mapping"
+input = "character_trait('character_level').level"
+steps = [[1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
+
+[class.paladin.preparation_cap]
+type = "formula"
+formula = "ability('charisma').modifier + class('paladin').half_level"
+
 [class.oath_of_devotion]
 name = "Oath of Devotion"
+always_prepared = [
+  "protection_from_evil_and_good", "sanctuary",
+  "lesser_restoration", "zone_of_truth",
+  "beacon_of_hope", "dispel_magic",
+  "freedom_of_movement", "guardian_of_faith",
+  "commune", "flame_strike",
+]

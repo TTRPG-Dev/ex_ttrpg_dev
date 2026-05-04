@@ -195,28 +195,36 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   test "load/1 returns inventory_rules for dnd_5e_srd" do
     assert {:ok, data} = Loader.load(dnd_path())
-    assert %InventoryRules{} = data.inventory_rules
-    assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
-    refute InventoryRules.inventoriable?(data.inventory_rules, "language")
-    assert Map.has_key?(data.inventory_rules.schema, "equipped")
-    refute Map.has_key?(data.inventory_rules.schema, "condition")
+    rules = data.inventory_rules
+    assert InventoryRules.inventoriable?(rules, "equipment")
+    assert InventoryRules.inventoriable?(rules, "spell")
+    refute InventoryRules.inventoriable?(rules, "language")
+  end
+
+  test "load/1 equipment schema has equipped field in inventory_rules for dnd_5e_srd" do
+    assert {:ok, data} = Loader.load(dnd_path())
+    schema = InventoryRules.type_schema(data.inventory_rules, "equipment")
+    assert Map.has_key?(schema, "equipped")
+    refute Map.has_key?(schema, "condition")
   end
 
   test "load/1 parses inventory_rules.toml when present" do
     with_tmp_system(["equipment"], fn dir ->
       File.write!(Path.join(dir, "inventory_rules.toml"), """
-      [inventory]
-      inventoriable_types = ["equipment"]
+      [inventory_type.equipment]
+      activate_command   = "equip"
+      activation_field   = "equipped"
 
-      [inventory_item_schema.equipped]
-      type = "boolean"
+      [inventory_type.equipment.schema.equipped]
+      type    = "boolean"
       default = false
       """)
 
       assert {:ok, data} = Loader.load(dir)
       assert InventoryRules.inventoriable?(data.inventory_rules, "equipment")
       refute InventoryRules.inventoriable?(data.inventory_rules, "language")
-      assert %{type: :boolean, default: false} = data.inventory_rules.schema["equipped"]
+      schema = InventoryRules.type_schema(data.inventory_rules, "equipment")
+      assert %{type: :boolean, default: false} = schema["equipped"]
     end)
   end
 

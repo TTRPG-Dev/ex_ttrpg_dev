@@ -3,6 +3,7 @@ name = "Ranger"
 hit_die = "d10"
 armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+preparation_mode = "all"
 
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
