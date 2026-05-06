@@ -13,6 +13,98 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     effects: [effect_map]
   }
   ```
+
+  ## Structural Vocabulary
+
+  The library reads the following keys from `concept_metadata` values. These are
+  the library's own language for interpreting concept definitions — they are *not*
+  domain names from any specific rule system, and they are fixed. Keys not in this
+  list are ignored by the library (but may be used by caller code).
+
+  ### Reserved concept type IDs
+
+  Two concept type IDs have structural meaning to the library:
+
+  - `"roll"` — concepts of this type define die rolling methods. Each must have
+    `target_type`, `dice`, and `bonus_field` (see below).
+  - `"character_progression"` — concepts of this type define character advancement
+    tables. The library uses this type ID to locate progression decisions.
+
+  ### Universal keys (any concept type)
+
+  - `"name"` *(string, optional)* — display name; falls back to the concept ID.
+
+  ### Keys on `"character_progression"` concepts
+
+  - `"type"` *(string: concept type ID, optional)* — the concept type from which
+    this progression grants choices. If absent, the progression does not produce
+    pending choices.
+  - `"required_count"` *(formula string, optional)* — expression evaluated against
+    resolved node values; result is the number of pending choices required. If
+    absent, no pending choices are produced.
+  - `"available_when"` *(formula string, optional)* — expression gate; if it
+    evaluates to falsy the progression's choices are not surfaced to the caller.
+  - `"effect_target"` *(expression string, optional)* — node key expression (e.g.
+    `"character_trait('max_hit_points').points"`) where the selected concept's value
+    contributes. Used for progressions whose selection directly modifies a node.
+  - `"roll_reference"` *(string `"type_id.concept_id"`, optional)* — pointer to a
+    `roll` concept. Resolved at evaluation time and injected as `"roll"` on the
+    metadata map. Not authored directly in TOML as `"roll"`.
+  - `"filter"` *(map, optional)* — filters applied when presenting options from this
+    progression. All subkeys are optional:
+    - `"level"` *(integer)* — exact level match; mutually exclusive with
+      `"min_level"` / `"max_level_node"`.
+    - `"min_level"` *(integer)* — minimum level (inclusive).
+    - `"max_level_node"` *(expression string)* — expression resolving to the
+      maximum allowed level.
+    - `"active_in"` *(`%{"field" => string, "type" => string}`)* — restricts
+      options to concepts whose `field` metadata list includes at least one active
+      concept of `type`.
+
+  ### Keys on `"roll"` concepts
+
+  - `"target_type"` *(string: concept type ID)* — the concept type this roll
+    definition targets.
+  - `"dice"` *(string)* — dice expression (e.g. `"d8"`, `"2d6"`).
+  - `"bonus_field"` *(string: node field name)* — the field on the target concept
+    that holds the roll bonus.
+
+  ### Keys on selectable concepts (any type eligible for selection)
+
+  - `"level"` *(integer, optional)* — concept level used in level-range filters.
+    Defaults to `0` when absent.
+  - `"requires"` *(list of `%{"node" => expr, "min" => number}`, optional)* —
+    prerequisites that must all be satisfied for the concept to be selectable.
+    Each entry checks that `expr` evaluates to a value `>= min`.
+
+  ### Keys on concepts with starting inventory
+
+  - `"starting_equipment"` *(list of `%{"type" => type_id, "id" => concept_id,
+    "fields" => map}`, optional)* — inventory items granted when this concept is
+    selected at root scope (nil-scoped decision). `"fields"` is optional.
+
+  ### Keys on concepts with choices
+
+  - `"choices"` *(map: string → choice_def, optional)* — named choice definitions.
+    Each value is a map with:
+    - `"type"` *(string: concept type ID)* — concept type to choose from.
+    - `"options"` *(list of strings, optional)* — explicit allowed concept IDs. If
+      absent, all concepts of `type` satisfying the filter are eligible.
+    - `"grants_to"` *(`"inventory"`, optional)* — if present, the selection creates
+      an inventory item instead of a decision record.
+    - `"name"` *(string, optional)* — display name for the choice prompt; falls
+      back to the choice key.
+    - `"contributes_field"` *(string, optional)* — field name on the selected
+      concept to contribute a value to.
+    - `"contributes_value"` *(any, optional)* — value contributed to
+      `"contributes_field"`. Required when `"contributes_field"` is present.
+
+  ### Note: CLI-only keys
+
+  The following keys are consumed by `ttrpg_dev_cli`, not by this library:
+
+  - `"hidden"` *(boolean, optional)* — omits the concept from character sheet
+    display. Has no effect on DAG evaluation.
   """
 
   alias ExTTRPGDev.RuleSystem.{InventoryRules, RuleModule}
