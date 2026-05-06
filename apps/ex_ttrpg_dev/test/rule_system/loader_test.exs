@@ -1,5 +1,6 @@
 defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
   alias ExTTRPGDev.RuleSystem.{InventoryRules, Loader, RuleModule}
 
   defp dnd_path do
@@ -607,5 +608,143 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     value = 1
     label_filters = []
     """)
+  end
+
+  # --- Metadata key validation ---
+
+  test "dnd_5e_srd loads with no unknown metadata key warnings" do
+    log = capture_log(fn -> Loader.load!(dnd_path()) end)
+
+    assert log == "",
+           "Unexpected metadata key warnings when loading dnd_5e_srd:\n#{log}"
+  end
+
+  test "unknown top-level metadata key produces a warning" do
+    log =
+      with_tmp_system(fn dir ->
+        File.mkdir_p!(Path.join(dir, "concepts/ability"))
+
+        File.write!(Path.join(dir, "concepts/ability/strength.toml"), """
+        [ability.strength]
+        name = "Strength"
+        bogus_field = "this should warn"
+        """)
+
+        capture_log(fn -> Loader.load!(dir) end)
+      end)
+
+    assert log =~ ~s(Unknown metadata key "bogus_field" on 1 "ability" concept)
+    assert log =~ "strength"
+    assert log =~ "custom_metadata_keys"
+  end
+
+  test "structural vocabulary keys do not produce warnings" do
+    log =
+      with_tmp_system(fn dir ->
+        File.mkdir_p!(Path.join(dir, "concepts/ability"))
+
+        File.write!(Path.join(dir, "concepts/ability/strength.toml"), """
+        [ability.strength]
+        name = "Strength"
+        level = 1
+        requires = []
+        """)
+
+        capture_log(fn -> Loader.load!(dir) end)
+      end)
+
+    refute log =~ "Unknown metadata key"
+  end
+
+  test "metadata_contributions from_field keys do not produce warnings" do
+    log =
+      with_tmp_system(["class", "equipment"], fn dir ->
+        File.write!(Path.join(dir, "module.toml"), """
+        [module]
+        name = "Test System"
+        slug = "test_system"
+        version = "0.0.1"
+
+        [[concept_type]]
+        id = "class"
+        name = "Class"
+
+        [[concept_type]]
+        id = "equipment"
+        name = "Equipment"
+
+        [[metadata_contributions]]
+        from_type = "class"
+        from_field = "weapon_proficiencies"
+        to_type = "equipment"
+        to_field = "is_proficient"
+        value = 1
+        label_filters = []
+        """)
+
+        File.mkdir_p!(Path.join(dir, "concepts/class"))
+
+        File.write!(Path.join(dir, "concepts/class/fighter.toml"), """
+        [class.fighter]
+        name = "Fighter"
+        weapon_proficiencies = ["Longsword"]
+        """)
+
+        capture_log(fn -> Loader.load!(dir) end)
+      end)
+
+    refute log =~ ~s("weapon_proficiencies")
+  end
+
+  test "custom_metadata_keys declared in module.toml suppress warnings" do
+    log =
+      with_tmp_system(fn dir ->
+        File.write!(Path.join(dir, "module.toml"), """
+        [module]
+        name = "Test System"
+        slug = "test_system"
+        version = "0.0.1"
+        custom_metadata_keys = ["my_custom_field"]
+
+        [[concept_type]]
+        id = "ability"
+        name = "Ability"
+        """)
+
+        File.mkdir_p!(Path.join(dir, "concepts/ability"))
+
+        File.write!(Path.join(dir, "concepts/ability/strength.toml"), """
+        [ability.strength]
+        name = "Strength"
+        my_custom_field = "intentional domain key"
+        """)
+
+        capture_log(fn -> Loader.load!(dir) end)
+      end)
+
+    refute log =~ "Unknown metadata key"
+  end
+
+  test "warnings group by key and type — one warning per (key, type_id) pair" do
+    log =
+      with_tmp_system(fn dir ->
+        File.mkdir_p!(Path.join(dir, "concepts/ability"))
+
+        File.write!(Path.join(dir, "concepts/ability/attrs.toml"), """
+        [ability.strength]
+        name = "Strength"
+        bogus = true
+
+        [ability.dexterity]
+        name = "Dexterity"
+        bogus = true
+        """)
+
+        capture_log(fn -> Loader.load!(dir) end)
+      end)
+
+    occurrences = log |> String.split("\n") |> Enum.count(&String.contains?(&1, ~s("bogus")))
+    assert occurrences == 1, "Expected one grouped warning for 'bogus', got #{occurrences}"
+    assert log =~ "2 \"ability\" concepts"
   end
 end
