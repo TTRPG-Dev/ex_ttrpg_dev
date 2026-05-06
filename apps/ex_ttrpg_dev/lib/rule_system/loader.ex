@@ -216,7 +216,13 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp process_type("rolling_method", concepts, acc) do
     rolling_methods =
       Enum.reduce(concepts, acc.rolling_methods, fn {id, fields}, rm ->
-        Map.put(rm, id, parse_rolling_method(fields))
+        method = parse_rolling_method(fields)
+
+        if is_nil(method.dice) do
+          Logger.warning("Rolling method #{inspect(id)} is missing required field \"dice\".")
+        end
+
+        Map.put(rm, id, method)
       end)
 
     %{acc | rolling_methods: rolling_methods}
@@ -250,7 +256,9 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
         is_map(value) and (Map.has_key?(value, "type") or Map.has_key?(value, "formula")) ->
           node_key = {type_id, concept_id, field_name}
-          {Map.put(nodes, node_key, parse_node(value)), meta, effects}
+          node = parse_node(value)
+          warn_missing_node_fields(node, node_key)
+          {Map.put(nodes, node_key, node), meta, effects}
 
         true ->
           {nodes, Map.put(meta, field_name, value), effects}
@@ -273,6 +281,25 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp parse_node(%{"formula" => formula}) do
     %{type: :formula, formula: formula}
   end
+
+  defp warn_missing_node_fields(%{type: :generated, method: nil}, {type_id, concept_id, field}) do
+    Logger.warning(
+      "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+        "has type :generated but is missing required field \"method\"."
+    )
+  end
+
+  defp warn_missing_node_fields(%{type: :mapping} = node, {type_id, concept_id, field}) do
+    for {key, label} <- [{:input, "input"}, {:steps, "steps"}],
+        is_nil(Map.get(node, key)) do
+      Logger.warning(
+        "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+          "has type :mapping but is missing required field #{inspect(label)}."
+      )
+    end
+  end
+
+  defp warn_missing_node_fields(_, _), do: :ok
 
   defp parse_rolling_method(fields) do
     %{
