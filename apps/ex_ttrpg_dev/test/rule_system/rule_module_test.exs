@@ -122,6 +122,28 @@ defmodule ExTTRPGDev.RuleSystem.RuleModuleTest do
     assert contrib.label_filters == []
   end
 
+  test "from_map/1 returns error when a concept_type entry is missing id" do
+    map = Map.put(@valid_map, "concept_type", [%{"name" => "Orphan"}])
+    assert {:error, {:concept_type_missing_id, 0}} = RuleModule.from_map(map)
+  end
+
+  test "from_map/1 returns error when a metadata_contribution entry is missing a required field" do
+    base = %{
+      "from_type" => "class",
+      "from_field" => "weapon_proficiencies",
+      "to_type" => "equipment",
+      "to_field" => "is_proficient",
+      "value" => 1
+    }
+
+    for field <- ~w(from_type from_field to_type to_field value) do
+      map = Map.put(@valid_map, "metadata_contributions", [Map.delete(base, field)])
+
+      assert {:error, {:metadata_contribution_missing_field, ^field, 0}} =
+               RuleModule.from_map(map)
+    end
+  end
+
   test "concept_type_ids/1 returns a MapSet of ids" do
     {:ok, pkg} = RuleModule.from_map(@valid_map)
     ids = RuleModule.concept_type_ids(pkg)
