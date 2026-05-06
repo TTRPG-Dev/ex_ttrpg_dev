@@ -610,6 +610,17 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     """)
   end
 
+  # Writes a single concept TOML file to a fresh tmp system and returns the
+  # captured log output from loading it. Used by warning-assertion tests that
+  # exercise a single concept in isolation.
+  defp capture_load_with_concept(type_id, filename, toml) do
+    with_tmp_system([type_id], fn dir ->
+      File.mkdir_p!(Path.join(dir, "concepts/#{type_id}"))
+      File.write!(Path.join(dir, "concepts/#{type_id}/#{filename}.toml"), toml)
+      capture_log(fn -> Loader.load!(dir) end)
+    end)
+  end
+
   # --- Metadata key validation ---
 
   test "dnd_5e_srd loads with no unknown metadata key warnings" do
@@ -621,17 +632,11 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   test "unknown top-level metadata key produces a warning" do
     log =
-      with_tmp_system(fn dir ->
-        File.mkdir_p!(Path.join(dir, "concepts/ability"))
-
-        File.write!(Path.join(dir, "concepts/ability/strength.toml"), """
-        [ability.strength]
-        name = "Strength"
-        bogus_field = "this should warn"
-        """)
-
-        capture_log(fn -> Loader.load!(dir) end)
-      end)
+      capture_load_with_concept("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      bogus_field = "this should warn"
+      """)
 
     assert log =~ ~s(Unknown metadata key "bogus_field" on 1 "ability" concept)
     assert log =~ "strength"
@@ -640,18 +645,12 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   test "structural vocabulary keys do not produce warnings" do
     log =
-      with_tmp_system(fn dir ->
-        File.mkdir_p!(Path.join(dir, "concepts/ability"))
-
-        File.write!(Path.join(dir, "concepts/ability/strength.toml"), """
-        [ability.strength]
-        name = "Strength"
-        level = 1
-        requires = []
-        """)
-
-        capture_log(fn -> Loader.load!(dir) end)
-      end)
+      capture_load_with_concept("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      level = 1
+      requires = []
+      """)
 
     refute log =~ "Unknown metadata key"
   end
@@ -723,6 +722,43 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
       end)
 
     refute log =~ "Unknown metadata key"
+  end
+
+  # --- Required node field validation ---
+
+  test "generated node missing method produces a warning" do
+    log =
+      capture_load_with_concept("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      base_score.type = "generated"
+      """)
+
+    assert log =~ ~s(Node "base_score" on "ability" concept "strength")
+    assert log =~ ~s(has type :generated but is missing required field "method")
+  end
+
+  test "mapping node missing input and steps produces warnings" do
+    log =
+      capture_load_with_concept("ability", "level", """
+      [ability.level]
+      name = "Level"
+      rank.type = "mapping"
+      """)
+
+    assert log =~ ~s(has type :mapping but is missing required field "input")
+    assert log =~ ~s(has type :mapping but is missing required field "steps")
+  end
+
+  test "rolling method missing dice produces a warning" do
+    log =
+      capture_load_with_concept("rolling_method", "broken", """
+      [rolling_method.broken]
+      name = "Broken Method"
+      drop = "lowest"
+      """)
+
+    assert log =~ ~s(Rolling method "broken" is missing required field "dice")
   end
 
   test "warnings group by key and type — one warning per (key, type_id) pair" do

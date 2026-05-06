@@ -81,15 +81,14 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
   Returns `{:ok, %RuleModule{}}` on success or `{:error, reason}` on failure.
   """
   def from_map(%{"module" => module_map} = map) do
-    missing = Enum.find(@required_keys, fn key -> not Map.has_key?(module_map, key) end)
+    concept_types_raw = Map.get(map, "concept_type", [])
+    metadata_contributions_raw = Map.get(map, "metadata_contributions", [])
 
-    if missing do
-      {:error, {:missing_required_key, missing}}
-    else
+    with nil <- Enum.find(@required_keys, &(not Map.has_key?(module_map, &1))),
+         :ok <- validate_concept_types(concept_types_raw),
+         :ok <- validate_metadata_contributions(metadata_contributions_raw) do
       concept_types =
-        map
-        |> Map.get("concept_type", [])
-        |> Enum.map(fn et ->
+        Enum.map(concept_types_raw, fn et ->
           %ConceptType{
             id: et["id"],
             name: et["name"],
@@ -116,9 +115,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
         end
 
       metadata_contributions =
-        map
-        |> Map.get("metadata_contributions", [])
-        |> Enum.map(&parse_metadata_contribution/1)
+        Enum.map(metadata_contributions_raw, &parse_metadata_contribution/1)
 
       {:ok,
        %__MODULE__{
@@ -135,10 +132,35 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          metadata_contributions: metadata_contributions,
          custom_metadata_keys: Map.get(module_map, "custom_metadata_keys", [])
        }}
+    else
+      missing when is_binary(missing) -> {:error, {:missing_required_key, missing}}
+      error -> error
     end
   end
 
   def from_map(_), do: {:error, {:missing_required_key, "module"}}
+
+  defp validate_concept_types(list) do
+    case Enum.find_index(list, fn et -> is_nil(et["id"]) end) do
+      nil -> :ok
+      idx -> {:error, {:concept_type_missing_id, idx}}
+    end
+  end
+
+  defp validate_metadata_contributions(list) do
+    list
+    |> Enum.with_index()
+    |> Enum.find_value(:ok, &check_metadata_contribution_fields/1)
+  end
+
+  defp check_metadata_contribution_fields({mc, idx}) do
+    required = ~w(from_type from_field to_type to_field value)
+
+    case Enum.find(required, &is_nil(mc[&1])) do
+      nil -> nil
+      field -> {:error, {:metadata_contribution_missing_field, field, idx}}
+    end
+  end
 
   defp parse_metadata_contribution(mc) do
     label_filters =
