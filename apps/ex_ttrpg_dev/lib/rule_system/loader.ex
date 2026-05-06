@@ -107,9 +107,20 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     display. Has no effect on DAG evaluation.
   """
 
+  require Logger
+
   alias ExTTRPGDev.RuleSystem.{InventoryRules, RuleModule}
 
   @module_file "module.toml"
+
+  # All concept metadata keys read by the library at runtime. Keys not in this
+  # set and not otherwise declared will trigger a Logger.warning at load time.
+  # See the "Structural Vocabulary" section of this module's docs for semantics.
+  @structural_metadata_keys MapSet.new(~w(
+    name type required_count available_when effect_target roll_reference roll
+    filter choices level requires starting_equipment target_type dice bonus_field
+    contributes hidden
+  ))
   @character_building_file "character_building.toml"
   @inventory_rules_file "inventory_rules.toml"
 
@@ -119,6 +130,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
          {:ok, data} <- load_concept_files(path, rule_module) do
       inventory_rules = load_inventory_rules(path)
       data = expand_metadata_contributions(data, rule_module)
+      warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
     end
   end
@@ -321,6 +333,66 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
         end)
         |> Enum.map(fn {{_type, id}, _meta} -> id end)
     end
+  end
+
+  defp warn_unknown_metadata_keys(concept_metadata, rule_module, inventory_rules) do
+    allowed = build_allowed_keys(rule_module, inventory_rules)
+
+    concept_metadata
+    |> Enum.flat_map(fn {{type_id, concept_id}, meta} ->
+      meta
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(allowed, &1))
+      |> Enum.map(&{&1, type_id, concept_id})
+    end)
+    |> Enum.group_by(fn {key, type_id, _concept_id} -> {key, type_id} end)
+    |> Enum.sort_by(fn {{key, type_id}, _} -> {type_id, key} end)
+    |> Enum.each(fn {{key, type_id}, instances} ->
+      ids = instances |> Enum.map(fn {_, _, id} -> id end) |> Enum.sort()
+      {shown, rest} = Enum.split(ids, 5)
+      id_str = Enum.join(shown, ", ") <> if(rest == [], do: "", else: " and #{length(rest)} more")
+      count = length(ids)
+      noun = if count == 1, do: "concept", else: "concepts"
+
+      Logger.warning(
+        "Unknown metadata key #{inspect(key)} on #{count} #{inspect(type_id)} #{noun} " <>
+          "in system #{inspect(rule_module.slug)}: #{id_str}. " <>
+          "If intentional, add #{inspect(key)} to custom_metadata_keys in module.toml. " <>
+          "See ExTTRPGDev.RuleSystem.Loader for the structural vocabulary."
+      )
+    end)
+  end
+
+  defp build_allowed_keys(rule_module, inventory_rules) do
+    from_contributions =
+      Enum.flat_map(rule_module.metadata_contributions, fn mc ->
+        [mc.from_field | Enum.map(mc.label_filters, & &1.filter_field)]
+      end)
+
+    [
+      from_contributions,
+      rule_module.custom_metadata_keys,
+      extract_inventory_rules_keys(inventory_rules)
+    ]
+    |> Enum.concat()
+    |> MapSet.new()
+    |> MapSet.union(@structural_metadata_keys)
+  end
+
+  defp extract_inventory_rules_keys(%InventoryRules{types: nil}), do: []
+
+  defp extract_inventory_rules_keys(%InventoryRules{types: types}) do
+    Enum.flat_map(types, fn {_type_id, config} ->
+      case config.preparation do
+        nil ->
+          []
+
+        prep ->
+          base = [prep.mode_field, prep.pool_field, prep.always_prepared_metadata_key]
+          pool_keys = (prep.pools || %{}) |> Map.values() |> Enum.map(& &1.class_filter_field)
+          Enum.filter(base ++ pool_keys, & &1)
+      end
+    end)
   end
 
   defp parse_effect(source, %{"target" => target, "value" => value} = entry) do

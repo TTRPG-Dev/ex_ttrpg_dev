@@ -6,6 +6,31 @@ family = "dungeons_and_dragons"
 series = "dungeons_and_dragons_5e"
 publisher = "Wizards of the Coast, Inc."
 level_node = "character_trait('character_level').level"
+custom_metadata_keys = [
+  # ability / skill display
+  "abbreviation", "description",
+  # award
+  "value_type",
+  # background / race
+  "skill_proficiencies", "damage_resistances", "languages",
+  # character_trait
+  "unit",
+  # class / race
+  "armor_proficiencies", "hit_die", "tool_proficiencies",
+  # currency
+  "in_copper",
+  # equipment — physical properties
+  "category", "cost", "weight", "description",
+  "armor_type", "ac_base", "ac_bonus", "ac_dex_bonus", "ac_dex_max",
+  "stealth_disadvantage", "strength_requirement",
+  "weapon_type", "damages", "properties", "versatile_damage",
+  "range_normal", "range_long", "tool_type",
+  # language
+  "script",
+  # spell display / rules
+  "school", "casting_time", "duration", "range",
+  "concentration", "ritual", "verbal", "somatic", "material"
+]
 
 [[concept_type]]
 id = "ability"
