@@ -69,7 +69,8 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     character_building_choices: [],
     character_lists: [],
     display_config: nil,
-    metadata_contributions: []
+    metadata_contributions: [],
+    custom_metadata_keys: []
   ]
 
   @required_keys ["name", "slug", "version"]
@@ -131,7 +132,8 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          concept_types: concept_types,
          character_lists: character_lists,
          display_config: display_config,
-         metadata_contributions: metadata_contributions
+         metadata_contributions: metadata_contributions,
+         custom_metadata_keys: Map.get(module_map, "custom_metadata_keys", [])
        }}
     end
   end
