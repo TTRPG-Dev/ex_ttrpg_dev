@@ -726,7 +726,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
   # --- Required node field validation ---
 
-  test "generated node missing method produces a warning" do
+  test "generated node with no method and no default rolling method produces a warning" do
     log =
       capture_load_with_concept("ability", "strength", """
       [ability.strength]
@@ -735,7 +735,73 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
       """)
 
     assert log =~ ~s(Node "base_score" on "ability" concept "strength")
-    assert log =~ ~s(has type :generated but is missing required field "method")
+    assert log =~ ~s(no rolling method declares default = true)
+  end
+
+  test "generated node with no method is fine when a default rolling method exists" do
+    log =
+      with_tmp_system(["ability", "rolling_method"], fn dir ->
+        File.mkdir_p!(Path.join(dir, "concepts/ability"))
+
+        File.write!(Path.join(dir, "concepts/ability/strength.toml"), """
+        [rolling_method.standard_array]
+        name = "Standard"
+        dice = "4d6"
+        drop = "lowest"
+        default = true
+
+        [ability.strength]
+        name = "Strength"
+        base_score.type = "generated"
+        """)
+
+        capture_log(fn -> Loader.load!(dir) end)
+      end)
+
+    assert log == ""
+  end
+
+  test "generated node referencing an unknown rolling method produces a warning" do
+    log =
+      capture_load_with_concept("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      base_score.type = "generated"
+      base_score.method = "nonexistent"
+      """)
+
+    assert log =~ ~s(references unknown rolling method "nonexistent")
+  end
+
+  test "unsupported drop value on a rolling method produces a warning" do
+    log =
+      capture_load_with_concept("rolling_method", "weird", """
+      [rolling_method.weird]
+      name = "Weird"
+      dice = "4d6"
+      drop = "highest"
+      """)
+
+    assert log =~ ~s(unsupported drop value "highest")
+    assert log =~ ~s(only "lowest" is supported)
+  end
+
+  test "multiple default rolling methods produce an ambiguity warning" do
+    log =
+      capture_load_with_concept("rolling_method", "methods", """
+      [rolling_method.first]
+      name = "First"
+      dice = "4d6"
+      default = true
+
+      [rolling_method.second]
+      name = "Second"
+      dice = "3d6"
+      default = true
+      """)
+
+    assert log =~ "Multiple rolling methods declare default = true"
+    assert log =~ "first, second"
   end
 
   test "mapping node missing input and steps produces warnings" do

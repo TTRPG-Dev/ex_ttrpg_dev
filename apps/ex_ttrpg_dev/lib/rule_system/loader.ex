@@ -23,12 +23,23 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   ### Reserved concept type IDs
 
-  Two concept type IDs have structural meaning to the library:
+  Three concept type IDs have structural meaning to the library:
 
   - `"roll"` — concepts of this type define die rolling methods. Each must have
     `target_type`, `dice`, and `bonus_field` (see below).
   - `"character_progression"` — concepts of this type define character advancement
     tables. The library uses this type ID to locate progression decisions.
+  - `"rolling_method"` — concepts of this type define how `generated` nodes are
+    rolled at character generation. Keys:
+    - `"name"` *(string, optional)* — display name.
+    - `"dice"` *(string, required)* — dice expression rolled for the value (e.g.
+      `"4d6"`).
+    - `"drop"` *(string, optional)* — `"lowest"` drops the lowest die from the
+      roll. No other value is supported; anything else warns at load time and is
+      ignored.
+    - `"default"` *(boolean, optional)* — marks this method as the system-wide
+      default for `generated` nodes that do not declare a `"method"`. Exactly one
+      method should set it; multiple defaults warn at load time.
 
   ### Universal keys (any concept type)
 
@@ -131,6 +142,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
          {:ok, inventory_rules} <- load_inventory_rules(path) do
       data = expand_metadata_contributions(data, rule_module)
       warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
+      warn_rolling_method_issues(data)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
     end
   end
@@ -337,13 +349,6 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     )
   end
 
-  defp warn_missing_node_fields(%{type: :generated, method: nil}, {type_id, concept_id, field}) do
-    Logger.warning(
-      "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
-        "has type :generated but is missing required field \"method\"."
-    )
-  end
-
   defp warn_missing_node_fields(%{type: :mapping} = node, {type_id, concept_id, field}) do
     for {key, label} <- [{:input, "input"}, {:steps, "steps"}],
         is_nil(Map.get(node, key)) do
@@ -355,6 +360,52 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp warn_missing_node_fields(_, _), do: :ok
+
+  # Runs after all concept files are loaded, because a generated node may
+  # legitimately rely on a default rolling method defined in a different file.
+  defp warn_rolling_method_issues(%{nodes: nodes, rolling_methods: methods}) do
+    default_ids = for {id, method} <- methods, method.default, do: id
+
+    if length(default_ids) > 1 do
+      Logger.warning(
+        "Multiple rolling methods declare default = true: " <>
+          "#{default_ids |> Enum.sort() |> Enum.join(", ")}. The default is ambiguous."
+      )
+    end
+
+    for {id, %{drop: drop}} <- methods, not is_nil(drop) and drop != "lowest" do
+      Logger.warning(
+        "Rolling method #{inspect(id)} has unsupported drop value #{inspect(drop)}; " <>
+          "only \"lowest\" is supported. The drop will be ignored."
+      )
+    end
+
+    for {node_key, %{type: :generated, method: method_id}} <- nodes do
+      warn_generated_method_issue(node_key, method_id, methods, default_ids)
+    end
+
+    :ok
+  end
+
+  defp warn_generated_method_issue({type_id, concept_id, field}, nil, _methods, []) do
+    Logger.warning(
+      "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+        "has type :generated with no \"method\", and no rolling method declares " <>
+        "default = true."
+    )
+  end
+
+  defp warn_generated_method_issue({type_id, concept_id, field}, method_id, methods, _defaults)
+       when not is_nil(method_id) do
+    unless Map.has_key?(methods, method_id) do
+      Logger.warning(
+        "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+          "references unknown rolling method #{inspect(method_id)}."
+      )
+    end
+  end
+
+  defp warn_generated_method_issue(_node_key, _method_id, _methods, _defaults), do: :ok
 
   defp parse_rolling_method(fields) do
     %{
