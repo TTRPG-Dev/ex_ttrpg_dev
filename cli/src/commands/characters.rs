@@ -447,13 +447,23 @@ fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
     for (i, c) in choices.iter().enumerate() {
         println!("  {}: {}", i + 1, c.name);
     }
-    let idx = prompt_integer("Select choice (number):")? as usize;
-    match choices.get(idx.saturating_sub(1)) {
-        Some(c) => Some(c),
+    let idx = prompt_integer("Select choice (number):")?;
+    match selection_index(idx, choices.len()) {
+        Some(i) => Some(&choices[i]),
         None => {
             eprintln!("Invalid selection.");
             None
         }
+    }
+}
+
+/// Maps 1-based user input onto a 0-based index, rejecting anything outside
+/// `1..=len` (notably `0`, which `saturating_sub` used to alias to entry 1).
+fn selection_index(input: i64, len: usize) -> Option<usize> {
+    if input >= 1 && (input as usize) <= len {
+        Some(input as usize - 1)
+    } else {
+        None
     }
 }
 
@@ -744,14 +754,43 @@ fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i
 
     let roll_req = json!({"command": "roll", "dice": format!("1{die}")});
     match engine.call::<_, RollResult>(&roll_req) {
-        Ok(result) => {
-            let rolled = result.results[0].total;
-            println!("Rolled: {rolled}");
-            Some((rolled, "rolled".to_string()))
-        }
+        Ok(result) => match result.results.first() {
+            Some(first) => {
+                let rolled = first.total;
+                println!("Rolled: {rolled}");
+                Some((rolled, "rolled".to_string()))
+            }
+            None => {
+                eprintln!("Error rolling: engine returned no results.");
+                None
+            }
+        },
         Err(e) => {
             eprintln!("Error rolling: {e}");
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::selection_index;
+
+    #[test]
+    fn selection_index_accepts_the_full_valid_range() {
+        assert_eq!(selection_index(1, 3), Some(0));
+        assert_eq!(selection_index(3, 3), Some(2));
+    }
+
+    #[test]
+    fn selection_index_rejects_zero() {
+        // 0 used to alias to entry 1 via saturating_sub
+        assert_eq!(selection_index(0, 3), None);
+    }
+
+    #[test]
+    fn selection_index_rejects_out_of_range_and_negative_input() {
+        assert_eq!(selection_index(4, 3), None);
+        assert_eq!(selection_index(-1, 3), None);
     }
 }

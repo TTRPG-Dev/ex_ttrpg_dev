@@ -96,7 +96,9 @@ impl CommandCompleter {
         req: serde_json::Value,
     ) -> Option<T> {
         let engine = self.engine.as_ref()?;
-        engine.lock().unwrap().call::<_, T>(&req).ok()
+        // A poisoned lock degrades completion to no-suggestions rather than
+        // panicking inside reedline's event loop.
+        engine.lock().ok()?.call::<_, T>(&req).ok()
     }
 
     fn fetch_character_slugs(&self) -> Vec<String> {
@@ -226,6 +228,15 @@ pub fn run() {
     run_reedline(engine, &mut display_mode);
 }
 
+/// Locks the engine, recovering from a poisoned mutex: the REPL is
+/// single-threaded, so the engine state behind a poisoned lock is still
+/// consistent and continuing beats crashing the session.
+fn lock_engine(engine: &Arc<Mutex<Engine>>) -> std::sync::MutexGuard<'_, Engine> {
+    engine
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn run_pipe(engine: Arc<Mutex<Engine>>, display_mode: &mut DisplayMode) {
     use std::io::BufRead;
     loop {
@@ -237,7 +248,7 @@ fn run_pipe(engine: Arc<Mutex<Engine>>, display_mode: &mut DisplayMode) {
                 if trimmed.is_empty() {
                     continue;
                 }
-                if !handle_line(&trimmed, &mut engine.lock().unwrap(), display_mode) {
+                if !handle_line(&trimmed, &mut lock_engine(&engine), display_mode) {
                     println!("Goodbye!");
                     break;
                 }
@@ -282,7 +293,7 @@ fn run_reedline(engine: Arc<Mutex<Engine>>, display_mode: &mut DisplayMode) {
                 if trimmed.is_empty() {
                     continue;
                 }
-                if !handle_line(trimmed, &mut engine.lock().unwrap(), display_mode) {
+                if !handle_line(trimmed, &mut lock_engine(&engine), display_mode) {
                     println!("Goodbye!");
                     break;
                 }
