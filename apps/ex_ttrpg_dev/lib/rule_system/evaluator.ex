@@ -107,9 +107,16 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
     formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved)
   end
 
+  # A single greedy-regex pass: `item.bonus_max` always matches its full
+  # field name, so fields sharing a prefix (item.bonus / item.bonus_max)
+  # cannot corrupt each other the way per-field String.replace passes did.
+  # Unknown fields are left untouched and surface as a parse error.
   defp substitute_item_fields(formula, item_fields) do
-    Enum.reduce(item_fields, formula, fn {name, value}, acc ->
-      String.replace(acc, "item.#{name}", to_string(value))
+    Regex.replace(~r/item\.(\w+)/, formula, fn full, name ->
+      case Map.fetch(item_fields, name) do
+        {:ok, value} -> to_string(value)
+        :error -> full
+      end
     end)
   end
 

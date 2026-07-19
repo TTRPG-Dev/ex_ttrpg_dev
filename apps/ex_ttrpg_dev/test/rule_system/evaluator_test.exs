@@ -263,6 +263,39 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"attr", "strength", "total_score"}] == 18.0
     end
+
+    test "substitutes fields sharing a prefix regardless of map order" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+
+      # "bonus" is a prefix of "bonus_max"; a per-field replace pass would
+      # corrupt "item.bonus_max" into "2_max" when "bonus" replaced first
+      effects = [
+        %{
+          target: {"attr", "strength", "total_score"},
+          value: "item.bonus + item.bonus_max",
+          item_fields: %{"bonus" => 2, "bonus_max" => 5}
+        }
+      ]
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
+      assert resolved[{"attr", "strength", "total_score"}] == 23
+    end
+
+    test "leaves unknown item fields unsubstituted, producing an error" do
+      system = minimal_system()
+      generated = %{{"attr", "strength", "base_score"} => 16}
+
+      effects = [
+        %{
+          target: {"attr", "strength", "total_score"},
+          value: "item.nonexistent * 2",
+          item_fields: %{"bonus" => 2}
+        }
+      ]
+
+      assert {:error, {:parse_error, _, _}} = Evaluator.evaluate(system, generated, effects)
+    end
   end
 
   describe "integration" do
