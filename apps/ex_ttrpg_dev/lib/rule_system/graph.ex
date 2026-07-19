@@ -181,7 +181,12 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     end
   end
 
-  defp add_single_effect_edge(graph, _nodes, _effect), do: {:ok, graph}
+  # The Loader only emits tuple targets (unparseable ones are warned about
+  # and dropped at load time), so anything else reaching this point is a
+  # caller bug worth rejecting rather than silently ignoring.
+  defp add_single_effect_edge(_graph, _nodes, %{target: target}) do
+    {:error, {:invalid_effect_target, target}}
+  end
 
   defp add_formula_effect_edge(graph, nodes, target_key, value) when is_binary(value) do
     validate_and_add_refs(graph, nodes, value, target_key)

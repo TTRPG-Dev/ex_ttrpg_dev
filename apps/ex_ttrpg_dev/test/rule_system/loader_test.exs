@@ -783,4 +783,123 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert occurrences == 1, "Expected one grouped warning for 'bogus', got #{occurrences}"
     assert log =~ "2 \"ability\" concepts"
   end
+
+  # --- Config error surfacing ---
+
+  # Loads a tmp system containing a single concept file and returns
+  # {captured_log, loaded_data} so tests can assert on both.
+  defp load_and_capture(type_id, filename, toml) do
+    with_tmp_system([type_id], fn dir ->
+      File.mkdir_p!(Path.join(dir, "concepts/#{type_id}"))
+      File.write!(Path.join(dir, "concepts/#{type_id}/#{filename}.toml"), toml)
+
+      log =
+        capture_log(fn ->
+          send(self(), {:loaded, Loader.load!(dir)})
+        end)
+
+      assert_received {:loaded, data}
+      {log, data}
+    end)
+  end
+
+  test "unparseable contributes target warns and skips the effect" do
+    {log, data} =
+      load_and_capture("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      contributes = [{target = "ability(dexterity).total_score", value = 2}]
+      """)
+
+    assert data.effects == []
+    assert log =~ "unparseable target"
+    assert log =~ ~s{"ability(dexterity).total_score"}
+  end
+
+  test "contributes entry missing target or value warns and skips the effect" do
+    {log, data} =
+      load_and_capture("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      contributes = [{target = "ability('dexterity').total_score"}]
+      """)
+
+    assert data.effects == []
+    assert log =~ ~s{missing required key(s) "target" and/or "value"}
+    assert log =~ "strength"
+  end
+
+  test "unrecognized node type warns and skips the node instead of crashing" do
+    {log, data} =
+      load_and_capture("ability", "strength", """
+      [ability.strength]
+      name = "Strength"
+      score.type = "formual"
+      """)
+
+    refute Map.has_key?(data.nodes, {"ability", "strength", "score"})
+    assert log =~ ~s(unrecognized type "formual")
+    assert log =~ "Node skipped"
+  end
+
+  test "malformed inventory_rules.toml propagates an error instead of an empty default" do
+    with_tmp_system(fn dir ->
+      File.write!(Path.join(dir, "inventory_rules.toml"), "this is [not valid toml")
+      assert {:error, {:inventory_rules_error, _}} = Loader.load(dir)
+    end)
+  end
+
+  test "malformed character_building.toml propagates an error" do
+    with_tmp_system(fn dir ->
+      File.write!(Path.join(dir, "character_building.toml"), "this is [not valid toml")
+      assert {:error, {:character_building_error, _}} = Loader.load(dir)
+    end)
+  end
+
+  test "scalar metadata_contributions from_field value is treated as a single-element list" do
+    data =
+      with_tmp_system(["class", "equipment"], fn dir ->
+        File.write!(Path.join(dir, "module.toml"), """
+        [module]
+        name = "Test System"
+        slug = "test_system"
+        version = "0.0.1"
+
+        [[concept_type]]
+        id = "class"
+        name = "Class"
+
+        [[concept_type]]
+        id = "equipment"
+        name = "Equipment"
+
+        [[metadata_contributions]]
+        from_type = "class"
+        from_field = "weapon_proficiencies"
+        to_type = "equipment"
+        to_field = "is_proficient"
+        value = 1
+        label_filters = []
+        """)
+
+        File.mkdir_p!(Path.join(dir, "concepts/class"))
+        File.mkdir_p!(Path.join(dir, "concepts/equipment"))
+
+        File.write!(Path.join(dir, "concepts/class/fighter.toml"), """
+        [class.fighter]
+        name = "Fighter"
+        weapon_proficiencies = "Longsword"
+        """)
+
+        File.write!(Path.join(dir, "concepts/equipment/longsword.toml"), """
+        [equipment.longsword]
+        name = "Longsword"
+        """)
+
+        Loader.load!(dir)
+      end)
+
+    assert [effect] = data.effects
+    assert effect.target == {"equipment", "longsword", "is_proficient"}
+  end
 end
