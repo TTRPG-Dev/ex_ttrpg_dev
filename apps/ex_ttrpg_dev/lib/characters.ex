@@ -213,39 +213,73 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp do_preparation_state(system, character, type_id, %{preparation: prep, activation_field: af}) do
-    case find_prep_class_for_activate(character, system, prep) do
+    case prep_class_and_mode(system, character, prep) do
       {:error, :no_preparation_class} ->
         {:ok, %{mode: nil}}
 
-      {:ok, class_key} ->
-        ctx = %{prep: prep, af: af, type_id: type_id}
-        {:ok, build_prep_state_map(system, character, class_key, ctx)}
+      {:ok, class_key, mode} ->
+        ctx = prep_context(system, character, class_key, %{type_id: type_id, prep: prep})
+        opts = %{prep: prep, af: af, type_id: type_id, mode: mode}
+        {:ok, build_prep_state_map(system, character, ctx, opts)}
     end
   end
 
-  defp build_prep_state_map(system, character, {class_type, class_id} = class_key, ctx) do
-    %{prep: prep, af: af, type_id: type_id} = ctx
-    mode = get_in(system.concept_metadata, [class_key, prep.mode_field])
+  # Stage 1 of the shared preparation pipeline: the active class and its
+  # preparation mode. Cheap — no DAG evaluation — so activate can reject a
+  # wrong mode before any evaluation happens.
+  defp prep_class_and_mode(system, character, prep) do
+    with {:ok, class_key} <- find_prep_class_for_activate(character, system, prep) do
+      {:ok, class_key, get_in(system.concept_metadata, [class_key, prep.mode_field])}
+    end
+  end
+
+  # Stage 2: everything else both the read path (preparation_state) and the
+  # write path (activate) derive — resolved cap, max prepared level, pool
+  # config, and the eligible pool. Fallible steps (cap, pool_config) are
+  # kept as tagged results so activate can pattern-match errors strictly
+  # while preparation_state degrades tolerantly.
+  defp prep_context(system, character, {class_type, class_id} = class_key, opts) do
+    %{type_id: type_id, prep: prep} = opts
     effects = active_effects(system, character)
     resolved = Evaluator.evaluate!(system, character.generated_values, effects)
-    cap = opt_activation_cap(resolved, class_type, class_id, prep)
     max_level = trunc(resolved[prep.max_level_node] || 0)
     pool_name = get_in(system.concept_metadata, [class_key, prep.pool_field])
+    pool_config = fetch_pool_config(prep, pool_name)
 
-    pool_ctx = %{
+    eligible_ctx = %{
       type_id: type_id,
       class_id: class_id,
       max_level: max_level,
-      level_field: prep.level_field,
-      pool_name: pool_name
+      level_field: prep.level_field
     }
 
-    eligible = pool_eligible(system, character, prep, pool_ctx)
+    eligible =
+      case pool_config do
+        {:ok, pc} -> compute_eligible_pool(system, character, pc, eligible_ctx)
+        {:error, _} -> []
+      end
+
+    %{
+      cap: resolve_activation_cap(resolved, class_type, class_id, prep),
+      max_level: max_level,
+      pool_config: pool_config,
+      eligible: eligible
+    }
+  end
+
+  defp build_prep_state_map(system, character, ctx, opts) do
+    %{prep: prep, af: af, type_id: type_id, mode: mode} = opts
+
+    cap =
+      case ctx.cap do
+        {:ok, c} -> c
+        {:error, _} -> nil
+      end
 
     always =
       prep_always_prepared(system, character, %{
         prep: prep,
-        max_level: max_level,
+        max_level: ctx.max_level,
         type_id: type_id
       })
 
@@ -254,21 +288,13 @@ defmodule ExTTRPGDev.Characters do
       |> Enum.filter(&(&1.concept_type == type_id and &1.fields[af] == true))
       |> Enum.map(& &1.concept_id)
 
-    %{mode: mode, cap: cap, eligible: eligible, always_prepared: always, prepared: prepared}
-  end
-
-  defp opt_activation_cap(resolved, class_type, class_id, prep) do
-    case resolve_activation_cap(resolved, class_type, class_id, prep) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
-
-  defp pool_eligible(system, character, prep, ctx) do
-    case fetch_pool_config(prep, ctx.pool_name) do
-      {:ok, pc} -> compute_eligible_pool(system, character, pc, ctx)
-      _ -> []
-    end
+    %{
+      mode: mode,
+      cap: cap,
+      eligible: ctx.eligible,
+      always_prepared: always,
+      prepared: prepared
+    }
   end
 
   defp prep_always_prepared(system, character, ctx) do
@@ -316,25 +342,13 @@ defmodule ExTTRPGDev.Characters do
         {:error, {:not_a_preparation_type, type_id}}
 
       %{preparation: prep, activation_field: activation_field} ->
-        with {:ok, {class_type, class_id} = class_key} <-
-               find_prep_class_for_activate(character, system, prep),
-             mode = get_in(system.concept_metadata, [class_key, prep.mode_field]),
+        with {:ok, class_key, mode} <- prep_class_and_mode(system, character, prep),
              :ok <- require_prepared_mode_for_activate(mode, prep.activation_mode),
-             effects = active_effects(system, character),
-             resolved = Evaluator.evaluate!(system, character.generated_values, effects),
-             {:ok, cap} <- resolve_activation_cap(resolved, class_type, class_id, prep),
-             max_level = trunc(resolved[prep.max_level_node] || 0),
-             pool_name = get_in(system.concept_metadata, [class_key, prep.pool_field]),
-             {:ok, pool_config} <- fetch_pool_config(prep, pool_name),
-             ctx = %{
-               type_id: type_id,
-               class_id: class_id,
-               max_level: max_level,
-               level_field: prep.level_field
-             },
-             eligible = compute_eligible_pool(system, character, pool_config, ctx),
+             ctx = prep_context(system, character, class_key, %{type_id: type_id, prep: prep}),
+             {:ok, cap} <- ctx.cap,
+             {:ok, pool_config} <- ctx.pool_config,
              item_ids = Enum.uniq(item_ids),
-             :ok <- validate_eligible_items(item_ids, eligible),
+             :ok <- validate_eligible_items(item_ids, ctx.eligible),
              :ok <- validate_cap_limit(item_ids, cap) do
           apply_activation(
             character,
@@ -343,7 +357,7 @@ defmodule ExTTRPGDev.Characters do
             system.inventory_rules,
             activation_field,
             pool_config,
-            eligible
+            ctx.eligible
           )
         end
     end
