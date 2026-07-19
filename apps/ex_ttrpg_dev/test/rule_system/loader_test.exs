@@ -869,30 +869,27 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end)
   end
 
-  test "unparseable contributes target warns and skips the effect" do
-    {log, data} =
-      load_and_capture("ability", "strength", """
-      [ability.strength]
-      name = "Strength"
-      contributes = [{target = "ability(dexterity).total_score", value = 2}]
-      """)
+  test "malformed contributes entries warn and are skipped" do
+    malformed_cases = [
+      # unparseable target (missing quotes around the concept id)
+      {~s|[{target = "ability(dexterity).total_score", value = 2}]|, "unparseable target"},
+      # trailing content after the ref — a target must be exactly one ref
+      {~s|[{target = "ability('dexterity').total_score + 1", value = 2}]|, "unparseable target"},
+      # entry missing the required "value" key
+      {~s|[{target = "ability('dexterity').total_score"}]|, ~s{missing required key(s)}}
+    ]
 
-    assert data.effects == []
-    assert log =~ "unparseable target"
-    assert log =~ ~s{"ability(dexterity).total_score"}
-  end
+    for {contributes, expected_warning} <- malformed_cases do
+      {log, data} =
+        load_and_capture("ability", "strength", """
+        [ability.strength]
+        name = "Strength"
+        contributes = #{contributes}
+        """)
 
-  test "contributes entry missing target or value warns and skips the effect" do
-    {log, data} =
-      load_and_capture("ability", "strength", """
-      [ability.strength]
-      name = "Strength"
-      contributes = [{target = "ability('dexterity').total_score"}]
-      """)
-
-    assert data.effects == []
-    assert log =~ ~s{missing required key(s) "target" and/or "value"}
-    assert log =~ "strength"
+      assert data.effects == [], "expected no effects for contributes = #{contributes}"
+      assert log =~ expected_warning
+    end
   end
 
   test "unrecognized node type warns and skips the node instead of crashing" do

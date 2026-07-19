@@ -252,7 +252,23 @@ defmodule ExTTRPGDev.Characters.Character do
       raise "unknown rolling method #{inspect(method_id)}"
   end
 
-  defp slugify(name) do
+  @doc """
+  Converts a character name into its canonical slug.
+
+  This is the single definition of the slug rules — any caller that derives
+  a slug from a name (e.g. frontends creating characters) must use it, or
+  characters saved under one slug become unfindable under another.
+
+  ## Examples
+
+      iex> ExTTRPGDev.Characters.Character.slugify("Mr. Whiskers")
+      "mr_whiskers"
+
+      iex> ExTTRPGDev.Characters.Character.slugify("D'Artagnan the Bold")
+      "dartagnan_the_bold"
+
+  """
+  def slugify(name) do
     name
     |> String.downcase()
     |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
