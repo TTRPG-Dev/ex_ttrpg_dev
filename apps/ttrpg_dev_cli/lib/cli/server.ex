@@ -653,18 +653,12 @@ defmodule ExTTRPGDev.CLI.Server do
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      choice_def =
-        get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice_id]) ||
-          raise("unknown choice #{inspect(choice_id)} on #{scope_type}(#{scope_id})")
+      scope = {scope_type, scope_id}
+      choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
+      valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
+      validate_concept_selection!(selection, valid)
 
-      options =
-        system.concept_metadata
-        |> Enum.filter(fn {{t, _id}, _} -> t == choice_def["type"] end)
-        |> Enum.map(fn {{_t, id}, _} -> id end)
-
-      validate_concept_selection!(selection, options)
-
-      decision = %{scope: {scope_type, scope_id}, choice: choice_id, selection: selection}
+      decision = %{scope: scope, choice: choice_id, selection: selection}
       updated = %{character | decisions: character.decisions ++ [decision]}
       Characters.save_character!(updated, true)
 

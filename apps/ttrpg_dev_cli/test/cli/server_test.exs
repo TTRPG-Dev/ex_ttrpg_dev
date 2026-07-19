@@ -495,6 +495,77 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  # ── resolve_choice scoped sub-choice validation ───────────────────────────────
+
+  describe "characters.resolve_choice scoped validation" do
+    setup do
+      # Build a Cleric so class/cleric sub-choices exist deterministically and
+      # start unresolved (the build flow does not auto-resolve sub-choices).
+      {start_resp, state1} =
+        Server.handle_command(
+          %{"command" => "characters.build_start", "system" => "dnd_5e_srd", "name" => "Vala"},
+          @initial_state
+        )
+
+      temp_id = start_resp.data.temp_id
+
+      state4 =
+        [{"class", "cleric"}, {"race", "human"}, {"background", "soldier"}]
+        |> Enum.reduce(state1, fn {type, id}, state ->
+          {resp, next_state} =
+            Server.handle_command(
+              %{
+                "command" => "characters.build_select",
+                "temp_id" => temp_id,
+                "concept_type" => type,
+                "concept_id" => id
+              },
+              state
+            )
+
+          assert resp.status == "ok"
+          next_state
+        end)
+
+      {finish_resp, _} =
+        Server.handle_command(
+          %{"command" => "characters.build_finish", "temp_id" => temp_id},
+          state4
+        )
+
+      assert finish_resp.status == "ok"
+      slug = finish_resp.data.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      %{slug: slug}
+    end
+
+    defp resolve_cleric_skill(slug, choice, selection) do
+      run(%{
+        "command" => "characters.resolve_choice",
+        "character" => slug,
+        "scope_type" => "class",
+        "scope_id" => "cleric",
+        "choice" => choice,
+        "selection" => selection
+      }).status
+    end
+
+    test "rejects a selection outside the choice's options whitelist", %{slug: slug} do
+      # cleric skill_proficiency_1 whitelists 5 skills; athletics is a valid
+      # skill concept but not among them
+      assert resolve_cleric_skill(slug, "skill_proficiency_1", "athletics") == "error"
+    end
+
+    test "rejects an already-chosen selection for a same-type sibling choice", %{slug: slug} do
+      assert resolve_cleric_skill(slug, "skill_proficiency_1", "history") == "ok"
+      # same selection for the sibling same-type choice must be rejected...
+      assert resolve_cleric_skill(slug, "skill_proficiency_2", "history") == "error"
+      # ...while a different whitelisted selection is still accepted
+      assert resolve_cleric_skill(slug, "skill_proficiency_2", "insight") == "ok"
+    end
+  end
+
   # ── resolve_choice spell inventory integration ────────────────────────────────
 
   describe "characters.resolve_choice spell inventory" do
