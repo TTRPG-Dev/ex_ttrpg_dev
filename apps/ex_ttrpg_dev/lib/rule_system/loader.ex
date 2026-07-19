@@ -127,8 +127,8 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
   def load(path) do
     with {:ok, rule_module} <- load_module(path),
-         {:ok, data} <- load_concept_files(path, rule_module) do
-      inventory_rules = load_inventory_rules(path)
+         {:ok, data} <- load_concept_files(path, rule_module),
+         {:ok, inventory_rules} <- load_inventory_rules(path) do
       data = expand_metadata_contributions(data, rule_module)
       warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
@@ -144,45 +144,76 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp load_module(path) do
+    with {:ok, rule_module} <- parse_module_file(path),
+         {:ok, choices} <- load_character_building_choices(path) do
+      {:ok, %{rule_module | character_building_choices: choices}}
+    end
+  end
+
+  defp parse_module_file(path) do
     module_path = Path.join(path, @module_file)
 
     with {:ok, contents} <- File.read(module_path),
          {:ok, map} <- TomlElixir.decode(contents),
          {:ok, rule_module} <- RuleModule.from_map(map) do
-      {:ok, %{rule_module | character_building_choices: load_character_building_choices(path)}}
+      {:ok, rule_module}
     else
       {:error, reason} -> {:error, {:module_parse_error, reason}}
     end
   end
 
+  # A missing file is fine (the system has no inventory rules); any other
+  # failure — unreadable file, TOML syntax error, validation error from
+  # InventoryRules.from_map — must surface, not silently yield an empty
+  # default.
   defp load_inventory_rules(path) do
     rules_path = Path.join(path, @inventory_rules_file)
 
-    with {:ok, contents} <- File.read(rules_path),
-         {:ok, map} <- TomlElixir.decode(contents),
-         {:ok, rules} <- InventoryRules.from_map(map) do
-      rules
-    else
-      _ -> %InventoryRules{}
+    case File.read(rules_path) do
+      {:error, :enoent} ->
+        {:ok, %InventoryRules{}}
+
+      {:error, reason} ->
+        {:error, {:inventory_rules_error, reason}}
+
+      {:ok, contents} ->
+        with {:ok, map} <- TomlElixir.decode(contents),
+             {:ok, rules} <- InventoryRules.from_map(map) do
+          {:ok, rules}
+        else
+          {:error, reason} -> {:error, {:inventory_rules_error, reason}}
+        end
     end
   end
 
+  # Same policy as load_inventory_rules: only a missing file falls back.
   defp load_character_building_choices(path) do
     building_path = Path.join(path, @character_building_file)
 
-    with {:ok, contents} <- File.read(building_path),
-         {:ok, map} <- TomlElixir.decode(contents) do
-      map
-      |> Map.get("character_choice", [])
-      |> Enum.map(fn cc ->
-        %RuleModule.CharacterChoice{
-          concept_type: cc["concept_type"],
-          required: Map.get(cc, "required", true)
-        }
-      end)
-    else
-      _ -> []
+    case File.read(building_path) do
+      {:error, :enoent} ->
+        {:ok, []}
+
+      {:error, reason} ->
+        {:error, {:character_building_error, reason}}
+
+      {:ok, contents} ->
+        case TomlElixir.decode(contents) do
+          {:ok, map} -> {:ok, parse_character_choices(map)}
+          {:error, reason} -> {:error, {:character_building_error, reason}}
+        end
     end
+  end
+
+  defp parse_character_choices(map) do
+    map
+    |> Map.get("character_choice", [])
+    |> Enum.map(fn cc ->
+      %RuleModule.CharacterChoice{
+        concept_type: cc["concept_type"],
+        required: Map.get(cc, "required", true)
+      }
+    end)
   end
 
   defp load_concept_files(path, rule_module) do
@@ -250,20 +281,31 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       cond do
         field_name == "contributes" and is_list(value) ->
           new_effects =
-            Enum.map(value, &parse_effect({type_id, concept_id}, &1))
+            value
+            |> Enum.map(&parse_effect({type_id, concept_id}, &1))
+            |> Enum.reject(&is_nil/1)
 
           {nodes, Map.put(meta, field_name, value), effects ++ new_effects}
 
         is_map(value) and (Map.has_key?(value, "type") or Map.has_key?(value, "formula")) ->
-          node_key = {type_id, concept_id, field_name}
-          node = parse_node(value)
-          warn_missing_node_fields(node, node_key)
-          {Map.put(nodes, node_key, node), meta, effects}
+          {add_parsed_node(nodes, {type_id, concept_id, field_name}, value), meta, effects}
 
         true ->
           {nodes, Map.put(meta, field_name, value), effects}
       end
     end)
+  end
+
+  defp add_parsed_node(nodes, node_key, value) do
+    case parse_node(value) do
+      nil ->
+        warn_unknown_node_type(value, node_key)
+        nodes
+
+      node ->
+        warn_missing_node_fields(node, node_key)
+        Map.put(nodes, node_key, node)
+    end
   end
 
   defp parse_node(%{"type" => "generated"} = map) do
@@ -280,6 +322,19 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   defp parse_node(%{"formula" => formula}) do
     %{type: :formula, formula: formula}
+  end
+
+  # Unrecognized node definition (e.g. a typo'd "type" value with no
+  # "formula" key). The caller warns and skips the node instead of this
+  # clause head raising FunctionClauseError.
+  defp parse_node(_), do: nil
+
+  defp warn_unknown_node_type(value, {type_id, concept_id, field}) do
+    Logger.warning(
+      "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+        "has unrecognized type #{inspect(value["type"])}; expected \"generated\", " <>
+        "\"accumulator\", \"mapping\", or a \"formula\" key. Node skipped."
+    )
   end
 
   defp warn_missing_node_fields(%{type: :generated, method: nil}, {type_id, concept_id, field}) do
@@ -328,7 +383,9 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp expand_source_values(concept_metadata, contribution, source_id, meta) do
-    values = Map.get(meta, contribution.from_field, [])
+    # List.wrap: a scalar value (`languages = "Common"`) is treated as a
+    # single-element list instead of crashing the flat_map.
+    values = meta |> Map.get(contribution.from_field) |> List.wrap()
 
     Enum.flat_map(values, fn val ->
       targets = find_contribution_targets(concept_metadata, contribution, val)
@@ -423,12 +480,34 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp parse_effect(source, %{"target" => target, "value" => value} = entry) do
-    parsed_target =
-      case Regex.run(~r/(\w+)\('([^']+)'\)\.(\w+)/, target) do
-        [_, type_id, concept_id, field_name] -> {type_id, concept_id, field_name}
-        _ -> target
-      end
+    case Regex.run(~r/(\w+)\('([^']+)'\)\.(\w+)/, target) do
+      [_, type_id, concept_id, field_name] ->
+        %{
+          source: source,
+          target: {type_id, concept_id, field_name},
+          value: value,
+          when: Map.get(entry, "when")
+        }
 
-    %{source: source, target: parsed_target, value: value, when: Map.get(entry, "when")}
+      _ ->
+        {source_type, source_id} = source
+
+        Logger.warning(
+          "Contribution on #{inspect(source_type)} concept #{inspect(source_id)} has " <>
+            "unparseable target #{inspect(target)}; expected \"type('id').field\". " <>
+            "Effect skipped."
+        )
+
+        nil
+    end
+  end
+
+  defp parse_effect({source_type, source_id}, entry) do
+    Logger.warning(
+      "Contribution on #{inspect(source_type)} concept #{inspect(source_id)} is missing " <>
+        "required key(s) \"target\" and/or \"value\": #{inspect(entry)}. Effect skipped."
+    )
+
+    nil
   end
 end

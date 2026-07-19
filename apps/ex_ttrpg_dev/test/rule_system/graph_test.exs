@@ -35,6 +35,13 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     assert map_size(system.nodes) == 3
   end
 
+  test "build/1 rejects a non-tuple effect target" do
+    effect = %{source: {"attr", "strength"}, target: "attr(strength).total_score", value: 2}
+    data = Map.put(minimal_loader_data(), :effects, [effect])
+
+    assert {:error, {:invalid_effect_target, "attr(strength).total_score"}} = Graph.build(data)
+  end
+
   test "build/1 returns error for undefined reference" do
     bad_data = %{
       nodes: %{
