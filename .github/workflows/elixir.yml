@@ -72,12 +72,18 @@ jobs:
     - name: Test and coverage
       working-directory: cli
       run: cargo llvm-cov --lcov --output-path lcov.info --bin ttrpg-dev
+    # parallel mode is deliberately NOT used: it requires a closing
+    # parallel-finished webhook (which this workflow never sent, leaving
+    # Coveralls builds dangling open), and the Elixir job reports through
+    # excoveralls' own integration, so this is the only upload here.
+    # fail-on-error keeps a Coveralls outage from blocking CI — coverage
+    # is reporting, not a merge gate.
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
         file: cli/lcov.info
         flag-name: rust
-        parallel: true
+        fail-on-error: false
     - name: Machete
       uses: bnjbvr/cargo-machete@main
       with:
