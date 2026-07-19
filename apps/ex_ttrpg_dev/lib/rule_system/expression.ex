@@ -29,6 +29,8 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   """
 
   @ref_pattern ~r/(\w+)\('([^']+)'\)\.(\w+)/
+  @single_ref_pattern Regex.compile!("^" <> Regex.source(@ref_pattern) <> "$")
+  @leading_ref_pattern Regex.compile!("^" <> Regex.source(@ref_pattern))
 
   @doc """
   Extracts all concept references from a formula string.
@@ -55,6 +57,34 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
       {type_id, concept_id, field_name}
     end)
     |> Enum.uniq()
+  end
+
+  @doc """
+  Parses a string consisting of exactly one node reference.
+
+  Unlike `extract_refs/1`, the whole string must be a single reference —
+  use this for values that are node keys (e.g. effect targets), not
+  formulas.
+
+  Returns `{:ok, {type_id, concept_id, field_name}}` or `:error`.
+
+  ## Examples
+
+      iex> ExTTRPGDev.RuleSystem.Expression.parse_ref("ability('strength').modifier")
+      {:ok, {"ability", "strength", "modifier"}}
+
+      iex> ExTTRPGDev.RuleSystem.Expression.parse_ref("ability(strength).modifier")
+      :error
+
+      iex> ExTTRPGDev.RuleSystem.Expression.parse_ref("ability('strength').modifier + 1")
+      :error
+
+  """
+  def parse_ref(string) when is_binary(string) do
+    case Regex.run(@single_ref_pattern, string, capture: :all_but_first) do
+      [type_id, concept_id, field_name] -> {:ok, {type_id, concept_id, field_name}}
+      nil -> :error
+    end
   end
 
   @doc """
@@ -126,7 +156,7 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
       ws = leading_match(~r/^\s+/, input) ->
         tokenize(chop(input, ws), acc)
 
-      ref = Regex.run(~r/^(\w+)\('([^']+)'\)\.(\w+)/, input) ->
+      ref = Regex.run(@leading_ref_pattern, input) ->
         [full, type_id, concept_id, field_name] = ref
         tokenize(chop(input, full), [{:ref, {type_id, concept_id, field_name}} | acc])
 

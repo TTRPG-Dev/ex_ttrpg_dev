@@ -47,7 +47,7 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
-  alias ExTTRPGDev.RuleSystem.{Evaluator, InventoryRules}
+  alias ExTTRPGDev.RuleSystem.{Evaluator, Expression, InventoryRules}
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -186,7 +186,7 @@ defmodule ExTTRPGDev.CLI.Server do
       system = RuleSystems.load_system!(slug)
       character = Character.gen_character!(system, [])
 
-      slug = slugify_name(name)
+      slug = Character.slugify(name)
       character = %{character | name: name, metadata: %{character.metadata | slug: slug}}
       temp_id = Integer.to_string(state.next_id)
       pending = Map.put(state.pending, temp_id, character)
@@ -811,12 +811,10 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
-  @effect_target_regex ~r/^(\w+)\('([^']+)'\)\.(\w+)$/
-
   defp parse_effect_target!(target) do
-    case Regex.run(@effect_target_regex, target, capture: :all_but_first) do
-      [type_id, concept_id, field] -> {type_id, concept_id, field}
-      _ -> raise("invalid effect target: #{inspect(target)}")
+    case Expression.parse_ref(target) do
+      {:ok, ref} -> ref
+      :error -> raise("invalid effect target: #{inspect(target)}")
     end
   end
 
@@ -869,13 +867,6 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp fetch_pending!(state, temp_id) do
     Map.get(state.pending, temp_id) || raise("no pending character: #{inspect(temp_id)}")
-  end
-
-  defp slugify_name(name) do
-    name
-    |> String.downcase()
-    |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
-    |> String.replace(" ", "_")
   end
 
   defp parse_display_mode(msg) do

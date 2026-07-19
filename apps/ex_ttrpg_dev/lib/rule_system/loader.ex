@@ -120,7 +120,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   require Logger
 
-  alias ExTTRPGDev.RuleSystem.{InventoryRules, RuleModule}
+  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules, RuleModule}
 
   @module_file "module.toml"
 
@@ -531,16 +531,16 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp parse_effect(source, %{"target" => target, "value" => value} = entry) do
-    case Regex.run(~r/(\w+)\('([^']+)'\)\.(\w+)/, target) do
-      [_, type_id, concept_id, field_name] ->
+    case Expression.parse_ref(target) do
+      {:ok, ref} ->
         %{
           source: source,
-          target: {type_id, concept_id, field_name},
+          target: ref,
           value: value,
           when: Map.get(entry, "when")
         }
 
-      _ ->
+      :error ->
         {source_type, source_id} = source
 
         Logger.warning(
