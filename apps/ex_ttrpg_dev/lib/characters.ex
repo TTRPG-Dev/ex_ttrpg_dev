@@ -10,7 +10,13 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Vocabulary
   alias ExTTRPGDev.RuleSystems.LoadedSystem
+
+  # Bound to attributes for use in pattern-match positions; the names are
+  # owned by ExTTRPGDev.RuleSystem.Vocabulary.
+  @progression_type Vocabulary.progression_type()
+  @roll_type Vocabulary.roll_type()
 
   @doc """
   Get the file path for a character
@@ -435,7 +441,7 @@ defmodule ExTTRPGDev.Characters do
     roll_def =
       system.concept_metadata
       |> Enum.find(fn {{type, _id}, meta} ->
-        type == "roll" and meta["target_type"] == type_id
+        type == @roll_type and meta["target_type"] == type_id
       end)
 
     unless roll_def do
@@ -485,7 +491,7 @@ defmodule ExTTRPGDev.Characters do
 
     progression_choices =
       system.concept_metadata
-      |> Enum.filter(fn {{type, _id}, _} -> type == "character_progression" end)
+      |> Enum.filter(fn {{type, _id}, _} -> type == @progression_type end)
       |> Enum.flat_map(fn {{_type, id}, meta} ->
         roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
         meta_with_roll = Map.put(meta, "roll", roll)
@@ -557,14 +563,7 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp apply_auto_selection(character, %{id: prog_id, options: options}) do
-    n = count_progression_decisions(character.decisions, prog_id) + 1
-
-    decision = %{
-      scope: {"character_progression", prog_id},
-      choice: "choice_#{n}",
-      selection: Enum.random(options)
-    }
-
+    decision = next_progression_decision(character.decisions, prog_id, Enum.random(options))
     %{character | decisions: character.decisions ++ [decision]}
   end
 
@@ -579,16 +578,10 @@ defmodule ExTTRPGDev.Characters do
   end
 
   defp apply_auto_value(character, %{id: prog_id, effect_target: target_str, roll: roll}) do
-    n = count_progression_decisions(character.decisions, prog_id) + 1
     [node_key | _] = Expression.extract_refs(target_str)
     value = Dice.roll("1#{roll}") |> Enum.sum()
 
-    decision = %{
-      scope: {"character_progression", prog_id},
-      choice: "choice_#{n}",
-      selection: "rolled"
-    }
-
+    decision = next_progression_decision(character.decisions, prog_id, "rolled")
     effect = %{target: node_key, value: value}
 
     %{
@@ -675,16 +668,9 @@ defmodule ExTTRPGDev.Characters do
 
   defp track_selection_resolution(system, entry, character) do
     selection = Enum.random(entry.options)
-    n = count_progression_decisions(character.decisions, entry.id) + 1
-
-    decision = %{
-      scope: {"character_progression", entry.id},
-      choice: "choice_#{n}",
-      selection: selection
-    }
-
+    decision = next_progression_decision(character.decisions, entry.id, selection)
     updated = %{character | decisions: character.decisions ++ [decision]}
-    meta = system.concept_metadata[{"character_progression", entry.id}]
+    meta = system.concept_metadata[{@progression_type, entry.id}]
 
     resolution = %{
       name: entry.name,
@@ -700,15 +686,9 @@ defmodule ExTTRPGDev.Characters do
 
   defp track_value_resolution(entry, character) do
     {method, value} = random_value_method(entry.roll)
-    n = count_progression_decisions(character.decisions, entry.id) + 1
     [node_key | _] = Expression.extract_refs(entry.effect_target)
 
-    decision = %{
-      scope: {"character_progression", entry.id},
-      choice: "choice_#{n}",
-      selection: method
-    }
-
+    decision = next_progression_decision(character.decisions, entry.id, method)
     effect = %{target: node_key, value: value}
 
     updated = %{
@@ -768,7 +748,7 @@ defmodule ExTTRPGDev.Characters do
 
       selection_progressions =
         Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
-          type == "character_progression" and
+          type == @progression_type and
             Map.has_key?(meta, "type") and
             get_in(meta, ["filter", "max_level_node"]) != nil
         end)
@@ -820,7 +800,7 @@ defmodule ExTTRPGDev.Characters do
     progression_type_map =
       concept_metadata
       |> Enum.filter(fn {{type, _id}, meta} ->
-        type == "character_progression" and Map.has_key?(meta, "type")
+        type == @progression_type and Map.has_key?(meta, "type")
       end)
       |> Map.new(fn {{_type, id}, meta} -> {id, meta["type"]} end)
 
@@ -828,12 +808,12 @@ defmodule ExTTRPGDev.Characters do
       decisions
       |> Enum.filter(fn d ->
         case d.scope do
-          {"character_progression", prog_id} -> Map.has_key?(progression_type_map, prog_id)
+          {@progression_type, prog_id} -> Map.has_key?(progression_type_map, prog_id)
           _ -> false
         end
       end)
       |> Enum.reduce(%{}, fn d, acc ->
-        {"character_progression", prog_id} = d.scope
+        {@progression_type, prog_id} = d.scope
         concept_type = Map.fetch!(progression_type_map, prog_id)
         Map.update(acc, {concept_type, d.selection}, 1, &(&1 + 1))
       end)
@@ -898,7 +878,7 @@ defmodule ExTTRPGDev.Characters do
          true <- pending_count > 0 do
       already_selected =
         decisions
-        |> Enum.filter(fn d -> d.scope == {"character_progression", id} end)
+        |> Enum.filter(fn d -> d.scope == {@progression_type, id} end)
         |> MapSet.new(& &1.selection)
 
       {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
@@ -1055,9 +1035,22 @@ defmodule ExTTRPGDev.Characters do
 
   defp progression_choices(_id, _meta, _decisions, _resolved), do: []
 
+  # The single constructor for progression decisions: computes the next
+  # 1-based choice number from the decisions already made and builds the
+  # canonical decision map.
+  defp next_progression_decision(decisions, progression_id, selection) do
+    n = count_progression_decisions(decisions, progression_id) + 1
+
+    %{
+      scope: Vocabulary.progression_scope(progression_id),
+      choice: Vocabulary.progression_choice_id(n),
+      selection: selection
+    }
+  end
+
   defp count_progression_decisions(decisions, progression_id) do
     Enum.count(decisions, fn
-      %{scope: {"character_progression", ^progression_id}} -> true
+      %{scope: {@progression_type, ^progression_id}} -> true
       _ -> false
     end)
   end

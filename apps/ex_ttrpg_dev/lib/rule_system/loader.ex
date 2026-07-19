@@ -120,20 +120,18 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   require Logger
 
-  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules, RuleModule}
+  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules, RuleModule, Vocabulary}
 
   @module_file "module.toml"
-
-  # All concept metadata keys read by the library at runtime. Keys not in this
-  # set and not otherwise declared will trigger a Logger.warning at load time.
-  # See the "Structural Vocabulary" section of this module's docs for semantics.
-  @structural_metadata_keys MapSet.new(~w(
-    name type required_count available_when effect_target roll_reference roll
-    filter choices level requires starting_equipment target_type dice bonus_field
-    contributes hidden
-  ))
   @character_building_file "character_building.toml"
   @inventory_rules_file "inventory_rules.toml"
+
+  # Bound to attributes at compile time; the names are owned by
+  # ExTTRPGDev.RuleSystem.Vocabulary. The MapSet is bound here rather than
+  # fetched per-call because dialyzer loses MapSet's opaqueness across the
+  # module boundary and rejects the cross-module value in MapSet.union/2.
+  @rolling_method_type Vocabulary.rolling_method_type()
+  @structural_metadata_keys MapSet.new(Vocabulary.structural_metadata_keys())
 
   @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
   def load(path) do
@@ -256,7 +254,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end)
   end
 
-  defp process_type("rolling_method", concepts, acc) do
+  defp process_type(@rolling_method_type, concepts, acc) do
     rolling_methods =
       Enum.reduce(concepts, acc.rolling_methods, fn {id, fields}, rm ->
         method = parse_rolling_method(fields)
