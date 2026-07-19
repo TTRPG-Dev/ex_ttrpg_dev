@@ -223,7 +223,7 @@ defmodule ExTTRPGDev.Characters.Character do
   defp item_from_spec(_, _), do: []
 
   defp roll_generated_value(%{method: method_id}, rolling_methods) do
-    method = Map.get(rolling_methods, method_id || "standard")
+    method = resolve_rolling_method(method_id, rolling_methods)
     rolls = Dice.roll(method.dice)
 
     rolls =
@@ -234,6 +234,22 @@ defmodule ExTTRPGDev.Characters.Character do
       end
 
     Enum.sum(rolls)
+  end
+
+  defp resolve_rolling_method(nil, rolling_methods) do
+    case Enum.find(rolling_methods, fn {_id, method} -> method.default end) do
+      {_id, method} ->
+        method
+
+      nil ->
+        raise "generated node has no rolling method and no rolling method declares " <>
+                "default = true; set one or add an explicit \"method\" to the node"
+    end
+  end
+
+  defp resolve_rolling_method(method_id, rolling_methods) do
+    Map.get(rolling_methods, method_id) ||
+      raise "unknown rolling method #{inspect(method_id)}"
   end
 
   defp slugify(name) do

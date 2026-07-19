@@ -23,6 +23,40 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert character.inventory == []
   end
 
+  test "gen_character!/1 rolls methodless generated nodes via the default rolling method" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    key = {"ability", "strength", "base_score"}
+    nodes = Map.update!(system.nodes, key, &%{&1 | method: nil})
+
+    character = Character.gen_character!(%{system | nodes: nodes})
+
+    score = character.generated_values[key]
+    assert is_integer(score) and score >= 3 and score <= 18
+  end
+
+  test "gen_character!/1 raises clearly for an unknown rolling method" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    key = {"ability", "strength", "base_score"}
+    nodes = Map.update!(system.nodes, key, &%{&1 | method: "bogus"})
+
+    assert_raise RuntimeError, ~r/unknown rolling method "bogus"/, fn ->
+      Character.gen_character!(%{system | nodes: nodes})
+    end
+  end
+
+  test "gen_character!/1 raises clearly when no method is set and no default exists" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    key = {"ability", "strength", "base_score"}
+    nodes = Map.update!(system.nodes, key, &%{&1 | method: nil})
+
+    no_defaults =
+      Map.new(system.rolling_methods, fn {id, method} -> {id, %{method | default: false}} end)
+
+    assert_raise RuntimeError, ~r/no rolling method declares\s+default = true/, fn ->
+      Character.gen_character!(%{system | nodes: nodes, rolling_methods: no_defaults})
+    end
+  end
+
   test "gen_character!/2 stores provided decisions" do
     system = RuleSystems.load_system!("dnd_5e_srd")
 
