@@ -47,9 +47,8 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
-  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules}
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems
-  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @type state :: %{pending: %{String.t() => Character.t()}, next_id: non_neg_integer()}
 
@@ -295,35 +294,26 @@ defmodule ExTTRPGDev.CLI.Server do
        ) do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system!(character.metadata.rule_system)
+    explicit_value = Map.get(msg, "value")
 
-    award_meta =
-      system.concept_metadata[{"award", award_id}] ||
-        raise("unknown award: #{inspect(award_id)}")
+    case Characters.apply_award(system, character, award_id, explicit_value) do
+      {:ok, updated, awarded_value} ->
+        Characters.save_character!(updated, true)
 
-    # Without an explicit value the award is computed (e.g. "level_up" grants
-    # exactly the XP needed for the next level), and the response reports the
-    # computed amount as :awarded_xp.
-    {value, response_extras} =
-      case Map.fetch(msg, "value") do
-        {:ok, value} ->
-          {value, %{}}
+        # The response reports :awarded_xp only when the award computed its
+        # own amount (e.g. "level_up") rather than receiving an explicit one.
+        extras = if explicit_value == nil, do: %{awarded_xp: awarded_value}, else: %{}
 
-        :error ->
-          xp_needed = compute_next_level_xp!(system, character, award_meta)
-          {xp_needed, %{awarded_xp: xp_needed}}
-      end
+        data =
+          system
+          |> character_with_choices_response(updated, slug, msg)
+          |> Map.merge(extras)
 
-    updated = apply_award!(character, award_meta, value)
-    new_slots = Characters.compute_pending_choice_slots(system, updated)
-    updated = %{updated | pending_choice_slots: new_slots}
-    Characters.save_character!(updated, true)
+        {ok(data), state}
 
-    data =
-      system
-      |> character_with_choices_response(updated, slug, msg)
-      |> Map.merge(response_extras)
-
-    {ok(data), state}
+      {:error, reason} ->
+        {error(format_award_error(reason)), state}
+    end
   end
 
   defp handle(%{"command" => "characters.choices", "character" => slug} = msg, state) do
@@ -351,64 +341,20 @@ defmodule ExTTRPGDev.CLI.Server do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system!(character.metadata.rule_system)
 
-    meta =
-      system.concept_metadata[{"character_progression", progression_id}] ||
-        raise("unknown progression: #{inspect(progression_id)}")
+    case Characters.resolve_progression_choice(
+           system,
+           character,
+           progression_id,
+           selection,
+           Map.get(msg, "value")
+         ) do
+      {:ok, updated} ->
+        Characters.save_character!(updated, true)
+        {ok(character_with_choices_response(system, updated, slug, msg)), state}
 
-    choice_number =
-      Enum.count(character.decisions, fn
-        %{scope: {"character_progression", ^progression_id}} -> true
-        _ -> false
-      end) + 1
-
-    decision = %{
-      scope: {"character_progression", progression_id},
-      choice: "choice_#{choice_number}",
-      selection: selection
-    }
-
-    updated =
-      if Map.has_key?(meta, "type") do
-        {_effects, resolved} = Characters.resolved_state(system, character)
-        active = Characters.active_concepts(character.decisions, system.concept_metadata)
-
-        already_selected =
-          character.decisions
-          |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
-          |> MapSet.new(& &1.selection)
-
-        capped_resolved = cap_resolved_for_slot(character, progression_id, meta, resolved)
-
-        options =
-          Characters.concept_options(meta, system.concept_metadata, active, capped_resolved)
-          |> Enum.reject(&MapSet.member?(already_selected, &1))
-
-        validate_concept_selection!(selection, options)
-
-        with_decision = %{
-          character
-          | decisions: character.decisions ++ [decision],
-            pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
-        }
-
-        apply_inventory_addition!(system, with_decision, progression_id, selection)
-      else
-        value = Map.fetch!(msg, "value")
-        unless is_integer(value), do: raise("value must be an integer")
-        parsed_target = load_progression_target!(system, progression_id)
-
-        %{
-          character
-          | effects: character.effects ++ [%{target: parsed_target, value: value}],
-            decisions: character.decisions ++ [decision]
-        }
-      end
-
-    Characters.save_character!(updated, true)
-
-    data = character_with_choices_response(system, updated, slug, msg)
-
-    {ok(data), state}
+      {:error, reason} ->
+        {error(format_resolve_error(reason)), state}
+    end
   end
 
   defp handle(%{"command" => "characters.random_resolve", "character" => slug} = msg, state) do
@@ -655,81 +601,50 @@ defmodule ExTTRPGDev.CLI.Server do
   defp format_activate_error(:no_preparation_cap), do: "class has no preparation cap"
   defp format_activate_error(reason), do: inspect(reason)
 
-  defp apply_inventory_addition!(system, character, progression_id, selection) do
-    case Characters.add_to_typed_inventory(system, character, progression_id, selection) do
-      {:ok, result} -> result
-      {:error, reason} -> raise("failed to add to inventory: #{inspect(reason)}")
-    end
-  end
-
-  defp load_progression_target!(%LoadedSystem{} = system, progression_id) do
-    meta =
-      system.concept_metadata[{"character_progression", progression_id}] ||
-        raise("unknown progression: #{inspect(progression_id)}")
-
-    effect_target = meta["effect_target"] || raise("progression has no effect_target")
-    parse_effect_target!(effect_target)
-  end
-
   defp validate_concept_selection!(selection, valid_options) do
     unless selection in valid_options do
       raise("#{inspect(selection)} is not available for this character and progression")
     end
   end
 
-  defp parse_effect_target!(target) do
-    case Expression.parse_ref(target) do
-      {:ok, ref} -> ref
-      :error -> raise("invalid effect target: #{inspect(target)}")
-    end
-  end
+  defp format_resolve_error({:unknown_progression, id}),
+    do: "unknown progression: #{inspect(id)}"
 
-  defp cap_resolved_for_slot(character, progression_id, meta, resolved) do
-    case Enum.find(character.pending_choice_slots, &(&1.progression_id == progression_id)) do
-      %{max_level_cap: cap} -> Characters.apply_slot_cap(resolved, meta, cap)
-      nil -> resolved
-    end
-  end
+  defp format_resolve_error({:no_pending_choice, id}),
+    do: "no pending choice for progression: #{inspect(id)}"
 
-  defp consume_slot(pending_choice_slots, progression_id) do
-    case Enum.split_while(pending_choice_slots, &(&1.progression_id != progression_id)) do
-      {before_slots, [_ | after_slots]} -> before_slots ++ after_slots
-      _ -> pending_choice_slots
-    end
-  end
+  defp format_resolve_error({:invalid_selection, selection}),
+    do: "#{inspect(selection)} is not available for this character and progression"
 
-  defp apply_award!(character, %{"value_type" => "integer", "effect_target" => target}, value) do
-    unless is_integer(value), do: raise("value must be an integer for this award")
-    parsed_target = parse_effect_target!(target)
-    %{character | effects: character.effects ++ [%{target: parsed_target, value: value}]}
-  end
+  defp format_resolve_error(:value_required), do: "value is required for this progression"
+  defp format_resolve_error(:value_must_be_integer), do: "value must be an integer"
+  defp format_resolve_error(:missing_effect_target), do: "progression has no effect_target"
 
-  defp apply_award!(
-         character,
-         %{"value_type" => "next_level_xp", "effect_target" => target},
-         xp_needed
-       ) do
-    parsed_target = parse_effect_target!(target)
-    %{character | effects: character.effects ++ [%{target: parsed_target, value: xp_needed}]}
-  end
+  defp format_resolve_error({:invalid_effect_target, target}),
+    do: "invalid effect target: #{inspect(target)}"
 
-  defp apply_award!(_character, %{"value_type" => value_type}, _value) do
-    raise("unsupported award value_type: #{inspect(value_type)}")
-  end
+  defp format_resolve_error({:inventory_error, reason}),
+    do: "failed to add to inventory: #{inspect(reason)}"
 
-  defp compute_next_level_xp!(system, character, %{"value_type" => "next_level_xp"}) do
-    case Characters.xp_to_next_level(system, character) do
-      {:ok, xp_needed, _next_level} -> xp_needed
-      {:error, :max_level} -> raise("character is already at max level")
-      {:error, :no_level_thresholds} -> raise("system does not define level XP thresholds")
-    end
-  end
+  defp format_award_error({:unknown_award, id}), do: "unknown award: #{inspect(id)}"
 
-  defp compute_next_level_xp!(_system, _character, %{"value_type" => value_type}) do
-    raise(
+  defp format_award_error({:value_required, value_type}),
+    do:
       "award #{inspect(value_type)} requires an explicit value; use: characters award <slug> #{value_type} <value>"
-    )
-  end
+
+  defp format_award_error(:value_must_be_integer), do: "value must be an integer for this award"
+  defp format_award_error(:max_level), do: "character is already at max level"
+
+  defp format_award_error(:no_level_thresholds),
+    do: "system does not define level XP thresholds"
+
+  defp format_award_error({:unsupported_value_type, value_type}),
+    do: "unsupported award value_type: #{inspect(value_type)}"
+
+  defp format_award_error(:missing_effect_target), do: "award has no effect_target"
+
+  defp format_award_error({:invalid_effect_target, target}),
+    do: "invalid effect target: #{inspect(target)}"
 
   defp fetch_pending!(state, temp_id) do
     Map.get(state.pending, temp_id) || raise("no pending character: #{inspect(temp_id)}")

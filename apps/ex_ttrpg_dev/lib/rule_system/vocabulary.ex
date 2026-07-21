@@ -13,6 +13,7 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
   attribute at compile time (e.g. `@progression_type Vocabulary.progression_type()`).
   """
 
+  @award_type "award"
   @progression_type "character_progression"
   @roll_type "roll"
   @rolling_method_type "rolling_method"
@@ -25,8 +26,11 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
   @structural_metadata_keys ~w(
     name type required_count available_when effect_target roll_reference roll
     filter choices level requires starting_equipment target_type dice bonus_field
-    contributes hidden
+    contributes hidden value_type
   )
+
+  @doc "Reserved type ID for award concepts (XP grants, level-ups)."
+  def award_type, do: @award_type
 
   @doc "Reserved type ID for character advancement (progression) concepts."
   def progression_type, do: @progression_type

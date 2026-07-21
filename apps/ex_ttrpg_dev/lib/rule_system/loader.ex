@@ -23,12 +23,21 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   ### Reserved concept type IDs
 
-  Three concept type IDs have structural meaning to the library:
+  Four concept type IDs have structural meaning to the library:
 
   - `"roll"` — concepts of this type define die rolling methods. Each must have
     `target_type`, `dice`, and `bonus_field` (see below).
   - `"character_progression"` — concepts of this type define character advancement
     tables. The library uses this type ID to locate progression decisions.
+  - `"award"` — concepts of this type define grantable awards applied via
+    `ExTTRPGDev.Characters.apply_award/4`. Keys:
+    - `"value_type"` *(string, required)* — how the awarded value is obtained:
+      `"integer"` (the caller must supply an integer value) or `"next_level_xp"`
+      (the library computes the XP needed to reach the character's next level;
+      an explicitly supplied value takes precedence).
+    - `"effect_target"` *(expression string, required)* — node key expression the
+      awarded value contributes to (e.g.
+      `"character_trait('experience_points').total"`).
   - `"rolling_method"` — concepts of this type define how `generated` nodes are
     rolled at character generation. Keys:
     - `"name"` *(string, optional)* — display name.

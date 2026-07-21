@@ -46,3 +46,6 @@ burrito_out
 
 # Local build output (both binaries assembled for testing)
 /build_out/
+
+# Dialyzer PLT cache
+/priv/plts/

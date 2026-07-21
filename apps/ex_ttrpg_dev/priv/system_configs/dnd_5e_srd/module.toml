@@ -9,8 +9,6 @@ level_node = "character_trait('character_level').level"
 custom_metadata_keys = [
   # ability / skill display
   "abbreviation", "description",
-  # award
-  "value_type",
   # background / race
   "skill_proficiencies", "damage_resistances", "languages",
   # character_trait
