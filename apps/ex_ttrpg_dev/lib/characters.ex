@@ -240,8 +240,7 @@ defmodule ExTTRPGDev.Characters do
   # while preparation_state degrades tolerantly.
   defp prep_context(system, character, {class_type, class_id} = class_key, opts) do
     %{type_id: type_id, prep: prep} = opts
-    effects = active_effects(system, character)
-    resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+    {_effects, resolved} = resolved_state(system, character)
     max_level = trunc(resolved[prep.max_level_node] || 0)
     pool_name = get_in(system.concept_metadata, [class_key, prep.pool_field])
     pool_config = fetch_pool_config(prep, pool_name)
@@ -439,6 +438,19 @@ defmodule ExTTRPGDev.Characters do
   end
 
   @doc """
+  Computes the character's active effects and evaluates the full system DAG against them.
+
+  Returns `{effects, resolved}` where `effects` is the output of `active_effects/2` and
+  `resolved` is the node-value map from `Evaluator.evaluate!/3`. This is the canonical
+  way to obtain a character's resolved state; callers that need only one element can
+  discard the other.
+  """
+  def resolved_state(%LoadedSystem{} = system, %Character{} = character) do
+    effects = active_effects(system, character)
+    {effects, Evaluator.evaluate!(system, character.generated_values, effects)}
+  end
+
+  @doc """
   Rolls for a concept using the roll definition attached to its type in the system config.
 
   Looks up a roll definition (from the system's `roll` concept type) whose `target_type`
@@ -464,8 +476,7 @@ defmodule ExTTRPGDev.Characters do
 
     {_key, %{"dice" => dice_str, "bonus_field" => bonus_field}} = roll_def
 
-    effects = active_effects(system, character)
-    resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+    {_effects, resolved} = resolved_state(system, character)
 
     bonus_key = {type_id, concept_id, bonus_field}
 
@@ -584,8 +595,7 @@ defmodule ExTTRPGDev.Characters do
          value_method,
          acc
        ) do
-    all_effects = active_effects(system, character)
-    resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
+    {_effects, resolved} = resolved_state(system, character)
     choices = pending_choices(system, character, resolved)
 
     case Enum.find(choices, resolvable?) do
@@ -719,8 +729,7 @@ defmodule ExTTRPGDev.Characters do
   def compute_pending_choice_slots(%LoadedSystem{} = system, %Character{} = character) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [level_node_key | _] <- Expression.extract_refs(level_node) do
-      all_effects = active_effects(system, character)
-      resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
+      {all_effects, resolved} = resolved_state(system, character)
       current_level = trunc(resolved[level_node_key] || 1)
 
       thresholds = level_xp_thresholds(system)
