@@ -256,6 +256,31 @@ defmodule ExTTRPGDev.Characters do
       Advancement.resolve_progression_choice(system, character, progression_id, selection, value)
 
   @doc """
+  Fetches the definition map of the sub-choice `choice_id` declared by the
+  concept at `scope` (`{concept_type, concept_id}`).
+
+  Raises if the concept declares no such choice.
+  """
+  def fetch_choice_def!(system, scope, choice_id),
+    do: Advancement.fetch_choice_def!(system, scope, choice_id)
+
+  @doc """
+  Returns the currently valid selections for a concept sub-choice: the
+  choice's options (see `sub_choice_options/2`) minus selections already made
+  for same-type choices under the same scope (siblings share an exclusion
+  pool — two skill-proficiency choices cannot both pick the same skill).
+  """
+  def valid_sub_choices(system, scope, choice_def, decisions),
+    do: Advancement.valid_sub_choices(system, scope, choice_def, decisions)
+
+  @doc """
+  The raw option list for a sub-choice definition: its declared `options`
+  list, or every concept of the choice's `type` when none is declared.
+  """
+  def sub_choice_options(system, choice_def),
+    do: Advancement.sub_choice_options(system, choice_def)
+
+  @doc """
   Returns the current preparation state for the given inventory type.
 
   Computes mode, cap, eligible pool, always-prepared items, and currently

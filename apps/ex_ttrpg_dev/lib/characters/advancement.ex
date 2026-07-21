@@ -157,6 +157,62 @@ defmodule ExTTRPGDev.Characters.Advancement do
   defp validate_progression_value(nil), do: {:error, :value_required}
   defp validate_progression_value(_), do: {:error, :value_must_be_integer}
 
+  @doc """
+  Fetches the definition of a sub-choice declared by a concept.
+
+  See `ExTTRPGDev.Characters.fetch_choice_def!/3` for documentation.
+  """
+  def fetch_choice_def!(system, {type, id}, choice_id) do
+    get_in(system.concept_metadata, [{type, id}, "choices", choice_id]) ||
+      raise("unknown choice #{inspect(choice_id)} on #{type}(#{id})")
+  end
+
+  @doc """
+  Returns the currently valid selections for a concept sub-choice.
+
+  See `ExTTRPGDev.Characters.valid_sub_choices/4` for documentation.
+  """
+  def valid_sub_choices(system, {scope_type, scope_id} = scope, choice_def, decisions) do
+    choice_type = choice_def["type"]
+    raw_options = sub_choice_options(system, choice_def)
+
+    already_chosen =
+      decisions
+      |> Enum.filter(fn
+        %{scope: ^scope, choice: choice} ->
+          cd =
+            get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice]) || %{}
+
+          cd["type"] == choice_type
+
+        _ ->
+          false
+      end)
+      |> MapSet.new(& &1.selection)
+
+    Enum.reject(raw_options, &MapSet.member?(already_chosen, &1))
+  end
+
+  @doc """
+  The raw option list for a sub-choice definition.
+
+  See `ExTTRPGDev.Characters.sub_choice_options/2` for documentation.
+  """
+  def sub_choice_options(system, choice_def) do
+    case choice_def["options"] do
+      options when is_list(options) ->
+        options
+
+      _ ->
+        choice_type = choice_def["type"]
+
+        system.concept_metadata
+        |> Enum.filter(fn {{t, _}, _} -> t == choice_type end)
+        |> Enum.map(fn {{_, id}, _} -> id end)
+        |> Enum.sort()
+    end
+  end
+
   defp consume_slot(pending_choice_slots, progression_id) do
     case Enum.split_while(pending_choice_slots, &(&1.progression_id != progression_id)) do
       {before_slots, [_ | after_slots]} -> before_slots ++ after_slots
