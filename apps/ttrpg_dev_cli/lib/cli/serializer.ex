@@ -8,7 +8,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
   """
 
   alias ExTTRPGDev.Characters
-  alias ExTTRPGDev.Characters.{Character, InventoryItem}
+  alias ExTTRPGDev.Characters.{Character, Decision, InventoryItem}
   alias ExTTRPGDev.CLI.ConceptDisplay
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems.LoadedSystem
@@ -191,13 +191,13 @@ defmodule ExTTRPGDev.CLI.Serializer do
 
     character.decisions
     |> Enum.filter(fn
-      %{scope: {"character_progression", prog_id}} ->
+      %Decision{scope: {"character_progression", prog_id}} ->
         Map.has_key?(selection_progressions, prog_id)
 
       _ ->
         false
     end)
-    |> Enum.map(fn %{scope: {"character_progression", prog_id}, selection: selection} ->
+    |> Enum.map(fn %Decision{scope: {"character_progression", prog_id}, selection: selection} ->
       prog = selection_progressions[prog_id]
       {prog.concept_type, prog.name, selection}
     end)
@@ -318,7 +318,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
   defp chosen_by_type(decisions, concept_metadata, type) do
     decisions
     |> Enum.filter(fn
-      %{scope: {scope_type, scope_id}, choice: choice_id} ->
+      %Decision{scope: {scope_type, scope_id}, choice: choice_id} ->
         choice_def =
           get_in(concept_metadata, [{scope_type, scope_id}, "choices", choice_id]) || %{}
 

@@ -7,6 +7,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.CLI.Serializer
   alias ExTTRPGDev.CLI.Server.Common
   alias ExTTRPGDev.RuleSystems
@@ -39,7 +40,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
       ) do
     character = Common.fetch_pending!(state, temp_id)
     system = RuleSystems.load_system!(character.metadata.rule_system)
-    decision = %{scope: nil, choice: concept_type, selection: concept_id}
+    decision = %Decision{scope: nil, choice: concept_type, selection: concept_id}
     updated = %{character | decisions: character.decisions ++ [decision]}
 
     sub_choices =
@@ -71,7 +72,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
     choice_def = Characters.fetch_choice_def!(system, scope, choice_id)
     valid = Characters.valid_sub_choices(system, scope, choice_def, character.decisions)
     Common.validate_concept_selection!(selection, valid)
-    decision = %{scope: scope, choice: choice_id, selection: selection}
+    decision = %Decision{scope: scope, choice: choice_id, selection: selection}
     updated = %{character | decisions: character.decisions ++ [decision]}
 
     sub_choices =

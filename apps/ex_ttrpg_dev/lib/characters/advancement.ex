@@ -10,6 +10,7 @@ defmodule ExTTRPGDev.Characters.Advancement do
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.Vocabulary
@@ -183,7 +184,7 @@ defmodule ExTTRPGDev.Characters.Advancement do
     already_chosen =
       decisions
       |> Enum.filter(fn
-        %{scope: ^scope, choice: choice} ->
+        %Decision{scope: ^scope, choice: choice} ->
           cd =
             get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice]) || %{}
 

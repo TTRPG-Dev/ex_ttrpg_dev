@@ -2,6 +2,7 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystems
 
@@ -57,7 +58,7 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   end
 
   test "recomputes pending choice slots for the awarded state", %{system: system} do
-    decisions = [%{scope: nil, choice: "class", selection: "wizard"}]
+    decisions = [%Decision{scope: nil, choice: "class", selection: "wizard"}]
     character = Character.gen_character!(system, decisions)
 
     character = %{
