@@ -290,32 +290,6 @@ defmodule ExTTRPGDev.CLI.Server do
   end
 
   defp handle(
-         %{
-           "command" => "characters.award",
-           "character" => slug,
-           "award" => award_id,
-           "value" => value
-         } = msg,
-         state
-       ) do
-    character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
-
-    award_meta =
-      system.concept_metadata[{"award", award_id}] ||
-        raise("unknown award: #{inspect(award_id)}")
-
-    updated = apply_award!(character, award_meta, value)
-    new_slots = Characters.compute_pending_choice_slots(system, updated)
-    updated = %{updated | pending_choice_slots: new_slots}
-    Characters.save_character!(updated, true)
-
-    data = character_with_choices_response(system, updated, slug, msg)
-
-    {ok(data), state}
-  end
-
-  defp handle(
          %{"command" => "characters.award", "character" => slug, "award" => award_id} = msg,
          state
        ) do
@@ -326,8 +300,20 @@ defmodule ExTTRPGDev.CLI.Server do
       system.concept_metadata[{"award", award_id}] ||
         raise("unknown award: #{inspect(award_id)}")
 
-    xp_needed = compute_next_level_xp!(system, character, award_meta)
-    updated = apply_award!(character, award_meta, xp_needed)
+    # Without an explicit value the award is computed (e.g. "level_up" grants
+    # exactly the XP needed for the next level), and the response reports the
+    # computed amount as :awarded_xp.
+    {value, response_extras} =
+      case Map.fetch(msg, "value") do
+        {:ok, value} ->
+          {value, %{}}
+
+        :error ->
+          xp_needed = compute_next_level_xp!(system, character, award_meta)
+          {xp_needed, %{awarded_xp: xp_needed}}
+      end
+
+    updated = apply_award!(character, award_meta, value)
     new_slots = Characters.compute_pending_choice_slots(system, updated)
     updated = %{updated | pending_choice_slots: new_slots}
     Characters.save_character!(updated, true)
@@ -335,7 +321,7 @@ defmodule ExTTRPGDev.CLI.Server do
     data =
       system
       |> character_with_choices_response(updated, slug, msg)
-      |> Map.put(:awarded_xp, xp_needed)
+      |> Map.merge(response_extras)
 
     {ok(data), state}
   end
