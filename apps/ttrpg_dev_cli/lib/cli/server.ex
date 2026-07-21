@@ -9,23 +9,60 @@ defmodule ExTTRPGDev.CLI.Server do
 
   ## Protocol
 
-  Each request is a single line of JSON:
+  Each request is a single line of JSON with a `command` field; each response
+  is a single line of JSON:
+
+      {"status": "ok", "data": {...}}
+      {"status": "error", "message": "..."}
+
+  Every request additionally accepts an optional `"display_mode"` field
+  (`"default"`, `"verbose"`, or `"succinct"`) controlling how concept labels
+  are rendered.
+
+  ### Dice
 
       {"command": "roll", "dice": "3d6"}
+      {"command": "roll", "dice": "3d6,1d20"}
+
+  ### Systems
+
       {"command": "systems.list"}
       {"command": "systems.show", "system": "dnd_5e_srd"}
       {"command": "systems.show", "system": "dnd_5e_srd", "concept_type": "skill"}
+      {"command": "systems.show", "system": "dnd_5e_srd", "concept_type": "skill", "concept_id": "acrobatics"}
+
+  ### Characters
+
       {"command": "characters.gen", "system": "dnd_5e_srd"}
       {"command": "characters.save", "temp_id": "1"}
       {"command": "characters.list"}
       {"command": "characters.list", "system": "dnd_5e_srd"}
       {"command": "characters.show", "character": "thorin-stoneback"}
+      {"command": "characters.delete", "character": "thorin-stoneback"}
       {"command": "characters.roll", "character": "thorin-stoneback", "type": "skill", "concept": "acrobatics"}
       {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
       {"command": "characters.award", "character": "thorin-stoneback", "award": "level_up"}
       {"command": "characters.choices", "character": "thorin-stoneback"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
+      {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "cantrips", "selection": "fire_bolt"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "scope_type": "feat", "scope_id": "ability_score_improvement", "choice": "asi_point_1", "selection": "strength"}
+      {"command": "characters.random_resolve", "character": "thorin-stoneback"}
+
+  ### Character builder
+
+  `build_start` generates an empty character and returns a `temp_id` plus the
+  root building choices (race, class, background, ...). `build_select` picks a
+  root concept and returns its pending sub-choices; `build_resolve_sub`
+  answers one sub-choice. `build_finish` derives starting inventory and
+  pending choice slots, saves the character, and releases the `temp_id`.
+
+      {"command": "characters.build_start", "system": "dnd_5e_srd", "name": "Thorin Stoneback"}
+      {"command": "characters.build_select", "temp_id": "1", "concept_type": "class", "concept_id": "cleric"}
+      {"command": "characters.build_resolve_sub", "temp_id": "1", "scope_type": "class", "scope_id": "cleric", "choice": "skill_proficiency_1", "selection": "history"}
+      {"command": "characters.build_finish", "temp_id": "1"}
+
+  ### Inventory and preparation
+
       {"command": "characters.inventory", "character": "thorin-stoneback"}
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "longsword"}
       {"command": "characters.inventory.add", "character": "thorin-stoneback", "type": "equipment", "id": "chain_mail", "fields": {"equipped": true}}
@@ -34,13 +71,8 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.activate", "character": "thorin-stoneback", "verb": "prepare", "items": ["bless", "cure_wounds"]}
       {"command": "characters.activate", "character": "thorin-stoneback", "verb": "equip", "items": [0]}
 
-  Each response is a single line of JSON:
-
-      {"status": "ok", "data": {...}}
-      {"status": "error", "message": "..."}
-
   Generated-but-unsaved characters are held in memory under a `temp_id` until
-  `characters.save` is called or the server exits.
+  `characters.save` / `characters.build_finish` is called or the server exits.
   """
 
   alias ExTTRPGDev.CLI.Server.Handlers
