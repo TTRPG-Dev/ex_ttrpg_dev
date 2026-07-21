@@ -47,6 +47,7 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
+  alias ExTTRPGDev.CLI.Server.Errors
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems
 
@@ -62,7 +63,10 @@ defmodule ExTTRPGDev.CLI.Server do
   # success, so a mid-handler raise cannot leak partial mutations.
   @doc false
   def handle_command(msg, state) do
-    handle(msg, state)
+    case handle(msg, state) do
+      {:ok, data, new_state} -> {ok(data), new_state}
+      {:error, message} -> {error(message), state}
+    end
   rescue
     e -> {error(Exception.message(e)), state}
   end
@@ -111,13 +115,13 @@ defmodule ExTTRPGDev.CLI.Server do
         %{spec: spec, rolls: rolls, total: Enum.sum(rolls)}
       end)
 
-    {ok(%{results: results}), state}
+    {:ok, %{results: results}, state}
   end
 
   # --- Systems ---
 
   defp handle(%{"command" => "systems.list"}, state) do
-    {ok(%{systems: RuleSystems.list_systems()}), state}
+    {:ok, %{systems: RuleSystems.list_systems()}, state}
   end
 
   defp handle(%{"command" => "systems.show", "system" => slug} = cmd, state) do
@@ -139,7 +143,7 @@ defmodule ExTTRPGDev.CLI.Server do
           Serializer.serialize_system(system)
       end
 
-    {ok(data), state}
+    {:ok, data, state}
   end
 
   # --- Characters ---
@@ -168,7 +172,7 @@ defmodule ExTTRPGDev.CLI.Server do
         temp_id
       )
 
-    {ok(data), new_state}
+    {:ok, data, new_state}
   end
 
   # --- Character Build ---
@@ -187,7 +191,7 @@ defmodule ExTTRPGDev.CLI.Server do
     new_state = %{state | pending: pending, next_id: state.next_id + 1}
 
     building_choices = Serializer.serialize_building_choices(system)
-    {ok(%{temp_id: temp_id, building_choices: building_choices}), new_state}
+    {:ok, %{temp_id: temp_id, building_choices: building_choices}, new_state}
   end
 
   defp handle(
@@ -213,7 +217,7 @@ defmodule ExTTRPGDev.CLI.Server do
       )
 
     new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
-    {ok(%{sub_choices: sub_choices}), new_state}
+    {:ok, %{sub_choices: sub_choices}, new_state}
   end
 
   defp handle(
@@ -240,7 +244,7 @@ defmodule ExTTRPGDev.CLI.Server do
       Serializer.serialize_concept_sub_choices(scope_type, scope_id, updated.decisions, system)
 
     new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
-    {ok(%{sub_choices: sub_choices}), new_state}
+    {:ok, %{sub_choices: sub_choices}, new_state}
   end
 
   defp handle(%{"command" => "characters.build_finish", "temp_id" => temp_id} = msg, state) do
@@ -253,19 +257,14 @@ defmodule ExTTRPGDev.CLI.Server do
     new_state = %{state | pending: Map.delete(state.pending, temp_id)}
     data = character_with_choices_response(sys, updated, updated.metadata.slug, msg)
 
-    {ok(data), new_state}
+    {:ok, data, new_state}
   end
 
   defp handle(%{"command" => "characters.save", "temp_id" => temp_id}, state) do
-    case Map.get(state.pending, temp_id) do
-      nil ->
-        {error("no pending character with temp_id #{inspect(temp_id)}"), state}
-
-      character ->
-        Characters.save_character!(character)
-        new_state = %{state | pending: Map.delete(state.pending, temp_id)}
-        {ok(%{slug: character.metadata.slug}), new_state}
-    end
+    character = fetch_pending!(state, temp_id)
+    Characters.save_character!(character)
+    new_state = %{state | pending: Map.delete(state.pending, temp_id)}
+    {:ok, %{slug: character.metadata.slug}, new_state}
   end
 
   defp handle(%{"command" => "characters.list"} = cmd, state) do
@@ -285,7 +284,7 @@ defmodule ExTTRPGDev.CLI.Server do
         }
       end)
 
-    {ok(%{characters: characters}), state}
+    {:ok, %{characters: characters}, state}
   end
 
   defp handle(
@@ -309,10 +308,10 @@ defmodule ExTTRPGDev.CLI.Server do
           |> character_with_choices_response(updated, slug, msg)
           |> Map.merge(extras)
 
-        {ok(data), state}
+        {:ok, data, state}
 
       {:error, reason} ->
-        {error(format_award_error(reason)), state}
+        {:error, Errors.message(reason)}
     end
   end
 
@@ -323,10 +322,11 @@ defmodule ExTTRPGDev.CLI.Server do
     {_effects, resolved} = Characters.resolved_state(system, character)
     choices = Characters.pending_choices(system, character, resolved)
 
-    {ok(%{
+    {:ok,
+     %{
        pending_choices:
          Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-     }), state}
+     }, state}
   end
 
   defp handle(
@@ -350,10 +350,10 @@ defmodule ExTTRPGDev.CLI.Server do
          ) do
       {:ok, updated} ->
         Characters.save_character!(updated, true)
-        {ok(character_with_choices_response(system, updated, slug, msg)), state}
+        {:ok, character_with_choices_response(system, updated, slug, msg), state}
 
       {:error, reason} ->
-        {error(format_resolve_error(reason)), state}
+        {:error, Errors.message(reason)}
     end
   end
 
@@ -370,13 +370,13 @@ defmodule ExTTRPGDev.CLI.Server do
       Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
       |> Map.put(:resolutions, Serializer.serialize_resolutions(resolutions, system))
 
-    {ok(data), state}
+    {:ok, data, state}
   end
 
   defp handle(%{"command" => "characters.delete", "character" => slug}, state) do
     case Characters.delete_character(slug) do
-      :ok -> {ok(%{deleted: slug}), state}
-      {:error, :not_found} -> {error("Character not found: #{slug}"), state}
+      :ok -> {:ok, %{deleted: slug}, state}
+      {:error, :not_found} -> {:error, "character not found: #{inspect(slug)}"}
     end
   end
 
@@ -384,7 +384,7 @@ defmodule ExTTRPGDev.CLI.Server do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system!(character.metadata.rule_system)
     data = Serializer.serialize_character(system, character, slug, parse_display_mode(msg))
-    {ok(data), state}
+    {:ok, data, state}
   end
 
   defp handle(
@@ -406,20 +406,21 @@ defmodule ExTTRPGDev.CLI.Server do
         meta -> meta["name"] || concept_id
       end
 
-    {ok(%{
+    {:ok,
+     %{
        concept_name: concept_name,
        dice: result.dice,
        rolls: result.rolls,
        bonus: result.bonus,
        total: result.total
-     }), state}
+     }, state}
   end
 
   # --- Inventory ---
 
   defp handle(%{"command" => "characters.inventory", "character" => slug}, state) do
     character = Characters.load_character!(slug)
-    {ok(%{inventory: Serializer.serialize_inventory(character.inventory)}), state}
+    {:ok, %{inventory: Serializer.serialize_inventory(character.inventory)}, state}
   end
 
   defp handle(
@@ -440,10 +441,10 @@ defmodule ExTTRPGDev.CLI.Server do
       {:ok, item} ->
         updated = %{character | inventory: character.inventory ++ [item]}
         Characters.save_character!(updated, true)
-        {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+        {:ok, %{inventory: Serializer.serialize_inventory(updated.inventory)}, state}
 
       {:error, reason} ->
-        {error("cannot add item: #{inspect(reason)}"), state}
+        {:error, "cannot add item: " <> Errors.message(reason)}
     end
   end
 
@@ -469,10 +470,10 @@ defmodule ExTTRPGDev.CLI.Server do
         new_inventory = List.replace_at(character.inventory, index, updated_item)
         updated = %{character | inventory: new_inventory}
         Characters.save_character!(updated, true)
-        {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+        {:ok, %{inventory: Serializer.serialize_inventory(updated.inventory)}, state}
 
       {:error, reason} ->
-        {error("cannot set field: #{inspect(reason)}"), state}
+        {:error, "cannot set field: " <> Errors.message(reason)}
     end
   end
 
@@ -501,7 +502,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
     data = character_with_choices_response(system, updated, slug, msg)
 
-    {ok(data), state}
+    {:ok, data, state}
   end
 
   # --- Spell preparation ---
@@ -528,8 +529,8 @@ defmodule ExTTRPGDev.CLI.Server do
       end
 
     case result do
-      {:ok, data} -> {ok(data), state}
-      {:error, reason} -> {error(inspect(reason)), state}
+      {:ok, data} -> {:ok, data, state}
+      {:error, reason} -> {:error, Errors.message(reason)}
     end
   end
 
@@ -547,26 +548,26 @@ defmodule ExTTRPGDev.CLI.Server do
 
     case InventoryRules.type_for_activate_command(system.inventory_rules, verb) do
       nil ->
-        {error("unknown activate verb: #{inspect(verb)}"), state}
+        {:error, "unknown activate verb: #{inspect(verb)}"}
 
       {type_id, _config} ->
         case Characters.activate(system, character, type_id, item_ids) do
           {:ok, updated} ->
             Characters.save_character!(updated, true)
-            {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+            {:ok, %{inventory: Serializer.serialize_inventory(updated.inventory)}, state}
 
           {:error, reason} ->
-            {error(format_activate_error(reason)), state}
+            {:error, Errors.message(reason)}
         end
     end
   end
 
-  defp handle(%{"command" => cmd}, state) do
-    {error("unknown command: #{inspect(cmd)}"), state}
+  defp handle(%{"command" => cmd}, _state) do
+    {:error, "unknown command: #{inspect(cmd)}"}
   end
 
-  defp handle(_, state) do
-    {error("request must have a \"command\" field"), state}
+  defp handle(_, _state) do
+    {:error, "request must have a \"command\" field"}
   end
 
   defp format_prep_response(%{
@@ -586,65 +587,11 @@ defmodule ExTTRPGDev.CLI.Server do
     if cap, do: Map.put(base, :cap, cap), else: base
   end
 
-  defp format_activate_error({:ineligible_items, ids}),
-    do: "ineligible items: #{Enum.join(ids, ", ")}"
-
-  defp format_activate_error({:exceeds_cap, count, cap}),
-    do: "cannot prepare more than #{cap} (given: #{count})"
-
-  defp format_activate_error({:mode_not_prepared, mode}),
-    do: "items of this type cannot be manually activated (mode: \"#{mode}\")"
-
-  defp format_activate_error(:no_preparation_class),
-    do: "no class with preparation_mode found for this character"
-
-  defp format_activate_error(:no_preparation_cap), do: "class has no preparation cap"
-  defp format_activate_error(reason), do: inspect(reason)
-
   defp validate_concept_selection!(selection, valid_options) do
     unless selection in valid_options do
       raise("#{inspect(selection)} is not available for this character and progression")
     end
   end
-
-  defp format_resolve_error({:unknown_progression, id}),
-    do: "unknown progression: #{inspect(id)}"
-
-  defp format_resolve_error({:no_pending_choice, id}),
-    do: "no pending choice for progression: #{inspect(id)}"
-
-  defp format_resolve_error({:invalid_selection, selection}),
-    do: "#{inspect(selection)} is not available for this character and progression"
-
-  defp format_resolve_error(:value_required), do: "value is required for this progression"
-  defp format_resolve_error(:value_must_be_integer), do: "value must be an integer"
-  defp format_resolve_error(:missing_effect_target), do: "progression has no effect_target"
-
-  defp format_resolve_error({:invalid_effect_target, target}),
-    do: "invalid effect target: #{inspect(target)}"
-
-  defp format_resolve_error({:inventory_error, reason}),
-    do: "failed to add to inventory: #{inspect(reason)}"
-
-  defp format_award_error({:unknown_award, id}), do: "unknown award: #{inspect(id)}"
-
-  defp format_award_error({:value_required, value_type}),
-    do:
-      "award #{inspect(value_type)} requires an explicit value; use: characters award <slug> #{value_type} <value>"
-
-  defp format_award_error(:value_must_be_integer), do: "value must be an integer for this award"
-  defp format_award_error(:max_level), do: "character is already at max level"
-
-  defp format_award_error(:no_level_thresholds),
-    do: "system does not define level XP thresholds"
-
-  defp format_award_error({:unsupported_value_type, value_type}),
-    do: "unsupported award value_type: #{inspect(value_type)}"
-
-  defp format_award_error(:missing_effect_target), do: "award has no effect_target"
-
-  defp format_award_error({:invalid_effect_target, target}),
-    do: "invalid effect target: #{inspect(target)}"
 
   defp fetch_pending!(state, temp_id) do
     Map.get(state.pending, temp_id) || raise("no pending character: #{inspect(temp_id)}")
