@@ -252,11 +252,7 @@ defmodule ExTTRPGDev.CLI.Server do
     updated = %{char | inventory: inv, pending_choice_slots: slots}
     Characters.save_character!(updated)
     new_state = %{state | pending: Map.delete(state.pending, temp_id)}
-    {_effects, resolved} = Characters.resolved_state(sys, updated)
-    choices = Characters.pending_choices(sys, updated, resolved)
-    mode = parse_display_mode(msg)
-    ser = Serializer.serialize_character(sys, updated, updated.metadata.slug, mode, resolved)
-    data = Map.put(ser, :pending_choices, Serializer.serialize_choices_list(choices, sys, mode))
+    data = character_with_choices_response(sys, updated, updated.metadata.slug, msg)
 
     {ok(data), new_state}
   end
@@ -314,15 +310,7 @@ defmodule ExTTRPGDev.CLI.Server do
     updated = %{updated | pending_choice_slots: new_slots}
     Characters.save_character!(updated, true)
 
-    {_effects, resolved} = Characters.resolved_state(system, updated)
-    choices = Characters.pending_choices(system, updated, resolved)
-
-    data =
-      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-      |> Map.put(
-        :pending_choices,
-        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-      )
+    data = character_with_choices_response(system, updated, slug, msg)
 
     {ok(data), state}
   end
@@ -344,15 +332,9 @@ defmodule ExTTRPGDev.CLI.Server do
     updated = %{updated | pending_choice_slots: new_slots}
     Characters.save_character!(updated, true)
 
-    {_effects, resolved} = Characters.resolved_state(system, updated)
-    choices = Characters.pending_choices(system, updated, resolved)
-
     data =
-      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-      |> Map.put(
-        :pending_choices,
-        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-      )
+      system
+      |> character_with_choices_response(updated, slug, msg)
       |> Map.put(:awarded_xp, xp_needed)
 
     {ok(data), state}
@@ -438,15 +420,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
     Characters.save_character!(updated, true)
 
-    {_effects, resolved} = Characters.resolved_state(system, updated)
-    choices = Characters.pending_choices(system, updated, resolved)
-
-    data =
-      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-      |> Map.put(
-        :pending_choices,
-        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-      )
+    data = character_with_choices_response(system, updated, slug, msg)
 
     {ok(data), state}
   end
@@ -593,15 +567,7 @@ defmodule ExTTRPGDev.CLI.Server do
     updated = %{character | decisions: character.decisions ++ [decision]}
     Characters.save_character!(updated, true)
 
-    {_effects, resolved} = Characters.resolved_state(system, updated)
-    choices = Characters.pending_choices(system, updated, resolved)
-
-    data =
-      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-      |> Map.put(
-        :pending_choices,
-        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-      )
+    data = character_with_choices_response(system, updated, slug, msg)
 
     {ok(data), state}
   end
@@ -792,6 +758,19 @@ defmodule ExTTRPGDev.CLI.Server do
   end
 
   # --- Response helpers ---
+
+  # The standard response body for mutate-then-report handlers: the character
+  # serialized against a single DAG evaluation, plus its recomputed pending
+  # choices rendered in the request's display mode.
+  defp character_with_choices_response(system, character, slug, msg) do
+    {_effects, resolved} = Characters.resolved_state(system, character)
+    choices = Characters.pending_choices(system, character, resolved)
+    mode = parse_display_mode(msg)
+
+    system
+    |> Serializer.serialize_character(character, slug, mode, resolved)
+    |> Map.put(:pending_choices, Serializer.serialize_choices_list(choices, system, mode))
+  end
 
   defp ok(data), do: %{status: "ok", data: data}
   defp error(message), do: %{status: "error", message: message}
