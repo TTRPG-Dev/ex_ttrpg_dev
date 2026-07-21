@@ -1,17 +1,19 @@
 defmodule ExTTRPGDev.Characters.Character do
   alias __MODULE__
   alias DiceLib.Basic, as: Dice
-  alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
+  alias ExTTRPGDev.Characters.{Decision, InventoryItem, Metadata}
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @moduledoc """
   Definition of an individual character.
 
   - `generated_values` — map of `{type_id, concept_id, field_name} => integer` for leaf nodes
-  - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: integer}`
+  - `effects` — list of `%Effect{target: {type_id, concept_id, field_name}, value: integer}`
     for currently active items, feats, statuses etc. (defaults to [])
-  - `decisions` — list of `%{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
+  - `decisions` — list of `%Decision{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
     recording each concept selection made during character creation (defaults to [])
   - `inventory` — list of `%InventoryItem{}` representing items the character is carrying
     (defaults to [])
@@ -77,7 +79,7 @@ defmodule ExTTRPGDev.Characters.Character do
           {"#{type}:#{id}:#{field}", value}
         end),
       "effects" =>
-        Enum.map(char.effects, fn %{target: {type, id, field}, value: v} ->
+        Enum.map(char.effects, fn %Effect{target: {type, id, field}, value: v} ->
           %{"target" => "#{type}:#{id}:#{field}", "value" => v}
         end),
       "inventory" =>
@@ -88,7 +90,7 @@ defmodule ExTTRPGDev.Characters.Character do
             "fields" => item.fields
           }
         end),
-      "decisions" => Enum.map(char.decisions, &serialize_decision/1),
+      "decisions" => Enum.map(char.decisions, &Decision.to_json_map/1),
       "pending_choice_slots" =>
         Enum.map(char.pending_choice_slots, fn %{
                                                  progression_id: pid,
@@ -119,7 +121,7 @@ defmodule ExTTRPGDev.Characters.Character do
     effects =
       Enum.map(map["effects"] || [], fn %{"target" => target, "value" => v} ->
         [type, id, field] = String.split(target, ":", parts: 3)
-        %{target: {type, id, field}, value: v}
+        %Effect{target: {type, id, field}, value: v}
       end)
 
     inventory =
@@ -131,7 +133,7 @@ defmodule ExTTRPGDev.Characters.Character do
         }
       end)
 
-    decisions = Enum.map(map["decisions"] || [], &deserialize_decision/1)
+    decisions = Enum.map(map["decisions"] || [], &Decision.from_json_map/1)
 
     pending_choice_slots =
       Enum.map(map["pending_choice_slots"] || [], fn slot ->
@@ -156,23 +158,6 @@ defmodule ExTTRPGDev.Characters.Character do
     }
   end
 
-  defp serialize_decision(%{scope: nil, choice: choice, selection: selection}) do
-    %{"scope" => nil, "choice" => choice, "selection" => selection}
-  end
-
-  defp serialize_decision(%{scope: {type, id}, choice: choice, selection: selection}) do
-    %{"scope" => "#{type}:#{id}", "choice" => choice, "selection" => selection}
-  end
-
-  defp deserialize_decision(%{"scope" => nil, "choice" => choice, "selection" => selection}) do
-    %{scope: nil, choice: choice, selection: selection}
-  end
-
-  defp deserialize_decision(%{"scope" => scope_str, "choice" => choice, "selection" => selection}) do
-    [type, id] = String.split(scope_str, ":", parts: 2)
-    %{scope: {type, id}, choice: choice, selection: selection}
-  end
-
   def inventory_from_decisions(decisions, system) do
     static = starting_equipment_items(decisions, system)
     chosen = equipment_choice_items(decisions, system)
@@ -192,7 +177,7 @@ defmodule ExTTRPGDev.Characters.Character do
 
   defp equipment_choice_items(decisions, system) do
     Enum.flat_map(decisions, fn
-      %{scope: {type, id}, choice: choice_id, selection: selected} ->
+      %Decision{scope: {type, id}, choice: choice_id, selection: selected} ->
         choice_def =
           system.concept_metadata
           |> Map.get({type, id}, %{})
@@ -222,7 +207,7 @@ defmodule ExTTRPGDev.Characters.Character do
 
   defp item_from_spec(_, _), do: []
 
-  defp roll_generated_value(%{method: method_id}, rolling_methods) do
+  defp roll_generated_value(%Node{method: method_id}, rolling_methods) do
     method = resolve_rolling_method(method_id, rolling_methods)
     rolls = Dice.roll(method.dice)
 

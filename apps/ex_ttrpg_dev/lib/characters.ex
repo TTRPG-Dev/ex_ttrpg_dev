@@ -5,12 +5,15 @@ defmodule ExTTRPGDev.Characters do
   alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.Advancement
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystem.Vocabulary
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -148,7 +151,7 @@ defmodule ExTTRPGDev.Characters do
     |> Enum.flat_map(fn %{concept_type: type_id} ->
       root_ids = root_concept_ids(system.concept_metadata, type_id)
       selected_id = Enum.random(root_ids)
-      decision = %{scope: nil, choice: type_id, selection: selected_id}
+      decision = %Decision{scope: nil, choice: type_id, selection: selected_id}
       [decision | random_sub_decisions(system.concept_metadata, {type_id, selected_id})]
     end)
   end
@@ -511,8 +514,8 @@ defmodule ExTTRPGDev.Characters do
 
     system.effects
     |> Enum.filter(fn
-      %{source: {type, id}} -> MapSet.member?(active, {type, id})
-      %{source: {type, id, _}} -> MapSet.member?(active, {type, id})
+      %Effect{source: {type, id}} -> MapSet.member?(active, {type, id})
+      %Effect{source: {type, id, _}} -> MapSet.member?(active, {type, id})
       _ -> false
     end)
     |> Kernel.++(decision_effects)
@@ -707,7 +710,7 @@ defmodule ExTTRPGDev.Characters do
   defp resolve_sub_choice(system, entry, character) do
     selection = Enum.random(entry.options)
 
-    decision = %{
+    decision = %Decision{
       scope: {entry.scope_type, entry.scope_id},
       choice: entry.id,
       selection: selection
@@ -758,7 +761,7 @@ defmodule ExTTRPGDev.Characters do
     [node_key | _] = Expression.extract_refs(entry.effect_target)
 
     decision = next_progression_decision(character.decisions, entry.id, method)
-    effect = %{target: node_key, value: value}
+    effect = %Effect{target: node_key, value: value}
 
     updated = %{
       character
@@ -1115,7 +1118,7 @@ defmodule ExTTRPGDev.Characters do
   def next_progression_decision(decisions, progression_id, selection) do
     n = count_progression_decisions(decisions, progression_id) + 1
 
-    %{
+    %Decision{
       scope: Vocabulary.progression_scope(progression_id),
       choice: Vocabulary.progression_choice_id(n),
       selection: selection
@@ -1124,7 +1127,7 @@ defmodule ExTTRPGDev.Characters do
 
   defp count_progression_decisions(decisions, progression_id) do
     Enum.count(decisions, fn
-      %{scope: {@progression_type, ^progression_id}} -> true
+      %Decision{scope: {@progression_type, ^progression_id}} -> true
       _ -> false
     end)
   end
@@ -1146,7 +1149,7 @@ defmodule ExTTRPGDev.Characters do
 
   defp effects_from_decisions(decisions, concept_metadata) do
     Enum.flat_map(decisions, fn
-      %{scope: {type, id}, choice: choice_id, selection: selected} ->
+      %Decision{scope: {type, id}, choice: choice_id, selection: selected} ->
         choice_def =
           concept_metadata
           |> Map.get({type, id}, %{})
@@ -1159,7 +1162,7 @@ defmodule ExTTRPGDev.Characters do
             "contributes_value" => value,
             "type" => target_type
           } ->
-            [%{source: {type, id}, target: {target_type, selected, field}, value: value}]
+            [%Effect{source: {type, id}, target: {target_type, selected, field}, value: value}]
 
           _ ->
             []
@@ -1174,10 +1177,10 @@ defmodule ExTTRPGDev.Characters do
     Enum.flat_map(inventory, fn %InventoryItem{} = item ->
       system.effects
       |> Enum.filter(fn
-        %{source: {type, id}} -> type == item.concept_type and id == item.concept_id
+        %Effect{source: {type, id}} -> type == item.concept_type and id == item.concept_id
         _ -> false
       end)
-      |> Enum.map(&Map.put(&1, :item_fields, item.fields))
+      |> Enum.map(fn %Effect{} = effect -> %{effect | item_fields: item.fields} end)
     end)
   end
 
@@ -1211,7 +1214,7 @@ defmodule ExTTRPGDev.Characters do
     |> Enum.flat_map(fn {choice_id, choice_def} ->
       sub_type = choice_def["type"]
       selected = Enum.random(choice_def["options"])
-      decision = %{scope: {type_id, concept_id}, choice: choice_id, selection: selected}
+      decision = %Decision{scope: {type_id, concept_id}, choice: choice_id, selection: selected}
 
       if Map.get(choice_def, "grants_to") == "inventory" do
         [decision]
@@ -1252,7 +1255,7 @@ defmodule ExTTRPGDev.Characters do
   defp level_xp_thresholds(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         %{type: :mapping, steps: steps} when not is_nil(steps) <-
+         %Node{type: :mapping, steps: steps} when not is_nil(steps) <-
            Map.get(system.nodes, {type_id, concept_id, field_name}) do
       Map.new(steps, fn [threshold, level] -> {level, threshold} end)
     else
@@ -1263,7 +1266,7 @@ defmodule ExTTRPGDev.Characters do
   defp xp_effect_target(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         %{type: :mapping, input: input} when not is_nil(input) <-
+         %Node{type: :mapping, input: input} when not is_nil(input) <-
            Map.get(system.nodes, {type_id, concept_id, field_name}),
          [node_key | _] <- Expression.extract_refs(input) do
       node_key
@@ -1285,7 +1288,7 @@ defmodule ExTTRPGDev.Characters do
 
     level_effects =
       if xp_target && xp_for_level > 0 do
-        [%{target: xp_target, value: xp_for_level} | non_xp_effects]
+        [%Effect{target: xp_target, value: xp_for_level} | non_xp_effects]
       else
         non_xp_effects
       end
@@ -1306,7 +1309,7 @@ defmodule ExTTRPGDev.Characters do
 
   defp find_prep_concept(decisions, concept_metadata, type_id, mode_field) do
     Enum.find_value(decisions, fn
-      %{scope: nil, choice: ^type_id, selection: concept_id} ->
+      %Decision{scope: nil, choice: ^type_id, selection: concept_id} ->
         meta = Map.get(concept_metadata, {type_id, concept_id}, %{})
         if Map.has_key?(meta, mode_field), do: {type_id, concept_id}, else: nil
 
@@ -1469,7 +1472,7 @@ defmodule ExTTRPGDev.Characters do
 
     Enum.any?(choices, fn %{concept_type: class_type} ->
       Enum.any?(character.decisions, fn
-        %{scope: nil, choice: ^class_type, selection: class_id} ->
+        %Decision{scope: nil, choice: ^class_type, selection: class_id} ->
           meta = Map.get(system.concept_metadata, {class_type, class_id}, %{})
           meta[field] == expected_value
 

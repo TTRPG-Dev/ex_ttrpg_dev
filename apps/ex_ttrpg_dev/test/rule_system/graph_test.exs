@@ -1,24 +1,23 @@
 defmodule ExTTRPGDev.RuleSystem.GraphTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader}
+  alias ExTTRPGDev.RuleSystem.{Effect, Graph, Loader, Node}
+
+  defp graph_data(nodes, effects \\ []) do
+    %{nodes: nodes, rolling_methods: %{}, concept_metadata: %{}, effects: effects}
+  end
 
   defp minimal_loader_data do
-    %{
-      nodes: %{
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
-        {"attr", "strength", "total_score"} => %{
-          type: :accumulator,
-          base: "attr('strength').base_score"
-        },
-        {"attr", "strength", "modifier"} => %{
-          type: :formula,
-          formula: "floor((attr('strength').total_score - 10) / 2)"
-        }
+    graph_data(%{
+      {"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"},
+      {"attr", "strength", "total_score"} => %Node{
+        type: :accumulator,
+        base: "attr('strength').base_score"
       },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: []
-    }
+      {"attr", "strength", "modifier"} => %Node{
+        type: :formula,
+        formula: "floor((attr('strength').total_score - 10) / 2)"
+      }
+    })
   end
 
   defp with_choices(concept_metadata) do
@@ -36,38 +35,30 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   end
 
   test "build/1 rejects a non-tuple effect target" do
-    effect = %{source: {"attr", "strength"}, target: "attr(strength).total_score", value: 2}
+    effect = %Effect{source: {"attr", "strength"}, target: "attr(strength).total_score", value: 2}
     data = Map.put(minimal_loader_data(), :effects, [effect])
 
     assert {:error, {:invalid_effect_target, "attr(strength).total_score"}} = Graph.build(data)
   end
 
   test "build/1 returns error for undefined reference" do
-    bad_data = %{
-      nodes: %{
-        {"attr", "strength", "modifier"} => %{
+    bad_data =
+      graph_data(%{
+        {"attr", "strength", "modifier"} => %Node{
           type: :formula,
           formula: "attr('strength').total_score"
         }
-      },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: []
-    }
+      })
 
     assert {:error, {:undefined_ref, _}} = Graph.build(bad_data)
   end
 
   test "build/1 detects cycles" do
-    cyclic_data = %{
-      nodes: %{
-        {"attr", "a", "val"} => %{type: :formula, formula: "attr('b').val"},
-        {"attr", "b", "val"} => %{type: :formula, formula: "attr('a').val"}
-      },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: []
-    }
+    cyclic_data =
+      graph_data(%{
+        {"attr", "a", "val"} => %Node{type: :formula, formula: "attr('b').val"},
+        {"attr", "b", "val"} => %Node{type: :formula, formula: "attr('a').val"}
+      })
 
     assert {:error, {:cycle_detected, _}} = Graph.build(cyclic_data)
   end
@@ -84,22 +75,21 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     assert total_idx < mod_idx
   end
 
+  @prof_bonus_effect %Effect{
+    source: {"class", "fighter", nil},
+    target: {"save", "str", "modifier"},
+    value: "trait('prof').bonus"
+  }
+
   test "build/1 adds edge from formula-valued effect's ref to its target" do
-    data = %{
-      nodes: %{
-        {"trait", "prof", "bonus"} => %{type: :accumulator, base: "2"},
-        {"save", "str", "modifier"} => %{type: :accumulator, base: "0"}
-      },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: [
+    data =
+      graph_data(
         %{
-          source: {"class", "fighter", nil},
-          target: {"save", "str", "modifier"},
-          value: "trait('prof').bonus"
-        }
-      ]
-    }
+          {"trait", "prof", "bonus"} => %Node{type: :accumulator, base: "2"},
+          {"save", "str", "modifier"} => %Node{type: :accumulator, base: "0"}
+        },
+        [@prof_bonus_effect]
+      )
 
     assert {:ok, system} = Graph.build(data)
     order = Graph.topological_order(system)
@@ -109,35 +99,27 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   end
 
   test "build/1 returns error for undefined ref in formula-valued effect" do
-    data = %{
-      nodes: %{
-        {"save", "str", "modifier"} => %{type: :accumulator, base: "0"}
-      },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: [
-        %{
-          source: {"class", "fighter", nil},
-          target: {"save", "str", "modifier"},
-          value: "trait('prof').bonus"
-        }
-      ]
-    }
+    data =
+      graph_data(
+        %{{"save", "str", "modifier"} => %Node{type: :accumulator, base: "0"}},
+        [@prof_bonus_effect]
+      )
 
     assert {:error, {:undefined_ref, _}} = Graph.build(data)
   end
 
   test "build/1 returns error for undefined contribution target" do
-    data = %{
-      nodes: %{
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"}
-      },
-      rolling_methods: %{},
-      concept_metadata: %{},
-      effects: [
-        %{source: {"item", "ring", nil}, target: {"attr", "strength", "nonexistent"}, value: 2}
-      ]
-    }
+    data =
+      graph_data(
+        %{{"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"}},
+        [
+          %Effect{
+            source: {"item", "ring", nil},
+            target: {"attr", "strength", "nonexistent"},
+            value: 2
+          }
+        ]
+      )
 
     assert {:error, {:undefined_effect_target, _}} = Graph.build(data)
   end

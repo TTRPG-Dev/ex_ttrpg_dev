@@ -2,6 +2,8 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystems
 
   setup do
@@ -10,7 +12,7 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   end
 
   defp xp_effect(amount),
-    do: %{target: {"character_trait", "experience_points", "total"}, value: amount}
+    do: %Effect{target: {"character_trait", "experience_points", "total"}, value: amount}
 
   test "integer award with an explicit value appends the effect and returns the value",
        %{system: system, character: character} do
@@ -56,7 +58,7 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   end
 
   test "recomputes pending choice slots for the awarded state", %{system: system} do
-    decisions = [%{scope: nil, choice: "class", selection: "wizard"}]
+    decisions = [%Decision{scope: nil, choice: "class", selection: "wizard"}]
     character = Character.gen_character!(system, decisions)
 
     character = %{

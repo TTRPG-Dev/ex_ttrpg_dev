@@ -1,6 +1,7 @@
 defmodule ExTTRPGDevTest.Characters.Character do
   use ExUnit.Case
-  alias ExTTRPGDev.Characters.{Character, InventoryItem}
+  alias ExTTRPGDev.RuleSystem.Effect
+  alias ExTTRPGDev.Characters.{Character, Decision, InventoryItem}
   alias ExTTRPGDev.RuleSystems
 
   doctest ExTTRPGDev.Characters.Character,
@@ -61,8 +62,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
     system = RuleSystems.load_system!("dnd_5e_srd")
 
     decisions = [
-      %{scope: nil, choice: "race", selection: "hill_dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
+      %Decision{scope: nil, choice: "race", selection: "hill_dwarf"},
+      %Decision{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
     ]
 
     character = Character.gen_character!(system, decisions)
@@ -107,7 +108,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
         }
       })
 
-    decisions = [%{scope: nil, choice: "class", selection: "fighter"}]
+    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
     character = Character.gen_character!(system, decisions)
 
     assert length(character.inventory) == 2
@@ -131,7 +132,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
         }
       })
 
-    decisions = [%{scope: nil, choice: "class", selection: "fighter"}]
+    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
     character = Character.gen_character!(system, decisions)
     assert character.inventory == []
   end
@@ -163,7 +164,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
       })
 
     decisions = [
-      %{scope: {"class", "fighter"}, choice: "starting_weapon", selection: "longsword"}
+      %Decision{scope: {"class", "fighter"}, choice: "starting_weapon", selection: "longsword"}
     ]
 
     character = Character.gen_character!(system, decisions)
@@ -220,8 +221,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
     system = RuleSystems.load_system!("dnd_5e_srd")
 
     decisions = [
-      %{scope: nil, choice: "race", selection: "dwarf"},
-      %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
+      %Decision{scope: nil, choice: "race", selection: "dwarf"},
+      %Decision{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
     ]
 
     original = Character.gen_character!(system, decisions)
@@ -231,6 +232,32 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert restored.decisions == decisions
   end
 
+  test "to_json_map/1 keeps the stable saved-character JSON shape" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+
+    decisions = [
+      %Decision{scope: nil, choice: "race", selection: "dwarf"},
+      %Decision{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
+    ]
+
+    original = Character.gen_character!(system, decisions)
+
+    original = %{
+      original
+      | effects: [%Effect{target: {"ability", "strength", "total_score"}, value: 2}]
+    }
+
+    json_map = Character.to_json_map(original)
+
+    assert %{"scope" => nil, "choice" => "race", "selection" => "dwarf"} in json_map["decisions"]
+
+    assert %{"scope" => "race:dwarf", "choice" => "subrace", "selection" => "hill_dwarf"} in json_map[
+             "decisions"
+           ]
+
+    assert json_map["effects"] == [%{"target" => "ability:strength:total_score", "value" => 2}]
+  end
+
   test "to_json_map/1 and from_json!/1 round-trip preserves effects" do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)
@@ -238,8 +265,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
     original = %{
       original
       | effects: [
-          %{target: {"ability", "strength", "total_score"}, value: 2},
-          %{target: {"ability", "dexterity", "total_score"}, value: -1}
+          %Effect{target: {"ability", "strength", "total_score"}, value: 2},
+          %Effect{target: {"ability", "dexterity", "total_score"}, value: -1}
         ]
     }
 
@@ -248,8 +275,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
     assert length(restored.effects) == 2
 
-    assert %{target: {"ability", "strength", "total_score"}, value: 2} in restored.effects
+    assert %Effect{target: {"ability", "strength", "total_score"}, value: 2} in restored.effects
 
-    assert %{target: {"ability", "dexterity", "total_score"}, value: -1} in restored.effects
+    assert %Effect{target: {"ability", "dexterity", "total_score"}, value: -1} in restored.effects
   end
 end

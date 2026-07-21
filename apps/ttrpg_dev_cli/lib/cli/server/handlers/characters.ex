@@ -9,6 +9,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.CLI.Serializer
   alias ExTTRPGDev.CLI.Server.Common
   alias ExTTRPGDev.CLI.Server.Errors
@@ -157,7 +158,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     valid = Characters.valid_sub_choices(system, scope, choice_def, character.decisions)
     Common.validate_concept_selection!(selection, valid)
 
-    decision = %{scope: scope, choice: choice_id, selection: selection}
+    decision = %Decision{scope: scope, choice: choice_id, selection: selection}
     updated = %{character | decisions: character.decisions ++ [decision]}
     Characters.save_character!(updated, true)
 

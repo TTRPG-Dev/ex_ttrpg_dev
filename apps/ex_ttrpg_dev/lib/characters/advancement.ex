@@ -10,6 +10,8 @@ defmodule ExTTRPGDev.Characters.Advancement do
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.Vocabulary
   alias ExTTRPGDev.RuleSystems.LoadedSystem
@@ -28,7 +30,10 @@ defmodule ExTTRPGDev.Characters.Advancement do
     with {:ok, meta} <- fetch_award_meta(system, award_id),
          {:ok, awarded} <- award_value(system, character, meta, value),
          {:ok, target} <- fetch_effect_target(meta) do
-      updated = %{character | effects: character.effects ++ [%{target: target, value: awarded}]}
+      updated = %{
+        character
+        | effects: character.effects ++ [%Effect{target: target, value: awarded}]
+      }
 
       updated = %{
         updated
@@ -147,7 +152,7 @@ defmodule ExTTRPGDev.Characters.Advancement do
       {:ok,
        %{
          character
-         | effects: character.effects ++ [%{target: target, value: value}],
+         | effects: character.effects ++ [%Effect{target: target, value: value}],
            decisions: character.decisions ++ [decision]
        }}
     end
@@ -179,7 +184,7 @@ defmodule ExTTRPGDev.Characters.Advancement do
     already_chosen =
       decisions
       |> Enum.filter(fn
-        %{scope: ^scope, choice: choice} ->
+        %Decision{scope: ^scope, choice: choice} ->
           cd =
             get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice]) || %{}
 

@@ -1,8 +1,10 @@
 defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
   alias ExTTRPGDev.Characters
-  alias ExTTRPGDev.Characters.{Character, InventoryItem}
+  alias ExTTRPGDev.Characters.{Character, Decision, InventoryItem}
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -111,7 +113,7 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     test "returns root concept for a single root decision" do
-      decisions = [%{scope: nil, choice: "race", selection: "human"}]
+      decisions = [%Decision{scope: nil, choice: "race", selection: "human"}]
       result = Characters.active_concepts(decisions, %{})
       assert MapSet.member?(result, {"race", "human"})
     end
@@ -124,8 +126,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "recurses into sub-choices when a decision exists for them" do
       decisions = [
-        %{scope: nil, choice: "race", selection: "dwarf"},
-        %{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
+        %Decision{scope: nil, choice: "race", selection: "dwarf"},
+        %Decision{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}
       ]
 
       result = Characters.active_concepts(decisions, @dwarf_metadata)
@@ -134,7 +136,7 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     test "does not activate sub-concept when no decision is made for a choice" do
-      decisions = [%{scope: nil, choice: "race", selection: "dwarf"}]
+      decisions = [%Decision{scope: nil, choice: "race", selection: "dwarf"}]
       result = Characters.active_concepts(decisions, @dwarf_metadata)
       assert MapSet.member?(result, {"race", "dwarf"})
       refute MapSet.member?(result, {"race", "hill_dwarf"})
@@ -154,8 +156,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "does not recurse into choices with grants_to: inventory" do
       decisions = [
-        %{scope: nil, choice: "class", selection: "fighter"},
-        %{scope: {"class", "fighter"}, choice: "starting_armor", selection: "chain_mail"}
+        %Decision{scope: nil, choice: "class", selection: "fighter"},
+        %Decision{scope: {"class", "fighter"}, choice: "starting_armor", selection: "chain_mail"}
       ]
 
       result = Characters.active_concepts(decisions, @fighter_with_inventory_choice)
@@ -242,7 +244,7 @@ defmodule ExTTRPGDevTest.Characters do
   end
 
   describe "active_effects/2" do
-    @fighter_effect %{
+    @fighter_effect %Effect{
       source: {"class", "fighter"},
       target: {"saving_throw", "strength", "modifier"},
       value: 2
@@ -271,7 +273,10 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "includes system effects for active concepts" do
       system = minimal_system([@fighter_effect], %{{"class", "fighter"} => %{}})
-      character = minimal_character([%{scope: nil, choice: "class", selection: "fighter"}])
+
+      character =
+        minimal_character([%Decision{scope: nil, choice: "class", selection: "fighter"}])
+
       effects = Characters.active_effects(system, character)
       assert Enum.any?(effects, &(&1.source == {"class", "fighter"}))
     end
@@ -301,7 +306,11 @@ defmodule ExTTRPGDevTest.Characters do
 
       character =
         minimal_character([
-          %{scope: {"class", "fighter"}, choice: "skill_proficiency_1", selection: "athletics"}
+          %Decision{
+            scope: {"class", "fighter"},
+            choice: "skill_proficiency_1",
+            selection: "athletics"
+          }
         ])
 
       effects = Characters.active_effects(system, character)
@@ -318,7 +327,7 @@ defmodule ExTTRPGDevTest.Characters do
       system =
         minimal_system(
           [
-            %{
+            %Effect{
               source: {"equipment", "longsword"},
               target: {"character_trait", "ac", "value"},
               value: 2,
@@ -346,7 +355,13 @@ defmodule ExTTRPGDevTest.Characters do
     test "produces one effect entry per inventory item even for the same concept" do
       system =
         minimal_system(
-          [%{source: {"equipment", "shortsword"}, target: {"stat", "atk", "bonus"}, value: 1}],
+          [
+            %Effect{
+              source: {"equipment", "shortsword"},
+              target: {"stat", "atk", "bonus"},
+              value: 1
+            }
+          ],
           %{}
         )
 
@@ -371,7 +386,7 @@ defmodule ExTTRPGDevTest.Characters do
 
       character =
         minimal_character([
-          %{scope: {"race", "elf"}, choice: "subrace", selection: "high_elf"}
+          %Decision{scope: {"race", "elf"}, choice: "subrace", selection: "high_elf"}
         ])
 
       assert Characters.active_effects(system, character) == []
@@ -422,7 +437,7 @@ defmodule ExTTRPGDevTest.Characters do
       system = progression_system(%{"hp_per_level" => @hp_progression})
 
       decisions = [
-        %{
+        %Decision{
           scope: {"character_progression", "hp_per_level"},
           choice: "choice_1",
           selection: "rolled"
@@ -438,12 +453,12 @@ defmodule ExTTRPGDevTest.Characters do
       system = progression_system(%{"hp_per_level" => @hp_progression})
 
       decisions = [
-        %{
+        %Decision{
           scope: {"character_progression", "hp_per_level"},
           choice: "choice_1",
           selection: "rolled"
         },
-        %{
+        %Decision{
           scope: {"character_progression", "hp_per_level"},
           choice: "choice_2",
           selection: "average"
@@ -460,7 +475,11 @@ defmodule ExTTRPGDevTest.Characters do
         progression_system(%{"hp_per_level" => @hp_progression, "other" => @hp_progression})
 
       decisions = [
-        %{scope: {"character_progression", "other"}, choice: "choice_1", selection: "rolled"}
+        %Decision{
+          scope: {"character_progression", "other"},
+          choice: "choice_1",
+          selection: "rolled"
+        }
       ]
 
       result = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
@@ -531,7 +550,7 @@ defmodule ExTTRPGDevTest.Characters do
       }
 
       system = minimal_system([], concept_metadata)
-      decisions = [%{scope: nil, choice: "class", selection: "fighter"}]
+      decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
       [entry] = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
       assert entry.roll == "d10"
     end
@@ -595,7 +614,7 @@ defmodule ExTTRPGDevTest.Characters do
     test "spell progression includes options filtered by level and active class" do
       system = spell_system(%{"cantrips" => @cantrip_progression}, @spell_meta)
 
-      decisions = [%{scope: nil, choice: "class", selection: "wizard"}]
+      decisions = [%Decision{scope: nil, choice: "class", selection: "wizard"}]
       [entry] = Characters.pending_choices(system, minimal_character(decisions), %{})
 
       assert entry.id == "cantrips"
@@ -627,7 +646,7 @@ defmodule ExTTRPGDevTest.Characters do
 
       system = spell_system(%{"spells_known" => progression}, @spell_meta)
       resolved = %{{"character_trait", "max_spell_level", "level"} => 1}
-      decisions = [%{scope: nil, choice: "class", selection: "cleric"}]
+      decisions = [%Decision{scope: nil, choice: "class", selection: "cleric"}]
 
       [entry] = Characters.pending_choices(system, minimal_character(decisions), resolved)
 
@@ -655,7 +674,7 @@ defmodule ExTTRPGDevTest.Characters do
       system = spell_system(%{"spells_known" => progression}, spell_meta)
       # resolved says max_spell_level = 3, but the slot was earned when only level 1 was available
       resolved = %{{"character_trait", "max_spell_level", "level"} => 3}
-      decisions = [%{scope: nil, choice: "class", selection: "cleric"}]
+      decisions = [%Decision{scope: nil, choice: "class", selection: "cleric"}]
 
       pending_choice_slots = [
         %{progression_id: "spells_known", earned_at_level: 1, max_level_cap: 1}
@@ -676,9 +695,9 @@ defmodule ExTTRPGDevTest.Characters do
       generated = Map.new(attrs, &{{"ability", &1, "base_score"}, 10})
 
       decisions = [
-        %{scope: nil, choice: "class", selection: "sorcerer"},
-        %{scope: nil, choice: "race", selection: "human"},
-        %{scope: nil, choice: "background", selection: "acolyte"}
+        %Decision{scope: nil, choice: "class", selection: "sorcerer"},
+        %Decision{scope: nil, choice: "race", selection: "human"},
+        %Decision{scope: nil, choice: "background", selection: "acolyte"}
       ]
 
       character = %Character{
@@ -707,7 +726,7 @@ defmodule ExTTRPGDevTest.Characters do
     test "higher-level slots get appropriate caps reflecting spell access at that level",
          %{system: system, character: character} do
       # XP for level 5 (6500)
-      xp_effect = %{target: {"character_trait", "experience_points", "total"}, value: 6500}
+      xp_effect = %Effect{target: {"character_trait", "experience_points", "total"}, value: 6500}
       character = %{character | effects: [xp_effect]}
 
       slots = Characters.compute_pending_choice_slots(system, character)
@@ -725,7 +744,7 @@ defmodule ExTTRPGDevTest.Characters do
     test "already-decided slots are excluded from result",
          %{system: system, character: character} do
       # Pre-make one spell decision
-      spell_decision = %{
+      spell_decision = %Decision{
         scope: {"character_progression", "spells_known"},
         choice: "choice_1",
         selection: "fire_bolt"
@@ -796,40 +815,6 @@ defmodule ExTTRPGDevTest.Characters do
       assert_raise RuntimeError, ~r/not found/, fn ->
         Characters.concept_roll!(system, character, "skill", "not_a_real_skill")
       end
-    end
-  end
-
-  describe "xp_to_next_level/2" do
-    setup do
-      {:ok, system: RuleSystems.load_system!("dnd_5e_srd")}
-    end
-
-    defp xp_effect(amount),
-      do: %{target: {"character_trait", "experience_points", "total"}, value: amount}
-
-    test "returns xp_needed and next_level for a level 1 character with no xp", %{system: system} do
-      character = %Character{effects: []}
-      assert {:ok, 300, 2} = Characters.xp_to_next_level(system, character)
-    end
-
-    test "accounts for accumulated xp when computing xp still needed", %{system: system} do
-      character = %Character{effects: [xp_effect(6500)]}
-      # level 5 (6500 XP) → level 6 requires 14000; 14000 - 6500 = 7500 more needed
-      assert {:ok, 7500, 6} = Characters.xp_to_next_level(system, character)
-    end
-
-    test "returns :max_level for a character at the highest level", %{system: system} do
-      character = %Character{effects: [xp_effect(305_000)]}
-      assert {:error, :max_level} = Characters.xp_to_next_level(system, character)
-    end
-
-    test "returns :no_level_thresholds for a system without a level node" do
-      system = RuleSystems.load_system!("dnd_5e_srd")
-      system_no_thresholds = %{system | module: %{system.module | level_node: nil}}
-      character = %Character{effects: []}
-
-      assert {:error, :no_level_thresholds} =
-               Characters.xp_to_next_level(system_no_thresholds, character)
     end
   end
 
@@ -922,7 +907,7 @@ defmodule ExTTRPGDevTest.Characters do
 
     defp asi_sub_choices do
       decisions = [
-        %{
+        %Decision{
           scope: {"character_progression", "asi_or_feat"},
           choice: "choice_1",
           selection: "ability_score_improvement"
@@ -948,12 +933,12 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "sub-choice count decreases as decisions are resolved" do
       decisions = [
-        %{
+        %Decision{
           scope: {"character_progression", "asi_or_feat"},
           choice: "choice_1",
           selection: "ability_score_improvement"
         },
-        %{
+        %Decision{
           scope: {"feat", "ability_score_improvement"},
           choice: "asi_point_1",
           selection: "strength"
@@ -969,17 +954,17 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "no sub-choices remain after all points resolved" do
       decisions = [
-        %{
+        %Decision{
           scope: {"character_progression", "asi_or_feat"},
           choice: "choice_1",
           selection: "ability_score_improvement"
         },
-        %{
+        %Decision{
           scope: {"feat", "ability_score_improvement"},
           choice: "asi_point_1",
           selection: "strength"
         },
-        %{
+        %Decision{
           scope: {"feat", "ability_score_improvement"},
           choice: "asi_point_2",
           selection: "dexterity"
@@ -1071,7 +1056,12 @@ defmodule ExTTRPGDevTest.Characters do
 
       # Award XP to level 2 to generate HP pending choices
       xp_target = {"character_trait", "experience_points", "total"}
-      character = %{character | effects: character.effects ++ [%{target: xp_target, value: 300}]}
+
+      character = %{
+        character
+        | effects: character.effects ++ [%Effect{target: xp_target, value: 300}]
+      }
+
       slots = Characters.compute_pending_choice_slots(system, character)
       character = %{character | pending_choice_slots: slots}
 
@@ -1220,7 +1210,7 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "returns error when class preparation mode is not prepared" do
       meta = %{{"class", "bard"} => %{"preparation_mode" => "all"}}
-      character = minimal_character([%{scope: nil, choice: "class", selection: "bard"}])
+      character = minimal_character([%Decision{scope: nil, choice: "class", selection: "bard"}])
 
       assert {:error, {:mode_not_prepared, "all"}} =
                Characters.activate(spell_system(meta), character, "spell", [])
@@ -1228,8 +1218,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "toggle_field: sets prepared true for listed items and false for others" do
       nodes = %{
-        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "wizard", "preparation_cap"} => %Node{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1260,13 +1250,13 @@ defmodule ExTTRPGDevTest.Characters do
       }
 
       decisions = [
-        %{scope: nil, choice: "class", selection: "wizard"},
-        %{
+        %Decision{scope: nil, choice: "class", selection: "wizard"},
+        %Decision{
           scope: {"character_progression", "spells_known"},
           choice: "choice_1",
           selection: "fire_bolt"
         },
-        %{
+        %Decision{
           scope: {"character_progression", "spells_known"},
           choice: "choice_2",
           selection: "cure_wounds"
@@ -1299,8 +1289,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "toggle_field: preserves cantrips (outside eligible pool) when preparing leveled spells" do
       nodes = %{
-        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "wizard", "preparation_cap"} => %Node{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1331,8 +1321,8 @@ defmodule ExTTRPGDevTest.Characters do
       }
 
       decisions = [
-        %{scope: nil, choice: "class", selection: "wizard"},
-        %{
+        %Decision{scope: nil, choice: "class", selection: "wizard"},
+        %Decision{
           scope: {"character_progression", "spells_known"},
           choice: "choice_1",
           selection: "magic_missile"
@@ -1366,8 +1356,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "add_remove: preserves cantrips when preparing leveled spells" do
       nodes = %{
-        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "cleric", "preparation_cap"} => %Node{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1398,7 +1388,7 @@ defmodule ExTTRPGDevTest.Characters do
         inventory_rules: spell_inv_rules()
       }
 
-      decisions = [%{scope: nil, choice: "class", selection: "cleric"}]
+      decisions = [%Decision{scope: nil, choice: "class", selection: "cleric"}]
 
       inventory = [
         %InventoryItem{
@@ -1442,7 +1432,7 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "determines initial activation from progression config and class condition" do
       meta = %{{"class", "bard"} => %{"preparation_mode" => "all"}}
-      bard_char = minimal_character([%{scope: nil, choice: "class", selection: "bard"}])
+      bard_char = minimal_character([%Decision{scope: nil, choice: "class", selection: "bard"}])
 
       {:ok, cantrip_char} =
         Characters.add_to_typed_inventory(
@@ -1487,8 +1477,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "returns full preparation state for a character with a prepared-mode class" do
       nodes = %{
-        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "wizard", "preparation_cap"} => %Node{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1518,8 +1508,12 @@ defmodule ExTTRPGDevTest.Characters do
       }
 
       decisions = [
-        %{scope: nil, choice: "class", selection: "wizard"},
-        %{scope: {"character_progression", "spells_known"}, choice: "c1", selection: "fire_bolt"}
+        %Decision{scope: nil, choice: "class", selection: "wizard"},
+        %Decision{
+          scope: {"character_progression", "spells_known"},
+          choice: "c1",
+          selection: "fire_bolt"
+        }
       ]
 
       inventory = [
@@ -1538,8 +1532,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "always_prepared spells from subclass appear and are filtered by max spell level" do
       nodes = %{
-        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "1"}
+        {"class", "cleric", "preparation_cap"} => %Node{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "1"}
       }
 
       concept_metadata = %{
@@ -1575,8 +1569,8 @@ defmodule ExTTRPGDevTest.Characters do
       }
 
       decisions = [
-        %{scope: nil, choice: "class", selection: "cleric"},
-        %{scope: {"class", "cleric"}, choice: "subclass", selection: "life_domain"}
+        %Decision{scope: nil, choice: "class", selection: "cleric"},
+        %Decision{scope: {"class", "cleric"}, choice: "subclass", selection: "life_domain"}
       ]
 
       character = minimal_character(decisions)
@@ -1589,8 +1583,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "always_prepared accumulates from all active concepts, not just subclass" do
       nodes = %{
-        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "cleric", "preparation_cap"} => %Node{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1626,9 +1620,9 @@ defmodule ExTTRPGDevTest.Characters do
       }
 
       decisions = [
-        %{scope: nil, choice: "class", selection: "cleric"},
-        %{scope: {"class", "cleric"}, choice: "subclass", selection: "life_domain"},
-        %{scope: nil, choice: "race", selection: "aasimar"}
+        %Decision{scope: nil, choice: "class", selection: "cleric"},
+        %Decision{scope: {"class", "cleric"}, choice: "subclass", selection: "life_domain"},
+        %Decision{scope: nil, choice: "race", selection: "aasimar"}
       ]
 
       character = minimal_character(decisions)

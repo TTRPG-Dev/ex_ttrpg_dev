@@ -2,15 +2,17 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystems
 
   setup do
     system = RuleSystems.load_system!("dnd_5e_srd")
 
     decisions = [
-      %{scope: nil, choice: "class", selection: "wizard"},
-      %{scope: nil, choice: "race", selection: "human"},
-      %{scope: nil, choice: "background", selection: "soldier"}
+      %Decision{scope: nil, choice: "class", selection: "wizard"},
+      %Decision{scope: nil, choice: "race", selection: "human"},
+      %Decision{scope: nil, choice: "background", selection: "soldier"}
     ]
 
     character = Character.gen_character!(system, decisions)
@@ -38,7 +40,7 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
     assert {:ok, updated} =
              Characters.resolve_progression_choice(ctx.system, ctx.character, "cantrips", cantrip)
 
-    assert %{
+    assert %Decision{
              scope: {"character_progression", "cantrips"},
              choice: "choice_1",
              selection: ^cantrip
@@ -109,9 +111,9 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
                7
              )
 
-    assert %{target: {"character_trait", "max_hit_points", "points"}, value: 7} in updated.effects
+    assert %Effect{target: {"character_trait", "max_hit_points", "points"}, value: 7} in updated.effects
 
-    assert %{
+    assert %Decision{
              scope: {"character_progression", "hp_per_level"},
              choice: "choice_1",
              selection: "rolled"
