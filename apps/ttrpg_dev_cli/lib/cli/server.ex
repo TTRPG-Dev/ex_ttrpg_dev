@@ -47,9 +47,8 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
-  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules}
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems
-  alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @type state :: %{pending: %{String.t() => Character.t()}, next_id: non_neg_integer()}
 
@@ -342,64 +341,20 @@ defmodule ExTTRPGDev.CLI.Server do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system!(character.metadata.rule_system)
 
-    meta =
-      system.concept_metadata[{"character_progression", progression_id}] ||
-        raise("unknown progression: #{inspect(progression_id)}")
+    case Characters.resolve_progression_choice(
+           system,
+           character,
+           progression_id,
+           selection,
+           Map.get(msg, "value")
+         ) do
+      {:ok, updated} ->
+        Characters.save_character!(updated, true)
+        {ok(character_with_choices_response(system, updated, slug, msg)), state}
 
-    choice_number =
-      Enum.count(character.decisions, fn
-        %{scope: {"character_progression", ^progression_id}} -> true
-        _ -> false
-      end) + 1
-
-    decision = %{
-      scope: {"character_progression", progression_id},
-      choice: "choice_#{choice_number}",
-      selection: selection
-    }
-
-    updated =
-      if Map.has_key?(meta, "type") do
-        {_effects, resolved} = Characters.resolved_state(system, character)
-        active = Characters.active_concepts(character.decisions, system.concept_metadata)
-
-        already_selected =
-          character.decisions
-          |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
-          |> MapSet.new(& &1.selection)
-
-        capped_resolved = cap_resolved_for_slot(character, progression_id, meta, resolved)
-
-        options =
-          Characters.concept_options(meta, system.concept_metadata, active, capped_resolved)
-          |> Enum.reject(&MapSet.member?(already_selected, &1))
-
-        validate_concept_selection!(selection, options)
-
-        with_decision = %{
-          character
-          | decisions: character.decisions ++ [decision],
-            pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
-        }
-
-        apply_inventory_addition!(system, with_decision, progression_id, selection)
-      else
-        value = Map.fetch!(msg, "value")
-        unless is_integer(value), do: raise("value must be an integer")
-        parsed_target = load_progression_target!(system, progression_id)
-
-        %{
-          character
-          | effects: character.effects ++ [%{target: parsed_target, value: value}],
-            decisions: character.decisions ++ [decision]
-        }
-      end
-
-    Characters.save_character!(updated, true)
-
-    data = character_with_choices_response(system, updated, slug, msg)
-
-    {ok(data), state}
+      {:error, reason} ->
+        {error(format_resolve_error(reason)), state}
+    end
   end
 
   defp handle(%{"command" => "characters.random_resolve", "character" => slug} = msg, state) do
@@ -646,48 +601,30 @@ defmodule ExTTRPGDev.CLI.Server do
   defp format_activate_error(:no_preparation_cap), do: "class has no preparation cap"
   defp format_activate_error(reason), do: inspect(reason)
 
-  defp apply_inventory_addition!(system, character, progression_id, selection) do
-    case Characters.add_to_typed_inventory(system, character, progression_id, selection) do
-      {:ok, result} -> result
-      {:error, reason} -> raise("failed to add to inventory: #{inspect(reason)}")
-    end
-  end
-
-  defp load_progression_target!(%LoadedSystem{} = system, progression_id) do
-    meta =
-      system.concept_metadata[{"character_progression", progression_id}] ||
-        raise("unknown progression: #{inspect(progression_id)}")
-
-    effect_target = meta["effect_target"] || raise("progression has no effect_target")
-    parse_effect_target!(effect_target)
-  end
-
   defp validate_concept_selection!(selection, valid_options) do
     unless selection in valid_options do
       raise("#{inspect(selection)} is not available for this character and progression")
     end
   end
 
-  defp parse_effect_target!(target) do
-    case Expression.parse_ref(target) do
-      {:ok, ref} -> ref
-      :error -> raise("invalid effect target: #{inspect(target)}")
-    end
-  end
+  defp format_resolve_error({:unknown_progression, id}),
+    do: "unknown progression: #{inspect(id)}"
 
-  defp cap_resolved_for_slot(character, progression_id, meta, resolved) do
-    case Enum.find(character.pending_choice_slots, &(&1.progression_id == progression_id)) do
-      %{max_level_cap: cap} -> Characters.apply_slot_cap(resolved, meta, cap)
-      nil -> resolved
-    end
-  end
+  defp format_resolve_error({:no_pending_choice, id}),
+    do: "no pending choice for progression: #{inspect(id)}"
 
-  defp consume_slot(pending_choice_slots, progression_id) do
-    case Enum.split_while(pending_choice_slots, &(&1.progression_id != progression_id)) do
-      {before_slots, [_ | after_slots]} -> before_slots ++ after_slots
-      _ -> pending_choice_slots
-    end
-  end
+  defp format_resolve_error({:invalid_selection, selection}),
+    do: "#{inspect(selection)} is not available for this character and progression"
+
+  defp format_resolve_error(:value_required), do: "value is required for this progression"
+  defp format_resolve_error(:value_must_be_integer), do: "value must be an integer"
+  defp format_resolve_error(:missing_effect_target), do: "progression has no effect_target"
+
+  defp format_resolve_error({:invalid_effect_target, target}),
+    do: "invalid effect target: #{inspect(target)}"
+
+  defp format_resolve_error({:inventory_error, reason}),
+    do: "failed to add to inventory: #{inspect(reason)}"
 
   defp format_award_error({:unknown_award, id}), do: "unknown award: #{inspect(id)}"
 

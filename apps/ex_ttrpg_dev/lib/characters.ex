@@ -227,6 +227,35 @@ defmodule ExTTRPGDev.Characters do
     do: Advancement.apply_award(system, character, award_id, value)
 
   @doc """
+  Resolves a pending progression choice for a character.
+
+  For selection progressions (metadata declares `type`), `selection` must be
+  one of the currently valid options as computed by `pending_choices/3` —
+  already-selected concepts are excluded and slot-level caps applied. The
+  progression's pending choice slot (if any) is consumed, and the selected
+  concept is added to the character's typed inventory when its concept type
+  is configured as one (see `add_to_typed_inventory/4`).
+
+  For value progressions (no `type`), `selection` is a free-form method label
+  recorded on the decision (e.g. `"rolled"` or `"average"`) and `value` must
+  be an integer contributed to the progression's `effect_target`. Value
+  progressions are not validated against pending state; callers that need
+  that bookkeeping drive them from `pending_choices/3` themselves.
+
+  Returns `{:ok, updated_character}` or `{:error, reason}`:
+
+  - `{:unknown_progression, progression_id}`
+  - `{:no_pending_choice, progression_id}` — selection progression with nothing pending
+  - `{:invalid_selection, selection}`
+  - `:value_required` / `:value_must_be_integer`
+  - `:missing_effect_target` / `{:invalid_effect_target, target}`
+  - `{:inventory_error, reason}` — from `add_to_typed_inventory/4`
+  """
+  def resolve_progression_choice(system, character, progression_id, selection, value \\ nil),
+    do:
+      Advancement.resolve_progression_choice(system, character, progression_id, selection, value)
+
+  @doc """
   Returns the current preparation state for the given inventory type.
 
   Computes mode, cap, eligible pool, always-prepared items, and currently
@@ -1053,10 +1082,12 @@ defmodule ExTTRPGDev.Characters do
 
   defp progression_choices(_id, _meta, _decisions, _resolved), do: []
 
-  # The single constructor for progression decisions: computes the next
-  # 1-based choice number from the decisions already made and builds the
-  # canonical decision map.
-  defp next_progression_decision(decisions, progression_id, selection) do
+  @doc """
+  The single constructor for progression decisions: computes the next 1-based
+  choice number from the decisions already made and builds the canonical
+  decision map for `progression_id`.
+  """
+  def next_progression_decision(decisions, progression_id, selection) do
     n = count_progression_decisions(decisions, progression_id) + 1
 
     %{

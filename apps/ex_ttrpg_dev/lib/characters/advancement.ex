@@ -1,6 +1,7 @@
 defmodule ExTTRPGDev.Characters.Advancement do
   @moduledoc """
-  Character advancement: applying award concepts to characters.
+  Character advancement: applying award concepts and resolving progression
+  choices.
 
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
   (e.g. `ExTTRPGDev.Characters.apply_award/4`); this module hosts the
@@ -16,6 +17,7 @@ defmodule ExTTRPGDev.Characters.Advancement do
   # Bound to attributes for use in pattern-match positions; the names are
   # owned by ExTTRPGDev.RuleSystem.Vocabulary.
   @award_type Vocabulary.award_type()
+  @progression_type Vocabulary.progression_type()
 
   @doc """
   Applies an award concept to a character.
@@ -76,4 +78,89 @@ defmodule ExTTRPGDev.Characters.Advancement do
   end
 
   defp fetch_effect_target(_meta), do: {:error, :missing_effect_target}
+
+  @doc """
+  Resolves a pending progression choice for a character.
+
+  See `ExTTRPGDev.Characters.resolve_progression_choice/5` for documentation.
+  """
+  def resolve_progression_choice(system, character, progression_id, selection, value \\ nil)
+
+  def resolve_progression_choice(
+        %LoadedSystem{} = system,
+        %Character{} = character,
+        progression_id,
+        selection,
+        value
+      ) do
+    case system.concept_metadata[{@progression_type, progression_id}] do
+      nil ->
+        {:error, {:unknown_progression, progression_id}}
+
+      %{"type" => _} ->
+        resolve_selection_progression(system, character, progression_id, selection)
+
+      meta ->
+        resolve_value_progression(character, progression_id, meta, {selection, value})
+    end
+  end
+
+  defp resolve_selection_progression(system, character, progression_id, selection) do
+    {_effects, resolved} = Characters.resolved_state(system, character)
+    choices = Characters.pending_choices(system, character, resolved)
+
+    entry =
+      Enum.find(choices, fn c ->
+        c.type == :pending and c.id == progression_id and not Map.has_key?(c, :scope_type)
+      end)
+
+    cond do
+      entry == nil ->
+        {:error, {:no_pending_choice, progression_id}}
+
+      selection not in entry.options ->
+        {:error, {:invalid_selection, selection}}
+
+      true ->
+        decision =
+          Characters.next_progression_decision(character.decisions, progression_id, selection)
+
+        with_decision = %{
+          character
+          | decisions: character.decisions ++ [decision],
+            pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
+        }
+
+        case Characters.add_to_typed_inventory(system, with_decision, progression_id, selection) do
+          {:ok, updated} -> {:ok, updated}
+          {:error, reason} -> {:error, {:inventory_error, reason}}
+        end
+    end
+  end
+
+  defp resolve_value_progression(character, progression_id, meta, {selection, value}) do
+    with :ok <- validate_progression_value(value),
+         {:ok, target} <- fetch_effect_target(meta) do
+      decision =
+        Characters.next_progression_decision(character.decisions, progression_id, selection)
+
+      {:ok,
+       %{
+         character
+         | effects: character.effects ++ [%{target: target, value: value}],
+           decisions: character.decisions ++ [decision]
+       }}
+    end
+  end
+
+  defp validate_progression_value(value) when is_integer(value), do: :ok
+  defp validate_progression_value(nil), do: {:error, :value_required}
+  defp validate_progression_value(_), do: {:error, :value_must_be_integer}
+
+  defp consume_slot(pending_choice_slots, progression_id) do
+    case Enum.split_while(pending_choice_slots, &(&1.progression_id != progression_id)) do
+      {before_slots, [_ | after_slots]} -> before_slots ++ after_slots
+      _ -> pending_choice_slots
+    end
+  end
 end
