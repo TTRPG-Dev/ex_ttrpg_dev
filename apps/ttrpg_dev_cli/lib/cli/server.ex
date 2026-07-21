@@ -295,35 +295,26 @@ defmodule ExTTRPGDev.CLI.Server do
        ) do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system!(character.metadata.rule_system)
+    explicit_value = Map.get(msg, "value")
 
-    award_meta =
-      system.concept_metadata[{"award", award_id}] ||
-        raise("unknown award: #{inspect(award_id)}")
+    case Characters.apply_award(system, character, award_id, explicit_value) do
+      {:ok, updated, awarded_value} ->
+        Characters.save_character!(updated, true)
 
-    # Without an explicit value the award is computed (e.g. "level_up" grants
-    # exactly the XP needed for the next level), and the response reports the
-    # computed amount as :awarded_xp.
-    {value, response_extras} =
-      case Map.fetch(msg, "value") do
-        {:ok, value} ->
-          {value, %{}}
+        # The response reports :awarded_xp only when the award computed its
+        # own amount (e.g. "level_up") rather than receiving an explicit one.
+        extras = if explicit_value == nil, do: %{awarded_xp: awarded_value}, else: %{}
 
-        :error ->
-          xp_needed = compute_next_level_xp!(system, character, award_meta)
-          {xp_needed, %{awarded_xp: xp_needed}}
-      end
+        data =
+          system
+          |> character_with_choices_response(updated, slug, msg)
+          |> Map.merge(extras)
 
-    updated = apply_award!(character, award_meta, value)
-    new_slots = Characters.compute_pending_choice_slots(system, updated)
-    updated = %{updated | pending_choice_slots: new_slots}
-    Characters.save_character!(updated, true)
+        {ok(data), state}
 
-    data =
-      system
-      |> character_with_choices_response(updated, slug, msg)
-      |> Map.merge(response_extras)
-
-    {ok(data), state}
+      {:error, reason} ->
+        {error(format_award_error(reason)), state}
+    end
   end
 
   defp handle(%{"command" => "characters.choices", "character" => slug} = msg, state) do
@@ -698,38 +689,25 @@ defmodule ExTTRPGDev.CLI.Server do
     end
   end
 
-  defp apply_award!(character, %{"value_type" => "integer", "effect_target" => target}, value) do
-    unless is_integer(value), do: raise("value must be an integer for this award")
-    parsed_target = parse_effect_target!(target)
-    %{character | effects: character.effects ++ [%{target: parsed_target, value: value}]}
-  end
+  defp format_award_error({:unknown_award, id}), do: "unknown award: #{inspect(id)}"
 
-  defp apply_award!(
-         character,
-         %{"value_type" => "next_level_xp", "effect_target" => target},
-         xp_needed
-       ) do
-    parsed_target = parse_effect_target!(target)
-    %{character | effects: character.effects ++ [%{target: parsed_target, value: xp_needed}]}
-  end
-
-  defp apply_award!(_character, %{"value_type" => value_type}, _value) do
-    raise("unsupported award value_type: #{inspect(value_type)}")
-  end
-
-  defp compute_next_level_xp!(system, character, %{"value_type" => "next_level_xp"}) do
-    case Characters.xp_to_next_level(system, character) do
-      {:ok, xp_needed, _next_level} -> xp_needed
-      {:error, :max_level} -> raise("character is already at max level")
-      {:error, :no_level_thresholds} -> raise("system does not define level XP thresholds")
-    end
-  end
-
-  defp compute_next_level_xp!(_system, _character, %{"value_type" => value_type}) do
-    raise(
+  defp format_award_error({:value_required, value_type}),
+    do:
       "award #{inspect(value_type)} requires an explicit value; use: characters award <slug> #{value_type} <value>"
-    )
-  end
+
+  defp format_award_error(:value_must_be_integer), do: "value must be an integer for this award"
+  defp format_award_error(:max_level), do: "character is already at max level"
+
+  defp format_award_error(:no_level_thresholds),
+    do: "system does not define level XP thresholds"
+
+  defp format_award_error({:unsupported_value_type, value_type}),
+    do: "unsupported award value_type: #{inspect(value_type)}"
+
+  defp format_award_error(:missing_effect_target), do: "award has no effect_target"
+
+  defp format_award_error({:invalid_effect_target, target}),
+    do: "invalid effect target: #{inspect(target)}"
 
   defp fetch_pending!(state, temp_id) do
     Map.get(state.pending, temp_id) || raise("no pending character: #{inspect(temp_id)}")
