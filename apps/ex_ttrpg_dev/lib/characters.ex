@@ -545,17 +545,10 @@ defmodule ExTTRPGDev.Characters do
   Loops until `pending_choices/3` returns no resolvable level-1 entries.
   """
   def auto_resolve_pending(%LoadedSystem{} = system, %Character{} = character) do
-    all_effects = active_effects(system, character)
-    resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
-    choices = pending_choices(system, character, resolved)
+    {resolved, _resolutions} =
+      resolve_all(system, character, &resolvable_at_level_1?/1, &rolled_value_method/1, [])
 
-    case Enum.find(choices, &resolvable_at_level_1?/1) do
-      nil ->
-        character
-
-      entry ->
-        character |> apply_auto_resolution(entry) |> then(&auto_resolve_pending(system, &1))
-    end
+    resolved
   end
 
   defp resolvable_at_level_1?(%{type: :pending, options: [], earned_at_level: level})
@@ -567,43 +560,6 @@ defmodule ExTTRPGDev.Characters do
        do: true
 
   defp resolvable_at_level_1?(_), do: false
-
-  defp apply_auto_resolution(character, %{type: :pending} = entry) do
-    cond do
-      Map.has_key?(entry, :scope_type) -> apply_auto_sub_choice(character, entry)
-      Map.has_key?(entry, :options) -> apply_auto_selection(character, entry)
-      true -> apply_auto_value(character, entry)
-    end
-  end
-
-  defp apply_auto_selection(character, %{id: prog_id, options: options}) do
-    decision = next_progression_decision(character.decisions, prog_id, Enum.random(options))
-    %{character | decisions: character.decisions ++ [decision]}
-  end
-
-  defp apply_auto_sub_choice(character, %{
-         id: choice_id,
-         scope_type: st,
-         scope_id: si,
-         options: opts
-       }) do
-    decision = %{scope: {st, si}, choice: choice_id, selection: Enum.random(opts)}
-    %{character | decisions: character.decisions ++ [decision]}
-  end
-
-  defp apply_auto_value(character, %{id: prog_id, effect_target: target_str, roll: roll}) do
-    [node_key | _] = Expression.extract_refs(target_str)
-    value = Dice.roll("1#{roll}") |> Enum.sum()
-
-    decision = next_progression_decision(character.decisions, prog_id, "rolled")
-    effect = %{target: node_key, value: value}
-
-    %{
-      character
-      | decisions: character.decisions ++ [decision],
-        effects: character.effects ++ [effect]
-    }
-  end
 
   @doc """
   Randomly resolves all pending progression choices for a character, regardless of level.
@@ -618,21 +574,27 @@ defmodule ExTTRPGDev.Characters do
   Value progressions randomly choose between "rolled" (actual dice roll) and "average" (sides/2 + 1).
   """
   def random_resolve_all(%LoadedSystem{} = system, %Character{} = character) do
-    do_random_resolve_all(system, character, [])
+    resolve_all(system, character, &resolvable?/1, &random_value_method/1, [])
   end
 
-  defp do_random_resolve_all(%LoadedSystem{} = system, %Character{} = character, acc) do
+  defp resolve_all(
+         %LoadedSystem{} = system,
+         %Character{} = character,
+         resolvable?,
+         value_method,
+         acc
+       ) do
     all_effects = active_effects(system, character)
     resolved = Evaluator.evaluate!(system, character.generated_values, all_effects)
     choices = pending_choices(system, character, resolved)
 
-    case Enum.find(choices, &resolvable?/1) do
+    case Enum.find(choices, resolvable?) do
       nil ->
         {character, Enum.reverse(acc)}
 
       entry ->
-        {updated, resolution} = apply_tracked_resolution(system, entry, character)
-        do_random_resolve_all(system, updated, [resolution | acc])
+        {updated, resolution} = apply_resolution(system, entry, character, value_method)
+        resolve_all(system, updated, resolvable?, value_method, [resolution | acc])
     end
   end
 
@@ -641,15 +603,15 @@ defmodule ExTTRPGDev.Characters do
   defp resolvable?(%{type: :pending, roll: roll}) when is_binary(roll), do: true
   defp resolvable?(_), do: false
 
-  defp apply_tracked_resolution(system, %{type: :pending} = entry, character) do
+  defp apply_resolution(system, %{type: :pending} = entry, character, value_method) do
     cond do
-      Map.has_key?(entry, :scope_type) -> track_sub_choice_resolution(system, entry, character)
-      Map.has_key?(entry, :options) -> track_selection_resolution(system, entry, character)
-      true -> track_value_resolution(entry, character)
+      Map.has_key?(entry, :scope_type) -> resolve_sub_choice(system, entry, character)
+      Map.has_key?(entry, :options) -> resolve_selection(system, entry, character)
+      true -> resolve_value(entry, character, value_method)
     end
   end
 
-  defp track_sub_choice_resolution(system, entry, character) do
+  defp resolve_sub_choice(system, entry, character) do
     selection = Enum.random(entry.options)
 
     decision = %{
@@ -680,7 +642,7 @@ defmodule ExTTRPGDev.Characters do
     {updated, resolution}
   end
 
-  defp track_selection_resolution(system, entry, character) do
+  defp resolve_selection(system, entry, character) do
     selection = Enum.random(entry.options)
     decision = next_progression_decision(character.decisions, entry.id, selection)
     updated = %{character | decisions: character.decisions ++ [decision]}
@@ -698,8 +660,8 @@ defmodule ExTTRPGDev.Characters do
     {updated, resolution}
   end
 
-  defp track_value_resolution(entry, character) do
-    {method, value} = random_value_method(entry.roll)
+  defp resolve_value(entry, character, value_method) do
+    {method, value} = value_method.(entry.roll)
     [node_key | _] = Expression.extract_refs(entry.effect_target)
 
     decision = next_progression_decision(character.decisions, entry.id, method)
@@ -723,12 +685,16 @@ defmodule ExTTRPGDev.Characters do
     {updated, resolution}
   end
 
+  defp rolled_value_method(die_str) do
+    {"rolled", Dice.roll("1#{die_str}") |> Enum.sum()}
+  end
+
   defp random_value_method(die_str) do
     sides = die_str |> String.trim_leading("d") |> String.to_integer()
     average = div(sides, 2) + 1
 
     if :rand.uniform(2) == 1 do
-      {"rolled", Dice.roll("1#{die_str}") |> Enum.sum()}
+      rolled_value_method(die_str)
     else
       {"average", average}
     end
