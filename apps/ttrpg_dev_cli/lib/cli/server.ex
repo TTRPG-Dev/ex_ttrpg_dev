@@ -230,8 +230,8 @@ defmodule ExTTRPGDev.CLI.Server do
     character = fetch_pending!(state, temp_id)
     system = RuleSystems.load_system!(character.metadata.rule_system)
     scope = {scope_type, scope_id}
-    choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
-    valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
+    choice_def = Characters.fetch_choice_def!(system, scope, choice_id)
+    valid = Characters.valid_sub_choices(system, scope, choice_def, character.decisions)
     validate_concept_selection!(selection, valid)
     decision = %{scope: scope, choice: choice_id, selection: selection}
     updated = %{character | decisions: character.decisions ++ [decision]}
@@ -491,8 +491,8 @@ defmodule ExTTRPGDev.CLI.Server do
     system = RuleSystems.load_system!(character.metadata.rule_system)
 
     scope = {scope_type, scope_id}
-    choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
-    valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
+    choice_def = Characters.fetch_choice_def!(system, scope, choice_id)
+    valid = Characters.valid_sub_choices(system, scope, choice_def, character.decisions)
     validate_concept_selection!(selection, valid)
 
     decision = %{scope: scope, choice: choice_id, selection: selection}

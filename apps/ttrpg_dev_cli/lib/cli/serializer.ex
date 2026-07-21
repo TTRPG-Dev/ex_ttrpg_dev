@@ -1,8 +1,10 @@
 defmodule ExTTRPGDev.CLI.Serializer do
   @moduledoc """
-  Converts domain objects (LoadedSystem, Character, etc.) into plain maps
-  ready for JSON encoding. Extracted from Server to keep that module within
-  code health thresholds.
+  Renders domain objects (LoadedSystem, Character, pending choices,
+  inventory) into the plain maps the JSON protocol responds with.
+
+  This module owns presentation only — option filtering and validation live
+  in the `ExTTRPGDev.Characters` library.
   """
 
   alias ExTTRPGDev.Characters
@@ -171,32 +173,6 @@ defmodule ExTTRPGDev.CLI.Serializer do
       )
     end)
     |> Enum.sort_by(& &1.id)
-  end
-
-  def fetch_choice_def!(system, {type, id}, choice_id) do
-    get_in(system.concept_metadata, [{type, id}, "choices", choice_id]) ||
-      raise("unknown choice #{inspect(choice_id)} on #{type}(#{id})")
-  end
-
-  def valid_sub_choices(system, {scope_type, scope_id} = scope, choice_def, decisions) do
-    choice_type = choice_def["type"]
-    raw_options = build_sub_choice_options(choice_def, choice_type, system)
-
-    already_chosen =
-      decisions
-      |> Enum.filter(fn
-        %{scope: ^scope, choice: choice} ->
-          cd =
-            get_in(system.concept_metadata, [{scope_type, scope_id}, "choices", choice]) || %{}
-
-          cd["type"] == choice_type
-
-        _ ->
-          false
-      end)
-      |> MapSet.new(& &1.selection)
-
-    Enum.reject(raw_options, &MapSet.member?(already_chosen, &1))
   end
 
   defp serialize_selected_concepts(
@@ -451,7 +427,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
          system
        ) do
     choice_type = choice_def["type"]
-    raw_options = build_sub_choice_options(choice_def, choice_type, system)
+    raw_options = Characters.sub_choice_options(system, choice_def)
     excluded = MapSet.new(Map.get(already_chosen_by_type, choice_type, []))
     filtered = Enum.reject(raw_options, &MapSet.member?(excluded, &1))
     template = find_display_template(system, choice_type)
@@ -473,18 +449,5 @@ defmodule ExTTRPGDev.CLI.Serializer do
         options: rendered
       }
     ]
-  end
-
-  defp build_sub_choice_options(choice_def, choice_type, system) do
-    case choice_def["options"] do
-      options when is_list(options) ->
-        options
-
-      _ ->
-        system.concept_metadata
-        |> Enum.filter(fn {{t, _}, _} -> t == choice_type end)
-        |> Enum.map(fn {{_, id}, _} -> id end)
-        |> Enum.sort()
-    end
   end
 end
