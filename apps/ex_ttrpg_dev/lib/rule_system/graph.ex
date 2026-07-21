@@ -7,6 +7,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   """
 
   alias ExTTRPGDev.RuleSystem.Expression
+  alias ExTTRPGDev.RuleSystem.Node
 
   @doc """
   Builds a validated DAG from loader output.
@@ -158,9 +159,9 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     end
   end
 
-  defp node_formula(%{type: :formula, formula: formula}), do: formula
-  defp node_formula(%{type: :accumulator, base: base}), do: base
-  defp node_formula(%{type: :mapping, input: input}), do: input
+  defp node_formula(%Node{type: :formula, formula: formula}), do: formula
+  defp node_formula(%Node{type: :accumulator, base: base}), do: base
+  defp node_formula(%Node{type: :mapping, input: input}), do: input
   defp node_formula(_), do: nil
 
   defp add_effect_edges(graph, nodes, effects) do

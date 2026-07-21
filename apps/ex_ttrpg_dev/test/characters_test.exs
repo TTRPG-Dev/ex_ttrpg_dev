@@ -3,6 +3,7 @@ defmodule ExTTRPGDevTest.Characters do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -1228,8 +1229,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "toggle_field: sets prepared true for listed items and false for others" do
       nodes = %{
-        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "wizard", "preparation_cap"} => %Node{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1299,8 +1300,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "toggle_field: preserves cantrips (outside eligible pool) when preparing leveled spells" do
       nodes = %{
-        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "wizard", "preparation_cap"} => %Node{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1366,8 +1367,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "add_remove: preserves cantrips when preparing leveled spells" do
       nodes = %{
-        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "cleric", "preparation_cap"} => %Node{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1487,8 +1488,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "returns full preparation state for a character with a prepared-mode class" do
       nodes = %{
-        {"class", "wizard", "preparation_cap"} => %{type: :accumulator, base: "3"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "wizard", "preparation_cap"} => %Node{type: :accumulator, base: "3"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{
@@ -1538,8 +1539,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "always_prepared spells from subclass appear and are filtered by max spell level" do
       nodes = %{
-        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "1"}
+        {"class", "cleric", "preparation_cap"} => %Node{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "1"}
       }
 
       concept_metadata = %{
@@ -1589,8 +1590,8 @@ defmodule ExTTRPGDevTest.Characters do
 
     test "always_prepared accumulates from all active concepts, not just subclass" do
       nodes = %{
-        {"class", "cleric", "preparation_cap"} => %{type: :accumulator, base: "4"},
-        {"character_trait", "max_spell_level", "level"} => %{type: :accumulator, base: "2"}
+        {"class", "cleric", "preparation_cap"} => %Node{type: :accumulator, base: "4"},
+        {"character_trait", "max_spell_level", "level"} => %Node{type: :accumulator, base: "2"}
       }
 
       concept_metadata = %{

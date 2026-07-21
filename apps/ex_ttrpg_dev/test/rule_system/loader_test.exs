@@ -1,7 +1,7 @@
 defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
-  alias ExTTRPGDev.RuleSystem.{InventoryRules, Loader, RuleModule}
+  alias ExTTRPGDev.RuleSystem.{InventoryRules, Loader, Node, RuleModule}
 
   defp dnd_path do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
@@ -63,20 +63,20 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   test "load/1 nodes have correct types" do
     {:ok, data} = Loader.load(dnd_path())
 
-    assert %{type: :generated} = data.nodes[{"ability", "dexterity", "base_score"}]
-    assert %{type: :accumulator} = data.nodes[{"ability", "dexterity", "total_score"}]
-    assert %{type: :formula} = data.nodes[{"ability", "dexterity", "modifier"}]
+    assert %Node{type: :generated} = data.nodes[{"ability", "dexterity", "base_score"}]
+    assert %Node{type: :accumulator} = data.nodes[{"ability", "dexterity", "total_score"}]
+    assert %Node{type: :formula} = data.nodes[{"ability", "dexterity", "modifier"}]
   end
 
   test "load/1 skill nodes are accumulators referencing correct abilities" do
     {:ok, data} = Loader.load(dnd_path())
 
     assert Map.has_key?(data.nodes, {"skill", "acrobatics", "modifier"})
-    %{type: :accumulator, base: base} = data.nodes[{"skill", "acrobatics", "modifier"}]
+    %Node{type: :accumulator, base: base} = data.nodes[{"skill", "acrobatics", "modifier"}]
     assert String.contains?(base, "ability('dexterity')")
 
     assert Map.has_key?(data.nodes, {"skill", "athletics", "modifier"})
-    %{type: :accumulator, base: base} = data.nodes[{"skill", "athletics", "modifier"}]
+    %Node{type: :accumulator, base: base} = data.nodes[{"skill", "athletics", "modifier"}]
     assert String.contains?(base, "ability('strength')")
   end
 
@@ -271,7 +271,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     for ability <- ~w(strength dexterity constitution wisdom intelligence charisma) do
       node = data.nodes[{"saving_throw", ability, "modifier"}]
-      assert %{type: :accumulator} = node
+      assert %Node{type: :accumulator} = node
       assert String.contains?(node.base, "ability('#{ability}').modifier")
     end
   end
@@ -285,21 +285,21 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   test "load/1 returns proficiency_bonus as an accumulator referencing character_level" do
     {:ok, data} = Loader.load(dnd_path())
     node = data.nodes[{"character_trait", "proficiency_bonus", "bonus"}]
-    assert %{type: :accumulator, base: base} = node
+    assert %Node{type: :accumulator, base: base} = node
     assert String.contains?(base, "character_trait('character_level').level")
   end
 
   test "load/1 returns experience_points as an accumulator node" do
     {:ok, data} = Loader.load(dnd_path())
 
-    assert %{type: :accumulator, base: "0"} =
+    assert %Node{type: :accumulator, base: "0"} =
              data.nodes[{"character_trait", "experience_points", "total"}]
   end
 
   test "load/1 returns character_level as a mapping node with 20 XP steps" do
     {:ok, data} = Loader.load(dnd_path())
     node = data.nodes[{"character_trait", "character_level", "level"}]
-    assert %{type: :mapping, steps: steps} = node
+    assert %Node{type: :mapping, steps: steps} = node
     assert length(steps) == 20
     assert List.first(steps) == [0, 1]
     assert List.last(steps) == [305_000, 20]

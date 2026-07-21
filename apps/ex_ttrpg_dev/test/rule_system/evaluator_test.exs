@@ -1,18 +1,18 @@
 defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Evaluator, Graph, Loader}
+  alias ExTTRPGDev.RuleSystem.{Evaluator, Graph, Loader, Node}
 
   doctest ExTTRPGDev.RuleSystem.Evaluator
 
   defp minimal_system do
     loader_data = %{
       nodes: %{
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
-        {"attr", "strength", "total_score"} => %{
+        {"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"},
+        {"attr", "strength", "total_score"} => %Node{
           type: :accumulator,
           base: "attr('strength').base_score"
         },
-        {"attr", "strength", "modifier"} => %{
+        {"attr", "strength", "modifier"} => %Node{
           type: :formula,
           formula: "floor((attr('strength').total_score - 10) / 2)"
         }
@@ -61,8 +61,8 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   test "evaluate/3 resolves mapping node from input value" do
     loader_data = %{
       nodes: %{
-        {"char", "xp", "total"} => %{type: :accumulator, base: "0"},
-        {"char", "level", "value"} => %{
+        {"char", "xp", "total"} => %Node{type: :accumulator, base: "0"},
+        {"char", "level", "value"} => %Node{
           type: :mapping,
           input: "char('xp').total",
           steps: [[0, 1], [300, 2], [900, 3]]
@@ -97,17 +97,17 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   test "evaluate/3 resolves formula-valued effects against current node values" do
     loader_data = %{
       nodes: %{
-        {"trait", "prof", "bonus"} => %{type: :accumulator, base: "2"},
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
-        {"attr", "strength", "total_score"} => %{
+        {"trait", "prof", "bonus"} => %Node{type: :accumulator, base: "2"},
+        {"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"},
+        {"attr", "strength", "total_score"} => %Node{
           type: :accumulator,
           base: "attr('strength').base_score"
         },
-        {"attr", "strength", "modifier"} => %{
+        {"attr", "strength", "modifier"} => %Node{
           type: :formula,
           formula: "floor((attr('strength').total_score - 10) / 2)"
         },
-        {"save", "strength", "modifier"} => %{
+        {"save", "strength", "modifier"} => %Node{
           type: :accumulator,
           base: "attr('strength').modifier"
         }
@@ -178,12 +178,12 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     test "evaluates `when` as a formula referencing resolved nodes" do
       loader_data = %{
         nodes: %{
-          {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
-          {"attr", "strength", "total_score"} => %{
+          {"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"},
+          {"attr", "strength", "total_score"} => %Node{
             type: :accumulator,
             base: "attr('strength').base_score"
           },
-          {"flag", "active", "value"} => %{type: :accumulator, base: "0"}
+          {"flag", "active", "value"} => %Node{type: :accumulator, base: "0"}
         },
         rolling_methods: %{},
         concept_metadata: %{},

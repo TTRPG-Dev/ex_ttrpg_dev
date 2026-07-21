@@ -7,7 +7,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   ```
   %{
     module: %RuleModule{},
-    nodes: %{{type_id, concept_id, field_name} => node_map},
+    nodes: %{{type_id, concept_id, field_name} => %Node{}},
     rolling_methods: %{method_id => method_map},
     concept_metadata: %{{type_id, concept_id} => metadata_map},
     effects: [effect_map]
@@ -129,7 +129,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   require Logger
 
-  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules, RuleModule, Vocabulary}
+  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules, Node, RuleModule, Vocabulary}
 
   @module_file "module.toml"
   @character_building_file "character_building.toml"
@@ -328,19 +328,19 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp parse_node(%{"type" => "generated"} = map) do
-    %{type: :generated, method: Map.get(map, "method")}
+    %Node{type: :generated, method: Map.get(map, "method")}
   end
 
   defp parse_node(%{"type" => "accumulator"} = map) do
-    %{type: :accumulator, base: Map.get(map, "base")}
+    %Node{type: :accumulator, base: Map.get(map, "base")}
   end
 
   defp parse_node(%{"type" => "mapping"} = map) do
-    %{type: :mapping, input: Map.get(map, "input"), steps: Map.get(map, "steps")}
+    %Node{type: :mapping, input: Map.get(map, "input"), steps: Map.get(map, "steps")}
   end
 
   defp parse_node(%{"formula" => formula}) do
-    %{type: :formula, formula: formula}
+    %Node{type: :formula, formula: formula}
   end
 
   # Unrecognized node definition (e.g. a typo'd "type" value with no
@@ -356,7 +356,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     )
   end
 
-  defp warn_missing_node_fields(%{type: :mapping} = node, {type_id, concept_id, field}) do
+  defp warn_missing_node_fields(%Node{type: :mapping} = node, {type_id, concept_id, field}) do
     for {key, label} <- [{:input, "input"}, {:steps, "steps"}],
         is_nil(Map.get(node, key)) do
       Logger.warning(
@@ -387,7 +387,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       )
     end
 
-    for {node_key, %{type: :generated, method: method_id}} <- nodes do
+    for {node_key, %Node{type: :generated, method: method_id}} <- nodes do
       warn_generated_method_issue(node_key, method_id, methods, default_ids)
     end
 

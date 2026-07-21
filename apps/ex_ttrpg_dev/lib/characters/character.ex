@@ -3,6 +3,7 @@ defmodule ExTTRPGDev.Characters.Character do
   alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @moduledoc """
@@ -222,7 +223,7 @@ defmodule ExTTRPGDev.Characters.Character do
 
   defp item_from_spec(_, _), do: []
 
-  defp roll_generated_value(%{method: method_id}, rolling_methods) do
+  defp roll_generated_value(%Node{method: method_id}, rolling_methods) do
     method = resolve_rolling_method(method_id, rolling_methods)
     rolls = Dice.roll(method.dice)
 

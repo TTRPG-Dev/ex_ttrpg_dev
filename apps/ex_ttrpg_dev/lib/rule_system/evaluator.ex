@@ -7,7 +7,7 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   and produces a fully-resolved map of all node values.
   """
 
-  alias ExTTRPGDev.RuleSystem.{Expression, Graph}
+  alias ExTTRPGDev.RuleSystem.{Expression, Graph, Node}
 
   @doc """
   Evaluates all nodes in the DAG in topological order.
@@ -48,16 +48,16 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp evaluate_node(node_key, nodes, resolved, effects) do
     case Map.fetch(nodes, node_key) do
-      {:ok, %{type: :generated}} ->
+      {:ok, %Node{type: :generated}} ->
         fetch_generated(resolved, node_key)
 
-      {:ok, %{type: :formula, formula: formula}} ->
+      {:ok, %Node{type: :formula, formula: formula}} ->
         Expression.evaluate(formula, resolved)
 
-      {:ok, %{type: :accumulator, base: base_formula}} ->
+      {:ok, %Node{type: :accumulator, base: base_formula}} ->
         evaluate_accumulator(base_formula, node_key, resolved, effects)
 
-      {:ok, %{type: :mapping, input: input_formula, steps: steps}} ->
+      {:ok, %Node{type: :mapping, input: input_formula, steps: steps}} ->
         evaluate_mapping(input_formula, steps, resolved)
 
       :error ->

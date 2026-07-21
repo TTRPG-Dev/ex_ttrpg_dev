@@ -11,6 +11,7 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.InventoryRules
+  alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystem.Vocabulary
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -1252,7 +1253,7 @@ defmodule ExTTRPGDev.Characters do
   defp level_xp_thresholds(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         %{type: :mapping, steps: steps} when not is_nil(steps) <-
+         %Node{type: :mapping, steps: steps} when not is_nil(steps) <-
            Map.get(system.nodes, {type_id, concept_id, field_name}) do
       Map.new(steps, fn [threshold, level] -> {level, threshold} end)
     else
@@ -1263,7 +1264,7 @@ defmodule ExTTRPGDev.Characters do
   defp xp_effect_target(%LoadedSystem{} = system) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         %{type: :mapping, input: input} when not is_nil(input) <-
+         %Node{type: :mapping, input: input} when not is_nil(input) <-
            Map.get(system.nodes, {type_id, concept_id, field_name}),
          [node_key | _] <- Expression.extract_refs(input) do
       node_key

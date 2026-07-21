@@ -1,16 +1,16 @@
 defmodule ExTTRPGDev.RuleSystem.GraphTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader}
+  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Node}
 
   defp minimal_loader_data do
     %{
       nodes: %{
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"},
-        {"attr", "strength", "total_score"} => %{
+        {"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"},
+        {"attr", "strength", "total_score"} => %Node{
           type: :accumulator,
           base: "attr('strength').base_score"
         },
-        {"attr", "strength", "modifier"} => %{
+        {"attr", "strength", "modifier"} => %Node{
           type: :formula,
           formula: "floor((attr('strength').total_score - 10) / 2)"
         }
@@ -45,7 +45,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   test "build/1 returns error for undefined reference" do
     bad_data = %{
       nodes: %{
-        {"attr", "strength", "modifier"} => %{
+        {"attr", "strength", "modifier"} => %Node{
           type: :formula,
           formula: "attr('strength').total_score"
         }
@@ -61,8 +61,8 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   test "build/1 detects cycles" do
     cyclic_data = %{
       nodes: %{
-        {"attr", "a", "val"} => %{type: :formula, formula: "attr('b').val"},
-        {"attr", "b", "val"} => %{type: :formula, formula: "attr('a').val"}
+        {"attr", "a", "val"} => %Node{type: :formula, formula: "attr('b').val"},
+        {"attr", "b", "val"} => %Node{type: :formula, formula: "attr('a').val"}
       },
       rolling_methods: %{},
       concept_metadata: %{},
@@ -87,8 +87,8 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   test "build/1 adds edge from formula-valued effect's ref to its target" do
     data = %{
       nodes: %{
-        {"trait", "prof", "bonus"} => %{type: :accumulator, base: "2"},
-        {"save", "str", "modifier"} => %{type: :accumulator, base: "0"}
+        {"trait", "prof", "bonus"} => %Node{type: :accumulator, base: "2"},
+        {"save", "str", "modifier"} => %Node{type: :accumulator, base: "0"}
       },
       rolling_methods: %{},
       concept_metadata: %{},
@@ -111,7 +111,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   test "build/1 returns error for undefined ref in formula-valued effect" do
     data = %{
       nodes: %{
-        {"save", "str", "modifier"} => %{type: :accumulator, base: "0"}
+        {"save", "str", "modifier"} => %Node{type: :accumulator, base: "0"}
       },
       rolling_methods: %{},
       concept_metadata: %{},
@@ -130,7 +130,7 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
   test "build/1 returns error for undefined contribution target" do
     data = %{
       nodes: %{
-        {"attr", "strength", "base_score"} => %{type: :generated, method: "standard"}
+        {"attr", "strength", "base_score"} => %Node{type: :generated, method: "standard"}
       },
       rolling_methods: %{},
       concept_metadata: %{},
