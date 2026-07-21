@@ -8,7 +8,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.ConceptDisplay
-  alias ExTTRPGDev.RuleSystem.{Evaluator, InventoryRules}
+  alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   def serialize_system(%LoadedSystem{module: mod}) do
@@ -39,11 +39,11 @@ defmodule ExTTRPGDev.CLI.Serializer do
         %LoadedSystem{} = system,
         %Character{} = character,
         slug,
-        display_mode
+        display_mode,
+        resolved \\ nil
       ) do
     active = Characters.active_concepts(character.decisions, system.concept_metadata)
-    effects = Characters.active_effects(system, character)
-    resolved = Evaluator.evaluate!(system, character.generated_values, effects)
+    resolved = resolved || elem(Characters.resolved_state(system, character), 1)
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
     inventory_ids = MapSet.new(character.inventory, &{&1.concept_type, &1.concept_id})
 

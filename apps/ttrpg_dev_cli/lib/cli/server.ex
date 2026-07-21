@@ -47,7 +47,7 @@ defmodule ExTTRPGDev.CLI.Server do
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.CLI.Serializer
-  alias ExTTRPGDev.RuleSystem.{Evaluator, Expression, InventoryRules}
+  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules}
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
@@ -269,10 +269,10 @@ defmodule ExTTRPGDev.CLI.Server do
       updated = %{char | inventory: inv, pending_choice_slots: slots}
       Characters.save_character!(updated)
       new_state = %{state | pending: Map.delete(state.pending, temp_id)}
-      resolved = resolve_character(sys, updated)
+      {_effects, resolved} = Characters.resolved_state(sys, updated)
       choices = Characters.pending_choices(sys, updated, resolved)
       mode = parse_display_mode(msg)
-      ser = Serializer.serialize_character(sys, updated, updated.metadata.slug, mode)
+      ser = Serializer.serialize_character(sys, updated, updated.metadata.slug, mode, resolved)
       data = Map.put(ser, :pending_choices, Serializer.serialize_choices_list(choices, sys, mode))
 
       {ok(data), new_state}
@@ -343,11 +343,11 @@ defmodule ExTTRPGDev.CLI.Server do
       updated = %{updated | pending_choice_slots: new_slots}
       Characters.save_character!(updated, true)
 
-      resolved = resolve_character(system, updated)
+      {_effects, resolved} = Characters.resolved_state(system, updated)
       choices = Characters.pending_choices(system, updated, resolved)
 
       data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
+        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
         |> Map.put(
           :pending_choices,
           Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
@@ -377,11 +377,11 @@ defmodule ExTTRPGDev.CLI.Server do
       updated = %{updated | pending_choice_slots: new_slots}
       Characters.save_character!(updated, true)
 
-      resolved = resolve_character(system, updated)
+      {_effects, resolved} = Characters.resolved_state(system, updated)
       choices = Characters.pending_choices(system, updated, resolved)
 
       data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
+        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
         |> Map.put(
           :pending_choices,
           Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
@@ -399,7 +399,7 @@ defmodule ExTTRPGDev.CLI.Server do
       character = Characters.load_character!(slug)
       system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      resolved = resolve_character(system, character)
+      {_effects, resolved} = Characters.resolved_state(system, character)
       choices = Characters.pending_choices(system, character, resolved)
 
       {ok(%{
@@ -442,7 +442,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
       updated =
         if Map.has_key?(meta, "type") do
-          resolved = resolve_character(system, character)
+          {_effects, resolved} = Characters.resolved_state(system, character)
           active = Characters.active_concepts(character.decisions, system.concept_metadata)
 
           already_selected =
@@ -479,11 +479,11 @@ defmodule ExTTRPGDev.CLI.Server do
 
       Characters.save_character!(updated, true)
 
-      resolved = resolve_character(system, updated)
+      {_effects, resolved} = Characters.resolved_state(system, updated)
       choices = Characters.pending_choices(system, updated, resolved)
 
       data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
+        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
         |> Map.put(
           :pending_choices,
           Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
@@ -662,11 +662,11 @@ defmodule ExTTRPGDev.CLI.Server do
       updated = %{character | decisions: character.decisions ++ [decision]}
       Characters.save_character!(updated, true)
 
-      resolved = resolve_character(system, updated)
+      {_effects, resolved} = Characters.resolved_state(system, updated)
       choices = Characters.pending_choices(system, updated, resolved)
 
       data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
+        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
         |> Map.put(
           :pending_choices,
           Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
@@ -788,12 +788,6 @@ defmodule ExTTRPGDev.CLI.Server do
       {:ok, result} -> result
       {:error, reason} -> raise("failed to add to inventory: #{inspect(reason)}")
     end
-  end
-
-  defp resolve_character(%LoadedSystem{} = system, %Character{} = character) do
-    system
-    |> Characters.active_effects(character)
-    |> then(&Evaluator.evaluate!(system, character.generated_values, &1))
   end
 
   defp load_progression_target!(%LoadedSystem{} = system, progression_id) do
