@@ -57,8 +57,16 @@ defmodule ExTTRPGDev.CLI.Server do
     loop(%{pending: %{}, next_id: 1})
   end
 
+  # The single rescue boundary for command handling: any exception raised by a
+  # handler becomes a protocol error response, and the caller's state is
+  # returned unchanged. Handlers build their new state and return it only on
+  # success, so a mid-handler raise cannot leak partial mutations.
   @doc false
-  def handle_command(msg, state), do: handle(msg, state)
+  def handle_command(msg, state) do
+    handle(msg, state)
+  rescue
+    e -> {error(Exception.message(e)), state}
+  end
 
   defp loop(state) do
     case IO.gets("") do
@@ -83,7 +91,7 @@ defmodule ExTTRPGDev.CLI.Server do
 
   defp dispatch(line, state) do
     case Poison.decode(line) do
-      {:ok, cmd} -> handle(cmd, state)
+      {:ok, cmd} -> handle_command(cmd, state)
       {:error, _} -> {error("invalid JSON"), state}
     end
   end
@@ -97,18 +105,14 @@ defmodule ExTTRPGDev.CLI.Server do
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))
 
-    try do
-      results =
-        specs
-        |> Dice.multi_roll!()
-        |> Enum.map(fn {spec, rolls} ->
-          %{spec: spec, rolls: rolls, total: Enum.sum(rolls)}
-        end)
+    results =
+      specs
+      |> Dice.multi_roll!()
+      |> Enum.map(fn {spec, rolls} ->
+        %{spec: spec, rolls: rolls, total: Enum.sum(rolls)}
+      end)
 
-      {ok(%{results: results}), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(%{results: results}), state}
   end
 
   # --- Systems ---
@@ -121,59 +125,51 @@ defmodule ExTTRPGDev.CLI.Server do
     concept_type = Map.get(cmd, "concept_type")
     concept_id = Map.get(cmd, "concept_id")
 
-    try do
-      system = RuleSystems.load_system!(slug)
+    system = RuleSystems.load_system!(slug)
 
-      data =
-        cond do
-          concept_id != nil ->
-            meta = system.concept_metadata[{concept_type, concept_id}] || %{}
-            %{id: concept_id, concept_type: concept_type, fields: meta}
+    data =
+      cond do
+        concept_id != nil ->
+          meta = system.concept_metadata[{concept_type, concept_id}] || %{}
+          %{id: concept_id, concept_type: concept_type, fields: meta}
 
-          concept_type != nil ->
-            Serializer.serialize_concepts(system, concept_type)
+        concept_type != nil ->
+          Serializer.serialize_concepts(system, concept_type)
 
-          true ->
-            Serializer.serialize_system(system)
-        end
+        true ->
+          Serializer.serialize_system(system)
+      end
 
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), state}
   end
 
   # --- Characters ---
 
   defp handle(%{"command" => "characters.gen", "system" => slug} = msg, state) do
-    try do
-      system = RuleSystems.load_system!(slug)
-      decisions = Characters.random_decisions(system)
-      character = Character.gen_character!(system, decisions)
-      slots = Characters.compute_pending_choice_slots(system, character)
+    system = RuleSystems.load_system!(slug)
+    decisions = Characters.random_decisions(system)
+    character = Character.gen_character!(system, decisions)
+    slots = Characters.compute_pending_choice_slots(system, character)
 
-      character =
-        Characters.auto_resolve_pending(system, %{character | pending_choice_slots: slots})
+    character =
+      Characters.auto_resolve_pending(system, %{character | pending_choice_slots: slots})
 
-      temp_id = Integer.to_string(state.next_id)
+    temp_id = Integer.to_string(state.next_id)
 
-      new_state = %{
-        state
-        | pending: Map.put(state.pending, temp_id, character),
-          next_id: state.next_id + 1
-      }
+    new_state = %{
+      state
+      | pending: Map.put(state.pending, temp_id, character),
+        next_id: state.next_id + 1
+    }
 
-      data =
-        Map.put(
-          Serializer.serialize_character(system, character, nil, parse_display_mode(msg)),
-          :temp_id,
-          temp_id
-        )
+    data =
+      Map.put(
+        Serializer.serialize_character(system, character, nil, parse_display_mode(msg)),
+        :temp_id,
+        temp_id
+      )
 
-      {ok(data), new_state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), new_state}
   end
 
   # --- Character Build ---
@@ -182,21 +178,17 @@ defmodule ExTTRPGDev.CLI.Server do
          %{"command" => "characters.build_start", "system" => slug, "name" => name},
          state
        ) do
-    try do
-      system = RuleSystems.load_system!(slug)
-      character = Character.gen_character!(system, [])
+    system = RuleSystems.load_system!(slug)
+    character = Character.gen_character!(system, [])
 
-      slug = Character.slugify(name)
-      character = %{character | name: name, metadata: %{character.metadata | slug: slug}}
-      temp_id = Integer.to_string(state.next_id)
-      pending = Map.put(state.pending, temp_id, character)
-      new_state = %{state | pending: pending, next_id: state.next_id + 1}
+    slug = Character.slugify(name)
+    character = %{character | name: name, metadata: %{character.metadata | slug: slug}}
+    temp_id = Integer.to_string(state.next_id)
+    pending = Map.put(state.pending, temp_id, character)
+    new_state = %{state | pending: pending, next_id: state.next_id + 1}
 
-      building_choices = Serializer.serialize_building_choices(system)
-      {ok(%{temp_id: temp_id, building_choices: building_choices}), new_state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    building_choices = Serializer.serialize_building_choices(system)
+    {ok(%{temp_id: temp_id, building_choices: building_choices}), new_state}
   end
 
   defp handle(
@@ -208,25 +200,21 @@ defmodule ExTTRPGDev.CLI.Server do
          },
          state
        ) do
-    try do
-      character = fetch_pending!(state, temp_id)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
-      decision = %{scope: nil, choice: concept_type, selection: concept_id}
-      updated = %{character | decisions: character.decisions ++ [decision]}
+    character = fetch_pending!(state, temp_id)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    decision = %{scope: nil, choice: concept_type, selection: concept_id}
+    updated = %{character | decisions: character.decisions ++ [decision]}
 
-      sub_choices =
-        Serializer.serialize_concept_sub_choices(
-          concept_type,
-          concept_id,
-          updated.decisions,
-          system
-        )
+    sub_choices =
+      Serializer.serialize_concept_sub_choices(
+        concept_type,
+        concept_id,
+        updated.decisions,
+        system
+      )
 
-      new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
-      {ok(%{sub_choices: sub_choices}), new_state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
+    {ok(%{sub_choices: sub_choices}), new_state}
   end
 
   defp handle(
@@ -240,45 +228,37 @@ defmodule ExTTRPGDev.CLI.Server do
          },
          state
        ) do
-    try do
-      character = fetch_pending!(state, temp_id)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
-      scope = {scope_type, scope_id}
-      choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
-      valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
-      validate_concept_selection!(selection, valid)
-      decision = %{scope: scope, choice: choice_id, selection: selection}
-      updated = %{character | decisions: character.decisions ++ [decision]}
+    character = fetch_pending!(state, temp_id)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    scope = {scope_type, scope_id}
+    choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
+    valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
+    validate_concept_selection!(selection, valid)
+    decision = %{scope: scope, choice: choice_id, selection: selection}
+    updated = %{character | decisions: character.decisions ++ [decision]}
 
-      sub_choices =
-        Serializer.serialize_concept_sub_choices(scope_type, scope_id, updated.decisions, system)
+    sub_choices =
+      Serializer.serialize_concept_sub_choices(scope_type, scope_id, updated.decisions, system)
 
-      new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
-      {ok(%{sub_choices: sub_choices}), new_state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    new_state = %{state | pending: Map.put(state.pending, temp_id, updated)}
+    {ok(%{sub_choices: sub_choices}), new_state}
   end
 
   defp handle(%{"command" => "characters.build_finish", "temp_id" => temp_id} = msg, state) do
-    try do
-      char = fetch_pending!(state, temp_id)
-      sys = RuleSystems.load_system!(char.metadata.rule_system)
-      inv = Character.inventory_from_decisions(char.decisions, sys)
-      slots = Characters.compute_pending_choice_slots(sys, %{char | inventory: inv})
-      updated = %{char | inventory: inv, pending_choice_slots: slots}
-      Characters.save_character!(updated)
-      new_state = %{state | pending: Map.delete(state.pending, temp_id)}
-      {_effects, resolved} = Characters.resolved_state(sys, updated)
-      choices = Characters.pending_choices(sys, updated, resolved)
-      mode = parse_display_mode(msg)
-      ser = Serializer.serialize_character(sys, updated, updated.metadata.slug, mode, resolved)
-      data = Map.put(ser, :pending_choices, Serializer.serialize_choices_list(choices, sys, mode))
+    char = fetch_pending!(state, temp_id)
+    sys = RuleSystems.load_system!(char.metadata.rule_system)
+    inv = Character.inventory_from_decisions(char.decisions, sys)
+    slots = Characters.compute_pending_choice_slots(sys, %{char | inventory: inv})
+    updated = %{char | inventory: inv, pending_choice_slots: slots}
+    Characters.save_character!(updated)
+    new_state = %{state | pending: Map.delete(state.pending, temp_id)}
+    {_effects, resolved} = Characters.resolved_state(sys, updated)
+    choices = Characters.pending_choices(sys, updated, resolved)
+    mode = parse_display_mode(msg)
+    ser = Serializer.serialize_character(sys, updated, updated.metadata.slug, mode, resolved)
+    data = Map.put(ser, :pending_choices, Serializer.serialize_choices_list(choices, sys, mode))
 
-      {ok(data), new_state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), new_state}
   end
 
   defp handle(%{"command" => "characters.save", "temp_id" => temp_id}, state) do
@@ -287,38 +267,30 @@ defmodule ExTTRPGDev.CLI.Server do
         {error("no pending character with temp_id #{inspect(temp_id)}"), state}
 
       character ->
-        try do
-          Characters.save_character!(character)
-          new_state = %{state | pending: Map.delete(state.pending, temp_id)}
-          {ok(%{slug: character.metadata.slug}), new_state}
-        rescue
-          e -> {error(Exception.message(e)), state}
-        end
+        Characters.save_character!(character)
+        new_state = %{state | pending: Map.delete(state.pending, temp_id)}
+        {ok(%{slug: character.metadata.slug}), new_state}
     end
   end
 
   defp handle(%{"command" => "characters.list"} = cmd, state) do
     system_filter = Map.get(cmd, "system")
 
-    try do
-      characters =
-        Characters.list_characters!()
-        |> Enum.map(&Characters.load_character!/1)
-        |> Enum.filter(fn c ->
-          system_filter == nil or c.metadata.rule_system == system_filter
-        end)
-        |> Enum.map(fn c ->
-          %{
-            slug: c.metadata.slug,
-            name: c.name,
-            rule_system: c.metadata.rule_system
-          }
-        end)
+    characters =
+      Characters.list_characters!()
+      |> Enum.map(&Characters.load_character!/1)
+      |> Enum.filter(fn c ->
+        system_filter == nil or c.metadata.rule_system == system_filter
+      end)
+      |> Enum.map(fn c ->
+        %{
+          slug: c.metadata.slug,
+          name: c.name,
+          rule_system: c.metadata.rule_system
+        }
+      end)
 
-      {ok(%{characters: characters}), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(%{characters: characters}), state}
   end
 
   defp handle(
@@ -330,85 +302,73 @@ defmodule ExTTRPGDev.CLI.Server do
          } = msg,
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      award_meta =
-        system.concept_metadata[{"award", award_id}] ||
-          raise("unknown award: #{inspect(award_id)}")
+    award_meta =
+      system.concept_metadata[{"award", award_id}] ||
+        raise("unknown award: #{inspect(award_id)}")
 
-      updated = apply_award!(character, award_meta, value)
-      new_slots = Characters.compute_pending_choice_slots(system, updated)
-      updated = %{updated | pending_choice_slots: new_slots}
-      Characters.save_character!(updated, true)
+    updated = apply_award!(character, award_meta, value)
+    new_slots = Characters.compute_pending_choice_slots(system, updated)
+    updated = %{updated | pending_choice_slots: new_slots}
+    Characters.save_character!(updated, true)
 
-      {_effects, resolved} = Characters.resolved_state(system, updated)
-      choices = Characters.pending_choices(system, updated, resolved)
+    {_effects, resolved} = Characters.resolved_state(system, updated)
+    choices = Characters.pending_choices(system, updated, resolved)
 
-      data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-        |> Map.put(
-          :pending_choices,
-          Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-        )
+    data =
+      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
+      |> Map.put(
+        :pending_choices,
+        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
+      )
 
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), state}
   end
 
   defp handle(
          %{"command" => "characters.award", "character" => slug, "award" => award_id} = msg,
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      award_meta =
-        system.concept_metadata[{"award", award_id}] ||
-          raise("unknown award: #{inspect(award_id)}")
+    award_meta =
+      system.concept_metadata[{"award", award_id}] ||
+        raise("unknown award: #{inspect(award_id)}")
 
-      xp_needed = compute_next_level_xp!(system, character, award_meta)
-      updated = apply_award!(character, award_meta, xp_needed)
-      new_slots = Characters.compute_pending_choice_slots(system, updated)
-      updated = %{updated | pending_choice_slots: new_slots}
-      Characters.save_character!(updated, true)
+    xp_needed = compute_next_level_xp!(system, character, award_meta)
+    updated = apply_award!(character, award_meta, xp_needed)
+    new_slots = Characters.compute_pending_choice_slots(system, updated)
+    updated = %{updated | pending_choice_slots: new_slots}
+    Characters.save_character!(updated, true)
 
-      {_effects, resolved} = Characters.resolved_state(system, updated)
-      choices = Characters.pending_choices(system, updated, resolved)
+    {_effects, resolved} = Characters.resolved_state(system, updated)
+    choices = Characters.pending_choices(system, updated, resolved)
 
-      data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-        |> Map.put(
-          :pending_choices,
-          Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-        )
-        |> Map.put(:awarded_xp, xp_needed)
+    data =
+      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
+      |> Map.put(
+        :pending_choices,
+        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
+      )
+      |> Map.put(:awarded_xp, xp_needed)
 
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), state}
   end
 
   defp handle(%{"command" => "characters.choices", "character" => slug} = msg, state) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      {_effects, resolved} = Characters.resolved_state(system, character)
-      choices = Characters.pending_choices(system, character, resolved)
+    {_effects, resolved} = Characters.resolved_state(system, character)
+    choices = Characters.pending_choices(system, character, resolved)
 
-      {ok(%{
-         pending_choices:
-           Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-       }), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(%{
+       pending_choices:
+         Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
+     }), state}
   end
 
   defp handle(
@@ -420,99 +380,91 @@ defmodule ExTTRPGDev.CLI.Server do
          } = msg,
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      meta =
-        system.concept_metadata[{"character_progression", progression_id}] ||
-          raise("unknown progression: #{inspect(progression_id)}")
+    meta =
+      system.concept_metadata[{"character_progression", progression_id}] ||
+        raise("unknown progression: #{inspect(progression_id)}")
 
-      choice_number =
-        Enum.count(character.decisions, fn
-          %{scope: {"character_progression", ^progression_id}} -> true
-          _ -> false
-        end) + 1
+    choice_number =
+      Enum.count(character.decisions, fn
+        %{scope: {"character_progression", ^progression_id}} -> true
+        _ -> false
+      end) + 1
 
-      decision = %{
-        scope: {"character_progression", progression_id},
-        choice: "choice_#{choice_number}",
-        selection: selection
-      }
+    decision = %{
+      scope: {"character_progression", progression_id},
+      choice: "choice_#{choice_number}",
+      selection: selection
+    }
 
-      updated =
-        if Map.has_key?(meta, "type") do
-          {_effects, resolved} = Characters.resolved_state(system, character)
-          active = Characters.active_concepts(character.decisions, system.concept_metadata)
+    updated =
+      if Map.has_key?(meta, "type") do
+        {_effects, resolved} = Characters.resolved_state(system, character)
+        active = Characters.active_concepts(character.decisions, system.concept_metadata)
 
-          already_selected =
-            character.decisions
-            |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
-            |> MapSet.new(& &1.selection)
+        already_selected =
+          character.decisions
+          |> Enum.filter(fn d -> d.scope == {"character_progression", progression_id} end)
+          |> MapSet.new(& &1.selection)
 
-          capped_resolved = cap_resolved_for_slot(character, progression_id, meta, resolved)
+        capped_resolved = cap_resolved_for_slot(character, progression_id, meta, resolved)
 
-          options =
-            Characters.concept_options(meta, system.concept_metadata, active, capped_resolved)
-            |> Enum.reject(&MapSet.member?(already_selected, &1))
+        options =
+          Characters.concept_options(meta, system.concept_metadata, active, capped_resolved)
+          |> Enum.reject(&MapSet.member?(already_selected, &1))
 
-          validate_concept_selection!(selection, options)
+        validate_concept_selection!(selection, options)
 
-          with_decision = %{
-            character
-            | decisions: character.decisions ++ [decision],
-              pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
-          }
+        with_decision = %{
+          character
+          | decisions: character.decisions ++ [decision],
+            pending_choice_slots: consume_slot(character.pending_choice_slots, progression_id)
+        }
 
-          apply_inventory_addition!(system, with_decision, progression_id, selection)
-        else
-          value = Map.fetch!(msg, "value")
-          unless is_integer(value), do: raise("value must be an integer")
-          parsed_target = load_progression_target!(system, progression_id)
+        apply_inventory_addition!(system, with_decision, progression_id, selection)
+      else
+        value = Map.fetch!(msg, "value")
+        unless is_integer(value), do: raise("value must be an integer")
+        parsed_target = load_progression_target!(system, progression_id)
 
-          %{
-            character
-            | effects: character.effects ++ [%{target: parsed_target, value: value}],
-              decisions: character.decisions ++ [decision]
-          }
-        end
+        %{
+          character
+          | effects: character.effects ++ [%{target: parsed_target, value: value}],
+            decisions: character.decisions ++ [decision]
+        }
+      end
 
-      Characters.save_character!(updated, true)
+    Characters.save_character!(updated, true)
 
-      {_effects, resolved} = Characters.resolved_state(system, updated)
-      choices = Characters.pending_choices(system, updated, resolved)
+    {_effects, resolved} = Characters.resolved_state(system, updated)
+    choices = Characters.pending_choices(system, updated, resolved)
 
-      data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-        |> Map.put(
-          :pending_choices,
-          Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-        )
+    data =
+      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
+      |> Map.put(
+        :pending_choices,
+        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
+      )
 
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), state}
   end
 
   defp handle(%{"command" => "characters.random_resolve", "character" => slug} = msg, state) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
-      slots = Characters.compute_pending_choice_slots(system, character)
-      character = %{character | pending_choice_slots: slots}
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    slots = Characters.compute_pending_choice_slots(system, character)
+    character = %{character | pending_choice_slots: slots}
 
-      {updated, resolutions} = Characters.random_resolve_all(system, character)
-      Characters.save_character!(updated, true)
+    {updated, resolutions} = Characters.random_resolve_all(system, character)
+    Characters.save_character!(updated, true)
 
-      data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
-        |> Map.put(:resolutions, Serializer.serialize_resolutions(resolutions, system))
+    data =
+      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg))
+      |> Map.put(:resolutions, Serializer.serialize_resolutions(resolutions, system))
 
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), state}
   end
 
   defp handle(%{"command" => "characters.delete", "character" => slug}, state) do
@@ -523,14 +475,10 @@ defmodule ExTTRPGDev.CLI.Server do
   end
 
   defp handle(%{"command" => "characters.show", "character" => slug} = msg, state) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
-      data = Serializer.serialize_character(system, character, slug, parse_display_mode(msg))
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    data = Serializer.serialize_character(system, character, slug, parse_display_mode(msg))
+    {ok(data), state}
   end
 
   defp handle(
@@ -542,38 +490,30 @@ defmodule ExTTRPGDev.CLI.Server do
          },
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
-      result = Characters.concept_roll!(system, character, type_id, concept_id)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    result = Characters.concept_roll!(system, character, type_id, concept_id)
 
-      concept_name =
-        case Map.get(system.concept_metadata, {type_id, concept_id}) do
-          nil -> concept_id
-          meta -> meta["name"] || concept_id
-        end
+    concept_name =
+      case Map.get(system.concept_metadata, {type_id, concept_id}) do
+        nil -> concept_id
+        meta -> meta["name"] || concept_id
+      end
 
-      {ok(%{
-         concept_name: concept_name,
-         dice: result.dice,
-         rolls: result.rolls,
-         bonus: result.bonus,
-         total: result.total
-       }), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(%{
+       concept_name: concept_name,
+       dice: result.dice,
+       rolls: result.rolls,
+       bonus: result.bonus,
+       total: result.total
+     }), state}
   end
 
   # --- Inventory ---
 
   defp handle(%{"command" => "characters.inventory", "character" => slug}, state) do
-    try do
-      character = Characters.load_character!(slug)
-      {ok(%{inventory: Serializer.serialize_inventory(character.inventory)}), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    character = Characters.load_character!(slug)
+    {ok(%{inventory: Serializer.serialize_inventory(character.inventory)}), state}
   end
 
   defp handle(
@@ -586,22 +526,18 @@ defmodule ExTTRPGDev.CLI.Server do
            cmd,
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
-      custom_fields = Map.get(cmd, "fields", %{})
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
+    custom_fields = Map.get(cmd, "fields", %{})
 
-      case InventoryItem.new(type, id, system.inventory_rules, custom_fields) do
-        {:ok, item} ->
-          updated = %{character | inventory: character.inventory ++ [item]}
-          Characters.save_character!(updated, true)
-          {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+    case InventoryItem.new(type, id, system.inventory_rules, custom_fields) do
+      {:ok, item} ->
+        updated = %{character | inventory: character.inventory ++ [item]}
+        Characters.save_character!(updated, true)
+        {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
 
-        {:error, reason} ->
-          {error("cannot add item: #{inspect(reason)}"), state}
-      end
-    rescue
-      e -> {error(Exception.message(e)), state}
+      {:error, reason} ->
+        {error("cannot add item: #{inspect(reason)}"), state}
     end
   end
 
@@ -615,26 +551,22 @@ defmodule ExTTRPGDev.CLI.Server do
          },
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      item =
-        Enum.at(character.inventory, index) ||
-          raise("no inventory item at index #{inspect(index)}")
+    item =
+      Enum.at(character.inventory, index) ||
+        raise("no inventory item at index #{inspect(index)}")
 
-      case InventoryItem.set_field(item, field, value, system.inventory_rules) do
-        {:ok, updated_item} ->
-          new_inventory = List.replace_at(character.inventory, index, updated_item)
-          updated = %{character | inventory: new_inventory}
-          Characters.save_character!(updated, true)
-          {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+    case InventoryItem.set_field(item, field, value, system.inventory_rules) do
+      {:ok, updated_item} ->
+        new_inventory = List.replace_at(character.inventory, index, updated_item)
+        updated = %{character | inventory: new_inventory}
+        Characters.save_character!(updated, true)
+        {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
 
-        {:error, reason} ->
-          {error("cannot set field: #{inspect(reason)}"), state}
-      end
-    rescue
-      e -> {error(Exception.message(e)), state}
+      {:error, reason} ->
+        {error("cannot set field: #{inspect(reason)}"), state}
     end
   end
 
@@ -649,65 +581,57 @@ defmodule ExTTRPGDev.CLI.Server do
          } = msg,
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      scope = {scope_type, scope_id}
-      choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
-      valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
-      validate_concept_selection!(selection, valid)
+    scope = {scope_type, scope_id}
+    choice_def = Serializer.fetch_choice_def!(system, scope, choice_id)
+    valid = Serializer.valid_sub_choices(system, scope, choice_def, character.decisions)
+    validate_concept_selection!(selection, valid)
 
-      decision = %{scope: scope, choice: choice_id, selection: selection}
-      updated = %{character | decisions: character.decisions ++ [decision]}
-      Characters.save_character!(updated, true)
+    decision = %{scope: scope, choice: choice_id, selection: selection}
+    updated = %{character | decisions: character.decisions ++ [decision]}
+    Characters.save_character!(updated, true)
 
-      {_effects, resolved} = Characters.resolved_state(system, updated)
-      choices = Characters.pending_choices(system, updated, resolved)
+    {_effects, resolved} = Characters.resolved_state(system, updated)
+    choices = Characters.pending_choices(system, updated, resolved)
 
-      data =
-        Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
-        |> Map.put(
-          :pending_choices,
-          Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
-        )
+    data =
+      Serializer.serialize_character(system, updated, slug, parse_display_mode(msg), resolved)
+      |> Map.put(
+        :pending_choices,
+        Serializer.serialize_choices_list(choices, system, parse_display_mode(msg))
+      )
 
-      {ok(data), state}
-    rescue
-      e -> {error(Exception.message(e)), state}
-    end
+    {ok(data), state}
   end
 
   # --- Spell preparation ---
 
   defp handle(%{"command" => "characters.spells", "character" => slug}, state) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      # Only the first preparation type is returned. Returning multiple types
-      # would require a protocol change on both this handler and the Rust
-      # PreparationStateResponse struct. dnd_5e_srd has one preparation type
-      # ("spell"), so this is sufficient for now.
-      result =
-        case InventoryRules.preparation_types(system.inventory_rules) do
-          [] ->
-            {:ok, %{preparation_mode: nil}}
+    # Only the first preparation type is returned. Returning multiple types
+    # would require a protocol change on both this handler and the Rust
+    # PreparationStateResponse struct. dnd_5e_srd has one preparation type
+    # ("spell"), so this is sufficient for now.
+    result =
+      case InventoryRules.preparation_types(system.inventory_rules) do
+        [] ->
+          {:ok, %{preparation_mode: nil}}
 
-          [{type_id, _} | _] ->
-            case Characters.preparation_state(system, character, type_id) do
-              {:ok, %{mode: nil}} -> {:ok, %{preparation_mode: nil}}
-              {:ok, s} -> {:ok, format_prep_response(s)}
-              error -> error
-            end
-        end
-
-      case result do
-        {:ok, data} -> {ok(data), state}
-        {:error, reason} -> {error(inspect(reason)), state}
+        [{type_id, _} | _] ->
+          case Characters.preparation_state(system, character, type_id) do
+            {:ok, %{mode: nil}} -> {:ok, %{preparation_mode: nil}}
+            {:ok, s} -> {:ok, format_prep_response(s)}
+            error -> error
+          end
       end
-    rescue
-      e -> {error(Exception.message(e)), state}
+
+    case result do
+      {:ok, data} -> {ok(data), state}
+      {:error, reason} -> {error(inspect(reason)), state}
     end
   end
 
@@ -720,26 +644,22 @@ defmodule ExTTRPGDev.CLI.Server do
          },
          state
        ) do
-    try do
-      character = Characters.load_character!(slug)
-      system = RuleSystems.load_system!(character.metadata.rule_system)
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system!(character.metadata.rule_system)
 
-      case InventoryRules.type_for_activate_command(system.inventory_rules, verb) do
-        nil ->
-          {error("unknown activate verb: #{inspect(verb)}"), state}
+    case InventoryRules.type_for_activate_command(system.inventory_rules, verb) do
+      nil ->
+        {error("unknown activate verb: #{inspect(verb)}"), state}
 
-        {type_id, _config} ->
-          case Characters.activate(system, character, type_id, item_ids) do
-            {:ok, updated} ->
-              Characters.save_character!(updated, true)
-              {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
+      {type_id, _config} ->
+        case Characters.activate(system, character, type_id, item_ids) do
+          {:ok, updated} ->
+            Characters.save_character!(updated, true)
+            {ok(%{inventory: Serializer.serialize_inventory(updated.inventory)}), state}
 
-            {:error, reason} ->
-              {error(format_activate_error(reason)), state}
-          end
-      end
-    rescue
-      e -> {error(Exception.message(e)), state}
+          {:error, reason} ->
+            {error(format_activate_error(reason)), state}
+        end
     end
   end
 
