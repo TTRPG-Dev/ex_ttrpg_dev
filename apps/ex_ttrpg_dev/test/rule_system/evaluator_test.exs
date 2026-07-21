@@ -1,6 +1,6 @@
 defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Evaluator, Graph, Loader, Node}
+  alias ExTTRPGDev.RuleSystem.{Effect, Evaluator, Graph, Loader, Node}
 
   doctest ExTTRPGDev.RuleSystem.Evaluator
 
@@ -50,7 +50,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     system = minimal_system()
     generated = %{{"attr", "strength", "base_score"} => 16}
 
-    effects = [%{target: {"attr", "strength", "total_score"}, value: 2}]
+    effects = [%Effect{target: {"attr", "strength", "total_score"}, value: 2}]
 
     assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
     # total_score = 16 + 2 = 18, modifier = floor((18-10)/2) = 4
@@ -79,17 +79,23 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert r0[{"char", "level", "value"}] == 1
 
     assert {:ok, r1} =
-             Evaluator.evaluate(system, %{}, [%{target: {"char", "xp", "total"}, value: 300}])
+             Evaluator.evaluate(system, %{}, [
+               %Effect{target: {"char", "xp", "total"}, value: 300}
+             ])
 
     assert r1[{"char", "level", "value"}] == 2
 
     assert {:ok, r2} =
-             Evaluator.evaluate(system, %{}, [%{target: {"char", "xp", "total"}, value: 850}])
+             Evaluator.evaluate(system, %{}, [
+               %Effect{target: {"char", "xp", "total"}, value: 850}
+             ])
 
     assert r2[{"char", "level", "value"}] == 2
 
     assert {:ok, r3} =
-             Evaluator.evaluate(system, %{}, [%{target: {"char", "xp", "total"}, value: 900}])
+             Evaluator.evaluate(system, %{}, [
+               %Effect{target: {"char", "xp", "total"}, value: 900}
+             ])
 
     assert r3[{"char", "level", "value"}] == 3
   end
@@ -115,7 +121,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       rolling_methods: %{},
       concept_metadata: %{},
       effects: [
-        %{
+        %Effect{
           source: {"class", "fighter", nil},
           target: {"save", "strength", "modifier"},
           value: "trait('prof').bonus"
@@ -151,7 +157,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     test "skips effect when condition evaluates to false" do
       system = minimal_system()
       generated = %{{"attr", "strength", "base_score"} => 16}
-      effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "false"}]
+      effects = [%Effect{target: {"attr", "strength", "total_score"}, value: 2, when: "false"}]
 
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"attr", "strength", "total_score"}] == 16
@@ -160,7 +166,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     test "applies effect when condition evaluates to true" do
       system = minimal_system()
       generated = %{{"attr", "strength", "base_score"} => 16}
-      effects = [%{target: {"attr", "strength", "total_score"}, value: 2, when: "true"}]
+      effects = [%Effect{target: {"attr", "strength", "total_score"}, value: 2, when: "true"}]
 
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"attr", "strength", "total_score"}] == 18
@@ -169,7 +175,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     test "applies effect when `when` key is absent (backward compat)" do
       system = minimal_system()
       generated = %{{"attr", "strength", "base_score"} => 16}
-      effects = [%{target: {"attr", "strength", "total_score"}, value: 2}]
+      effects = [%Effect{target: {"attr", "strength", "total_score"}, value: 2}]
 
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"attr", "strength", "total_score"}] == 18
@@ -195,8 +201,12 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
       # Effect applies only when flag is active (non-zero)
       effects = [
-        %{target: {"flag", "active", "value"}, value: 1},
-        %{target: {"attr", "strength", "total_score"}, value: 4, when: "flag('active').value"}
+        %Effect{target: {"flag", "active", "value"}, value: 1},
+        %Effect{
+          target: {"attr", "strength", "total_score"},
+          value: 4,
+          when: "flag('active').value"
+        }
       ]
 
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
@@ -204,7 +214,11 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
       # Without the flag effect, the condition evaluates to 0 (false)
       effects_no_flag = [
-        %{target: {"attr", "strength", "total_score"}, value: 4, when: "flag('active').value"}
+        %Effect{
+          target: {"attr", "strength", "total_score"},
+          value: 4,
+          when: "flag('active').value"
+        }
       ]
 
       assert {:ok, resolved_no_flag} = Evaluator.evaluate(system, generated, effects_no_flag)
@@ -218,7 +232,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       generated = %{{"attr", "strength", "base_score"} => 16}
 
       effects = [
-        %{
+        %Effect{
           target: {"attr", "strength", "total_score"},
           value: 4,
           when: "item.equipped",
@@ -235,7 +249,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       generated = %{{"attr", "strength", "base_score"} => 16}
 
       effects = [
-        %{
+        %Effect{
           target: {"attr", "strength", "total_score"},
           value: 4,
           when: "item.equipped",
@@ -253,7 +267,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
       # condition is 0.5, so value formula "item.condition * 4" = 2.0
       effects = [
-        %{
+        %Effect{
           target: {"attr", "strength", "total_score"},
           value: "item.condition * 4",
           item_fields: %{"condition" => 0.5}
@@ -271,7 +285,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       # "bonus" is a prefix of "bonus_max"; a per-field replace pass would
       # corrupt "item.bonus_max" into "2_max" when "bonus" replaced first
       effects = [
-        %{
+        %Effect{
           target: {"attr", "strength", "total_score"},
           value: "item.bonus + item.bonus_max",
           item_fields: %{"bonus" => 2, "bonus_max" => 5}
@@ -287,7 +301,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       generated = %{{"attr", "strength", "base_score"} => 16}
 
       effects = [
-        %{
+        %Effect{
           target: {"attr", "strength", "total_score"},
           value: "item.nonexistent * 2",
           item_fields: %{"bonus" => 2}
@@ -352,7 +366,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     test "saving throw modifier increases when proficiency is applied as an effect",
          %{system: system, generated: generated} do
-      effects = [%{target: {"saving_throw", "strength", "modifier"}, value: 2}]
+      effects = [%Effect{target: {"saving_throw", "strength", "modifier"}, value: 2}]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"saving_throw", "strength", "modifier"}] == 5
       assert resolved[{"saving_throw", "dexterity", "modifier"}] == 2
@@ -380,7 +394,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     defp item_effects(system, concept_id, equipped) do
       system.effects
       |> Enum.filter(fn
-        %{source: {"equipment", id}} -> id == concept_id
+        %Effect{source: {"equipment", id}} -> id == concept_id
         _ -> false
       end)
       |> Enum.map(&Map.put(&1, :item_fields, %{"equipped" => equipped}))
@@ -468,7 +482,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     defp class_effects(system, class_id) do
       Enum.filter(system.effects, fn
-        %{source: {"class", id}} -> id == class_id
+        %Effect{source: {"class", id}} -> id == class_id
         _ -> false
       end)
     end
@@ -529,7 +543,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
 
     defp xp_effect(xp),
-      do: %{target: {"character_trait", "experience_points", "total"}, value: xp}
+      do: %Effect{target: {"character_trait", "experience_points", "total"}, value: xp}
 
     # level 1 = 0 XP, level 5 = 6500 XP, level 11 = 85000 XP, level 17 = 225000 XP
     defp spell_slots(resolved) do
@@ -634,7 +648,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     # Non-zero number is truthy
     assert {:ok, r1} =
              Evaluator.evaluate(system, generated, [
-               %{target: {"attr", "strength", "total_score"}, value: 2, when: "1"}
+               %Effect{target: {"attr", "strength", "total_score"}, value: 2, when: "1"}
              ])
 
     assert r1[{"attr", "strength", "total_score"}] == 18
@@ -642,7 +656,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     # Zero is falsy
     assert {:ok, r2} =
              Evaluator.evaluate(system, generated, [
-               %{target: {"attr", "strength", "total_score"}, value: 2, when: "0"}
+               %Effect{target: {"attr", "strength", "total_score"}, value: 2, when: "0"}
              ])
 
     assert r2[{"attr", "strength", "total_score"}] == 16
@@ -650,7 +664,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     # Formula error propagates
     assert {:error, _} =
              Evaluator.evaluate(system, generated, [
-               %{
+               %Effect{
                  target: {"attr", "strength", "total_score"},
                  value: 2,
                  when: "nonexistent('x').y"

@@ -7,14 +7,14 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   and produces a fully-resolved map of all node values.
   """
 
-  alias ExTTRPGDev.RuleSystem.{Expression, Graph, Node}
+  alias ExTTRPGDev.RuleSystem.{Effect, Expression, Graph, Node}
 
   @doc """
   Evaluates all nodes in the DAG in topological order.
 
   - `system` — output of `Graph.build/1`
   - `generated_values` — map of `{type_id, concept_id, field_name} => number` for generated nodes
-  - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: number}`
+  - `effects` — list of `%Effect{target: {type_id, concept_id, field_name}, value: number}`
 
   Returns `{:ok, resolved_map}` or `{:error, reason}`.
 
@@ -68,15 +68,16 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   defp evaluate_accumulator(base_formula, node_key, resolved, effects) do
     with {:ok, base_value} <- Expression.evaluate(base_formula, resolved) do
       effects
-      |> Enum.filter(fn %{target: target} -> target == node_key end)
+      |> Enum.filter(fn %Effect{target: target} -> target == node_key end)
       |> Enum.reduce_while({:ok, base_value}, &apply_effect(&1, &2, resolved))
     end
   end
 
-  defp apply_effect(effect, {:ok, acc}, resolved) do
-    condition = Map.get(effect, :when)
-    item_fields = Map.get(effect, :item_fields, %{})
-
+  defp apply_effect(
+         %Effect{when: condition, item_fields: item_fields} = effect,
+         {:ok, acc},
+         resolved
+       ) do
     with {:ok, true} <- evaluate_condition(condition, resolved, item_fields),
          {:ok, n} <- resolve_effect_value(effect.value, resolved, item_fields) do
       {:cont, {:ok, acc + n}}

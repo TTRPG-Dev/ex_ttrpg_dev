@@ -2,6 +2,7 @@ defmodule ExTTRPGDev.Characters.Character do
   alias __MODULE__
   alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.{InventoryItem, Metadata}
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems.LoadedSystem
@@ -10,7 +11,7 @@ defmodule ExTTRPGDev.Characters.Character do
   Definition of an individual character.
 
   - `generated_values` — map of `{type_id, concept_id, field_name} => integer` for leaf nodes
-  - `effects` — list of `%{target: {type_id, concept_id, field_name}, value: integer}`
+  - `effects` — list of `%Effect{target: {type_id, concept_id, field_name}, value: integer}`
     for currently active items, feats, statuses etc. (defaults to [])
   - `decisions` — list of `%{scope: nil | {type_id, concept_id}, choice: string, selection: string}`
     recording each concept selection made during character creation (defaults to [])
@@ -78,7 +79,7 @@ defmodule ExTTRPGDev.Characters.Character do
           {"#{type}:#{id}:#{field}", value}
         end),
       "effects" =>
-        Enum.map(char.effects, fn %{target: {type, id, field}, value: v} ->
+        Enum.map(char.effects, fn %Effect{target: {type, id, field}, value: v} ->
           %{"target" => "#{type}:#{id}:#{field}", "value" => v}
         end),
       "inventory" =>
@@ -120,7 +121,7 @@ defmodule ExTTRPGDev.Characters.Character do
     effects =
       Enum.map(map["effects"] || [], fn %{"target" => target, "value" => v} ->
         [type, id, field] = String.split(target, ":", parts: 3)
-        %{target: {type, id, field}, value: v}
+        %Effect{target: {type, id, field}, value: v}
       end)
 
     inventory =

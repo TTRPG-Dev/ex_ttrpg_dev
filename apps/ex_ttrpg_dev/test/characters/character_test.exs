@@ -1,5 +1,6 @@
 defmodule ExTTRPGDevTest.Characters.Character do
   use ExUnit.Case
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
   alias ExTTRPGDev.RuleSystems
 
@@ -238,8 +239,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
     original = %{
       original
       | effects: [
-          %{target: {"ability", "strength", "total_score"}, value: 2},
-          %{target: {"ability", "dexterity", "total_score"}, value: -1}
+          %Effect{target: {"ability", "strength", "total_score"}, value: 2},
+          %Effect{target: {"ability", "dexterity", "total_score"}, value: -1}
         ]
     }
 
@@ -248,8 +249,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
     assert length(restored.effects) == 2
 
-    assert %{target: {"ability", "strength", "total_score"}, value: 2} in restored.effects
+    assert %Effect{target: {"ability", "strength", "total_score"}, value: 2} in restored.effects
 
-    assert %{target: {"ability", "dexterity", "total_score"}, value: -1} in restored.effects
+    assert %Effect{target: {"ability", "dexterity", "total_score"}, value: -1} in restored.effects
   end
 end

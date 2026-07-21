@@ -6,6 +6,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   Directed edges flow from dependency to dependent (e.g. `base_score` → `total_score`).
   """
 
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.Node
 
@@ -173,7 +174,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     end)
   end
 
-  defp add_single_effect_edge(graph, nodes, %{target: target_key} = effect)
+  defp add_single_effect_edge(graph, nodes, %Effect{target: target_key} = effect)
        when is_tuple(target_key) do
     if Map.has_key?(nodes, target_key) do
       add_formula_effect_edge(graph, nodes, target_key, effect.value)
@@ -185,7 +186,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   # The Loader only emits tuple targets (unparseable ones are warned about
   # and dropped at load time), so anything else reaching this point is a
   # caller bug worth rejecting rather than silently ignoring.
-  defp add_single_effect_edge(_graph, _nodes, %{target: target}) do
+  defp add_single_effect_edge(_graph, _nodes, %Effect{target: target}) do
     {:error, {:invalid_effect_target, target}}
   end
 

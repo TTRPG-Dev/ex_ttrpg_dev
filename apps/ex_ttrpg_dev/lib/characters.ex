@@ -10,6 +10,7 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystem.Vocabulary
@@ -512,8 +513,8 @@ defmodule ExTTRPGDev.Characters do
 
     system.effects
     |> Enum.filter(fn
-      %{source: {type, id}} -> MapSet.member?(active, {type, id})
-      %{source: {type, id, _}} -> MapSet.member?(active, {type, id})
+      %Effect{source: {type, id}} -> MapSet.member?(active, {type, id})
+      %Effect{source: {type, id, _}} -> MapSet.member?(active, {type, id})
       _ -> false
     end)
     |> Kernel.++(decision_effects)
@@ -759,7 +760,7 @@ defmodule ExTTRPGDev.Characters do
     [node_key | _] = Expression.extract_refs(entry.effect_target)
 
     decision = next_progression_decision(character.decisions, entry.id, method)
-    effect = %{target: node_key, value: value}
+    effect = %Effect{target: node_key, value: value}
 
     updated = %{
       character
@@ -1160,7 +1161,7 @@ defmodule ExTTRPGDev.Characters do
             "contributes_value" => value,
             "type" => target_type
           } ->
-            [%{source: {type, id}, target: {target_type, selected, field}, value: value}]
+            [%Effect{source: {type, id}, target: {target_type, selected, field}, value: value}]
 
           _ ->
             []
@@ -1175,10 +1176,10 @@ defmodule ExTTRPGDev.Characters do
     Enum.flat_map(inventory, fn %InventoryItem{} = item ->
       system.effects
       |> Enum.filter(fn
-        %{source: {type, id}} -> type == item.concept_type and id == item.concept_id
+        %Effect{source: {type, id}} -> type == item.concept_type and id == item.concept_id
         _ -> false
       end)
-      |> Enum.map(&Map.put(&1, :item_fields, item.fields))
+      |> Enum.map(fn %Effect{} = effect -> %{effect | item_fields: item.fields} end)
     end)
   end
 
@@ -1286,7 +1287,7 @@ defmodule ExTTRPGDev.Characters do
 
     level_effects =
       if xp_target && xp_for_level > 0 do
-        [%{target: xp_target, value: xp_for_level} | non_xp_effects]
+        [%Effect{target: xp_target, value: xp_for_level} | non_xp_effects]
       else
         non_xp_effects
       end

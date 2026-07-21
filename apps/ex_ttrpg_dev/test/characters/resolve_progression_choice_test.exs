@@ -2,6 +2,7 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystems
 
   setup do
@@ -109,7 +110,7 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
                7
              )
 
-    assert %{target: {"character_trait", "max_hit_points", "points"}, value: 7} in updated.effects
+    assert %Effect{target: {"character_trait", "max_hit_points", "points"}, value: 7} in updated.effects
 
     assert %{
              scope: {"character_progression", "hp_per_level"},

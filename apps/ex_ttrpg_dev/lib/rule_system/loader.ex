@@ -10,7 +10,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     nodes: %{{type_id, concept_id, field_name} => %Node{}},
     rolling_methods: %{method_id => method_map},
     concept_metadata: %{{type_id, concept_id} => metadata_map},
-    effects: [effect_map]
+    effects: [%Effect{}]
   }
   ```
 
@@ -129,7 +129,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   require Logger
 
-  alias ExTTRPGDev.RuleSystem.{Expression, InventoryRules, Node, RuleModule, Vocabulary}
+  alias ExTTRPGDev.RuleSystem.{Effect, Expression, InventoryRules, Node, RuleModule, Vocabulary}
 
   @module_file "module.toml"
   @character_building_file "character_building.toml"
@@ -449,7 +449,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       targets = find_contribution_targets(concept_metadata, contribution, val)
 
       Enum.map(targets, fn target_id ->
-        %{
+        %Effect{
           source: {contribution.from_type, source_id},
           target: {contribution.to_type, target_id, contribution.to_field},
           value: contribution.value,
@@ -540,7 +540,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp parse_effect(source, %{"target" => target, "value" => value} = entry) do
     case Expression.parse_ref(target) do
       {:ok, ref} ->
-        %{
+        %Effect{
           source: source,
           target: ref,
           value: value,

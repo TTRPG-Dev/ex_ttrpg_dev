@@ -2,6 +2,7 @@ defmodule ExTTRPGDevTest.Characters do
   use ExUnit.Case
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, InventoryItem}
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems
@@ -243,7 +244,7 @@ defmodule ExTTRPGDevTest.Characters do
   end
 
   describe "active_effects/2" do
-    @fighter_effect %{
+    @fighter_effect %Effect{
       source: {"class", "fighter"},
       target: {"saving_throw", "strength", "modifier"},
       value: 2
@@ -319,7 +320,7 @@ defmodule ExTTRPGDevTest.Characters do
       system =
         minimal_system(
           [
-            %{
+            %Effect{
               source: {"equipment", "longsword"},
               target: {"character_trait", "ac", "value"},
               value: 2,
@@ -347,7 +348,13 @@ defmodule ExTTRPGDevTest.Characters do
     test "produces one effect entry per inventory item even for the same concept" do
       system =
         minimal_system(
-          [%{source: {"equipment", "shortsword"}, target: {"stat", "atk", "bonus"}, value: 1}],
+          [
+            %Effect{
+              source: {"equipment", "shortsword"},
+              target: {"stat", "atk", "bonus"},
+              value: 1
+            }
+          ],
           %{}
         )
 
@@ -708,7 +715,7 @@ defmodule ExTTRPGDevTest.Characters do
     test "higher-level slots get appropriate caps reflecting spell access at that level",
          %{system: system, character: character} do
       # XP for level 5 (6500)
-      xp_effect = %{target: {"character_trait", "experience_points", "total"}, value: 6500}
+      xp_effect = %Effect{target: {"character_trait", "experience_points", "total"}, value: 6500}
       character = %{character | effects: [xp_effect]}
 
       slots = Characters.compute_pending_choice_slots(system, character)
@@ -806,7 +813,7 @@ defmodule ExTTRPGDevTest.Characters do
     end
 
     defp xp_effect(amount),
-      do: %{target: {"character_trait", "experience_points", "total"}, value: amount}
+      do: %Effect{target: {"character_trait", "experience_points", "total"}, value: amount}
 
     test "returns xp_needed and next_level for a level 1 character with no xp", %{system: system} do
       character = %Character{effects: []}
@@ -1072,7 +1079,12 @@ defmodule ExTTRPGDevTest.Characters do
 
       # Award XP to level 2 to generate HP pending choices
       xp_target = {"character_trait", "experience_points", "total"}
-      character = %{character | effects: character.effects ++ [%{target: xp_target, value: 300}]}
+
+      character = %{
+        character
+        | effects: character.effects ++ [%Effect{target: xp_target, value: 300}]
+      }
+
       slots = Characters.compute_pending_choice_slots(system, character)
       character = %{character | pending_choice_slots: slots}
 

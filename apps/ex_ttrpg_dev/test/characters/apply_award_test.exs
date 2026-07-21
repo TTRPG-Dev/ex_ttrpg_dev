@@ -2,6 +2,7 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystems
 
   setup do
@@ -10,7 +11,7 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
   end
 
   defp xp_effect(amount),
-    do: %{target: {"character_trait", "experience_points", "total"}, value: amount}
+    do: %Effect{target: {"character_trait", "experience_points", "total"}, value: amount}
 
   test "integer award with an explicit value appends the effect and returns the value",
        %{system: system, character: character} do
