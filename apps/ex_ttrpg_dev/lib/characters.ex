@@ -7,6 +7,7 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.Effects
+  alias ExTTRPGDev.Characters.Generation
   alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.Characters.Leveling
   alias ExTTRPGDev.Characters.Store
@@ -101,15 +102,7 @@ defmodule ExTTRPGDev.Characters do
   Root concepts (those not referenced as sub-options of any other concept of the same type)
   are the valid top-level picks. Sub-choices follow whatever options the selected concept declares.
   """
-  def random_decisions(%LoadedSystem{} = system) do
-    system.module.character_building_choices
-    |> Enum.flat_map(fn %{concept_type: type_id} ->
-      root_ids = root_concept_ids(system.concept_metadata, type_id)
-      selected_id = Enum.random(root_ids)
-      decision = %Decision{scope: nil, choice: type_id, selection: selected_id}
-      [decision | random_sub_decisions(system.concept_metadata, {type_id, selected_id})]
-    end)
-  end
+  defdelegate random_decisions(system), to: Generation
 
   @doc """
   Returns the XP needed for a character to reach the next level in the given system.
@@ -1062,44 +1055,7 @@ defmodule ExTTRPGDev.Characters do
   excluded. Only the top-level selectable concepts (e.g. `"barbarian"`, `"wizard"`)
   are returned.
   """
-  def root_concept_ids(concept_metadata, type_id) do
-    all_ids =
-      concept_metadata
-      |> Enum.filter(fn {{t, _}, _} -> t == type_id end)
-      |> Enum.map(fn {{_, id}, _} -> id end)
-
-    sub_ids =
-      concept_metadata
-      |> Enum.flat_map(fn {_, meta} -> sub_option_ids(meta, type_id) end)
-      |> MapSet.new()
-
-    Enum.reject(all_ids, &MapSet.member?(sub_ids, &1))
-  end
-
-  defp random_sub_decisions(concept_metadata, {type_id, concept_id} = key) do
-    concept_metadata
-    |> Map.get(key, %{})
-    |> Map.get("choices", %{})
-    |> Enum.flat_map(fn {choice_id, choice_def} ->
-      sub_type = choice_def["type"]
-      selected = Enum.random(choice_def["options"])
-      decision = %Decision{scope: {type_id, concept_id}, choice: choice_id, selection: selected}
-
-      if Map.get(choice_def, "grants_to") == "inventory" do
-        [decision]
-      else
-        [decision | random_sub_decisions(concept_metadata, {sub_type, selected})]
-      end
-    end)
-  end
-
-  defp sub_option_ids(meta, type_id) do
-    meta
-    |> Map.get("choices", %{})
-    |> Enum.flat_map(fn {_, choice_def} ->
-      if choice_def["type"] == type_id, do: choice_def["options"] || [], else: []
-    end)
-  end
+  defdelegate root_concept_ids(concept_metadata, type_id), to: Generation
 
   # --- activate/4 helpers ---
 
