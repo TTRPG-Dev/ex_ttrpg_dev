@@ -10,6 +10,7 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Generation
   alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.Characters.Leveling
+  alias ExTTRPGDev.Characters.Rolls
   alias ExTTRPGDev.Characters.Store
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.Effect
@@ -20,7 +21,6 @@ defmodule ExTTRPGDev.Characters do
   # Bound to attributes for use in pattern-match positions; the names are
   # owned by ExTTRPGDev.RuleSystem.Vocabulary.
   @progression_type Vocabulary.progression_type()
-  @roll_type Vocabulary.roll_type()
 
   @doc """
   Get the file path for a character
@@ -440,39 +440,7 @@ defmodule ExTTRPGDev.Characters do
   Raises if no roll is defined for the given concept type, or if the bonus field cannot
   be resolved for the concept.
   """
-  def concept_roll!(%LoadedSystem{} = system, %Character{} = character, type_id, concept_id) do
-    roll_def =
-      system.concept_metadata
-      |> Enum.find(fn {{type, _id}, meta} ->
-        type == @roll_type and meta["target_type"] == type_id
-      end)
-
-    unless roll_def do
-      raise "No roll defined for concept type \"#{type_id}\" in system \"#{system.module.slug}\""
-    end
-
-    {_key, %{"dice" => dice_str, "bonus_field" => bonus_field}} = roll_def
-
-    {_effects, resolved} = resolved_state(system, character)
-
-    bonus_key = {type_id, concept_id, bonus_field}
-
-    unless Map.has_key?(resolved, bonus_key) do
-      raise "Concept \"#{type_id}('#{concept_id}')\" not found in system \"#{system.module.slug}\""
-    end
-
-    bonus = resolved[bonus_key]
-    rolls = Dice.roll(dice_str)
-
-    %{
-      type_id: type_id,
-      concept_id: concept_id,
-      dice: dice_str,
-      rolls: rolls,
-      bonus: bonus,
-      total: Enum.sum(rolls) + bonus
-    }
-  end
+  defdelegate concept_roll!(system, character, type_id, concept_id), to: Rolls
 
   @doc """
   Returns the list of character progression choices that are currently pending or available.
