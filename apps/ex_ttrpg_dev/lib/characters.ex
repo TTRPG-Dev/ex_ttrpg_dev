@@ -6,9 +6,8 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Advancement
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Decision
-  alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Characters.InventoryItem
-  alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.Characters.Store
   alias ExTTRPGDev.RuleSystem.Evaluator
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.Effect
@@ -30,13 +29,7 @@ defmodule ExTTRPGDev.Characters do
       iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
       "mr_whiskers.json"
   """
-  def character_file_path!(%Character{metadata: %Metadata{slug: slug}}) do
-    character_file_path!(slug)
-  end
-
-  def character_file_path!(character_slug) when is_bitstring(character_slug) do
-    Path.join(Globals.characters_path(), "#{character_slug}.json")
-  end
+  defdelegate character_file_path!(character), to: Store
 
   @doc """
   Returns a boolean as to whether the character exists on disk
@@ -55,11 +48,7 @@ defmodule ExTTRPGDev.Characters do
       iex> Characters.Character_exists?("this_character_doesnt_exist")
       false
   """
-  def character_exists?(character) do
-    character
-    |> character_file_path!
-    |> File.exists?()
-  end
+  defdelegate character_exists?(character), to: Store
 
   @doc """
   Saves the given character to disk. Error is raised if character already exists unless `overwrite` is set to true
@@ -75,21 +64,7 @@ defmodule ExTTRPGDev.Characters do
       iex> Characters.save_character!(%Characters.Character{name: "exists already"}, true)
       :ok
   """
-  def save_character!(
-        %Character{} = character,
-        overwrite \\ false
-      ) do
-    if character_exists?(character) and not overwrite do
-      raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
-    else
-      File.mkdir_p!(Globals.characters_path())
-
-      File.write!(
-        character_file_path!(character),
-        Poison.encode!(Character.to_json_map(character))
-      )
-    end
-  end
+  defdelegate save_character!(character, overwrite \\ false), to: Store
 
   @doc """
   Delete a saved character by slug.
@@ -97,16 +72,7 @@ defmodule ExTTRPGDev.Characters do
   Returns `:ok` if the character was deleted, `{:error, :not_found}` if no
   character with that slug exists.
   """
-  def delete_character(character_slug) do
-    path = character_file_path!(character_slug)
-
-    if File.exists?(path) do
-      File.rm!(path)
-      :ok
-    else
-      {:error, :not_found}
-    end
-  end
+  defdelegate delete_character(character_slug), to: Store
 
   @doc """
   List saved characters
@@ -116,14 +82,7 @@ defmodule ExTTRPGDev.Characters do
       iex> Characters.list_characters!()
       [%Character{}, %Character{}, ...]
   """
-  def list_characters!() do
-    if File.exists?(Globals.characters_path()) do
-      File.ls!(Globals.characters_path())
-      |> Enum.map(fn x -> String.trim_trailing(x, ".json") end)
-    else
-      []
-    end
-  end
+  defdelegate list_characters!(), to: Store
 
   @doc """
   Load a saved character
@@ -133,11 +92,7 @@ defmodule ExTTRPGDev.Characters do
       iex> Character.load_character!("misu_park_the_cat")
       %Character{}
   """
-  def load_character!(character_slug) do
-    character_file_path!(character_slug)
-    |> File.read!()
-    |> Character.from_json!()
-  end
+  defdelegate load_character!(character_slug), to: Store
 
   @doc """
   Generates a random decision list for a system by randomly selecting a value for each required
