@@ -75,6 +75,26 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
     }
   end
 
+  defp built_spell_system(nodes, concept_metadata, building_choices \\ [%{concept_type: "class"}]) do
+    {:ok, built} =
+      ExTTRPGDev.RuleSystem.Graph.build(%{
+        nodes: nodes,
+        effects: [],
+        concept_metadata: concept_metadata,
+        rolling_methods: %{}
+      })
+
+    %LoadedSystem{
+      module: %{character_building_choices: building_choices},
+      graph: built.graph,
+      nodes: built.nodes,
+      rolling_methods: %{},
+      effects: [],
+      concept_metadata: concept_metadata,
+      inventory_rules: spell_inv_rules()
+    }
+  end
+
   describe "activate/4" do
     test "returns error for unknown inventory type" do
       assert {:error, {:unknown_inventory_type, "weapon"}} =
@@ -114,23 +134,7 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
         {"spell", "cure_wounds"} => %{"level" => 1}
       }
 
-      {:ok, built} =
-        ExTTRPGDev.RuleSystem.Graph.build(%{
-          nodes: nodes,
-          effects: [],
-          concept_metadata: concept_metadata,
-          rolling_methods: %{}
-        })
-
-      system = %LoadedSystem{
-        module: %{character_building_choices: [%{concept_type: "class"}]},
-        graph: built.graph,
-        nodes: built.nodes,
-        rolling_methods: %{},
-        effects: [],
-        concept_metadata: concept_metadata,
-        inventory_rules: spell_inv_rules()
-      }
+      system = built_spell_system(nodes, concept_metadata)
 
       decisions = [
         %Decision{scope: nil, choice: "class", selection: "wizard"},
@@ -185,23 +189,7 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
         {"spell", "magic_missile"} => %{"level" => 1}
       }
 
-      {:ok, built} =
-        ExTTRPGDev.RuleSystem.Graph.build(%{
-          nodes: nodes,
-          effects: [],
-          concept_metadata: concept_metadata,
-          rolling_methods: %{}
-        })
-
-      system = %LoadedSystem{
-        module: %{character_building_choices: [%{concept_type: "class"}]},
-        graph: built.graph,
-        nodes: built.nodes,
-        rolling_methods: %{},
-        effects: [],
-        concept_metadata: concept_metadata,
-        inventory_rules: spell_inv_rules()
-      }
+      system = built_spell_system(nodes, concept_metadata)
 
       decisions = [
         %Decision{scope: nil, choice: "class", selection: "wizard"},
@@ -253,23 +241,7 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
         {"spell", "cure_wounds"} => %{"level" => 1, "classes" => ["cleric"]}
       }
 
-      {:ok, built} =
-        ExTTRPGDev.RuleSystem.Graph.build(%{
-          nodes: nodes,
-          effects: [],
-          concept_metadata: concept_metadata,
-          rolling_methods: %{}
-        })
-
-      system = %LoadedSystem{
-        module: %{character_building_choices: [%{concept_type: "class"}]},
-        graph: built.graph,
-        nodes: built.nodes,
-        rolling_methods: %{},
-        effects: [],
-        concept_metadata: concept_metadata,
-        inventory_rules: spell_inv_rules()
-      }
+      system = built_spell_system(nodes, concept_metadata)
 
       decisions = [%Decision{scope: nil, choice: "class", selection: "cleric"}]
 
@@ -372,23 +344,7 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
         {"spell", "fire_bolt"} => %{"level" => 1}
       }
 
-      {:ok, built} =
-        ExTTRPGDev.RuleSystem.Graph.build(%{
-          nodes: nodes,
-          effects: [],
-          concept_metadata: concept_metadata,
-          rolling_methods: %{}
-        })
-
-      system = %LoadedSystem{
-        module: %{character_building_choices: [%{concept_type: "class"}]},
-        graph: built.graph,
-        nodes: built.nodes,
-        rolling_methods: %{},
-        effects: [],
-        concept_metadata: concept_metadata,
-        inventory_rules: spell_inv_rules()
-      }
+      system = built_spell_system(nodes, concept_metadata)
 
       decisions = [
         %Decision{scope: nil, choice: "class", selection: "wizard"},
@@ -433,23 +389,7 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
         {"spell", "hold_person"} => %{"level" => 2, "classes" => ["cleric"]}
       }
 
-      {:ok, built} =
-        ExTTRPGDev.RuleSystem.Graph.build(%{
-          nodes: nodes,
-          effects: [],
-          concept_metadata: concept_metadata,
-          rolling_methods: %{}
-        })
-
-      system = %LoadedSystem{
-        module: %{character_building_choices: [%{concept_type: "class"}]},
-        graph: built.graph,
-        nodes: built.nodes,
-        rolling_methods: %{},
-        effects: [],
-        concept_metadata: concept_metadata,
-        inventory_rules: spell_inv_rules()
-      }
+      system = built_spell_system(nodes, concept_metadata)
 
       decisions = [
         %Decision{scope: nil, choice: "class", selection: "cleric"},
@@ -484,25 +424,11 @@ defmodule ExTTRPGDevTest.Characters.Preparation do
         {"spell", "guiding_bolt"} => %{"level" => 1, "classes" => ["cleric"]}
       }
 
-      {:ok, built} =
-        ExTTRPGDev.RuleSystem.Graph.build(%{
-          nodes: nodes,
-          effects: [],
-          concept_metadata: concept_metadata,
-          rolling_methods: %{}
-        })
-
-      system = %LoadedSystem{
-        module: %{
-          character_building_choices: [%{concept_type: "class"}, %{concept_type: "race"}]
-        },
-        graph: built.graph,
-        nodes: built.nodes,
-        rolling_methods: %{},
-        effects: [],
-        concept_metadata: concept_metadata,
-        inventory_rules: spell_inv_rules()
-      }
+      system =
+        built_spell_system(nodes, concept_metadata, [
+          %{concept_type: "class"},
+          %{concept_type: "race"}
+        ])
 
       decisions = [
         %Decision{scope: nil, choice: "class", selection: "cleric"},
