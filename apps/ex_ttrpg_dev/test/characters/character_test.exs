@@ -1,5 +1,7 @@
 defmodule ExTTRPGDevTest.Characters.Character do
   use ExUnit.Case
+  import ExUnit.CaptureLog
+
   alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.Characters.{Character, Decision, InventoryItem}
   alias ExTTRPGDev.RuleSystems
@@ -135,6 +137,64 @@ defmodule ExTTRPGDevTest.Characters.Character do
     decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
     character = Character.gen_character!(system, decisions)
     assert character.inventory == []
+  end
+
+  test "gen_character!/2 logs a warning and drops a starting-equipment entry missing type/id" do
+    {:ok, inventory_rules} = ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{})
+
+    system =
+      RuleSystems.load_system!("dnd_5e_srd")
+      |> Map.put(:inventory_rules, inventory_rules)
+      |> Map.put(:concept_metadata, %{
+        {"class", "fighter"} => %{
+          "starting_equipment" => [%{"id" => "longsword"}]
+        }
+      })
+
+    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
+
+    log =
+      capture_log(fn ->
+        character = Character.gen_character!(system, decisions)
+        assert character.inventory == []
+      end)
+
+    assert log =~ "Starting equipment spec"
+    assert log =~ "missing a required type or id key"
+  end
+
+  test "gen_character!/2 logs a warning and drops a starting-equipment entry with an invalid field" do
+    {:ok, inventory_rules} =
+      ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
+        "inventory_type" => %{
+          "equipment" => %{
+            "activation_field" => "equipped",
+            "schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
+          }
+        }
+      })
+
+    system =
+      RuleSystems.load_system!("dnd_5e_srd")
+      |> Map.put(:inventory_rules, inventory_rules)
+      |> Map.put(:concept_metadata, %{
+        {"class", "fighter"} => %{
+          "starting_equipment" => [
+            %{"type" => "equipment", "id" => "longsword", "fields" => %{"typo_field" => true}}
+          ]
+        }
+      })
+
+    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
+
+    log =
+      capture_log(fn ->
+        character = Character.gen_character!(system, decisions)
+        assert character.inventory == []
+      end)
+
+    assert log =~ "Starting equipment spec"
+    assert log =~ "could not be resolved to an inventory item"
   end
 
   test "gen_character!/2 adds inventory item for equipment choice decision" do

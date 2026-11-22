@@ -1,4 +1,6 @@
 defmodule ExTTRPGDev.Characters.Character do
+  require Logger
+
   alias __MODULE__
   alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.{Decision, InventoryItem, Metadata}
@@ -222,12 +224,32 @@ defmodule ExTTRPGDev.Characters.Character do
     custom_fields = Map.get(spec, "fields", %{})
 
     case InventoryItem.new(type, id, inventory_rules, custom_fields) do
-      {:ok, item} -> [item]
-      _ -> []
+      {:ok, item} ->
+        [item]
+
+      # Not every starting-equipment entry needs to be inventory-tracked
+      # (e.g. a type the system declares but never configures as inventoriable).
+      {:error, {:not_inventoriable, _type}} ->
+        []
+
+      {:error, reason} ->
+        Logger.warning(
+          "Starting equipment spec #{inspect(spec)} could not be resolved to an inventory " <>
+            "item: #{inspect(reason)}. Item dropped."
+        )
+
+        []
     end
   end
 
-  defp item_from_spec(_, _), do: []
+  defp item_from_spec(spec, _inventory_rules) do
+    Logger.warning(
+      "Starting equipment spec #{inspect(spec)} is missing a required type or id key. " <>
+        "Item dropped."
+    )
+
+    []
+  end
 
   defp roll_generated_value(%Node{method: method_id}, rolling_methods) do
     method = resolve_rolling_method(method_id, rolling_methods)
