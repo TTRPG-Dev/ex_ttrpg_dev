@@ -45,12 +45,10 @@ defmodule ExTTRPGDev.Characters.Store do
     if character_exists?(character) and not overwrite do
       {:error, :already_exists}
     else
-      File.mkdir_p!(Globals.characters_path())
-
-      File.write(
-        character_file_path!(character),
-        Poison.encode!(Character.to_json_map(character))
-      )
+      with :ok <- File.mkdir_p(Globals.characters_path()),
+           {:ok, json} <- Poison.encode(Character.to_json_map(character)) do
+        File.write(character_file_path!(character), json)
+      end
     end
   end
 
