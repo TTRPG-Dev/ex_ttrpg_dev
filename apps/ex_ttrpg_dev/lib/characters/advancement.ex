@@ -35,10 +35,8 @@ defmodule ExTTRPGDev.Characters.Advancement do
         | effects: character.effects ++ [%Effect{target: target, value: awarded}]
       }
 
-      updated = %{
-        updated
-        | pending_choice_slots: Characters.compute_pending_choice_slots(system, updated)
-      }
+      {:ok, %{slots: slots}} = Characters.compute_pending_choice_slots(system, updated)
+      updated = %{updated | pending_choice_slots: slots}
 
       {:ok, updated, awarded}
     end
@@ -112,7 +110,7 @@ defmodule ExTTRPGDev.Characters.Advancement do
 
   defp resolve_selection_progression(system, character, progression_id, selection) do
     {_effects, resolved} = Characters.resolved_state(system, character)
-    choices = Characters.pending_choices(system, character, resolved)
+    {:ok, %{choices: choices}} = Characters.pending_choices(system, character, resolved)
 
     entry =
       Enum.find(choices, fn c ->

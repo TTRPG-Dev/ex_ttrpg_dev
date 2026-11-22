@@ -17,10 +17,10 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
 
     character = Character.gen_character!(system, decisions)
 
-    character = %{
-      character
-      | pending_choice_slots: Characters.compute_pending_choice_slots(system, character)
-    }
+    {:ok, %{slots: slots, errors: []}} =
+      Characters.compute_pending_choice_slots(system, character)
+
+    character = %{character | pending_choice_slots: slots}
 
     {:ok, system: system, character: character}
   end
@@ -28,8 +28,10 @@ defmodule ExTTRPGDevTest.Characters.ResolveProgressionChoice do
   defp pending_options(system, character, progression_id) do
     {_effects, resolved} = Characters.resolved_state(system, character)
 
-    system
-    |> Characters.pending_choices(character, resolved)
+    {:ok, %{choices: choices, errors: []}} =
+      Characters.pending_choices(system, character, resolved)
+
+    choices
     |> Enum.find(&(&1.id == progression_id and not Map.has_key?(&1, :scope_type)))
     |> Map.fetch!(:options)
   end

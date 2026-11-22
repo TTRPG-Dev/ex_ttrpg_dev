@@ -1,6 +1,5 @@
 defmodule ExTTRPGDevTest.Characters.Progression do
   use ExUnit.Case, async: true
-  import ExUnit.CaptureLog
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, Decision}
@@ -29,6 +28,24 @@ defmodule ExTTRPGDevTest.Characters.Progression do
     }
   end
 
+  # Happy-path helper: asserts there were no expression-evaluation errors and
+  # returns just the choices list. Malformed-config tests call
+  # `Characters.pending_choices/3` directly to inspect `:errors`.
+  defp pending_choices!(system, character, resolved) do
+    assert {:ok, %{choices: choices, errors: []}} =
+             Characters.pending_choices(system, character, resolved)
+
+    choices
+  end
+
+  # Happy-path helper: see `pending_choices!/3`.
+  defp pending_choice_slots!(system, character) do
+    assert {:ok, %{slots: slots, errors: []}} =
+             Characters.compute_pending_choice_slots(system, character)
+
+    slots
+  end
+
   describe "pending_choices/3" do
     @level_binding %{{"character_trait", "character_level", "level"} => 3}
 
@@ -55,13 +72,13 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
     test "returns empty list when no character_progression concepts exist" do
       system = minimal_system([], %{})
-      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+      assert pending_choices!(system, minimal_character([]), %{}) == []
     end
 
     test "returns a pending entry when required slots exceed decisions made" do
       system = progression_system(%{"hp_per_level" => @hp_progression})
       # level 3 → required 2, decisions made 0 → 2 pending
-      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      [entry] = pending_choices!(system, minimal_character([]), @level_binding)
       assert entry.type == :pending
       assert entry.id == "hp_per_level"
       assert entry.name == "Hit Points"
@@ -81,7 +98,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       ]
 
       # level 3 → required 2, made 1 → 1 pending
-      [entry] = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
+      [entry] = pending_choices!(system, minimal_character(decisions), @level_binding)
       assert entry.count == 1
     end
 
@@ -102,8 +119,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       ]
 
       # level 3 → required 2, made 2 → empty
-      assert Characters.pending_choices(system, minimal_character(decisions), @level_binding) ==
-               []
+      assert pending_choices!(system, minimal_character(decisions), @level_binding) == []
     end
 
     test "does not count decisions scoped to a different progression" do
@@ -118,20 +134,29 @@ defmodule ExTTRPGDevTest.Characters.Progression do
         }
       ]
 
-      result = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
+      result = pending_choices!(system, minimal_character(decisions), @level_binding)
       hp_entry = Enum.find(result, &(&1.id == "hp_per_level"))
       assert hp_entry.count == 2
     end
 
-    test "returns empty for required_count when formula binding is missing" do
+    test "reports a structured error for required_count when formula binding is missing" do
       system = progression_system(%{"hp_per_level" => @hp_progression})
-      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+
+      assert {:ok, %{choices: [], errors: [error]}} =
+               Characters.pending_choices(system, minimal_character([]), %{})
+
+      assert %{
+               progression_id: "hp_per_level",
+               field: "required_count",
+               reason: {:missing_binding, _}
+             } =
+               error
     end
 
     test "returns an available entry when available_when is truthy" do
       system = progression_system(%{"spend_xp" => @spend_xp_progression})
       resolved = %{{"character_trait", "experience_points", "total"} => 100}
-      [entry] = Characters.pending_choices(system, minimal_character([]), resolved)
+      [entry] = pending_choices!(system, minimal_character([]), resolved)
       assert entry.type == :available
       assert entry.id == "spend_xp"
       assert entry.effect_target == "skill('athletics').modifier"
@@ -140,7 +165,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
     test "returns empty when available_when evaluates to 0" do
       system = progression_system(%{"spend_xp" => @spend_xp_progression})
       resolved = %{{"character_trait", "experience_points", "total"} => 0}
-      assert Characters.pending_choices(system, minimal_character([]), resolved) == []
+      assert pending_choices!(system, minimal_character([]), resolved) == []
     end
 
     test "returns empty when available_when evaluates to false" do
@@ -153,12 +178,17 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
       system = progression_system(%{"spend_xp" => progression})
       resolved = %{{"character_trait", "experience_points", "total"} => 0}
-      assert Characters.pending_choices(system, minimal_character([]), resolved) == []
+      assert pending_choices!(system, minimal_character([]), resolved) == []
     end
 
-    test "returns empty for available_when when formula binding is missing" do
+    test "reports a structured error for available_when when formula binding is missing" do
       system = progression_system(%{"spend_xp" => Map.delete(@spend_xp_progression, "name")})
-      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+
+      assert {:ok, %{choices: [], errors: [error]}} =
+               Characters.pending_choices(system, minimal_character([]), %{})
+
+      assert %{progression_id: "spend_xp", field: "available_when", reason: {:missing_binding, _}} =
+               error
     end
 
     test "returns empty when progression has neither required_count nor available_when" do
@@ -168,13 +198,13 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       }
 
       system = progression_system(%{"inert" => progression})
-      assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+      assert pending_choices!(system, minimal_character([]), %{}) == []
     end
 
     test "falls back to id as name when name is not present" do
       progression = Map.delete(@hp_progression, "name")
       system = progression_system(%{"hp_per_level" => progression})
-      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      [entry] = pending_choices!(system, minimal_character([]), @level_binding)
       assert entry.name == "hp_per_level"
     end
 
@@ -187,7 +217,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
       system = minimal_system([], concept_metadata)
       decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
-      [entry] = Characters.pending_choices(system, minimal_character(decisions), @level_binding)
+      [entry] = pending_choices!(system, minimal_character(decisions), @level_binding)
       assert entry.roll == "d10"
     end
 
@@ -198,13 +228,13 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       }
 
       system = minimal_system([], concept_metadata)
-      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      [entry] = pending_choices!(system, minimal_character([]), @level_binding)
       assert entry.roll == nil
     end
 
     test "roll is nil when no roll_reference is declared" do
       system = progression_system(%{"hp_per_level" => @hp_progression})
-      [entry] = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      [entry] = pending_choices!(system, minimal_character([]), @level_binding)
       assert entry.roll == nil
     end
 
@@ -216,7 +246,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       }
 
       system = progression_system(%{"hp_per_level" => @hp_progression, "other" => other})
-      result = Characters.pending_choices(system, minimal_character([]), @level_binding)
+      result = pending_choices!(system, minimal_character([]), @level_binding)
       assert Enum.map(result, & &1.id) |> Enum.sort() == ["hp_per_level", "other"]
     end
 
@@ -251,7 +281,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       system = spell_system(%{"cantrips" => @cantrip_progression}, @spell_meta)
 
       decisions = [%Decision{scope: nil, choice: "class", selection: "wizard"}]
-      [entry] = Characters.pending_choices(system, minimal_character(decisions), %{})
+      [entry] = pending_choices!(system, minimal_character(decisions), %{})
 
       assert entry.id == "cantrips"
       assert entry.count == 2
@@ -263,7 +293,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
     test "spell progression returns no options when no class active" do
       system = spell_system(%{"cantrips" => @cantrip_progression}, @spell_meta)
 
-      [entry] = Characters.pending_choices(system, minimal_character([]), %{})
+      [entry] = pending_choices!(system, minimal_character([]), %{})
 
       assert entry.options == []
     end
@@ -284,49 +314,68 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       resolved = %{{"character_trait", "max_spell_level", "level"} => 1}
       decisions = [%Decision{scope: nil, choice: "class", selection: "cleric"}]
 
-      [entry] = Characters.pending_choices(system, minimal_character(decisions), resolved)
+      [entry] = pending_choices!(system, minimal_character(decisions), resolved)
 
       assert entry.id == "spells_known"
       assert entry.options == ["cure_wounds"]
     end
 
-    test "selection progression with malformed required_count logs a warning and reports no pending choice" do
+    test "selection progression with malformed required_count reports a structured error and no pending choice" do
       progression = Map.put(@cantrip_progression, "required_count", "1 +")
       system = spell_system(%{"cantrips" => progression}, @spell_meta)
 
-      log =
-        capture_log(fn ->
-          assert Characters.pending_choices(system, minimal_character([]), %{}) == []
-        end)
+      assert {:ok, %{choices: [], errors: [error]}} =
+               Characters.pending_choices(system, minimal_character([]), %{})
 
-      assert log =~ "Progression \"cantrips\" required_count"
-      assert log =~ "failed to evaluate"
+      assert %{
+               progression_id: "cantrips",
+               field: "required_count",
+               expr: "1 +",
+               reason: {:parse_error, _, _}
+             } = error
     end
 
-    test "value progression with malformed required_count logs a warning and reports no pending choice" do
+    test "value progression with malformed required_count reports a structured error and no pending choice" do
       progression = Map.put(@hp_progression, "required_count", "1 +")
       system = progression_system(%{"hp_per_level" => progression})
 
-      log =
-        capture_log(fn ->
-          assert Characters.pending_choices(system, minimal_character([]), @level_binding) == []
-        end)
+      assert {:ok, %{choices: [], errors: [error]}} =
+               Characters.pending_choices(system, minimal_character([]), @level_binding)
 
-      assert log =~ "Progression \"hp_per_level\" required_count"
-      assert log =~ "failed to evaluate"
+      assert %{
+               progression_id: "hp_per_level",
+               field: "required_count",
+               expr: "1 +",
+               reason: {:parse_error, _, _}
+             } = error
     end
 
-    test "available_when with a malformed expression logs a warning and reports unavailable" do
+    test "available_when with a malformed expression reports a structured error and no available entry" do
       progression = Map.put(@spend_xp_progression, "available_when", "1 +")
       system = progression_system(%{"spend_xp" => progression})
 
-      log =
-        capture_log(fn ->
-          assert Characters.pending_choices(system, minimal_character([]), %{}) == []
-        end)
+      assert {:ok, %{choices: [], errors: [error]}} =
+               Characters.pending_choices(system, minimal_character([]), %{})
 
-      assert log =~ "Progression \"spend_xp\" available_when"
-      assert log =~ "failed to evaluate"
+      assert %{
+               progression_id: "spend_xp",
+               field: "available_when",
+               expr: "1 +",
+               reason: {:parse_error, _, _}
+             } = error
+    end
+
+    test "a malformed progression does not block other, well-formed progressions" do
+      malformed = Map.put(@cantrip_progression, "required_count", "1 +")
+
+      system =
+        spell_system(%{"cantrips" => malformed, "hp_per_level" => @hp_progression}, @spell_meta)
+
+      assert {:ok, %{choices: [choice], errors: [error]}} =
+               Characters.pending_choices(system, minimal_character([]), @level_binding)
+
+      assert choice.id == "hp_per_level"
+      assert error.progression_id == "cantrips"
     end
 
     test "spell progression uses pending_choice_slots cap instead of resolved max level" do
@@ -356,7 +405,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       ]
 
       character = %{minimal_character(decisions) | pending_choice_slots: pending_choice_slots}
-      [entry] = Characters.pending_choices(system, character, resolved)
+      [entry] = pending_choices!(system, character, resolved)
 
       # fireball (level 3) should be excluded despite resolved allowing level 3
       assert entry.options == ["cure_wounds"]
@@ -389,7 +438,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
     test "level 1 character gets slots with cap 1 for initial spell choices",
          %{system: system, character: character} do
-      slots = Characters.compute_pending_choice_slots(system, character)
+      slots = pending_choice_slots!(system, character)
       spells_known = Enum.filter(slots, &(&1.progression_id == "spells_known"))
 
       # sorcerer starts with 2 spells known at level 1
@@ -404,7 +453,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       xp_effect = %Effect{target: {"character_trait", "experience_points", "total"}, value: 6500}
       character = %{character | effects: [xp_effect]}
 
-      slots = Characters.compute_pending_choice_slots(system, character)
+      slots = pending_choice_slots!(system, character)
       spells_known = Enum.filter(slots, &(&1.progression_id == "spells_known"))
 
       # At level 5, a sorcerer knows 6 spells total; all 6 slots are pending
@@ -426,7 +475,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       }
 
       character = %{character | decisions: character.decisions ++ [spell_decision]}
-      slots = Characters.compute_pending_choice_slots(system, character)
+      slots = pending_choice_slots!(system, character)
       spells_known = Enum.filter(slots, &(&1.progression_id == "spells_known"))
 
       # 2 total at level 1, minus 1 decided = 1 remaining
@@ -442,10 +491,10 @@ defmodule ExTTRPGDevTest.Characters.Progression do
         end)
 
       system = %{system | concept_metadata: concept_metadata}
-      assert Characters.compute_pending_choice_slots(system, character) == []
+      assert pending_choice_slots!(system, character) == []
     end
 
-    test "malformed required_count on a level-capped progression logs a warning instead of silently treating it as 0 slots",
+    test "malformed required_count on a level-capped progression reports a structured error instead of silently treating it as 0 slots",
          %{system: system, character: character} do
       concept_metadata =
         Map.update!(
@@ -456,19 +505,24 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
       system = %{system | concept_metadata: concept_metadata}
 
-      log =
-        capture_log(fn ->
-          slots = Characters.compute_pending_choice_slots(system, character)
-          refute Enum.any?(slots, &(&1.progression_id == "spells_known"))
-        end)
+      assert {:ok, %{slots: slots, errors: errors}} =
+               Characters.compute_pending_choice_slots(system, character)
 
-      assert log =~ "Progression \"spells_known\" field required_count"
-      assert log =~ "failed to evaluate"
+      refute Enum.any?(slots, &(&1.progression_id == "spells_known"))
+
+      assert [
+               %{
+                 progression_id: "spells_known",
+                 field: "required_count",
+                 reason: {:parse_error, _, _}
+               }
+             ] =
+               errors
     end
   end
 
   describe "compute_pending_choice_slots/2 with a malformed module.level_node" do
-    test "logs a warning and returns no slots when level_node has no node references" do
+    test "reports a structured error and returns no slots when level_node has no node references" do
       system = %ExTTRPGDev.RuleSystems.LoadedSystem{
         module: %RuleModule{level_node: "1 + 1"},
         graph: nil,
@@ -480,13 +534,18 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
       character = minimal_character([])
 
-      log =
-        capture_log(fn ->
-          assert Characters.compute_pending_choice_slots(system, character) == []
-        end)
-
-      assert log =~ "module.level_node"
-      assert log =~ "no node references"
+      assert {:ok,
+              %{
+                slots: [],
+                errors: [
+                  %{
+                    progression_id: nil,
+                    field: "module.level_node",
+                    expr: "1 + 1",
+                    reason: :no_node_references
+                  }
+                ]
+              }} = Characters.compute_pending_choice_slots(system, character)
     end
   end
 
@@ -571,7 +630,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
     test "no sub-choices when feat has not been selected" do
       system = asi_system()
-      choices = Characters.pending_choices(system, asi_character([]), %{})
+      choices = pending_choices!(system, asi_character([]), %{})
 
       sub = Enum.filter(choices, &Map.has_key?(&1, :scope_type))
       assert sub == []
@@ -586,7 +645,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
         }
       ]
 
-      choices = Characters.pending_choices(asi_system(), asi_character(decisions), %{})
+      choices = pending_choices!(asi_system(), asi_character(decisions), %{})
       Enum.filter(choices, &Map.has_key?(&1, :scope_type))
     end
 
@@ -617,7 +676,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
         }
       ]
 
-      choices = Characters.pending_choices(asi_system(), asi_character(decisions), %{})
+      choices = pending_choices!(asi_system(), asi_character(decisions), %{})
 
       sub = Enum.filter(choices, &Map.has_key?(&1, :scope_type))
       assert length(sub) == 1
@@ -643,7 +702,7 @@ defmodule ExTTRPGDevTest.Characters.Progression do
         }
       ]
 
-      choices = Characters.pending_choices(asi_system(), asi_character(decisions), %{})
+      choices = pending_choices!(asi_system(), asi_character(decisions), %{})
 
       sub = Enum.filter(choices, &Map.has_key?(&1, :scope_type))
       assert sub == []

@@ -61,18 +61,19 @@ defmodule ExTTRPGDevTest.Characters.ApplyAward do
     decisions = [%Decision{scope: nil, choice: "class", selection: "wizard"}]
     character = Character.gen_character!(system, decisions)
 
-    character = %{
-      character
-      | pending_choice_slots: Characters.compute_pending_choice_slots(system, character)
-    }
+    {:ok, %{slots: slots, errors: []}} =
+      Characters.compute_pending_choice_slots(system, character)
+
+    character = %{character | pending_choice_slots: slots}
 
     # 6500 XP puts the wizard at level 5, unlocking additional spells_known slots
     assert {:ok, updated, 6500} =
              Characters.apply_award(system, character, "experience_points", 6500)
 
-    assert updated.pending_choice_slots ==
+    assert {:ok, %{slots: updated_slots, errors: []}} =
              Characters.compute_pending_choice_slots(system, updated)
 
+    assert updated.pending_choice_slots == updated_slots
     assert length(updated.pending_choice_slots) > length(character.pending_choice_slots)
   end
 end

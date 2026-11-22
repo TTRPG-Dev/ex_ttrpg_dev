@@ -10,7 +10,10 @@ defmodule ExTTRPGDevTest.Characters.Resolution do
       system = RuleSystems.load_system!("dnd_5e_srd")
       decisions = Characters.random_decisions(system)
       character = Character.gen_character!(system, decisions)
-      slots = Characters.compute_pending_choice_slots(system, character)
+
+      {:ok, %{slots: slots, errors: []}} =
+        Characters.compute_pending_choice_slots(system, character)
+
       character = %{character | pending_choice_slots: slots}
       %{system: system, character: character}
     end
@@ -30,7 +33,8 @@ defmodule ExTTRPGDevTest.Characters.Resolution do
           all_effects
         )
 
-      choices = Characters.pending_choices(system, resolved_character, resolved)
+      {:ok, %{choices: choices, errors: []}} =
+        Characters.pending_choices(system, resolved_character, resolved)
 
       level_1_pending =
         Enum.filter(choices, fn c ->
@@ -76,7 +80,9 @@ defmodule ExTTRPGDevTest.Characters.Resolution do
       system = RuleSystems.load_system!("dnd_5e_srd")
       decisions = Characters.random_decisions(system)
       character = Character.gen_character!(system, decisions)
-      slots = Characters.compute_pending_choice_slots(system, character)
+
+      {:ok, %{slots: slots, errors: []}} =
+        Characters.compute_pending_choice_slots(system, character)
 
       character =
         Characters.auto_resolve_pending(system, %{character | pending_choice_slots: slots})
@@ -89,7 +95,9 @@ defmodule ExTTRPGDevTest.Characters.Resolution do
         | effects: character.effects ++ [%Effect{target: xp_target, value: 300}]
       }
 
-      slots = Characters.compute_pending_choice_slots(system, character)
+      {:ok, %{slots: slots, errors: []}} =
+        Characters.compute_pending_choice_slots(system, character)
+
       character = %{character | pending_choice_slots: slots}
 
       %{system: system, character: character}
@@ -106,7 +114,8 @@ defmodule ExTTRPGDevTest.Characters.Resolution do
       resolved_map =
         ExTTRPGDev.RuleSystem.Evaluator.evaluate!(system, resolved.generated_values, all_effects)
 
-      choices = Characters.pending_choices(system, resolved, resolved_map)
+      {:ok, %{choices: choices, errors: []}} =
+        Characters.pending_choices(system, resolved, resolved_map)
 
       assert Enum.filter(choices, &(&1.type == :pending)) == []
     end
@@ -120,11 +129,10 @@ defmodule ExTTRPGDevTest.Characters.Resolution do
       resolved_map =
         ExTTRPGDev.RuleSystem.Evaluator.evaluate!(system, character.generated_values, all_effects)
 
-      pending_before =
-        Enum.filter(
-          Characters.pending_choices(system, character, resolved_map),
-          &(&1.type == :pending)
-        )
+      {:ok, %{choices: choices, errors: []}} =
+        Characters.pending_choices(system, character, resolved_map)
+
+      pending_before = Enum.filter(choices, &(&1.type == :pending))
 
       {_resolved, resolutions} = Characters.random_resolve_all(system, character)
 

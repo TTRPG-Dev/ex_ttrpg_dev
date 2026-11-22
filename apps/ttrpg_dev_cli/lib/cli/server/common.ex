@@ -23,15 +23,24 @@ defmodule ExTTRPGDev.CLI.Server.Common do
   The standard response body for mutate-then-report handlers: the character
   serialized against a single DAG evaluation, plus its recomputed pending
   choices rendered in the request's display mode.
+
+  Includes `:pending_choice_errors` — a (usually empty) list of progressions
+  whose `required_count`/`available_when` expression failed to evaluate, so
+  a malformed rule-system config surfaces to the caller instead of just
+  vanishing from `:pending_choices`.
   """
   def character_with_choices_response(system, character, slug, msg) do
     {_effects, resolved} = Characters.resolved_state(system, character)
-    choices = Characters.pending_choices(system, character, resolved)
+
+    {:ok, %{choices: choices, errors: errors}} =
+      Characters.pending_choices(system, character, resolved)
+
     mode = parse_display_mode(msg)
 
     system
     |> Serializer.serialize_character(character, slug, mode, resolved)
     |> Map.put(:pending_choices, Serializer.serialize_choices_list(choices, system, mode))
+    |> Map.put(:pending_choice_errors, errors)
   end
 
   @doc """
