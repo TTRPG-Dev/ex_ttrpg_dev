@@ -6,7 +6,6 @@ defmodule ExTTRPGDevTest.Characters do
 
   doctest ExTTRPGDev.Characters,
     except: [
-      character_file_path!: 1,
       character_exists?: 1,
       save_character!: 1,
       save_character!: 2,

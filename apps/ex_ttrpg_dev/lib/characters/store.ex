@@ -15,13 +15,13 @@ defmodule ExTTRPGDev.Characters.Store do
   @doc """
   Get the file path for a character.
 
-  See `ExTTRPGDev.Characters.character_file_path!/1` for documentation.
+  See `ExTTRPGDev.Characters.character_file_path/1` for documentation.
   """
-  def character_file_path!(%Character{metadata: %Metadata{slug: slug}}) do
-    character_file_path!(slug)
+  def character_file_path(%Character{metadata: %Metadata{slug: slug}}) do
+    character_file_path(slug)
   end
 
-  def character_file_path!(character_slug) when is_bitstring(character_slug) do
+  def character_file_path(character_slug) when is_bitstring(character_slug) do
     Path.join(Globals.characters_path(), "#{character_slug}.json")
   end
 
@@ -32,25 +32,41 @@ defmodule ExTTRPGDev.Characters.Store do
   """
   def character_exists?(character) do
     character
-    |> character_file_path!
+    |> character_file_path()
     |> File.exists?()
   end
 
   @doc """
   Saves the given character to disk.
 
+  See `ExTTRPGDev.Characters.save_character/2` for documentation.
+  """
+  def save_character(%Character{} = character, overwrite \\ false) do
+    if character_exists?(character) and not overwrite do
+      {:error, :already_exists}
+    else
+      with :ok <- File.mkdir_p(Globals.characters_path()),
+           {:ok, json} <- Poison.encode(Character.to_json_map(character)) do
+        File.write(character_file_path(character), json)
+      end
+    end
+  end
+
+  @doc """
+  Saves the given character to disk, raising on failure.
+
   See `ExTTRPGDev.Characters.save_character!/2` for documentation.
   """
   def save_character!(%Character{} = character, overwrite \\ false) do
-    if character_exists?(character) and not overwrite do
-      raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
-    else
-      File.mkdir_p!(Globals.characters_path())
+    case save_character(character, overwrite) do
+      :ok ->
+        :ok
 
-      File.write!(
-        character_file_path!(character),
-        Poison.encode!(Character.to_json_map(character))
-      )
+      {:error, :already_exists} ->
+        raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
+
+      {:error, reason} ->
+        raise "Failed to save character #{character.name}: #{inspect(reason)}"
     end
   end
 
@@ -60,38 +76,73 @@ defmodule ExTTRPGDev.Characters.Store do
   See `ExTTRPGDev.Characters.delete_character/1` for documentation.
   """
   def delete_character(character_slug) do
-    path = character_file_path!(character_slug)
-
-    if File.exists?(path) do
-      File.rm!(path)
-      :ok
-    else
-      {:error, :not_found}
+    case character_file_path(character_slug) |> File.rm() do
+      :ok -> :ok
+      {:error, :enoent} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   @doc """
   List saved characters.
 
+  See `ExTTRPGDev.Characters.list_characters/0` for documentation.
+  """
+  def list_characters() do
+    path = Globals.characters_path()
+
+    if File.exists?(path) do
+      case File.ls(path) do
+        {:ok, entries} ->
+          {:ok, Enum.map(entries, fn x -> String.trim_trailing(x, ".json") end)}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:ok, []}
+    end
+  end
+
+  @doc """
+  List saved characters, raising on failure.
+
   See `ExTTRPGDev.Characters.list_characters!/0` for documentation.
   """
   def list_characters!() do
-    if File.exists?(Globals.characters_path()) do
-      File.ls!(Globals.characters_path())
-      |> Enum.map(fn x -> String.trim_trailing(x, ".json") end)
-    else
-      []
+    case list_characters() do
+      {:ok, slugs} -> slugs
+      {:error, reason} -> raise "Failed to list characters: #{inspect(reason)}"
     end
   end
 
   @doc """
   Load a saved character.
 
+  See `ExTTRPGDev.Characters.load_character/1` for documentation.
+  """
+  def load_character(character_slug) do
+    case character_file_path(character_slug) |> File.read() do
+      {:ok, contents} ->
+        Character.from_json(contents)
+
+      {:error, :enoent} ->
+        {:error, :not_found}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Load a saved character, raising on failure.
+
   See `ExTTRPGDev.Characters.load_character!/1` for documentation.
   """
   def load_character!(character_slug) do
-    character_file_path!(character_slug)
-    |> File.read!()
-    |> Character.from_json!()
+    case load_character(character_slug) do
+      {:ok, character} -> character
+      {:error, reason} -> raise "Failed to load character #{character_slug}: #{inspect(reason)}"
+    end
   end
 end

@@ -26,14 +26,13 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Store
 
   @doc """
-  Get the file path for a character
-
-  ## Examples
-
-      iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
-      "mr_whiskers.json"
+  Get the file path for a character.
   """
-  defdelegate character_file_path!(character), to: Store
+  defdelegate character_file_path(character), to: Store
+
+  @doc false
+  @deprecated "Use character_file_path/1 instead; it never raised despite the bang"
+  defdelegate character_file_path!(character), to: Store, as: :character_file_path
 
   @doc """
   Returns a boolean as to whether the character exists on disk
@@ -55,18 +54,17 @@ defmodule ExTTRPGDev.Characters do
   defdelegate character_exists?(character), to: Store
 
   @doc """
-  Saves the given character to disk. Error is raised if character already exists unless `overwrite` is set to true
+  Saves the given character to disk.
 
-  ## Example
+  Returns `:ok`, or `{:error, :already_exists}` unless `overwrite` is `true`.
+  """
+  defdelegate save_character(character, overwrite \\ false), to: Store
 
-      iex> Characters.save_character!(%Characters.Character{name: "doesn't exist yet"})
-      :ok
+  @doc """
+  Saves the given character to disk, raising if it already exists unless
+  `overwrite` is set to true.
 
-      iex> Characters.save_character!(%Characters.Character{name: "exists already"})
-      :error, :character already exists
-
-      iex> Characters.save_character!(%Characters.Character{name: "exists already"}, true)
-      :ok
+  See `save_character/2` for the non-raising variant.
   """
   defdelegate save_character!(character, overwrite \\ false), to: Store
 
@@ -79,7 +77,17 @@ defmodule ExTTRPGDev.Characters do
   defdelegate delete_character(character_slug), to: Store
 
   @doc """
-  List saved characters
+  List saved characters.
+
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the characters
+  directory exists but cannot be listed.
+  """
+  defdelegate list_characters(), to: Store
+
+  @doc """
+  List saved characters, raising on failure.
+
+  See `list_characters/0` for the non-raising variant.
 
   ## Example
 
@@ -89,7 +97,18 @@ defmodule ExTTRPGDev.Characters do
   defdelegate list_characters!(), to: Store
 
   @doc """
-  Load a saved character
+  Load a saved character.
+
+  Returns `{:ok, character}`, `{:error, :not_found}` if no character with
+  that slug exists, or `{:error, {:invalid_character_data, message}}` if
+  the saved file exists but cannot be parsed as a character.
+  """
+  defdelegate load_character(character_slug), to: Store
+
+  @doc """
+  Load a saved character, raising on failure.
+
+  See `load_character/1` for the non-raising variant.
 
   ## Example
 

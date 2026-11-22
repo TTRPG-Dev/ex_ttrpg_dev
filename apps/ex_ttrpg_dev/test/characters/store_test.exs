@@ -19,7 +19,12 @@ defmodule ExTTRPGDevTest.Characters.Store do
   end
 
   def delete_test_character(%Character{} = character) do
-    File.rm(Characters.character_file_path!(character))
+    File.rm(Characters.character_file_path(character))
+  end
+
+  test "character_file_path!/1 is a deprecated delegate to character_file_path/1" do
+    character = build_test_character()
+    assert Characters.character_file_path!(character) == Characters.character_file_path(character)
   end
 
   test "character_exists?/1" do
@@ -30,6 +35,21 @@ defmodule ExTTRPGDevTest.Characters.Store do
     Characters.save_character!(character)
     assert Characters.character_exists?(character)
     assert Characters.character_exists?(character.metadata.slug)
+
+    # cleanup
+    delete_test_character(character)
+  end
+
+  test "save_character/1 returns :ok, and {:error, :already_exists} on collision" do
+    character = build_test_character()
+    assert not Characters.character_exists?(character)
+
+    assert :ok = Characters.save_character(character)
+    assert Characters.character_exists?(character)
+
+    assert {:error, :already_exists} = Characters.save_character(character)
+
+    assert :ok = Characters.save_character(character, true)
 
     # cleanup
     delete_test_character(character)
@@ -73,12 +93,44 @@ defmodule ExTTRPGDevTest.Characters.Store do
     delete_test_character(character)
   end
 
+  test "list_characters/0 returns {:ok, slugs}" do
+    assert {:ok, characters_list_first} = Characters.list_characters()
+    character = save_test_character()
+    assert {:ok, characters_list_second} = Characters.list_characters()
+    assert Enum.count(characters_list_first) < Enum.count(characters_list_second)
+    assert Enum.member?(characters_list_second, character.metadata.slug)
+
+    # cleanup
+    delete_test_character(character)
+  end
+
   test "load_character/1" do
     character = save_test_character()
     loaded_character = Characters.load_character!(character.metadata.slug)
     assert character == loaded_character
 
     delete_test_character(character)
+  end
+
+  test "load_character/1 returns {:ok, character}, and {:error, :not_found} for unknown slug" do
+    character = save_test_character()
+    assert {:ok, loaded_character} = Characters.load_character(character.metadata.slug)
+    assert character == loaded_character
+
+    delete_test_character(character)
+
+    assert {:error, :not_found} = Characters.load_character("nonexistent_character_xyz")
+  end
+
+  test "load_character/1 returns {:error, {:invalid_character_data, _}} for a corrupt file" do
+    slug = "corrupt_character_xyz"
+    path = Characters.character_file_path(slug)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, "not valid json")
+
+    assert {:error, {:invalid_character_data, _message}} = Characters.load_character(slug)
+
+    File.rm!(path)
   end
 
   test "delete_character/1 deletes an existing character and returns :ok" do
