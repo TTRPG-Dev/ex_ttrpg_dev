@@ -31,16 +31,23 @@ defmodule ExTTRPGDevTest.RuleSystems do
     assert {:error, _reason} = RuleSystems.load_system("not_a_real_system_xyz")
   end
 
-  test "system_path!/1" do
+  test "system_path/1" do
     [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
 
-    assert RuleSystems.system_path!(bundled_system_slug) ==
+    assert RuleSystems.system_path(bundled_system_slug) ==
              Path.join([Globals.system_configs_path(), bundled_system_slug])
 
     custom_slug = "custom_system"
 
-    assert RuleSystems.system_path!(custom_slug) ==
+    assert RuleSystems.system_path(custom_slug) ==
              Path.join([Globals.local_system_configs_path(), custom_slug])
+  end
+
+  test "system_path!/1 is a deprecated delegate to system_path/1" do
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+
+    assert RuleSystems.system_path!(bundled_system_slug) ==
+             RuleSystems.system_path(bundled_system_slug)
   end
 
   test "is_bundled_system?/1 returns true for bundled system" do

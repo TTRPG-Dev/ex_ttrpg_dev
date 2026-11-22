@@ -128,18 +128,26 @@ defmodule ExTTRPGDev.RuleSystems do
   @doc """
   Returns the filesystem path to the given system's directory.
 
+  Never raises: an unconfigured slug still yields a (non-existent) path
+  under the local systems directory, since this is also used to build the
+  path a new local system would be created at.
+
   ## Examples
-      iex> ExTTRPGDev.RuleSystems.system_path!("dnd_5e_srd") |> String.ends_with?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.system_path("dnd_5e_srd") |> String.ends_with?("dnd_5e_srd")
       true
 
   """
-  def system_path!(system) when is_bitstring(system) do
+  def system_path(system) when is_bitstring(system) do
     if is_bundled_system?(system) do
       Path.join(Globals.system_configs_path(), system)
     else
       Path.join(Globals.local_system_configs_path(), system)
     end
   end
+
+  @doc false
+  @deprecated "Use system_path/1 instead; it never raised despite the bang"
+  def system_path!(system), do: system_path(system)
 
   @doc """
   Loads, parses, and validates a rule system by slug.
@@ -154,7 +162,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def load_system(system) when is_bitstring(system) do
-    path = system_path!(system)
+    path = system_path(system)
 
     with {:ok, loader_data} <- Loader.load(path),
          {:ok, system_map} <- Graph.build(loader_data) do
