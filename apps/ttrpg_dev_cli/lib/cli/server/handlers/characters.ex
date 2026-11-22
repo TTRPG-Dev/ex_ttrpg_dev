@@ -19,7 +19,9 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     system = RuleSystems.load_system!(slug)
     decisions = Characters.random_decisions(system)
     character = Character.gen_character!(system, decisions)
-    slots = Characters.compute_pending_choice_slots(system, character)
+
+    {:ok, %{slots: slots, errors: slot_errors}} =
+      Characters.compute_pending_choice_slots(system, character)
 
     character =
       Characters.auto_resolve_pending(system, %{character | pending_choice_slots: slots})
@@ -33,11 +35,9 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     }
 
     data =
-      Map.put(
-        Serializer.serialize_character(system, character, nil, Common.parse_display_mode(msg)),
-        :temp_id,
-        temp_id
-      )
+      Serializer.serialize_character(system, character, nil, Common.parse_display_mode(msg))
+      |> Map.put(:temp_id, temp_id)
+      |> Map.put(:pending_choice_slot_errors, slot_errors)
 
     {:ok, data, new_state}
   end
@@ -102,12 +102,15 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     system = RuleSystems.load_system!(character.metadata.rule_system)
 
     {_effects, resolved} = Characters.resolved_state(system, character)
-    choices = Characters.pending_choices(system, character, resolved)
+
+    {:ok, %{choices: choices, errors: errors}} =
+      Characters.pending_choices(system, character, resolved)
 
     {:ok,
      %{
        pending_choices:
-         Serializer.serialize_choices_list(choices, system, Common.parse_display_mode(msg))
+         Serializer.serialize_choices_list(choices, system, Common.parse_display_mode(msg)),
+       pending_choice_errors: errors
      }, state}
   end
 
@@ -170,7 +173,10 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
   def handle(%{"command" => "characters.random_resolve", "character" => slug} = msg, state) do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system!(character.metadata.rule_system)
-    slots = Characters.compute_pending_choice_slots(system, character)
+
+    {:ok, %{slots: slots, errors: slot_errors}} =
+      Characters.compute_pending_choice_slots(system, character)
+
     character = %{character | pending_choice_slots: slots}
 
     {updated, resolutions} = Characters.random_resolve_all(system, character)
@@ -179,6 +185,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     data =
       Serializer.serialize_character(system, updated, slug, Common.parse_display_mode(msg))
       |> Map.put(:resolutions, Serializer.serialize_resolutions(resolutions, system))
+      |> Map.put(:pending_choice_slot_errors, slot_errors)
 
     {:ok, data, state}
   end

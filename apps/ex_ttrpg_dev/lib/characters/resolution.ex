@@ -68,7 +68,7 @@ defmodule ExTTRPGDev.Characters.Resolution do
          acc
        ) do
     {_effects, resolved} = Effects.resolved_state(system, character)
-    choices = Progression.pending_choices(system, character, resolved)
+    {:ok, %{choices: choices}} = Progression.pending_choices(system, character, resolved)
 
     case Enum.find(choices, resolvable?) do
       nil ->

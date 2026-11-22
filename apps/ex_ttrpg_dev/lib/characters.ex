@@ -298,9 +298,11 @@ defmodule ExTTRPGDev.Characters do
   defdelegate concept_roll!(system, character, type_id, concept_id), to: Rolls
 
   @doc """
-  Returns the list of character progression choices that are currently pending or available.
+  Returns `{:ok, %{choices: choices, errors: errors}}`, where `choices` is the
+  list of character progression choices that are currently pending or
+  available.
 
-  Each entry is a map with:
+  Each choice entry is a map with:
   - `:type` — `:pending` (required and not yet made) or `:available` (optional and currently unlocked)
   - `:id` — the progression concept id
   - `:name` — display name
@@ -308,6 +310,13 @@ defmodule ExTTRPGDev.Characters do
   - `:roll` — the resolved roll reference (e.g. `"d8"`), or `nil` if none
 
   For `:pending` entries, `:count` is also included indicating how many choices remain.
+
+  `errors` reports progressions whose `required_count` or `available_when`
+  expression failed to evaluate (e.g. a malformed or unresolvable formula in
+  the rule system config). Each entry is `%{progression_id, field, expr, reason}`.
+  A progression with an error contributes no choice entry, but every other
+  progression still resolves normally — a single malformed expression never
+  blocks the rest of the list.
 
   `resolved` should be the output of `Evaluator.evaluate!/3` for the character's current state.
   """
@@ -343,12 +352,13 @@ defmodule ExTTRPGDev.Characters do
   defdelegate random_resolve_all(system, character), to: Resolution
 
   @doc """
-  Computes the list of pending selection progression choice slots for a character,
-  taking into account the character's current level and decisions already made.
+  Returns `{:ok, %{slots: slots, errors: errors}}`, where `slots` is the list
+  of pending selection progression choice slots for a character, taking into
+  account the character's current level and decisions already made.
 
   Each slot carries `progression_id`, `earned_at_level`, and `max_level_cap` —
   the maximum concept level that was available when that slot was unlocked.
-  Decisions already made are excluded; the returned list contains only unresolved slots.
+  Decisions already made are excluded; `slots` contains only unresolved slots.
 
   This should be called after any change that affects character level (e.g. an XP award)
   and stored on the character so that `pending_choices/3` can filter spell options to the
@@ -357,6 +367,14 @@ defmodule ExTTRPGDev.Characters do
 
   Only applies to progressions whose filter includes `max_level_node`. Progressions with a
   fixed level filter (e.g. cantrips, filtered by `level = 0`) are unaffected.
+
+  `errors` reports a `required_count`/`filter.max_level_node` expression that
+  failed to evaluate for a given level, or a `module.level_node` that
+  contains no node references. Each entry is
+  `%{progression_id, field, expr, reason}` (`progression_id` is `nil` for a
+  `module.level_node` error, since it isn't scoped to one progression). A
+  progression/level with an error contributes no slot for that level, but
+  every other progression and level still resolves normally.
   """
   defdelegate compute_pending_choice_slots(system, character), to: Progression
 

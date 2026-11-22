@@ -4,6 +4,13 @@ defmodule ExTTRPGDev.Characters.Progression do
   are pending or available for a character, tracking the choice slots
   unlocked by level, and filtering the valid options for each choice.
 
+  `pending_choices/3` and `compute_pending_choice_slots/2` evaluate
+  rule-system-authored expressions (`required_count`, `available_when`,
+  `filter.max_level_node`, `module.level_node`). A malformed expression is
+  reported as a structured entry in the result's `:errors` list rather than
+  raising or silently treating the affected progression as having nothing
+  pending — every other, well-formed progression still resolves normally.
+
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
   (e.g. `ExTTRPGDev.Characters.pending_choices/3`); this module hosts the
   implementation.
@@ -22,84 +29,112 @@ defmodule ExTTRPGDev.Characters.Progression do
   @progression_type Vocabulary.progression_type()
 
   @doc """
-  Returns the list of character progression choices that are currently pending or available.
+  Returns the pending/available progression choices for a character, along
+  with any expression-evaluation errors encountered while computing them.
 
   See `ExTTRPGDev.Characters.pending_choices/3` for documentation.
   """
   def pending_choices(%LoadedSystem{} = system, %Character{} = character, resolved) do
     active = Effects.active_concepts(character.decisions, system.concept_metadata)
 
-    progression_choices =
+    {progression_choices, errors} =
       system.concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == @progression_type end)
-      |> Enum.flat_map(fn {{_type, id}, meta} ->
+      |> Enum.reduce({[], []}, fn {{_type, id}, meta}, {choices_acc, errors_acc} ->
         roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
         meta_with_roll = Map.put(meta, "roll", roll)
 
-        if Map.has_key?(meta, "type") do
-          selection_progression_choices(
-            id,
-            meta_with_roll,
-            character.decisions,
-            resolved,
-            system.concept_metadata,
-            active,
-            character.pending_choice_slots
-          )
-        else
-          progression_choices(id, meta_with_roll, character.decisions, resolved)
-        end
+        {choices, choice_errors} =
+          if Map.has_key?(meta, "type") do
+            selection_progression_choices(
+              id,
+              meta_with_roll,
+              character.decisions,
+              resolved,
+              system.concept_metadata,
+              active,
+              character.pending_choice_slots
+            )
+          else
+            progression_choices(id, meta_with_roll, character.decisions, resolved)
+          end
+
+        {choices_acc ++ choices, errors_acc ++ choice_errors}
       end)
 
     sub_choices = pending_sub_choices(character.decisions, system.concept_metadata)
 
-    (progression_choices ++ sub_choices)
-    |> Enum.sort_by(& &1.id)
+    choices =
+      (progression_choices ++ sub_choices)
+      |> Enum.sort_by(& &1.id)
+
+    {:ok, %{choices: choices, errors: errors}}
   end
 
   @doc """
-  Computes the list of pending selection progression choice slots for a character.
+  Computes the pending selection progression choice slots for a character,
+  along with any expression-evaluation errors encountered while computing
+  them.
 
   See `ExTTRPGDev.Characters.compute_pending_choice_slots/2` for documentation.
   """
   def compute_pending_choice_slots(%LoadedSystem{} = system, %Character{} = character) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [level_node_key | _] <- Expression.extract_refs(level_node) do
-      {all_effects, resolved} = Effects.resolved_state(system, character)
-      current_level = trunc(resolved[level_node_key] || 1)
-
-      thresholds = Leveling.level_xp_thresholds(system)
-      xp_target = Leveling.xp_effect_target(system)
-
-      selection_progressions =
-        Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
-          type == @progression_type and
-            Map.has_key?(meta, "type") and
-            get_in(meta, ["filter", "max_level_node"]) != nil
-        end)
-
-      level_resolved =
-        Map.new(1..current_level, fn level ->
-          {level,
-           Leveling.evaluate_at_level(
-             system,
-             character,
-             level,
-             thresholds,
-             xp_target,
-             all_effects
-           )}
-        end)
-
-      Enum.flat_map(selection_progressions, fn {{_type, id}, meta} ->
-        decisions_made = count_progression_decisions(character.decisions, id)
-
-        slots_for_progression(id, meta, level_resolved, current_level)
-        |> Enum.drop(decisions_made)
-      end)
+      slots_from_level_node(system, character, level_node_key)
     else
-      _ -> []
+      nil ->
+        {:ok, %{slots: [], errors: []}}
+
+      [] ->
+        error = %{
+          progression_id: nil,
+          field: "module.level_node",
+          expr: system.module.level_node,
+          reason: :no_node_references
+        }
+
+        {:ok, %{slots: [], errors: [error]}}
     end
+  end
+
+  defp slots_from_level_node(system, character, level_node_key) do
+    {all_effects, resolved} = Effects.resolved_state(system, character)
+    current_level = trunc(resolved[level_node_key] || 1)
+
+    thresholds = Leveling.level_xp_thresholds(system)
+    xp_target = Leveling.xp_effect_target(system)
+
+    selection_progressions =
+      Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
+        type == @progression_type and
+          Map.has_key?(meta, "type") and
+          get_in(meta, ["filter", "max_level_node"]) != nil
+      end)
+
+    level_resolved =
+      Map.new(1..current_level, fn level ->
+        {level,
+         Leveling.evaluate_at_level(
+           system,
+           character,
+           level,
+           thresholds,
+           xp_target,
+           all_effects
+         )}
+      end)
+
+    {slots, errors} =
+      Enum.reduce(selection_progressions, {[], []}, fn {{_type, id}, meta},
+                                                       {slots_acc, errors_acc} ->
+        decisions_made = count_progression_decisions(character.decisions, id)
+        {slots, slot_errors} = slots_for_progression(id, meta, level_resolved, current_level)
+
+        {slots_acc ++ Enum.drop(slots, decisions_made), errors_acc ++ slot_errors}
+      end)
+
+    {:ok, %{slots: slots, errors: Enum.uniq(errors)}}
   end
 
   @doc """
@@ -158,25 +193,39 @@ defmodule ExTTRPGDev.Characters.Progression do
   defp slots_for_progression(progression_id, meta, level_resolved, current_level) do
     required_str = meta["required_count"]
     max_level_node = get_in(meta, ["filter", "max_level_node"])
+    required_label = {progression_id, "required_count"}
+    max_level_label = {progression_id, "filter.max_level_node"}
 
-    Enum.flat_map(1..current_level, fn level ->
+    Enum.reduce(1..current_level, {[], []}, fn level, {slots_acc, errors_acc} ->
       resolved_at = level_resolved[level]
 
-      count_at = eval_int(required_str, resolved_at)
-      count_at_prev = if level > 1, do: eval_int(required_str, level_resolved[level - 1]), else: 0
-      max_level_cap = eval_int(max_level_node, resolved_at)
+      {count_at, err1} = eval_int(required_str, resolved_at, required_label)
 
-      List.duplicate(
-        %{progression_id: progression_id, earned_at_level: level, max_level_cap: max_level_cap},
-        max(0, count_at - count_at_prev)
-      )
+      {count_at_prev, err2} =
+        if level > 1,
+          do: eval_int(required_str, level_resolved[level - 1], required_label),
+          else: {0, []}
+
+      {max_level_cap, err3} = eval_int(max_level_node, resolved_at, max_level_label)
+
+      new_slots =
+        List.duplicate(
+          %{progression_id: progression_id, earned_at_level: level, max_level_cap: max_level_cap},
+          max(0, count_at - count_at_prev)
+        )
+
+      {slots_acc ++ new_slots, errors_acc ++ err1 ++ err2 ++ err3}
     end)
   end
 
-  defp eval_int(expr, resolved) do
+  defp eval_int(expr, resolved, {progression_id, field}) do
     case Expression.evaluate(expr, resolved) do
-      {:ok, v} -> trunc(v)
-      _ -> 0
+      {:ok, v} ->
+        {trunc(v), []}
+
+      {:error, reason} ->
+        error = %{progression_id: progression_id, field: field, expr: expr, reason: reason}
+        {0, [error]}
     end
   end
 
@@ -258,36 +307,31 @@ defmodule ExTTRPGDev.Characters.Progression do
          active,
          pending_choice_slots
        ) do
-    with {:ok, required} <- Expression.evaluate(required_str, resolved),
-         made = count_progression_decisions(decisions, id),
-         pending_count = max(0, trunc(required) - made),
-         true <- pending_count > 0 do
-      already_selected =
-        decisions
-        |> Enum.filter(fn d -> d.scope == {@progression_type, id} end)
-        |> MapSet.new(& &1.selection)
+    case Expression.evaluate(required_str, resolved) do
+      {:ok, required} ->
+        made = count_progression_decisions(decisions, id)
+        pending_count = max(0, trunc(required) - made)
 
-      {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
-      capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
+        if pending_count > 0 do
+          entry =
+            selection_progression_entry(
+              id,
+              meta,
+              decisions,
+              resolved,
+              concept_metadata,
+              active,
+              pending_choice_slots,
+              pending_count
+            )
 
-      options =
-        concept_options(meta, concept_metadata, active, capped_resolved)
-        |> Enum.reject(&MapSet.member?(already_selected, &1))
+          {[entry], []}
+        else
+          {[], []}
+        end
 
-      [
-        %{
-          type: :pending,
-          id: id,
-          name: meta["name"] || id,
-          count: pending_count,
-          effect_target: nil,
-          roll: nil,
-          earned_at_level: earned_at_level,
-          options: options
-        }
-      ]
-    else
-      _ -> []
+      {:error, reason} ->
+        {[], [required_count_error(id, required_str, reason)]}
     end
   end
 
@@ -300,7 +344,47 @@ defmodule ExTTRPGDev.Characters.Progression do
          _active,
          _pending_choice_slots
        ),
-       do: []
+       do: {[], []}
+
+  defp selection_progression_entry(
+         id,
+         meta,
+         decisions,
+         resolved,
+         concept_metadata,
+         active,
+         pending_choice_slots,
+         pending_count
+       ) do
+    already_selected =
+      decisions
+      |> Enum.filter(fn d -> d.scope == {@progression_type, id} end)
+      |> MapSet.new(& &1.selection)
+
+    {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
+    capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
+
+    options =
+      concept_options(meta, concept_metadata, active, capped_resolved)
+      |> Enum.reject(&MapSet.member?(already_selected, &1))
+
+    %{
+      type: :pending,
+      id: id,
+      name: meta["name"] || id,
+      count: pending_count,
+      effect_target: nil,
+      roll: nil,
+      earned_at_level: earned_at_level,
+      options: options
+    }
+  end
+
+  defp required_count_error(id, expr, reason),
+    do: %{progression_id: id, field: "required_count", expr: expr, reason: reason}
+
+  defp available_when_error(id, expr, reason),
+    do: %{progression_id: id, field: "available_when", expr: expr, reason: reason}
 
   defp passes_requires?(nil, _resolved), do: true
 
@@ -343,44 +427,53 @@ defmodule ExTTRPGDev.Characters.Progression do
   end
 
   defp progression_choices(id, %{"required_count" => required_str} = meta, decisions, resolved) do
-    with {:ok, required} <- Expression.evaluate(required_str, resolved),
-         made = count_progression_decisions(decisions, id),
-         pending_count = max(0, trunc(required) - made),
-         true <- pending_count > 0 do
-      [
-        %{
-          type: :pending,
-          id: id,
-          name: meta["name"] || id,
-          count: pending_count,
-          effect_target: meta["effect_target"],
-          roll: meta["roll"]
-        }
-      ]
-    else
-      _ -> []
+    case Expression.evaluate(required_str, resolved) do
+      {:ok, required} ->
+        made = count_progression_decisions(decisions, id)
+        pending_count = max(0, trunc(required) - made)
+
+        if pending_count > 0 do
+          entry = %{
+            type: :pending,
+            id: id,
+            name: meta["name"] || id,
+            count: pending_count,
+            effect_target: meta["effect_target"],
+            roll: meta["roll"]
+          }
+
+          {[entry], []}
+        else
+          {[], []}
+        end
+
+      {:error, reason} ->
+        {[], [required_count_error(id, required_str, reason)]}
     end
   end
 
   defp progression_choices(id, %{"available_when" => available_str} = meta, _decisions, resolved) do
     case Expression.evaluate(available_str, resolved) do
       {:ok, val} when val not in [0, false, nil] ->
-        [
-          %{
-            type: :available,
-            id: id,
-            name: meta["name"] || id,
-            effect_target: meta["effect_target"],
-            roll: meta["roll"]
-          }
-        ]
+        entry = %{
+          type: :available,
+          id: id,
+          name: meta["name"] || id,
+          effect_target: meta["effect_target"],
+          roll: meta["roll"]
+        }
 
-      _ ->
-        []
+        {[entry], []}
+
+      {:ok, _falsy} ->
+        {[], []}
+
+      {:error, reason} ->
+        {[], [available_when_error(id, available_str, reason)]}
     end
   end
 
-  defp progression_choices(_id, _meta, _decisions, _resolved), do: []
+  defp progression_choices(_id, _meta, _decisions, _resolved), do: {[], []}
 
   defp count_progression_decisions(decisions, progression_id) do
     Enum.count(decisions, fn
