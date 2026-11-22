@@ -1,9 +1,7 @@
-use serde_json::json;
-
 use super::call_or_report;
 use crate::display;
 use crate::engine::Engine;
-use crate::protocol::{ConceptsList, SystemInfo, SystemsList};
+use crate::protocol::{ConceptsList, Request, SystemInfo, SystemsList};
 
 pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
     match tokens {
@@ -12,7 +10,7 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
             println!("Usage: systems show <slug> [--concept-type <type>]")
         }
         ["list"] => {
-            let req = json!({"command": "systems.list"});
+            let req = Request::SystemsList;
             let Some(result) = call_or_report::<SystemsList>(engine, &req) else {
                 return;
             };
@@ -26,14 +24,22 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
             }
         }
         ["show", slug] => {
-            let req = json!({"command": "systems.show", "system": slug});
+            let req = Request::SystemsShow {
+                system: slug,
+                concept_type: None,
+                concept_id: None,
+            };
             let Some(info) = call_or_report::<SystemInfo>(engine, &req) else {
                 return;
             };
             display::print_system_info(info);
         }
         ["show", slug, "--concept-type", ct] => {
-            let req = json!({"command": "systems.show", "system": slug, "concept_type": ct});
+            let req = Request::SystemsShow {
+                system: slug,
+                concept_type: Some(ct),
+                concept_id: None,
+            };
             let Some(cl) = call_or_report::<ConceptsList>(engine, &req) else {
                 return;
             };

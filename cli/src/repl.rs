@@ -15,7 +15,7 @@ use reedline::{
 
 use crate::commands::{self, DisplayMode};
 use crate::engine::Engine;
-use crate::protocol::{CharactersList, SystemsList};
+use crate::protocol::{CharactersList, Request, SystemsList};
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
@@ -92,24 +92,21 @@ struct CommandCompleter {
 }
 
 impl CommandCompleter {
-    fn call_engine<T: for<'de> serde::Deserialize<'de>>(
-        &self,
-        req: serde_json::Value,
-    ) -> Option<T> {
+    fn call_engine<T: for<'de> serde::Deserialize<'de>>(&self, req: &Request<'_>) -> Option<T> {
         let engine = self.engine.as_ref()?;
         // A poisoned lock degrades completion to no-suggestions rather than
         // panicking inside reedline's event loop.
-        engine.lock().ok()?.call::<_, T>(&req).ok()
+        engine.lock().ok()?.call::<_, T>(req).ok()
     }
 
     fn fetch_character_slugs(&self) -> Vec<String> {
-        self.call_engine(serde_json::json!({"command": "characters.list"}))
+        self.call_engine(&Request::CharactersList { system: None })
             .map(|r: CharactersList| r.characters.into_iter().map(|c| c.slug).collect())
             .unwrap_or_default()
     }
 
     fn fetch_system_slugs(&self) -> Vec<String> {
-        self.call_engine(serde_json::json!({"command": "systems.list"}))
+        self.call_engine(&Request::SystemsList)
             .map(|r: SystemsList| r.systems)
             .unwrap_or_default()
     }

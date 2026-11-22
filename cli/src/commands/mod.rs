@@ -10,9 +10,9 @@ mod roll;
 mod systems;
 
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 
 use crate::engine::Engine;
+use crate::protocol::Request;
 
 pub(crate) use characters::handle_characters;
 pub(crate) use help::print_help;
@@ -23,7 +23,10 @@ pub(crate) use systems::handle_systems;
 /// uniform `Error: {e}` to stderr and return `None` on failure. Collapses
 /// the call-and-report-error shape that used to be repeated by hand in
 /// every command handler.
-pub(crate) fn call_or_report<T: DeserializeOwned>(engine: &mut Engine, req: &Value) -> Option<T> {
+pub(crate) fn call_or_report<T: DeserializeOwned>(
+    engine: &mut Engine,
+    req: &Request<'_>,
+) -> Option<T> {
     match engine.call(req) {
         Ok(v) => Some(v),
         Err(e) => {
