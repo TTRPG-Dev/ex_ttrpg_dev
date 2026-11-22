@@ -1,5 +1,12 @@
 defmodule ExTTRPGDevTest.Characters.Store do
-  use ExUnit.Case, async: true
+  # Not async: these tests override the `:characters_path` application env,
+  # which is global BEAM state. Elixir's own docs warn that such overrides
+  # aren't async-safe — a concurrently running async test (e.g. globals_test.exs,
+  # which asserts on the *default* path) could observe the override mid-test.
+  # Non-async tests are guaranteed by ExUnit to run only after all async tests
+  # finish, so this avoids that race while still giving each test its own
+  # isolated temp directory instead of sharing the real on-disk characters dir.
+  use ExUnit.Case
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
