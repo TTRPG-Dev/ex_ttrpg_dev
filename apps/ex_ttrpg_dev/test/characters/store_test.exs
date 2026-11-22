@@ -1,9 +1,32 @@
 defmodule ExTTRPGDevTest.Characters.Store do
-  # Not async: these tests share the on-disk characters directory.
+  # Not async: these tests override the `:characters_path` application env,
+  # which is global BEAM state. Elixir's own docs warn that such overrides
+  # aren't async-safe — a concurrently running async test (e.g. globals_test.exs,
+  # which asserts on the *default* path) could observe the override mid-test.
+  # Non-async tests are guaranteed by ExUnit to run only after all async tests
+  # finish, so this avoids that race while still giving each test its own
+  # isolated temp directory instead of sharing the real on-disk characters dir.
   use ExUnit.Case
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
+
+  setup do
+    tmp_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "ex_ttrpg_dev_characters_#{System.unique_integer([:positive])}"
+      )
+
+    Application.put_env(:ex_ttrpg_dev, :characters_path, tmp_dir)
+
+    on_exit(fn ->
+      Application.delete_env(:ex_ttrpg_dev, :characters_path)
+      File.rm_rf(tmp_dir)
+    end)
+
+    :ok
+  end
 
   def build_test_character do
     RuleSystems.list_systems()

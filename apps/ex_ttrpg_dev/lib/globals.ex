@@ -28,7 +28,10 @@ defmodule ExTTRPGDev.Globals do
 
   @doc """
   The path to where custom (local) rule system configs are stored.
-  Resolved at runtime relative to the current working directory.
+
+  Configurable via `config :ex_ttrpg_dev, :local_system_configs_path, path`.
+  Defaults to a path relative to the current working directory, resolved at
+  runtime.
 
   ## Examples
     iex> ExTTRPGDev.Globals.local_system_configs_path() |> String.ends_with?("local_system_configs")
@@ -36,12 +39,17 @@ defmodule ExTTRPGDev.Globals do
 
   """
   def local_system_configs_path do
-    Path.join(File.cwd!(), "local_system_configs")
+    case Application.fetch_env(:ex_ttrpg_dev, :local_system_configs_path) do
+      {:ok, path} -> path
+      :error -> Path.join(File.cwd!(), "local_system_configs")
+    end
   end
 
   @doc """
   The path to where characters are stored.
-  Resolved at runtime relative to the current working directory.
+
+  Configurable via `config :ex_ttrpg_dev, :characters_path, path`. Defaults
+  to a path relative to the current working directory, resolved at runtime.
 
   ## Examples
     iex> ExTTRPGDev.Globals.characters_path() |> String.ends_with?("local_characters")
@@ -49,7 +57,10 @@ defmodule ExTTRPGDev.Globals do
 
   """
   def characters_path do
-    Path.join(File.cwd!(), "local_characters")
+    case Application.fetch_env(:ex_ttrpg_dev, :characters_path) do
+      {:ok, path} -> path
+      :error -> Path.join(File.cwd!(), "local_characters")
+    end
   end
 
   @doc """
