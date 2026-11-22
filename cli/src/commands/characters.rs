@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use super::inventory::handle_inventory;
-use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode};
+use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode, call_or_report};
 use crate::display;
 use crate::engine::Engine;
 use crate::prompts::{
@@ -154,20 +154,18 @@ fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
 
 fn handle_characters_gen(system: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.gen", "system": system});
-    match engine.call::<_, CharacterData>(&req) {
-        Ok(character) => {
-            display::print_character(&character);
-            if let Some(temp_id) = &character.temp_id
-                && prompt_yes_no("Save this character?").unwrap_or(false)
-            {
-                let save_req = json!({"command": "characters.save", "temp_id": temp_id});
-                match engine.call::<_, SaveResult>(&save_req) {
-                    Ok(saved) => println!("Saved as '{}'.", saved.slug),
-                    Err(e) => eprintln!("Error saving: {e}"),
-                }
-            }
+    let Some(character) = call_or_report::<CharacterData>(engine, &req) else {
+        return;
+    };
+    display::print_character(&character);
+    if let Some(temp_id) = &character.temp_id
+        && prompt_yes_no("Save this character?").unwrap_or(false)
+    {
+        let save_req = json!({"command": "characters.save", "temp_id": temp_id});
+        match engine.call::<_, SaveResult>(&save_req) {
+            Ok(saved) => println!("Saved as '{}'.", saved.slug),
+            Err(e) => eprintln!("Error saving: {e}"),
         }
-        Err(e) => eprintln!("Error: {e}"),
     }
 }
 
@@ -182,10 +180,10 @@ fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
         ),
         None => "No saved characters found. Run `characters gen <system>` to create one.".into(),
     };
-    match engine.call::<_, CharactersList>(&req) {
-        Ok(r) => display::print_characters_list(&r.characters, &empty_msg),
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(r) = call_or_report::<CharactersList>(engine, &req) else {
+        return;
+    };
+    display::print_characters_list(&r.characters, &empty_msg);
 }
 
 fn confirm_delete_character(character: &CharacterSummary, yes: bool) -> Option<bool> {
@@ -202,13 +200,10 @@ fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
         Some(s) => json!({"command": "characters.list", "system": s}),
         None => json!({"command": "characters.list"}),
     };
-    let characters = match engine.call::<_, CharactersList>(&req) {
-        Ok(r) => r.characters,
-        Err(e) => {
-            eprintln!("Error: {e}");
-            return;
-        }
+    let Some(r) = call_or_report::<CharactersList>(engine, &req) else {
+        return;
     };
+    let characters = r.characters;
     if characters.is_empty() {
         println!("No saved characters found.");
         return;
@@ -224,18 +219,18 @@ fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
 
 fn handle_characters_delete(slug: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.delete", "character": slug});
-    match engine.call::<_, crate::protocol::DeletedCharacter>(&req) {
-        Ok(r) => println!("Deleted character: {}", r.deleted),
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(r) = call_or_report::<crate::protocol::DeletedCharacter>(engine, &req) else {
+        return;
+    };
+    println!("Deleted character: {}", r.deleted);
 }
 
 fn handle_characters_show(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
     let req = json!({"command": "characters.show", "character": slug, "display_mode": display_mode.as_str()});
-    match engine.call::<_, CharacterData>(&req) {
-        Ok(c) => display::page_output(&display::format_character(&c)),
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
+        return;
+    };
+    display::page_output(&display::format_character(&c));
 }
 
 fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut Engine) {
@@ -245,25 +240,23 @@ fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut En
         "type": args.concept_type,
         "concept": args.concept_id,
     });
-    match engine.call::<_, ConceptRollResult>(&req) {
-        Ok(result) => {
-            let rolls_str: Vec<String> = result.rolls.iter().map(|n| n.to_string()).collect();
-            let bonus_str = if result.bonus >= 0 {
-                format!("+{}", result.bonus)
-            } else {
-                result.bonus.to_string()
-            };
-            println!(
-                "{} check: {} ({}: {}, bonus: {})",
-                result.concept_name,
-                result.total,
-                result.dice,
-                rolls_str.join(", "),
-                bonus_str,
-            );
-        }
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(result) = call_or_report::<ConceptRollResult>(engine, &req) else {
+        return;
+    };
+    let rolls_str: Vec<String> = result.rolls.iter().map(|n| n.to_string()).collect();
+    let bonus_str = if result.bonus >= 0 {
+        format!("+{}", result.bonus)
+    } else {
+        result.bonus.to_string()
+    };
+    println!(
+        "{} check: {} ({}: {}, bonus: {})",
+        result.concept_name,
+        result.total,
+        result.dice,
+        rolls_str.join(", "),
+        bonus_str,
+    );
 }
 
 fn handle_characters_award(
@@ -281,14 +274,12 @@ fn handle_characters_award(
     } else {
         json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": args.value_str, "display_mode": mode})
     };
-    match engine.call::<_, CharacterData>(&req) {
-        Ok(c) => {
-            display::print_character(&c);
-            if let Some(choices) = &c.pending_choices {
-                display::print_pending_choices(choices);
-            }
-        }
-        Err(e) => eprintln!("Error: {e}"),
+    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
+        return;
+    };
+    display::print_character(&c);
+    if let Some(choices) = &c.pending_choices {
+        display::print_pending_choices(choices);
     }
 }
 
@@ -300,17 +291,15 @@ fn handle_characters_award_no_value(
 ) {
     let mode = display_mode.as_str();
     let req = json!({"command": "characters.award", "character": slug, "award": award_id, "display_mode": mode});
-    match engine.call::<_, CharacterData>(&req) {
-        Ok(c) => {
-            display::print_character(&c);
-            if let Some(xp) = c.awarded_xp {
-                println!("Awarded {award_id}: +{xp} XP");
-            }
-            if let Some(choices) = &c.pending_choices {
-                display::print_pending_choices(choices);
-            }
-        }
-        Err(e) => eprintln!("Error: {e}"),
+    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
+        return;
+    };
+    display::print_character(&c);
+    if let Some(xp) = c.awarded_xp {
+        println!("Awarded {award_id}: +{xp} XP");
+    }
+    if let Some(choices) = &c.pending_choices {
+        display::print_pending_choices(choices);
     }
 }
 
@@ -337,35 +326,31 @@ fn format_resolution_line(r: &crate::protocol::ResolutionEntry) -> String {
 
 fn handle_characters_random_resolve(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
     let req = json!({"command": "characters.random_resolve", "character": slug, "display_mode": display_mode.as_str()});
-    match engine.call::<_, RandomResolveResult>(&req) {
-        Ok(result) => {
-            let header = format!("# {}\n\n", result.name);
-            let body = display::format_character_lists(&result.character_lists);
-            display::page_output(&format!("{header}{body}"));
-            if result.resolutions.is_empty() {
-                println!("No pending choices to resolve.");
-            } else {
-                println!("\nResolved {} choice(s):", result.resolutions.len());
-                for r in &result.resolutions {
-                    println!("{}", format_resolution_line(r));
-                }
-            }
+    let Some(result) = call_or_report::<RandomResolveResult>(engine, &req) else {
+        return;
+    };
+    let header = format!("# {}\n\n", result.name);
+    let body = display::format_character_lists(&result.character_lists);
+    display::page_output(&format!("{header}{body}"));
+    if result.resolutions.is_empty() {
+        println!("No pending choices to resolve.");
+    } else {
+        println!("\nResolved {} choice(s):", result.resolutions.len());
+        for r in &result.resolutions {
+            println!("{}", format_resolution_line(r));
         }
-        Err(e) => eprintln!("Error: {e}"),
     }
 }
 
 fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
     let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
-    match engine.call::<_, ChoicesResponse>(&req) {
-        Ok(r) => {
-            if r.pending_choices.is_empty() {
-                println!("No pending choices.");
-            } else {
-                display::print_pending_choices(&r.pending_choices);
-            }
-        }
-        Err(e) => eprintln!("Error: {e}"),
+    let Some(r) = call_or_report::<ChoicesResponse>(engine, &req) else {
+        return;
+    };
+    if r.pending_choices.is_empty() {
+        println!("No pending choices.");
+    } else {
+        display::print_pending_choices(&r.pending_choices);
     }
 }
 
@@ -405,13 +390,10 @@ fn dispatch_resolve_choice(rest: &[&str], display_mode: DisplayMode, engine: &mu
 
 fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
     let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
-    let choices = match engine.call::<_, ChoicesResponse>(&req) {
-        Ok(r) => r.pending_choices,
-        Err(e) => {
-            eprintln!("Error: {e}");
-            return;
-        }
+    let Some(r) = call_or_report::<ChoicesResponse>(engine, &req) else {
+        return;
     };
+    let choices = r.pending_choices;
 
     let Some(choice) = select_pending_choice(&choices) else {
         return;
@@ -422,16 +404,14 @@ fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engin
     };
 
     let req = build_resolve_choice_request(slug, choice, value, &selection);
-    match engine.call::<_, CharacterData>(&req) {
-        Ok(c) => {
-            display::print_character(&c);
-            if let Some(remaining) = &c.pending_choices
-                && !remaining.is_empty()
-            {
-                display::print_pending_choices(remaining);
-            }
-        }
-        Err(e) => eprintln!("Error: {e}"),
+    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
+        return;
+    };
+    display::print_character(&c);
+    if let Some(remaining) = &c.pending_choices
+        && !remaining.is_empty()
+    {
+        display::print_pending_choices(remaining);
     }
 }
 
@@ -480,13 +460,7 @@ fn resolve_build_progressions(
         let choice = select_pending_choice(&pending)?.clone();
         let (value, selection) = prompt_choice_value(&choice, engine)?;
         let req = build_resolve_choice_request(slug, &choice, value, &selection);
-        character = match engine.call::<_, CharacterData>(&req) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("Error: {e}");
-                return None;
-            }
-        };
+        character = call_or_report::<CharacterData>(engine, &req)?;
     }
 }
 
@@ -517,13 +491,10 @@ fn resolve_sub_choices(
             "choice": choice_id,
             "selection": selection,
         });
-        sub_choices = match engine.call::<_, BuildSubChoiceResult>(&req) {
-            Ok(r) => r.sub_choices,
-            Err(e) => {
-                eprintln!("Error: {e}");
-                return false;
-            }
+        let Some(r) = call_or_report::<BuildSubChoiceResult>(engine, &req) else {
+            return false;
         };
+        sub_choices = r.sub_choices;
     }
     true
 }
@@ -655,14 +626,10 @@ fn resolve_building_choices(
             "concept_type": group.concept_type,
             "concept_id": concept_id,
         });
-        let sub_choices = match engine.call::<_, BuildSubChoiceResult>(&req) {
-            Ok(r) => r.sub_choices,
-            Err(e) => {
-                eprintln!("Error: {e}");
-                return false;
-            }
+        let Some(r) = call_or_report::<BuildSubChoiceResult>(engine, &req) else {
+            return false;
         };
-        if !resolve_sub_choices(temp_id, sub_choices, engine) {
+        if !resolve_sub_choices(temp_id, r.sub_choices, engine) {
             return false;
         }
     }
@@ -680,24 +647,16 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
         }
     };
     let req = json!({"command": "characters.build_start", "system": system, "name": name});
-    let build_start = match engine.call::<_, BuildStartResult>(&req) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Error: {e}");
-            return;
-        }
+    let Some(build_start) = call_or_report::<BuildStartResult>(engine, &req) else {
+        return;
     };
     let temp_id = build_start.temp_id;
     if !resolve_building_choices(&temp_id, &build_start.building_choices, system, engine) {
         return;
     }
     let finish_req = json!({"command": "characters.build_finish", "temp_id": temp_id});
-    let character = match engine.call::<_, CharacterData>(&finish_req) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Error: {e}");
-            return;
-        }
+    let Some(character) = call_or_report::<CharacterData>(engine, &finish_req) else {
+        return;
     };
     let slug = match &character.slug {
         Some(s) => s.clone(),
@@ -715,19 +674,19 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
 
 fn handle_characters_spells(slug: &str, engine: &mut Engine) {
     let req = json!({"command": "characters.spells", "character": slug});
-    match engine.call::<_, PreparationStateResponse>(&req) {
-        Ok(r) => display::print_spells(&r),
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(r) = call_or_report::<PreparationStateResponse>(engine, &req) else {
+        return;
+    };
+    display::print_spells(&r);
 }
 
 fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) {
     let req =
         json!({"command": "characters.activate", "character": slug, "verb": verb, "items": items});
-    match engine.call::<_, serde_json::Value>(&req) {
-        Ok(_) => println!("Done."),
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(_) = call_or_report::<serde_json::Value>(engine, &req) else {
+        return;
+    };
+    println!("Done.");
 }
 
 fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i64, String)> {

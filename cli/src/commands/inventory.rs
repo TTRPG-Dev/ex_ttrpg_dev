@@ -1,5 +1,6 @@
 use serde_json::json;
 
+use super::call_or_report;
 use crate::display;
 use crate::engine::Engine;
 use crate::protocol::InventoryResponse;
@@ -51,8 +52,8 @@ pub(crate) fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
 }
 
 fn call_inventory(req: &serde_json::Value, engine: &mut Engine) {
-    match engine.call::<_, InventoryResponse>(req) {
-        Ok(r) => display::print_inventory(&r.inventory),
-        Err(e) => eprintln!("Error: {e}"),
-    }
+    let Some(r) = call_or_report::<InventoryResponse>(engine, req) else {
+        return;
+    };
+    display::print_inventory(&r.inventory);
 }
