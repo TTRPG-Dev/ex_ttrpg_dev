@@ -1,11 +1,9 @@
-use serde_json::json;
-
 use super::call_or_report;
 use crate::engine::Engine;
-use crate::protocol::RollResult;
+use crate::protocol::{Request, RollResult};
 
 pub(crate) fn handle_roll(dice: &str, engine: &mut Engine) {
-    let req = json!({"command": "roll", "dice": dice});
+    let req = Request::Roll { dice };
     let Some(result) = call_or_report::<RollResult>(engine, &req) else {
         return;
     };

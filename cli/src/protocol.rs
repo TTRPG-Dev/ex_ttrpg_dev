@@ -1,9 +1,11 @@
 //! Protocol types for the JSON RPC protocol with the Elixir engine.
 //!
-//! Each struct models a response payload from the engine. They are
-//! deserialized by `Engine::call` and passed to display or command handlers.
+//! Response types are deserialized by `Engine::call` and passed to display
+//! or command handlers. `Request` models every outbound command; command
+//! handlers build a variant instead of hand-rolling a `json!({"command": ...})`
+//! literal, so each command name and its field names live in this one file.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub(crate) struct SystemsList {
@@ -74,12 +76,16 @@ pub(crate) struct CharacterData {
     pub(crate) slug: Option<String>,
     pub(crate) name: String,
     pub(crate) rule_system: String,
+    #[serde(default)]
     pub(crate) choices: Vec<ChoiceEntry>,
+    #[serde(default)]
     pub(crate) character_lists: Vec<CharacterListCategory>,
+    #[serde(default)]
     pub(crate) concept_types: Vec<ConceptTypeValues>,
     #[serde(default)]
     pub(crate) selected_concepts: Vec<SelectedConcept>,
-    pub(crate) pending_choices: Option<Vec<PendingChoice>>,
+    #[serde(default)]
+    pub(crate) pending_choices: Vec<PendingChoice>,
     #[serde(default)]
     pub(crate) awarded_xp: Option<i64>,
 }
@@ -227,9 +233,536 @@ pub(crate) struct PreparationStateResponse {
     pub(crate) always_active: Vec<String>,
 }
 
+// ── Requests ───────────────────────────────────────────────────────────────
+//
+// One `Request` variant per command the engine's dispatcher understands (see
+// `apps/ttrpg_dev_cli/lib/cli/server.ex`), tagged by the `command` field via
+// `#[serde(rename = ...)]`. Each command name string appears exactly once,
+// on its variant.
+//
+// `characters.resolve_choice` has two argument shapes depending on whether
+// the choice is scope-based (a feat/sub-choice) or progression-based (a
+// leveling slot); both are modeled by one variant with the irrelevant fields
+// skipped, built through the `resolve_choice_scope`/`resolve_choice_progression`
+// constructors rather than two tags sharing the same rename string.
+#[derive(Serialize)]
+#[serde(tag = "command")]
+pub(crate) enum Request<'a> {
+    #[serde(rename = "roll")]
+    Roll { dice: &'a str },
+
+    #[serde(rename = "systems.list")]
+    SystemsList,
+
+    #[serde(rename = "systems.show")]
+    SystemsShow {
+        system: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        concept_type: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        concept_id: Option<&'a str>,
+    },
+
+    #[serde(rename = "characters.gen")]
+    CharactersGen { system: &'a str },
+
+    #[serde(rename = "characters.save")]
+    CharactersSave { temp_id: &'a str },
+
+    #[serde(rename = "characters.list")]
+    CharactersList {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        system: Option<&'a str>,
+    },
+
+    #[serde(rename = "characters.delete")]
+    CharactersDelete { character: &'a str },
+
+    #[serde(rename = "characters.show")]
+    CharactersShow {
+        character: &'a str,
+        display_mode: &'a str,
+    },
+
+    #[serde(rename = "characters.roll")]
+    CharactersRoll {
+        character: &'a str,
+        #[serde(rename = "type")]
+        concept_type: &'a str,
+        concept: &'a str,
+    },
+
+    #[serde(rename = "characters.award")]
+    CharactersAward {
+        character: &'a str,
+        award: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<serde_json::Value>,
+        display_mode: &'a str,
+    },
+
+    #[serde(rename = "characters.choices")]
+    CharactersChoices {
+        character: &'a str,
+        display_mode: &'a str,
+    },
+
+    #[serde(rename = "characters.resolve_choice")]
+    CharactersResolveChoice {
+        character: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scope_type: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scope_id: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        choice: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        progression: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<i64>,
+        selection: &'a str,
+    },
+
+    #[serde(rename = "characters.random_resolve")]
+    CharactersRandomResolve {
+        character: &'a str,
+        display_mode: &'a str,
+    },
+
+    #[serde(rename = "characters.build_start")]
+    CharactersBuildStart { system: &'a str, name: &'a str },
+
+    #[serde(rename = "characters.build_select")]
+    CharactersBuildSelect {
+        temp_id: &'a str,
+        concept_type: &'a str,
+        concept_id: &'a str,
+    },
+
+    #[serde(rename = "characters.build_resolve_sub")]
+    CharactersBuildResolveSub {
+        temp_id: &'a str,
+        scope_type: &'a str,
+        scope_id: &'a str,
+        choice: &'a str,
+        selection: &'a str,
+    },
+
+    #[serde(rename = "characters.build_finish")]
+    CharactersBuildFinish { temp_id: &'a str },
+
+    #[serde(rename = "characters.inventory")]
+    CharactersInventory { character: &'a str },
+
+    #[serde(rename = "characters.inventory.add")]
+    CharactersInventoryAdd {
+        character: &'a str,
+        #[serde(rename = "type")]
+        item_type: &'a str,
+        id: &'a str,
+        fields: serde_json::Value,
+    },
+
+    #[serde(rename = "characters.inventory.set")]
+    CharactersInventorySet {
+        character: &'a str,
+        index: u64,
+        field: &'a str,
+        value: serde_json::Value,
+    },
+
+    #[serde(rename = "characters.spells")]
+    CharactersSpells { character: &'a str },
+
+    #[serde(rename = "characters.activate")]
+    CharactersActivate {
+        character: &'a str,
+        verb: &'a str,
+        items: &'a [&'a str],
+    },
+}
+
+impl<'a> Request<'a> {
+    /// A scope-based `resolve_choice` (a feat or sub-choice keyed by
+    /// `scope_type`/`scope_id`), as opposed to a progression-based one.
+    pub(crate) fn resolve_choice_scope(
+        character: &'a str,
+        scope: (&'a str, &'a str),
+        choice: &'a str,
+        selection: &'a str,
+    ) -> Self {
+        let (scope_type, scope_id) = scope;
+        Request::CharactersResolveChoice {
+            character,
+            scope_type: Some(scope_type),
+            scope_id: Some(scope_id),
+            choice: Some(choice),
+            progression: None,
+            value: None,
+            selection,
+        }
+    }
+
+    /// A progression-based `resolve_choice` (a leveling slot keyed by
+    /// `progression`), as opposed to a scope-based one.
+    pub(crate) fn resolve_choice_progression(
+        character: &'a str,
+        progression: &'a str,
+        value: i64,
+        selection: &'a str,
+    ) -> Self {
+        Request::CharactersResolveChoice {
+            character,
+            scope_type: None,
+            scope_id: None,
+            choice: None,
+            progression: Some(progression),
+            value: Some(value),
+            selection,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn to_value(req: &Request<'_>) -> serde_json::Value {
+        serde_json::to_value(req).unwrap()
+    }
+
+    #[test]
+    fn serializes_roll_and_systems_list_requests() {
+        assert_eq!(
+            to_value(&Request::Roll { dice: "3d6" }),
+            serde_json::json!({"command": "roll", "dice": "3d6"})
+        );
+        assert_eq!(
+            to_value(&Request::SystemsList),
+            serde_json::json!({"command": "systems.list"})
+        );
+    }
+
+    #[test]
+    fn serializes_systems_show_requests() {
+        assert_eq!(
+            to_value(&Request::SystemsShow {
+                system: "dnd_5e_srd",
+                concept_type: None,
+                concept_id: None
+            }),
+            serde_json::json!({"command": "systems.show", "system": "dnd_5e_srd"})
+        );
+        assert_eq!(
+            to_value(&Request::SystemsShow {
+                system: "dnd_5e_srd",
+                concept_type: Some("skill"),
+                concept_id: None
+            }),
+            serde_json::json!({
+                "command": "systems.show",
+                "system": "dnd_5e_srd",
+                "concept_type": "skill"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::SystemsShow {
+                system: "dnd_5e_srd",
+                concept_type: Some("race"),
+                concept_id: Some("dwarf")
+            }),
+            serde_json::json!({
+                "command": "systems.show",
+                "system": "dnd_5e_srd",
+                "concept_type": "race",
+                "concept_id": "dwarf"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_characters_gen_and_save_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersGen {
+                system: "dnd_5e_srd"
+            }),
+            serde_json::json!({"command": "characters.gen", "system": "dnd_5e_srd"})
+        );
+        assert_eq!(
+            to_value(&Request::CharactersSave { temp_id: "1" }),
+            serde_json::json!({"command": "characters.save", "temp_id": "1"})
+        );
+    }
+
+    #[test]
+    fn serializes_characters_list_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersList { system: None }),
+            serde_json::json!({"command": "characters.list"})
+        );
+        assert_eq!(
+            to_value(&Request::CharactersList {
+                system: Some("dnd_5e_srd")
+            }),
+            serde_json::json!({"command": "characters.list", "system": "dnd_5e_srd"})
+        );
+    }
+
+    #[test]
+    fn serializes_characters_delete_show_and_roll_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersDelete {
+                character: "thorin-stoneback"
+            }),
+            serde_json::json!({"command": "characters.delete", "character": "thorin-stoneback"})
+        );
+        assert_eq!(
+            to_value(&Request::CharactersShow {
+                character: "thorin-stoneback",
+                display_mode: "verbose"
+            }),
+            serde_json::json!({
+                "command": "characters.show",
+                "character": "thorin-stoneback",
+                "display_mode": "verbose"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersRoll {
+                character: "thorin-stoneback",
+                concept_type: "skill",
+                concept: "acrobatics"
+            }),
+            serde_json::json!({
+                "command": "characters.roll",
+                "character": "thorin-stoneback",
+                "type": "skill",
+                "concept": "acrobatics"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_characters_award_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersAward {
+                character: "thorin-stoneback",
+                award: "level_up",
+                value: None,
+                display_mode: "default"
+            }),
+            serde_json::json!({
+                "command": "characters.award",
+                "character": "thorin-stoneback",
+                "award": "level_up",
+                "display_mode": "default"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersAward {
+                character: "thorin-stoneback",
+                award: "experience_points",
+                value: Some(serde_json::json!(300)),
+                display_mode: "default"
+            }),
+            serde_json::json!({
+                "command": "characters.award",
+                "character": "thorin-stoneback",
+                "award": "experience_points",
+                "value": 300,
+                "display_mode": "default"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersAward {
+                character: "thorin-stoneback",
+                award: "feat",
+                value: Some(serde_json::json!("alert")),
+                display_mode: "default"
+            }),
+            serde_json::json!({
+                "command": "characters.award",
+                "character": "thorin-stoneback",
+                "award": "feat",
+                "value": "alert",
+                "display_mode": "default"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_characters_choices_and_resolve_choice_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersChoices {
+                character: "thorin-stoneback",
+                display_mode: "default"
+            }),
+            serde_json::json!({
+                "command": "characters.choices",
+                "character": "thorin-stoneback",
+                "display_mode": "default"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::resolve_choice_progression(
+                "thorin-stoneback",
+                "hp_per_level",
+                7,
+                "rolled"
+            )),
+            serde_json::json!({
+                "command": "characters.resolve_choice",
+                "character": "thorin-stoneback",
+                "progression": "hp_per_level",
+                "value": 7,
+                "selection": "rolled"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::resolve_choice_scope(
+                "thorin-stoneback",
+                ("feat", "ability_score_improvement"),
+                "asi_point_1",
+                "strength"
+            )),
+            serde_json::json!({
+                "command": "characters.resolve_choice",
+                "character": "thorin-stoneback",
+                "scope_type": "feat",
+                "scope_id": "ability_score_improvement",
+                "choice": "asi_point_1",
+                "selection": "strength"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_characters_random_resolve_and_build_start_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersRandomResolve {
+                character: "thorin-stoneback",
+                display_mode: "default"
+            }),
+            serde_json::json!({
+                "command": "characters.random_resolve",
+                "character": "thorin-stoneback",
+                "display_mode": "default"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersBuildStart {
+                system: "dnd_5e_srd",
+                name: "Thorin Stoneback"
+            }),
+            serde_json::json!({
+                "command": "characters.build_start",
+                "system": "dnd_5e_srd",
+                "name": "Thorin Stoneback"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersBuildSelect {
+                temp_id: "1",
+                concept_type: "class",
+                concept_id: "cleric"
+            }),
+            serde_json::json!({
+                "command": "characters.build_select",
+                "temp_id": "1",
+                "concept_type": "class",
+                "concept_id": "cleric"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_characters_build_resolve_sub_and_finish_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersBuildResolveSub {
+                temp_id: "1",
+                scope_type: "class",
+                scope_id: "cleric",
+                choice: "skill_proficiency_1",
+                selection: "history"
+            }),
+            serde_json::json!({
+                "command": "characters.build_resolve_sub",
+                "temp_id": "1",
+                "scope_type": "class",
+                "scope_id": "cleric",
+                "choice": "skill_proficiency_1",
+                "selection": "history"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersBuildFinish { temp_id: "1" }),
+            serde_json::json!({"command": "characters.build_finish", "temp_id": "1"})
+        );
+    }
+
+    #[test]
+    fn serializes_inventory_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersInventory {
+                character: "thorin-stoneback"
+            }),
+            serde_json::json!({"command": "characters.inventory", "character": "thorin-stoneback"})
+        );
+        assert_eq!(
+            to_value(&Request::CharactersInventoryAdd {
+                character: "thorin-stoneback",
+                item_type: "equipment",
+                id: "chain_mail",
+                fields: serde_json::json!({"equipped": true})
+            }),
+            serde_json::json!({
+                "command": "characters.inventory.add",
+                "character": "thorin-stoneback",
+                "type": "equipment",
+                "id": "chain_mail",
+                "fields": {"equipped": true}
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersInventorySet {
+                character: "thorin-stoneback",
+                index: 0,
+                field: "equipped",
+                value: serde_json::json!(true)
+            }),
+            serde_json::json!({
+                "command": "characters.inventory.set",
+                "character": "thorin-stoneback",
+                "index": 0,
+                "field": "equipped",
+                "value": true
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_spells_and_activate_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersSpells {
+                character: "thorin-stoneback"
+            }),
+            serde_json::json!({"command": "characters.spells", "character": "thorin-stoneback"})
+        );
+        let items = ["bless", "cure_wounds"];
+        assert_eq!(
+            to_value(&Request::CharactersActivate {
+                character: "thorin-stoneback",
+                verb: "prepare",
+                items: &items
+            }),
+            serde_json::json!({
+                "command": "characters.activate",
+                "character": "thorin-stoneback",
+                "verb": "prepare",
+                "items": ["bless", "cure_wounds"]
+            })
+        );
+    }
 
     #[test]
     fn deserialize_roll_result_structure() {
@@ -268,7 +801,7 @@ mod tests {
         assert_eq!(c.rule_system, "dnd_5e_srd");
         assert!(c.slug.is_none());
         assert!(c.temp_id.is_none());
-        assert!(c.pending_choices.is_none());
+        assert!(c.pending_choices.is_empty());
     }
 
     #[test]
@@ -288,7 +821,7 @@ mod tests {
         assert_eq!(c.choices[0].type_name, "Race");
         assert_eq!(c.character_lists[0].label, "Skill Proficiencies");
         assert_eq!(c.character_lists[0].items, vec!["Stealth"]);
-        let pending = c.pending_choices.unwrap();
+        let pending = &c.pending_choices;
         assert_eq!(pending[0].id, "hp_1");
         assert_eq!(pending[0].roll.as_deref(), Some("d8"));
         assert_eq!(pending[0].count, Some(1));

@@ -11,7 +11,7 @@ use crate::prompts::{
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
     ChoicesResponse, ConceptDetail, ConceptRollResult, OptionEntry, PendingChoice,
-    PreparationStateResponse, RandomResolveResult, RollResult, SaveResult,
+    PreparationStateResponse, RandomResolveResult, Request, RollResult, SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -153,7 +153,7 @@ fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
 }
 
 fn handle_characters_gen(system: &str, engine: &mut Engine) {
-    let req = json!({"command": "characters.gen", "system": system});
+    let req = Request::CharactersGen { system };
     let Some(character) = call_or_report::<CharacterData>(engine, &req) else {
         return;
     };
@@ -161,7 +161,7 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
     if let Some(temp_id) = &character.temp_id
         && prompt_yes_no("Save this character?").unwrap_or(false)
     {
-        let save_req = json!({"command": "characters.save", "temp_id": temp_id});
+        let save_req = Request::CharactersSave { temp_id };
         match engine.call::<_, SaveResult>(&save_req) {
             Ok(saved) => println!("Saved as '{}'.", saved.slug),
             Err(e) => eprintln!("Error saving: {e}"),
@@ -170,9 +170,8 @@ fn handle_characters_gen(system: &str, engine: &mut Engine) {
 }
 
 fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
-    let req = match system {
-        Some(s) => json!({"command": "characters.list", "system": s}),
-        None => json!({"command": "characters.list"}),
+    let req = Request::CharactersList {
+        system: system.copied(),
     };
     let empty_msg = match system {
         Some(s) => format!(
@@ -196,9 +195,8 @@ fn confirm_delete_character(character: &CharacterSummary, yes: bool) -> Option<b
 }
 
 fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
-    let req = match args.system {
-        Some(s) => json!({"command": "characters.list", "system": s}),
-        None => json!({"command": "characters.list"}),
+    let req = Request::CharactersList {
+        system: args.system,
     };
     let Some(r) = call_or_report::<CharactersList>(engine, &req) else {
         return;
@@ -218,7 +216,7 @@ fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
 }
 
 fn handle_characters_delete(slug: &str, engine: &mut Engine) {
-    let req = json!({"command": "characters.delete", "character": slug});
+    let req = Request::CharactersDelete { character: slug };
     let Some(r) = call_or_report::<crate::protocol::DeletedCharacter>(engine, &req) else {
         return;
     };
@@ -226,7 +224,10 @@ fn handle_characters_delete(slug: &str, engine: &mut Engine) {
 }
 
 fn handle_characters_show(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
-    let req = json!({"command": "characters.show", "character": slug, "display_mode": display_mode.as_str()});
+    let req = Request::CharactersShow {
+        character: slug,
+        display_mode: display_mode.as_str(),
+    };
     let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
         return;
     };
@@ -234,12 +235,11 @@ fn handle_characters_show(slug: &str, display_mode: DisplayMode, engine: &mut En
 }
 
 fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut Engine) {
-    let req = json!({
-        "command": "characters.roll",
-        "character": slug,
-        "type": args.concept_type,
-        "concept": args.concept_id,
-    });
+    let req = Request::CharactersRoll {
+        character: slug,
+        concept_type: args.concept_type,
+        concept: args.concept_id,
+    };
     let Some(result) = call_or_report::<ConceptRollResult>(engine, &req) else {
         return;
     };
@@ -269,17 +269,23 @@ fn handle_characters_award(
     // The server uses the award's value_type to validate; string values support
     // future award types (equipment IDs, feat names, etc.).
     let mode = display_mode.as_str();
-    let req = if let Ok(n) = args.value_str.parse::<i64>() {
-        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": n, "display_mode": mode})
+    let value = if let Ok(n) = args.value_str.parse::<i64>() {
+        json!(n)
     } else {
-        json!({"command": "characters.award", "character": slug, "award": args.award_id, "value": args.value_str, "display_mode": mode})
+        json!(args.value_str)
+    };
+    let req = Request::CharactersAward {
+        character: slug,
+        award: args.award_id,
+        value: Some(value),
+        display_mode: mode,
     };
     let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
         return;
     };
     display::print_character(&c);
-    if let Some(choices) = &c.pending_choices {
-        display::print_pending_choices(choices);
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
     }
 }
 
@@ -290,7 +296,12 @@ fn handle_characters_award_no_value(
     engine: &mut Engine,
 ) {
     let mode = display_mode.as_str();
-    let req = json!({"command": "characters.award", "character": slug, "award": award_id, "display_mode": mode});
+    let req = Request::CharactersAward {
+        character: slug,
+        award: award_id,
+        value: None,
+        display_mode: mode,
+    };
     let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
         return;
     };
@@ -298,8 +309,8 @@ fn handle_characters_award_no_value(
     if let Some(xp) = c.awarded_xp {
         println!("Awarded {award_id}: +{xp} XP");
     }
-    if let Some(choices) = &c.pending_choices {
-        display::print_pending_choices(choices);
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
     }
 }
 
@@ -325,7 +336,10 @@ fn format_resolution_line(r: &crate::protocol::ResolutionEntry) -> String {
 }
 
 fn handle_characters_random_resolve(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
-    let req = json!({"command": "characters.random_resolve", "character": slug, "display_mode": display_mode.as_str()});
+    let req = Request::CharactersRandomResolve {
+        character: slug,
+        display_mode: display_mode.as_str(),
+    };
     let Some(result) = call_or_report::<RandomResolveResult>(engine, &req) else {
         return;
     };
@@ -343,7 +357,10 @@ fn handle_characters_random_resolve(slug: &str, display_mode: DisplayMode, engin
 }
 
 fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
-    let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
+    let req = Request::CharactersChoices {
+        character: slug,
+        display_mode: display_mode.as_str(),
+    };
     let Some(r) = call_or_report::<ChoicesResponse>(engine, &req) else {
         return;
     };
@@ -354,28 +371,17 @@ fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut
     }
 }
 
-fn build_resolve_choice_request(
-    slug: &str,
-    choice: &PendingChoice,
+fn build_resolve_choice_request<'a>(
+    slug: &'a str,
+    choice: &'a PendingChoice,
     value: i64,
-    selection: &str,
-) -> serde_json::Value {
+    selection: &'a str,
+) -> Request<'a> {
     match (&choice.scope_type, &choice.scope_id) {
-        (Some(scope_type), Some(scope_id)) => json!({
-            "command": "characters.resolve_choice",
-            "character": slug,
-            "scope_type": scope_type,
-            "scope_id": scope_id,
-            "choice": choice.id,
-            "selection": selection,
-        }),
-        _ => json!({
-            "command": "characters.resolve_choice",
-            "character": slug,
-            "progression": choice.id,
-            "value": value,
-            "selection": selection,
-        }),
+        (Some(scope_type), Some(scope_id)) => {
+            Request::resolve_choice_scope(slug, (scope_type, scope_id), &choice.id, selection)
+        }
+        _ => Request::resolve_choice_progression(slug, &choice.id, value, selection),
     }
 }
 
@@ -389,7 +395,10 @@ fn dispatch_resolve_choice(rest: &[&str], display_mode: DisplayMode, engine: &mu
 }
 
 fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
-    let req = json!({"command": "characters.choices", "character": slug, "display_mode": display_mode.as_str()});
+    let req = Request::CharactersChoices {
+        character: slug,
+        display_mode: display_mode.as_str(),
+    };
     let Some(r) = call_or_report::<ChoicesResponse>(engine, &req) else {
         return;
     };
@@ -408,10 +417,8 @@ fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engin
         return;
     };
     display::print_character(&c);
-    if let Some(remaining) = &c.pending_choices
-        && !remaining.is_empty()
-    {
-        display::print_pending_choices(remaining);
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
     }
 }
 
@@ -453,10 +460,10 @@ fn resolve_build_progressions(
     engine: &mut Engine,
 ) -> Option<CharacterData> {
     loop {
-        let pending: Vec<PendingChoice> = match &character.pending_choices {
-            Some(p) if !p.is_empty() => p.clone(),
-            _ => return Some(character),
-        };
+        if character.pending_choices.is_empty() {
+            return Some(character);
+        }
+        let pending = character.pending_choices.clone();
         let choice = select_pending_choice(&pending)?.clone();
         let (value, selection) = prompt_choice_value(&choice, engine)?;
         let req = build_resolve_choice_request(slug, &choice, value, &selection);
@@ -483,14 +490,13 @@ fn resolve_sub_choices(
         let Some(selection) = prompt_from_option_entries(&choice.name, &options) else {
             return false;
         };
-        let req = json!({
-            "command": "characters.build_resolve_sub",
-            "temp_id": temp_id,
-            "scope_type": scope_type,
-            "scope_id": scope_id,
-            "choice": choice_id,
-            "selection": selection,
-        });
+        let req = Request::CharactersBuildResolveSub {
+            temp_id,
+            scope_type: &scope_type,
+            scope_id: &scope_id,
+            choice: &choice_id,
+            selection: &selection,
+        };
         let Some(r) = call_or_report::<BuildSubChoiceResult>(engine, &req) else {
             return false;
         };
@@ -587,12 +593,11 @@ fn format_concept_detail(detail: &ConceptDetail) -> String {
 }
 
 fn show_concept_detail(system: &str, concept_type: &str, concept_id: &str, engine: &mut Engine) {
-    let req = json!({
-        "command": "systems.show",
-        "system": system,
-        "concept_type": concept_type,
-        "concept_id": concept_id,
-    });
+    let req = Request::SystemsShow {
+        system,
+        concept_type: Some(concept_type),
+        concept_id: Some(concept_id),
+    };
     match engine.call::<_, ConceptDetail>(&req) {
         Ok(detail) => println!("\n{}\n", format_concept_detail(&detail)),
         Err(e) => eprintln!("Could not load details: {e}"),
@@ -620,12 +625,11 @@ fn resolve_building_choices(
                 }
             }
         };
-        let req = json!({
-            "command": "characters.build_select",
-            "temp_id": temp_id,
-            "concept_type": group.concept_type,
-            "concept_id": concept_id,
-        });
+        let req = Request::CharactersBuildSelect {
+            temp_id,
+            concept_type: &group.concept_type,
+            concept_id: &concept_id,
+        };
         let Some(r) = call_or_report::<BuildSubChoiceResult>(engine, &req) else {
             return false;
         };
@@ -646,7 +650,10 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
             break trimmed;
         }
     };
-    let req = json!({"command": "characters.build_start", "system": system, "name": name});
+    let req = Request::CharactersBuildStart {
+        system,
+        name: &name,
+    };
     let Some(build_start) = call_or_report::<BuildStartResult>(engine, &req) else {
         return;
     };
@@ -654,7 +661,7 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
     if !resolve_building_choices(&temp_id, &build_start.building_choices, system, engine) {
         return;
     }
-    let finish_req = json!({"command": "characters.build_finish", "temp_id": temp_id});
+    let finish_req = Request::CharactersBuildFinish { temp_id: &temp_id };
     let Some(character) = call_or_report::<CharacterData>(engine, &finish_req) else {
         return;
     };
@@ -673,7 +680,7 @@ fn handle_characters_build(system: &str, engine: &mut Engine) {
 }
 
 fn handle_characters_spells(slug: &str, engine: &mut Engine) {
-    let req = json!({"command": "characters.spells", "character": slug});
+    let req = Request::CharactersSpells { character: slug };
     let Some(r) = call_or_report::<PreparationStateResponse>(engine, &req) else {
         return;
     };
@@ -681,8 +688,11 @@ fn handle_characters_spells(slug: &str, engine: &mut Engine) {
 }
 
 fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) {
-    let req =
-        json!({"command": "characters.activate", "character": slug, "verb": verb, "items": items});
+    let req = Request::CharactersActivate {
+        character: slug,
+        verb,
+        items,
+    };
     let Some(_) = call_or_report::<serde_json::Value>(engine, &req) else {
         return;
     };
@@ -711,7 +721,8 @@ fn prompt_choice_value(choice: &PendingChoice, engine: &mut Engine) -> Option<(i
         return Some((average, "average".to_string()));
     }
 
-    let roll_req = json!({"command": "roll", "dice": format!("1{die}")});
+    let dice = format!("1{die}");
+    let roll_req = Request::Roll { dice: &dice };
     match engine.call::<_, RollResult>(&roll_req) {
         Ok(result) => match result.results.first() {
             Some(first) => {

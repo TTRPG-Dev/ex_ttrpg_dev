@@ -3,7 +3,7 @@ use serde_json::json;
 use super::call_or_report;
 use crate::display;
 use crate::engine::Engine;
-use crate::protocol::InventoryResponse;
+use crate::protocol::{InventoryResponse, Request};
 
 pub(crate) fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
     match tokens {
@@ -14,17 +14,25 @@ pub(crate) fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
             println!("Usage: characters inventory set <slug> <index> <field> <value>")
         }
         [slug] => {
-            let req = json!({"command": "characters.inventory", "character": slug});
+            let req = Request::CharactersInventory { character: slug };
             call_inventory(&req, engine);
         }
         ["add", slug, type_id, id] => call_inventory(
-            &json!({"command": "characters.inventory.add", "character": slug,
-                    "type": type_id, "id": id, "fields": {}}),
+            &Request::CharactersInventoryAdd {
+                character: slug,
+                item_type: type_id,
+                id,
+                fields: json!({}),
+            },
             engine,
         ),
         ["add", slug, type_id, id, "--equipped"] => call_inventory(
-            &json!({"command": "characters.inventory.add", "character": slug,
-                    "type": type_id, "id": id, "fields": {"equipped": true}}),
+            &Request::CharactersInventoryAdd {
+                character: slug,
+                item_type: type_id,
+                id,
+                fields: json!({"equipped": true}),
+            },
             engine,
         ),
         ["set", slug, index_str, field, value_str] => {
@@ -38,8 +46,12 @@ pub(crate) fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
                 s => s.parse::<f64>().map_or_else(|_| json!(s), |n| json!(n)),
             };
             call_inventory(
-                &json!({"command": "characters.inventory.set", "character": slug,
-                        "index": index, "field": field, "value": value}),
+                &Request::CharactersInventorySet {
+                    character: slug,
+                    index,
+                    field,
+                    value,
+                },
                 engine,
             );
         }
@@ -51,7 +63,7 @@ pub(crate) fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
     }
 }
 
-fn call_inventory(req: &serde_json::Value, engine: &mut Engine) {
+fn call_inventory(req: &Request<'_>, engine: &mut Engine) {
     let Some(r) = call_or_report::<InventoryResponse>(engine, req) else {
         return;
     };
