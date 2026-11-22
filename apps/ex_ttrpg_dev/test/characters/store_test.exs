@@ -35,6 +35,21 @@ defmodule ExTTRPGDevTest.Characters.Store do
     delete_test_character(character)
   end
 
+  test "save_character/1 returns :ok, and {:error, :already_exists} on collision" do
+    character = build_test_character()
+    assert not Characters.character_exists?(character)
+
+    assert :ok = Characters.save_character(character)
+    assert Characters.character_exists?(character)
+
+    assert {:error, :already_exists} = Characters.save_character(character)
+
+    assert :ok = Characters.save_character(character, true)
+
+    # cleanup
+    delete_test_character(character)
+  end
+
   test "save_character!/1" do
     character = build_test_character()
     assert not Characters.character_exists?(character)

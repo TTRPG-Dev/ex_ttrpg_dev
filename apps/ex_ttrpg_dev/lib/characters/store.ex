@@ -39,18 +39,36 @@ defmodule ExTTRPGDev.Characters.Store do
   @doc """
   Saves the given character to disk.
 
-  See `ExTTRPGDev.Characters.save_character!/2` for documentation.
+  See `ExTTRPGDev.Characters.save_character/2` for documentation.
   """
-  def save_character!(%Character{} = character, overwrite \\ false) do
+  def save_character(%Character{} = character, overwrite \\ false) do
     if character_exists?(character) and not overwrite do
-      raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
+      {:error, :already_exists}
     else
       File.mkdir_p!(Globals.characters_path())
 
-      File.write!(
+      File.write(
         character_file_path!(character),
         Poison.encode!(Character.to_json_map(character))
       )
+    end
+  end
+
+  @doc """
+  Saves the given character to disk, raising on failure.
+
+  See `ExTTRPGDev.Characters.save_character!/2` for documentation.
+  """
+  def save_character!(%Character{} = character, overwrite \\ false) do
+    case save_character(character, overwrite) do
+      :ok ->
+        :ok
+
+      {:error, :already_exists} ->
+        raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
+
+      {:error, reason} ->
+        raise "Failed to save character #{character.name}: #{inspect(reason)}"
     end
   end
 
