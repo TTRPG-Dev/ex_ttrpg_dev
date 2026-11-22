@@ -85,7 +85,9 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
   def handle(%{"command" => "characters.build_finish", "temp_id" => temp_id} = msg, state) do
     char = Common.fetch_pending!(state, temp_id)
     sys = RuleSystems.load_system!(char.metadata.rule_system)
-    inv = Character.inventory_from_decisions(char.decisions, sys)
+
+    {:ok, %{items: inv, errors: inventory_errors}} =
+      Character.inventory_from_decisions(char.decisions, sys)
 
     {:ok, %{slots: slots, errors: slot_errors}} =
       Characters.compute_pending_choice_slots(sys, %{char | inventory: inv})
@@ -96,6 +98,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
 
     data =
       Common.character_with_choices_response(sys, updated, updated.metadata.slug, msg)
+      |> Map.put(:inventory_errors, inventory_errors)
       |> Map.put(:pending_choice_slot_errors, slot_errors)
 
     {:ok, data, new_state}

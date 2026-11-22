@@ -1,6 +1,4 @@
 defmodule ExTTRPGDev.Characters.Character do
-  require Logger
-
   alias __MODULE__
   alias DiceLib.Basic, as: Dice
   alias ExTTRPGDev.Characters.{Decision, InventoryItem, Metadata}
@@ -42,6 +40,10 @@ defmodule ExTTRPGDev.Characters.Character do
   If any chosen concepts (race, class, background, etc.) declare `starting_equipment`,
   those items are automatically added to the character's inventory with default field values
   from the system's inventory schema.
+
+  Raises if any starting-equipment spec in the chosen concepts' config is malformed
+  (see `inventory_from_decisions/2`) — character generation reads system config that
+  is expected to already be valid, same as an unknown rolling method.
   """
   def gen_character!(%LoadedSystem{} = system, decisions \\ []) do
     character_name = Faker.Person.name()
@@ -53,7 +55,12 @@ defmodule ExTTRPGDev.Characters.Character do
         {node_key, roll_generated_value(node, system.rolling_methods)}
       end)
 
-    starting_inventory = inventory_from_decisions(decisions, system)
+    {:ok, %{items: starting_inventory, errors: errors}} =
+      inventory_from_decisions(decisions, system)
+
+    if errors != [] do
+      raise "invalid starting-equipment spec(s): #{inspect(errors)}"
+    end
 
     %Character{
       name: character_name,
@@ -182,41 +189,78 @@ defmodule ExTTRPGDev.Characters.Character do
     }
   end
 
+  @doc """
+  Computes the inventory items granted by a character's decisions: static
+  `starting_equipment` on chosen concepts, plus items from equipment-choice
+  sub-choices (`grants_to = "inventory"`).
+
+  Returns `{:ok, %{items: items, errors: errors}}`. `errors` reports a
+  starting-equipment spec that was malformed — missing `"type"`/`"id"`, or
+  failing inventory-item validation for a reason other than
+  `{:not_inventoriable, _}` (declaring equipment for a type the system
+  doesn't configure as inventoriable is intentional, not a mistake, and is
+  silently skipped). Each entry is `%{spec: spec, reason: reason}`. A
+  malformed spec contributes no item, but every other spec still resolves
+  normally.
+  """
   def inventory_from_decisions(decisions, system) do
-    static = starting_equipment_items(decisions, system)
-    chosen = equipment_choice_items(decisions, system)
-    static ++ chosen
+    {static_items, static_errors} = starting_equipment_items(decisions, system)
+    {chosen_items, chosen_errors} = equipment_choice_items(decisions, system)
+
+    {:ok, %{items: static_items ++ chosen_items, errors: static_errors ++ chosen_errors}}
   end
 
   defp starting_equipment_items(decisions, system) do
     decisions
     |> Enum.filter(&(&1.scope == nil))
-    |> Enum.flat_map(fn %{choice: type, selection: id} ->
-      system.concept_metadata
-      |> Map.get({type, id}, %{})
-      |> Map.get("starting_equipment", [])
-      |> Enum.flat_map(&item_from_spec(&1, system.inventory_rules))
+    |> Enum.reduce({[], []}, fn %{choice: type, selection: id}, {items_acc, errors_acc} ->
+      specs =
+        system.concept_metadata
+        |> Map.get({type, id}, %{})
+        |> Map.get("starting_equipment", [])
+
+      {items, errors} = items_from_specs(specs, system.inventory_rules)
+      {items_acc ++ items, errors_acc ++ errors}
     end)
   end
 
   defp equipment_choice_items(decisions, system) do
-    Enum.flat_map(decisions, fn
-      %Decision{scope: {type, id}, choice: choice_id, selection: selected} ->
-        choice_def =
-          system.concept_metadata
-          |> Map.get({type, id}, %{})
-          |> Map.get("choices", %{})
-          |> Map.get(choice_id, %{})
+    Enum.reduce(decisions, {[], []}, fn decision, {items_acc, errors_acc} ->
+      case equipment_choice_spec(decision, system) do
+        nil ->
+          {items_acc, errors_acc}
 
-        if Map.get(choice_def, "grants_to") == "inventory" do
-          item_type = choice_def["type"]
-          item_from_spec(%{"type" => item_type, "id" => selected}, system.inventory_rules)
-        else
-          []
-        end
+        spec ->
+          {items, errors} = items_from_specs([spec], system.inventory_rules)
+          {items_acc ++ items, errors_acc ++ errors}
+      end
+    end)
+  end
 
-      _ ->
-        []
+  defp equipment_choice_spec(
+         %Decision{scope: {type, id}, choice: choice_id, selection: selected},
+         system
+       ) do
+    choice_def =
+      system.concept_metadata
+      |> Map.get({type, id}, %{})
+      |> Map.get("choices", %{})
+      |> Map.get(choice_id, %{})
+
+    if Map.get(choice_def, "grants_to") == "inventory" do
+      %{"type" => choice_def["type"], "id" => selected}
+    end
+  end
+
+  defp equipment_choice_spec(_decision, _system), do: nil
+
+  defp items_from_specs(specs, inventory_rules) do
+    Enum.reduce(specs, {[], []}, fn spec, {items_acc, errors_acc} ->
+      case item_from_spec(spec, inventory_rules) do
+        {:ok, item} -> {items_acc ++ [item], errors_acc}
+        :skip -> {items_acc, errors_acc}
+        {:error, reason} -> {items_acc, errors_acc ++ [%{spec: spec, reason: reason}]}
+      end
     end)
   end
 
@@ -224,32 +268,15 @@ defmodule ExTTRPGDev.Characters.Character do
     custom_fields = Map.get(spec, "fields", %{})
 
     case InventoryItem.new(type, id, inventory_rules, custom_fields) do
-      {:ok, item} ->
-        [item]
-
+      {:ok, item} -> {:ok, item}
       # Not every starting-equipment entry needs to be inventory-tracked
       # (e.g. a type the system declares but never configures as inventoriable).
-      {:error, {:not_inventoriable, _type}} ->
-        []
-
-      {:error, reason} ->
-        Logger.warning(
-          "Starting equipment spec #{inspect(spec)} could not be resolved to an inventory " <>
-            "item: #{inspect(reason)}. Item dropped."
-        )
-
-        []
+      {:error, {:not_inventoriable, _type}} -> :skip
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp item_from_spec(spec, _inventory_rules) do
-    Logger.warning(
-      "Starting equipment spec #{inspect(spec)} is missing a required type or id key. " <>
-        "Item dropped."
-    )
-
-    []
-  end
+  defp item_from_spec(_spec, _inventory_rules), do: {:error, :missing_type_or_id}
 
   defp roll_generated_value(%Node{method: method_id}, rolling_methods) do
     method = resolve_rolling_method(method_id, rolling_methods)

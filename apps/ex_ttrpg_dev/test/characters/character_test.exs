@@ -1,6 +1,5 @@
 defmodule ExTTRPGDevTest.Characters.Character do
   use ExUnit.Case
-  import ExUnit.CaptureLog
 
   alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.Characters.{Character, Decision, InventoryItem}
@@ -86,8 +85,8 @@ defmodule ExTTRPGDevTest.Characters.Character do
     end
   end
 
-  test "gen_character!/2 populates inventory from starting_equipment on chosen concepts" do
-    {:ok, inventory_rules} =
+  defp equipped_field_rules do
+    {:ok, rules} =
       ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
         "inventory_type" => %{
           "equipment" => %{
@@ -97,21 +96,27 @@ defmodule ExTTRPGDevTest.Characters.Character do
         }
       })
 
-    system =
-      RuleSystems.load_system!("dnd_5e_srd")
-      |> Map.put(:inventory_rules, inventory_rules)
-      |> Map.put(:concept_metadata, %{
-        {"class", "fighter"} => %{
-          "name" => "Fighter",
-          "starting_equipment" => [
-            %{"type" => "equipment", "id" => "chain_mail"},
-            %{"type" => "equipment", "id" => "longsword", "fields" => %{"equipped" => true}}
-          ]
-        }
-      })
+    rules
+  end
 
-    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
-    character = Character.gen_character!(system, decisions)
+  defp fighter_system(inventory_rules, starting_equipment) do
+    RuleSystems.load_system!("dnd_5e_srd")
+    |> Map.put(:inventory_rules, inventory_rules)
+    |> Map.put(:concept_metadata, %{
+      {"class", "fighter"} => %{"starting_equipment" => starting_equipment}
+    })
+  end
+
+  defp fighter_decisions, do: [%Decision{scope: nil, choice: "class", selection: "fighter"}]
+
+  test "gen_character!/2 populates inventory from starting_equipment on chosen concepts" do
+    starting_equipment = [
+      %{"type" => "equipment", "id" => "chain_mail"},
+      %{"type" => "equipment", "id" => "longsword", "fields" => %{"equipped" => true}}
+    ]
+
+    system = fighter_system(equipped_field_rules(), starting_equipment)
+    character = Character.gen_character!(system, fighter_decisions())
 
     assert length(character.inventory) == 2
     chain_mail = Enum.find(character.inventory, &(&1.concept_id == "chain_mail"))
@@ -124,77 +129,51 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
   test "gen_character!/2 ignores starting_equipment for non-inventoriable types" do
     {:ok, empty_rules} = ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{})
-
-    system =
-      RuleSystems.load_system!("dnd_5e_srd")
-      |> Map.put(:inventory_rules, empty_rules)
-      |> Map.put(:concept_metadata, %{
-        {"class", "fighter"} => %{
-          "starting_equipment" => [%{"type" => "equipment", "id" => "longsword"}]
-        }
-      })
-
-    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
-    character = Character.gen_character!(system, decisions)
+    starting_equipment = [%{"type" => "equipment", "id" => "longsword"}]
+    system = fighter_system(empty_rules, starting_equipment)
+    character = Character.gen_character!(system, fighter_decisions())
     assert character.inventory == []
   end
 
-  test "gen_character!/2 logs a warning and drops a starting-equipment entry missing type/id" do
+  test "gen_character!/2 raises clearly for a starting-equipment entry missing type/id" do
     {:ok, inventory_rules} = ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{})
+    system = fighter_system(inventory_rules, [%{"id" => "longsword"}])
 
-    system =
-      RuleSystems.load_system!("dnd_5e_srd")
-      |> Map.put(:inventory_rules, inventory_rules)
-      |> Map.put(:concept_metadata, %{
-        {"class", "fighter"} => %{
-          "starting_equipment" => [%{"id" => "longsword"}]
-        }
-      })
-
-    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
-
-    log =
-      capture_log(fn ->
-        character = Character.gen_character!(system, decisions)
-        assert character.inventory == []
-      end)
-
-    assert log =~ "Starting equipment spec"
-    assert log =~ "missing a required type or id key"
+    assert_raise RuntimeError, ~r/invalid starting-equipment spec/, fn ->
+      Character.gen_character!(system, fighter_decisions())
+    end
   end
 
-  test "gen_character!/2 logs a warning and drops a starting-equipment entry with an invalid field" do
-    {:ok, inventory_rules} =
-      ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{
-        "inventory_type" => %{
-          "equipment" => %{
-            "activation_field" => "equipped",
-            "schema" => %{"equipped" => %{"type" => "boolean", "default" => false}}
-          }
-        }
-      })
+  test "gen_character!/2 raises clearly for a starting-equipment entry with an invalid field" do
+    starting_equipment = [
+      %{"type" => "equipment", "id" => "longsword", "fields" => %{"typo_field" => true}}
+    ]
 
-    system =
-      RuleSystems.load_system!("dnd_5e_srd")
-      |> Map.put(:inventory_rules, inventory_rules)
-      |> Map.put(:concept_metadata, %{
-        {"class", "fighter"} => %{
-          "starting_equipment" => [
-            %{"type" => "equipment", "id" => "longsword", "fields" => %{"typo_field" => true}}
-          ]
-        }
-      })
+    system = fighter_system(equipped_field_rules(), starting_equipment)
 
-    decisions = [%Decision{scope: nil, choice: "class", selection: "fighter"}]
+    assert_raise RuntimeError, ~r/invalid starting-equipment spec/, fn ->
+      Character.gen_character!(system, fighter_decisions())
+    end
+  end
 
-    log =
-      capture_log(fn ->
-        character = Character.gen_character!(system, decisions)
-        assert character.inventory == []
-      end)
+  test "inventory_from_decisions/2 reports a structured error for a spec missing type/id, without raising" do
+    {:ok, inventory_rules} = ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{})
+    system = fighter_system(inventory_rules, [%{"id" => "longsword"}])
 
-    assert log =~ "Starting equipment spec"
-    assert log =~ "could not be resolved to an inventory item"
+    assert {:ok, %{items: [], errors: [error]}} =
+             Character.inventory_from_decisions(fighter_decisions(), system)
+
+    assert error.spec == %{"id" => "longsword"}
+    assert error.reason == :missing_type_or_id
+  end
+
+  test "inventory_from_decisions/2 skips, without an error, a type the system doesn't configure as inventoriable" do
+    {:ok, empty_rules} = ExTTRPGDev.RuleSystem.InventoryRules.from_map(%{})
+    starting_equipment = [%{"type" => "equipment", "id" => "longsword"}]
+    system = fighter_system(empty_rules, starting_equipment)
+
+    assert {:ok, %{items: [], errors: []}} =
+             Character.inventory_from_decisions(fighter_decisions(), system)
   end
 
   test "gen_character!/2 adds inventory item for equipment choice decision" do
