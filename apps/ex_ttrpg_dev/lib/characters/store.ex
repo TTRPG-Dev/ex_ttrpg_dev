@@ -63,7 +63,7 @@ defmodule ExTTRPGDev.Characters.Store do
         :ok
 
       {:error, :already_exists} ->
-        raise "Character named #{character.name} already exsts. To overwrite, pass `overwrite` as true"
+        raise "Character named #{character.name} already exists. To overwrite, pass `overwrite` as true"
 
       {:error, reason} ->
         raise "Failed to save character #{character.name}: #{inspect(reason)}"

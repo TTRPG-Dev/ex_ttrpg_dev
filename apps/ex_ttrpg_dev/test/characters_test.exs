@@ -6,11 +6,8 @@ defmodule ExTTRPGDevTest.Characters do
 
   doctest ExTTRPGDev.Characters,
     except: [
-      character_exists?: 1,
-      save_character!: 1,
-      save_character!: 2,
-      list_characters!: 0,
-      load_character!: 1,
+      # Rolls dice and requires a loaded rule system with a domain-specific
+      # roll definition configured — not reproducible deterministically here.
       concept_roll!: 4
     ]
 end
