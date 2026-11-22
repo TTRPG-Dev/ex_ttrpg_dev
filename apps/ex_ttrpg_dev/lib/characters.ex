@@ -26,14 +26,13 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Store
 
   @doc """
-  Get the file path for a character
-
-  ## Examples
-
-      iex> Characters.character_file_path!(%Character{metadata: %Characters.Metadata{slug: "mr_whiskers"}})
-      "mr_whiskers.json"
+  Get the file path for a character.
   """
-  defdelegate character_file_path!(character), to: Store
+  defdelegate character_file_path(character), to: Store
+
+  @doc false
+  @deprecated "Use character_file_path/1 instead; it never raised despite the bang"
+  defdelegate character_file_path!(character), to: Store, as: :character_file_path
 
   @doc """
   Returns a boolean as to whether the character exists on disk

@@ -15,13 +15,13 @@ defmodule ExTTRPGDev.Characters.Store do
   @doc """
   Get the file path for a character.
 
-  See `ExTTRPGDev.Characters.character_file_path!/1` for documentation.
+  See `ExTTRPGDev.Characters.character_file_path/1` for documentation.
   """
-  def character_file_path!(%Character{metadata: %Metadata{slug: slug}}) do
-    character_file_path!(slug)
+  def character_file_path(%Character{metadata: %Metadata{slug: slug}}) do
+    character_file_path(slug)
   end
 
-  def character_file_path!(character_slug) when is_bitstring(character_slug) do
+  def character_file_path(character_slug) when is_bitstring(character_slug) do
     Path.join(Globals.characters_path(), "#{character_slug}.json")
   end
 
@@ -32,7 +32,7 @@ defmodule ExTTRPGDev.Characters.Store do
   """
   def character_exists?(character) do
     character
-    |> character_file_path!
+    |> character_file_path()
     |> File.exists?()
   end
 
@@ -47,7 +47,7 @@ defmodule ExTTRPGDev.Characters.Store do
     else
       with :ok <- File.mkdir_p(Globals.characters_path()),
            {:ok, json} <- Poison.encode(Character.to_json_map(character)) do
-        File.write(character_file_path!(character), json)
+        File.write(character_file_path(character), json)
       end
     end
   end
@@ -76,7 +76,7 @@ defmodule ExTTRPGDev.Characters.Store do
   See `ExTTRPGDev.Characters.delete_character/1` for documentation.
   """
   def delete_character(character_slug) do
-    case character_file_path!(character_slug) |> File.rm() do
+    case character_file_path(character_slug) |> File.rm() do
       :ok -> :ok
       {:error, :enoent} -> {:error, :not_found}
       {:error, reason} -> {:error, reason}
@@ -122,7 +122,7 @@ defmodule ExTTRPGDev.Characters.Store do
   See `ExTTRPGDev.Characters.load_character/1` for documentation.
   """
   def load_character(character_slug) do
-    case character_file_path!(character_slug) |> File.read() do
+    case character_file_path(character_slug) |> File.read() do
       {:ok, contents} ->
         {:ok, Character.from_json!(contents)}
 

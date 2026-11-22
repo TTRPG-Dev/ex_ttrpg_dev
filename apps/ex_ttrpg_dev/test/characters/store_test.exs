@@ -19,7 +19,12 @@ defmodule ExTTRPGDevTest.Characters.Store do
   end
 
   def delete_test_character(%Character{} = character) do
-    File.rm(Characters.character_file_path!(character))
+    File.rm(Characters.character_file_path(character))
+  end
+
+  test "character_file_path!/1 is a deprecated delegate to character_file_path/1" do
+    character = build_test_character()
+    assert Characters.character_file_path!(character) == Characters.character_file_path(character)
   end
 
   test "character_exists?/1" do
