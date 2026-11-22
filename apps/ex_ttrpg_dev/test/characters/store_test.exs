@@ -1,9 +1,25 @@
 defmodule ExTTRPGDevTest.Characters.Store do
-  # Not async: these tests share the on-disk characters directory.
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.RuleSystems
+
+  setup do
+    tmp_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "ex_ttrpg_dev_characters_#{System.unique_integer([:positive])}"
+      )
+
+    Application.put_env(:ex_ttrpg_dev, :characters_path, tmp_dir)
+
+    on_exit(fn ->
+      Application.delete_env(:ex_ttrpg_dev, :characters_path)
+      File.rm_rf(tmp_dir)
+    end)
+
+    :ok
+  end
 
   def build_test_character do
     RuleSystems.list_systems()
