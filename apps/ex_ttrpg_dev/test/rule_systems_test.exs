@@ -50,16 +50,24 @@ defmodule ExTTRPGDevTest.RuleSystems do
              RuleSystems.system_path(bundled_system_slug)
   end
 
-  test "is_bundled_system?/1 returns true for bundled system" do
-    assert RuleSystems.is_bundled_system?("dnd_5e_srd")
+  test "bundled_system?/1 returns true for bundled system" do
+    assert RuleSystems.bundled_system?("dnd_5e_srd")
   end
 
-  test "is_bundled_system?/1 returns false for unknown system" do
-    refute RuleSystems.is_bundled_system?("unknown_system_xyz")
+  test "bundled_system?/1 returns false for unknown system" do
+    refute RuleSystems.bundled_system?("unknown_system_xyz")
   end
 
-  test "is_local_system?/1 returns false for bundled system" do
-    assert not RuleSystems.is_local_system?("dnd_5e_srd")
+  test "local_system?/1 returns false for bundled system" do
+    assert not RuleSystems.local_system?("dnd_5e_srd")
+  end
+
+  test "is_bundled_system?/1, is_local_system?/1, is_configured?/1 are deprecated delegates" do
+    assert RuleSystems.is_bundled_system?("dnd_5e_srd") ==
+             RuleSystems.bundled_system?("dnd_5e_srd")
+
+    assert RuleSystems.is_local_system?("dnd_5e_srd") == RuleSystems.local_system?("dnd_5e_srd")
+    assert RuleSystems.is_configured?("dnd_5e_srd") == RuleSystems.configured?("dnd_5e_srd")
   end
 
   test "list_local_systems/0 returns a list" do

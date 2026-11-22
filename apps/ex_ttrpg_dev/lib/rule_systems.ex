@@ -67,45 +67,60 @@ defmodule ExTTRPGDev.RuleSystems do
   Returns true if the system is a bundled system.
 
   ## Examples
-      iex> ExTTRPGDev.RuleSystems.is_bundled_system?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.bundled_system?("dnd_5e_srd")
       true
 
-      iex> ExTTRPGDev.RuleSystems.is_bundled_system?("non_existent_system")
+      iex> ExTTRPGDev.RuleSystems.bundled_system?("non_existent_system")
       false
 
   """
-  def is_bundled_system?(system) when is_bitstring(system) do
+  def bundled_system?(system) when is_bitstring(system) do
     Enum.any?(list_bundled_systems(), &(&1 == system))
   end
+
+  @doc false
+  @deprecated "Use bundled_system?/1 instead; the is_ prefix is reserved for guards"
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_bundled_system?(system), do: bundled_system?(system)
 
   @doc """
   Returns true if the system is a user-defined local system.
 
   ## Examples
-      iex> ExTTRPGDev.RuleSystems.is_local_system?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.local_system?("dnd_5e_srd")
       false
 
-      iex> ExTTRPGDev.RuleSystems.is_local_system?("non_existent_system")
+      iex> ExTTRPGDev.RuleSystems.local_system?("non_existent_system")
       false
 
   """
-  def is_local_system?(system) when is_bitstring(system) do
+  def local_system?(system) when is_bitstring(system) do
     Enum.any?(list_local_systems(), &(&1 == system))
   end
+
+  @doc false
+  @deprecated "Use local_system?/1 instead; the is_ prefix is reserved for guards"
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_local_system?(system), do: local_system?(system)
 
   @doc """
   Returns true if the system is configured (bundled or local).
 
   ## Examples
-      iex> ExTTRPGDev.RuleSystems.is_configured?("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.configured?("dnd_5e_srd")
       true
 
-      iex> ExTTRPGDev.RuleSystems.is_configured?("non_existent_system")
+      iex> ExTTRPGDev.RuleSystems.configured?("non_existent_system")
       false
   """
-  def is_configured?(system) when is_bitstring(system) do
+  def configured?(system) when is_bitstring(system) do
     Enum.any?(list_systems(), &(&1 == system))
   end
+
+  @doc false
+  @deprecated "Use configured?/1 instead; the is_ prefix is reserved for guards"
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_configured?(system), do: configured?(system)
 
   @doc """
   Ensures a system is configured, returning the slug if so, raising if not.
@@ -118,7 +133,7 @@ defmodule ExTTRPGDev.RuleSystems do
       ** (RuntimeError) System `not_configured` is not configured
   """
   def assert_configured!(system) when is_bitstring(system) do
-    if is_configured?(system) do
+    if configured?(system) do
       system
     else
       raise "System `#{system}` is not configured"
@@ -138,7 +153,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def system_path(system) when is_bitstring(system) do
-    if is_bundled_system?(system) do
+    if bundled_system?(system) do
       Path.join(Globals.system_configs_path(), system)
     else
       Path.join(Globals.local_system_configs_path(), system)
