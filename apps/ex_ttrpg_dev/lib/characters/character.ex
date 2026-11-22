@@ -141,7 +141,7 @@ defmodule ExTTRPGDev.Characters.Character do
   end
 
   defp parse_json!(json) do
-    map = Poison.decode!(json)
+    map = Jason.decode!(json)
 
     generated_values =
       Map.new(map["generated_values"] || %{}, fn {key, value} ->

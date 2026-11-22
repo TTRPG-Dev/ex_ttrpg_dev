@@ -151,7 +151,7 @@ defmodule ExTTRPGDev.CLI.Server do
           |> String.trim()
           |> dispatch(state)
 
-        IO.puts(Poison.encode!(response))
+        IO.puts(Jason.encode!(response))
         loop(new_state)
     end
   end
@@ -159,7 +159,7 @@ defmodule ExTTRPGDev.CLI.Server do
   defp dispatch("", state), do: {ok(%{}), state}
 
   defp dispatch(line, state) do
-    case Poison.decode(line) do
+    case Jason.decode(line) do
       {:ok, cmd} -> handle_command(cmd, state)
       {:error, _} -> {error("invalid JSON"), state}
     end

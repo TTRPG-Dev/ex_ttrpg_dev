@@ -218,7 +218,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)
 
-    json = original |> Character.to_json_map() |> Poison.encode!()
+    json = original |> Character.to_json_map() |> Jason.encode!()
     assert {:ok, restored} = Character.from_json(json)
 
     assert restored.name == original.name
@@ -231,9 +231,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
   test "from_json/1 returns {:error, {:invalid_character_data, _}} for valid JSON with the wrong shape" do
     assert {:error, {:invalid_character_data, _message}} =
-             Character.from_json(
-               Poison.encode!(%{"generated_values" => %{"missing_colons" => 1}})
-             )
+             Character.from_json(Jason.encode!(%{"generated_values" => %{"missing_colons" => 1}}))
   end
 
   test "from_json!/1 raises for malformed JSON" do
@@ -246,7 +244,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)
 
-    json = original |> Character.to_json_map() |> Poison.encode!()
+    json = original |> Character.to_json_map() |> Jason.encode!()
     restored = Character.from_json!(json)
 
     assert restored.name == original.name
@@ -273,7 +271,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
         ]
     }
 
-    json = original |> Character.to_json_map() |> Poison.encode!()
+    json = original |> Character.to_json_map() |> Jason.encode!()
     restored = Character.from_json!(json)
 
     assert length(restored.inventory) == 1
@@ -293,7 +291,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     ]
 
     original = Character.gen_character!(system, decisions)
-    json = original |> Character.to_json_map() |> Poison.encode!()
+    json = original |> Character.to_json_map() |> Jason.encode!()
     restored = Character.from_json!(json)
 
     assert restored.decisions == decisions
@@ -337,7 +335,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
         ]
     }
 
-    json = original |> Character.to_json_map() |> Poison.encode!()
+    json = original |> Character.to_json_map() |> Jason.encode!()
     restored = Character.from_json!(json)
 
     assert length(restored.effects) == 2

@@ -39,7 +39,7 @@ defmodule ExTTRPGDev.MixProject do
     [
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
-      {:poison, "~> 6.0"},
+      {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
       {:faker, "~> 0.18"},
