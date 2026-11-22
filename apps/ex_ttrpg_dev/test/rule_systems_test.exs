@@ -7,7 +7,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
   doctest ExTTRPGDev.RuleSystems
 
   test "load_system!/1 for bundled system returns a LoadedSystem" do
-    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems!()
 
     %LoadedSystem{module: rule_module} = RuleSystems.load_system!(bundled_system_slug)
 
@@ -19,7 +19,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
   end
 
   test "load_system/1 for bundled system returns {:ok, %LoadedSystem{}}" do
-    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems!()
 
     assert {:ok, %LoadedSystem{module: rule_module}} =
              RuleSystems.load_system(bundled_system_slug)
@@ -32,7 +32,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
   end
 
   test "system_path/1" do
-    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems!()
 
     assert RuleSystems.system_path(bundled_system_slug) ==
              Path.join([Globals.system_configs_path(), bundled_system_slug])
@@ -44,7 +44,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
   end
 
   test "system_path!/1 is a deprecated delegate to system_path/1" do
-    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems!()
 
     assert RuleSystems.system_path!(bundled_system_slug) ==
              RuleSystems.system_path(bundled_system_slug)
@@ -70,16 +70,37 @@ defmodule ExTTRPGDevTest.RuleSystems do
     assert RuleSystems.is_configured?("dnd_5e_srd") == RuleSystems.configured?("dnd_5e_srd")
   end
 
-  test "list_local_systems/0 returns a list" do
-    assert is_list(RuleSystems.list_local_systems())
+  test "list_local_systems!/0 returns a list" do
+    assert is_list(RuleSystems.list_local_systems!())
   end
 
   test "list_systems/0 includes bundled systems" do
     assert "dnd_5e_srd" in RuleSystems.list_systems()
   end
 
-  test "list_bundled_systems/0 includes dnd_5e_srd" do
-    assert "dnd_5e_srd" in RuleSystems.list_bundled_systems()
+  test "list_bundled_systems!/0 includes dnd_5e_srd" do
+    assert "dnd_5e_srd" in RuleSystems.list_bundled_systems!()
+  end
+
+  test "fetch_bundled_systems/0 returns {:ok, slugs} including dnd_5e_srd" do
+    assert {:ok, slugs} = RuleSystems.fetch_bundled_systems()
+    assert "dnd_5e_srd" in slugs
+  end
+
+  test "fetch_local_systems/0 returns {:ok, slugs}" do
+    assert {:ok, slugs} = RuleSystems.fetch_local_systems()
+    assert is_list(slugs)
+  end
+
+  test "fetch_systems/0 returns {:ok, slugs} including bundled and local systems" do
+    assert {:ok, slugs} = RuleSystems.fetch_systems()
+    assert "dnd_5e_srd" in slugs
+    assert slugs == RuleSystems.list_systems()
+  end
+
+  test "list_bundled_systems/0 and list_local_systems/0 are deprecated delegates" do
+    assert RuleSystems.list_bundled_systems() == RuleSystems.list_bundled_systems!()
+    assert RuleSystems.list_local_systems() == RuleSystems.list_local_systems!()
   end
 
   test "load_system!/1 returns LoadedSystem with nodes and rolling_methods" do

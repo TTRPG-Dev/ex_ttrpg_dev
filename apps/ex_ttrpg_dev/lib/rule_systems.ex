@@ -20,45 +20,104 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def list_systems do
-    list_bundled_systems() ++ list_local_systems()
+    list_bundled_systems!() ++ list_local_systems!()
   end
 
   @doc """
-  Lists bundled systems shipped with the library.
+  Fetches all available systems (bundled + local).
 
-  ## Examples
-      iex> ExTTRPGDev.RuleSystems.list_bundled_systems() |> Enum.member?("dnd_5e_srd")
-      true
-
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if either systems
+  directory exists but cannot be listed.
   """
-  def list_bundled_systems do
-    list_systems_in(Globals.system_configs_path())
+  def fetch_systems do
+    with {:ok, bundled} <- fetch_bundled_systems(),
+         {:ok, local} <- fetch_local_systems() do
+      {:ok, bundled ++ local}
+    end
   end
 
   @doc """
-  Lists user-defined local systems.
+  Fetches bundled systems shipped with the library.
+
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the bundled
+  systems directory exists but cannot be listed.
+  """
+  def fetch_bundled_systems do
+    fetch_systems_in(Globals.system_configs_path())
+  end
+
+  @doc """
+  Lists bundled systems shipped with the library, raising on failure.
+
+  See `fetch_bundled_systems/0` for the non-raising variant.
 
   ## Examples
-      iex> ExTTRPGDev.RuleSystems.list_local_systems() |> is_list()
+      iex> ExTTRPGDev.RuleSystems.list_bundled_systems!() |> Enum.member?("dnd_5e_srd")
       true
 
   """
-  def list_local_systems do
-    list_systems_in(Globals.local_system_configs_path())
+  def list_bundled_systems! do
+    case fetch_bundled_systems() do
+      {:ok, slugs} -> slugs
+      {:error, reason} -> raise "Failed to list bundled systems: #{inspect(reason)}"
+    end
   end
 
-  # Lists the direct subdirectories of `base` that contain a `module.toml`,
-  # or [] if `base` itself doesn't exist. Shared by list_bundled_systems/0
-  # and list_local_systems/0, which differ only in their base directory.
-  defp list_systems_in(base) do
+  @doc false
+  @deprecated "Use list_bundled_systems!/0 instead; this always could raise despite no bang"
+  def list_bundled_systems, do: list_bundled_systems!()
+
+  @doc """
+  Fetches user-defined local systems.
+
+  Returns `{:ok, [slug, ...]}`, or `{:ok, []}` if the local systems
+  directory doesn't exist, or `{:error, reason}` if it exists but cannot
+  be listed.
+  """
+  def fetch_local_systems do
+    fetch_systems_in(Globals.local_system_configs_path())
+  end
+
+  @doc """
+  Lists user-defined local systems, raising on failure.
+
+  See `fetch_local_systems/0` for the non-raising variant.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.list_local_systems!() |> is_list()
+      true
+
+  """
+  def list_local_systems! do
+    case fetch_local_systems() do
+      {:ok, slugs} -> slugs
+      {:error, reason} -> raise "Failed to list local systems: #{inspect(reason)}"
+    end
+  end
+
+  @doc false
+  @deprecated "Use list_local_systems!/0 instead; this always could raise despite no bang"
+  def list_local_systems, do: list_local_systems!()
+
+  # Fetches the direct subdirectories of `base` that contain a `module.toml`,
+  # as {:ok, [slug, ...]}, or {:ok, []} if `base` itself doesn't exist.
+  # Shared by fetch_bundled_systems/0 and fetch_local_systems/0, which
+  # differ only in their base directory.
+  defp fetch_systems_in(base) do
     if File.exists?(base) do
-      File.ls!(base)
-      |> Enum.filter(fn name ->
-        File.dir?(Path.join(base, name)) and
-          File.exists?(Path.join([base, name, "module.toml"]))
-      end)
+      case File.ls(base) do
+        {:ok, entries} ->
+          {:ok,
+           Enum.filter(entries, fn name ->
+             File.dir?(Path.join(base, name)) and
+               File.exists?(Path.join([base, name, "module.toml"]))
+           end)}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     else
-      []
+      {:ok, []}
     end
   end
 
@@ -74,7 +133,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def bundled_system?(system) when is_bitstring(system) do
-    Enum.any?(list_bundled_systems(), &(&1 == system))
+    Enum.any?(list_bundled_systems!(), &(&1 == system))
   end
 
   @doc false
@@ -94,7 +153,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def local_system?(system) when is_bitstring(system) do
-    Enum.any?(list_local_systems(), &(&1 == system))
+    Enum.any?(list_local_systems!(), &(&1 == system))
   end
 
   @doc false
