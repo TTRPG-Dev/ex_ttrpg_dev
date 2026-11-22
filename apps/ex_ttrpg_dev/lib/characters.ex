@@ -99,8 +99,9 @@ defmodule ExTTRPGDev.Characters do
   @doc """
   Load a saved character.
 
-  Returns `{:ok, character}`, or `{:error, :not_found}` if no character
-  with that slug exists.
+  Returns `{:ok, character}`, `{:error, :not_found}` if no character with
+  that slug exists, or `{:error, {:invalid_character_data, message}}` if
+  the saved file exists but cannot be parsed as a character.
   """
   defdelegate load_character(character_slug), to: Store
 

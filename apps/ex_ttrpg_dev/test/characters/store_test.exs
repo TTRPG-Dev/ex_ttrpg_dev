@@ -122,6 +122,17 @@ defmodule ExTTRPGDevTest.Characters.Store do
     assert {:error, :not_found} = Characters.load_character("nonexistent_character_xyz")
   end
 
+  test "load_character/1 returns {:error, {:invalid_character_data, _}} for a corrupt file" do
+    slug = "corrupt_character_xyz"
+    path = Characters.character_file_path(slug)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, "not valid json")
+
+    assert {:error, {:invalid_character_data, _message}} = Characters.load_character(slug)
+
+    File.rm!(path)
+  end
+
   test "delete_character/1 deletes an existing character and returns :ok" do
     character = save_test_character()
     assert Characters.character_exists?(character)
