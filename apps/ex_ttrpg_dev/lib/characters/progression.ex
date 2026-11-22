@@ -9,6 +9,8 @@ defmodule ExTTRPGDev.Characters.Progression do
   implementation.
   """
 
+  require Logger
+
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.Effects
@@ -65,41 +67,54 @@ defmodule ExTTRPGDev.Characters.Progression do
   def compute_pending_choice_slots(%LoadedSystem{} = system, %Character{} = character) do
     with level_node when not is_nil(level_node) <- system.module.level_node,
          [level_node_key | _] <- Expression.extract_refs(level_node) do
-      {all_effects, resolved} = Effects.resolved_state(system, character)
-      current_level = trunc(resolved[level_node_key] || 1)
-
-      thresholds = Leveling.level_xp_thresholds(system)
-      xp_target = Leveling.xp_effect_target(system)
-
-      selection_progressions =
-        Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
-          type == @progression_type and
-            Map.has_key?(meta, "type") and
-            get_in(meta, ["filter", "max_level_node"]) != nil
-        end)
-
-      level_resolved =
-        Map.new(1..current_level, fn level ->
-          {level,
-           Leveling.evaluate_at_level(
-             system,
-             character,
-             level,
-             thresholds,
-             xp_target,
-             all_effects
-           )}
-        end)
-
-      Enum.flat_map(selection_progressions, fn {{_type, id}, meta} ->
-        decisions_made = count_progression_decisions(character.decisions, id)
-
-        slots_for_progression(id, meta, level_resolved, current_level)
-        |> Enum.drop(decisions_made)
-      end)
+      slots_from_level_node(system, character, level_node_key)
     else
-      _ -> []
+      nil ->
+        []
+
+      [] ->
+        Logger.warning(
+          "module.level_node #{inspect(system.module.level_node)} contains no node " <>
+            "references; cannot determine character level for pending choice slots."
+        )
+
+        []
     end
+  end
+
+  defp slots_from_level_node(system, character, level_node_key) do
+    {all_effects, resolved} = Effects.resolved_state(system, character)
+    current_level = trunc(resolved[level_node_key] || 1)
+
+    thresholds = Leveling.level_xp_thresholds(system)
+    xp_target = Leveling.xp_effect_target(system)
+
+    selection_progressions =
+      Enum.filter(system.concept_metadata, fn {{type, _id}, meta} ->
+        type == @progression_type and
+          Map.has_key?(meta, "type") and
+          get_in(meta, ["filter", "max_level_node"]) != nil
+      end)
+
+    level_resolved =
+      Map.new(1..current_level, fn level ->
+        {level,
+         Leveling.evaluate_at_level(
+           system,
+           character,
+           level,
+           thresholds,
+           xp_target,
+           all_effects
+         )}
+      end)
+
+    Enum.flat_map(selection_progressions, fn {{_type, id}, meta} ->
+      decisions_made = count_progression_decisions(character.decisions, id)
+
+      slots_for_progression(id, meta, level_resolved, current_level)
+      |> Enum.drop(decisions_made)
+    end)
   end
 
   @doc """
@@ -161,10 +176,15 @@ defmodule ExTTRPGDev.Characters.Progression do
 
     Enum.flat_map(1..current_level, fn level ->
       resolved_at = level_resolved[level]
+      label = {progression_id, "required_count"}
 
-      count_at = eval_int(required_str, resolved_at)
-      count_at_prev = if level > 1, do: eval_int(required_str, level_resolved[level - 1]), else: 0
-      max_level_cap = eval_int(max_level_node, resolved_at)
+      count_at = eval_int(required_str, resolved_at, label)
+
+      count_at_prev =
+        if level > 1, do: eval_int(required_str, level_resolved[level - 1], label), else: 0
+
+      max_level_cap =
+        eval_int(max_level_node, resolved_at, {progression_id, "filter.max_level_node"})
 
       List.duplicate(
         %{progression_id: progression_id, earned_at_level: level, max_level_cap: max_level_cap},
@@ -173,10 +193,18 @@ defmodule ExTTRPGDev.Characters.Progression do
     end)
   end
 
-  defp eval_int(expr, resolved) do
+  defp eval_int(expr, resolved, {progression_id, field}) do
     case Expression.evaluate(expr, resolved) do
-      {:ok, v} -> trunc(v)
-      _ -> 0
+      {:ok, v} ->
+        trunc(v)
+
+      {:error, reason} ->
+        Logger.warning(
+          "Progression #{inspect(progression_id)} field #{field} (#{inspect(expr)}) failed " <>
+            "to evaluate: #{inspect(reason)}. Treating as 0."
+        )
+
+        0
     end
   end
 
@@ -258,36 +286,31 @@ defmodule ExTTRPGDev.Characters.Progression do
          active,
          pending_choice_slots
        ) do
-    with {:ok, required} <- Expression.evaluate(required_str, resolved),
-         made = count_progression_decisions(decisions, id),
-         pending_count = max(0, trunc(required) - made),
-         true <- pending_count > 0 do
-      already_selected =
-        decisions
-        |> Enum.filter(fn d -> d.scope == {@progression_type, id} end)
-        |> MapSet.new(& &1.selection)
+    case Expression.evaluate(required_str, resolved) do
+      {:ok, required} ->
+        made = count_progression_decisions(decisions, id)
+        pending_count = max(0, trunc(required) - made)
 
-      {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
-      capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
+        if pending_count > 0 do
+          [
+            selection_progression_entry(
+              id,
+              meta,
+              decisions,
+              resolved,
+              concept_metadata,
+              active,
+              pending_choice_slots,
+              pending_count
+            )
+          ]
+        else
+          []
+        end
 
-      options =
-        concept_options(meta, concept_metadata, active, capped_resolved)
-        |> Enum.reject(&MapSet.member?(already_selected, &1))
-
-      [
-        %{
-          type: :pending,
-          id: id,
-          name: meta["name"] || id,
-          count: pending_count,
-          effect_target: nil,
-          roll: nil,
-          earned_at_level: earned_at_level,
-          options: options
-        }
-      ]
-    else
-      _ -> []
+      {:error, reason} ->
+        warn_required_count_error(id, required_str, reason)
+        []
     end
   end
 
@@ -301,6 +324,47 @@ defmodule ExTTRPGDev.Characters.Progression do
          _pending_choice_slots
        ),
        do: []
+
+  defp selection_progression_entry(
+         id,
+         meta,
+         decisions,
+         resolved,
+         concept_metadata,
+         active,
+         pending_choice_slots,
+         pending_count
+       ) do
+    already_selected =
+      decisions
+      |> Enum.filter(fn d -> d.scope == {@progression_type, id} end)
+      |> MapSet.new(& &1.selection)
+
+    {max_level_cap, earned_at_level} = find_next_slot(pending_choice_slots, id)
+    capped_resolved = apply_slot_cap(resolved, meta, max_level_cap)
+
+    options =
+      concept_options(meta, concept_metadata, active, capped_resolved)
+      |> Enum.reject(&MapSet.member?(already_selected, &1))
+
+    %{
+      type: :pending,
+      id: id,
+      name: meta["name"] || id,
+      count: pending_count,
+      effect_target: nil,
+      roll: nil,
+      earned_at_level: earned_at_level,
+      options: options
+    }
+  end
+
+  defp warn_required_count_error(id, required_str, reason) do
+    Logger.warning(
+      "Progression #{inspect(id)} required_count #{inspect(required_str)} failed to " <>
+        "evaluate: #{inspect(reason)}. Treating as no pending choices."
+    )
+  end
 
   defp passes_requires?(nil, _resolved), do: true
 
@@ -343,22 +407,29 @@ defmodule ExTTRPGDev.Characters.Progression do
   end
 
   defp progression_choices(id, %{"required_count" => required_str} = meta, decisions, resolved) do
-    with {:ok, required} <- Expression.evaluate(required_str, resolved),
-         made = count_progression_decisions(decisions, id),
-         pending_count = max(0, trunc(required) - made),
-         true <- pending_count > 0 do
-      [
-        %{
-          type: :pending,
-          id: id,
-          name: meta["name"] || id,
-          count: pending_count,
-          effect_target: meta["effect_target"],
-          roll: meta["roll"]
-        }
-      ]
-    else
-      _ -> []
+    case Expression.evaluate(required_str, resolved) do
+      {:ok, required} ->
+        made = count_progression_decisions(decisions, id)
+        pending_count = max(0, trunc(required) - made)
+
+        if pending_count > 0 do
+          [
+            %{
+              type: :pending,
+              id: id,
+              name: meta["name"] || id,
+              count: pending_count,
+              effect_target: meta["effect_target"],
+              roll: meta["roll"]
+            }
+          ]
+        else
+          []
+        end
+
+      {:error, reason} ->
+        warn_required_count_error(id, required_str, reason)
+        []
     end
   end
 
@@ -375,7 +446,15 @@ defmodule ExTTRPGDev.Characters.Progression do
           }
         ]
 
-      _ ->
+      {:ok, _falsy} ->
+        []
+
+      {:error, reason} ->
+        Logger.warning(
+          "Progression #{inspect(id)} available_when #{inspect(available_str)} failed to " <>
+            "evaluate: #{inspect(reason)}. Treating as unavailable."
+        )
+
         []
     end
   end

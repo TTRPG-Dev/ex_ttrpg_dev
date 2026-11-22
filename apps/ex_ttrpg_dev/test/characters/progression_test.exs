@@ -1,8 +1,11 @@
 defmodule ExTTRPGDevTest.Characters.Progression do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
+
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, Decision}
   alias ExTTRPGDev.RuleSystem.Effect
+  alias ExTTRPGDev.RuleSystem.RuleModule
   alias ExTTRPGDev.RuleSystems
 
   defp minimal_system(effects, concept_metadata) do
@@ -287,6 +290,45 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       assert entry.options == ["cure_wounds"]
     end
 
+    test "selection progression with malformed required_count logs a warning and reports no pending choice" do
+      progression = Map.put(@cantrip_progression, "required_count", "1 +")
+      system = spell_system(%{"cantrips" => progression}, @spell_meta)
+
+      log =
+        capture_log(fn ->
+          assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+        end)
+
+      assert log =~ "Progression \"cantrips\" required_count"
+      assert log =~ "failed to evaluate"
+    end
+
+    test "value progression with malformed required_count logs a warning and reports no pending choice" do
+      progression = Map.put(@hp_progression, "required_count", "1 +")
+      system = progression_system(%{"hp_per_level" => progression})
+
+      log =
+        capture_log(fn ->
+          assert Characters.pending_choices(system, minimal_character([]), @level_binding) == []
+        end)
+
+      assert log =~ "Progression \"hp_per_level\" required_count"
+      assert log =~ "failed to evaluate"
+    end
+
+    test "available_when with a malformed expression logs a warning and reports unavailable" do
+      progression = Map.put(@spend_xp_progression, "available_when", "1 +")
+      system = progression_system(%{"spend_xp" => progression})
+
+      log =
+        capture_log(fn ->
+          assert Characters.pending_choices(system, minimal_character([]), %{}) == []
+        end)
+
+      assert log =~ "Progression \"spend_xp\" available_when"
+      assert log =~ "failed to evaluate"
+    end
+
     test "spell progression uses pending_choice_slots cap instead of resolved max level" do
       spell_meta =
         Map.merge(@spell_meta, %{
@@ -401,6 +443,50 @@ defmodule ExTTRPGDevTest.Characters.Progression do
 
       system = %{system | concept_metadata: concept_metadata}
       assert Characters.compute_pending_choice_slots(system, character) == []
+    end
+
+    test "malformed required_count on a level-capped progression logs a warning instead of silently treating it as 0 slots",
+         %{system: system, character: character} do
+      concept_metadata =
+        Map.update!(
+          system.concept_metadata,
+          {"character_progression", "spells_known"},
+          &Map.put(&1, "required_count", "1 +")
+        )
+
+      system = %{system | concept_metadata: concept_metadata}
+
+      log =
+        capture_log(fn ->
+          slots = Characters.compute_pending_choice_slots(system, character)
+          refute Enum.any?(slots, &(&1.progression_id == "spells_known"))
+        end)
+
+      assert log =~ "Progression \"spells_known\" field required_count"
+      assert log =~ "failed to evaluate"
+    end
+  end
+
+  describe "compute_pending_choice_slots/2 with a malformed module.level_node" do
+    test "logs a warning and returns no slots when level_node has no node references" do
+      system = %ExTTRPGDev.RuleSystems.LoadedSystem{
+        module: %RuleModule{level_node: "1 + 1"},
+        graph: nil,
+        nodes: %{},
+        rolling_methods: %{},
+        effects: [],
+        concept_metadata: %{}
+      }
+
+      character = minimal_character([])
+
+      log =
+        capture_log(fn ->
+          assert Characters.compute_pending_choice_slots(system, character) == []
+        end)
+
+      assert log =~ "module.level_node"
+      assert log =~ "no node references"
     end
   end
 
