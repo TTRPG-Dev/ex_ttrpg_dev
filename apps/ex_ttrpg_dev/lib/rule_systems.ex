@@ -144,8 +144,37 @@ defmodule ExTTRPGDev.RuleSystems do
   @doc """
   Loads, parses, and validates a rule system by slug.
 
-  Returns a `%LoadedSystem{}` containing the parsed module, validated DAG,
-  and all supporting data needed for evaluation.
+  Returns `{:ok, %LoadedSystem{}}` containing the parsed module, validated
+  DAG, and all supporting data needed for evaluation, or `{:error, reason}`.
+
+  ## Examples
+      iex> {:ok, system} = ExTTRPGDev.RuleSystems.load_system("dnd_5e_srd")
+      iex> is_struct(system, ExTTRPGDev.RuleSystems.LoadedSystem)
+      true
+
+  """
+  def load_system(system) when is_bitstring(system) do
+    path = system_path!(system)
+
+    with {:ok, loader_data} <- Loader.load(path),
+         {:ok, system_map} <- Graph.build(loader_data) do
+      {:ok,
+       %LoadedSystem{
+         module: loader_data.module,
+         graph: system_map.graph,
+         nodes: system_map.nodes,
+         rolling_methods: loader_data.rolling_methods,
+         concept_metadata: loader_data.concept_metadata,
+         effects: loader_data.effects,
+         inventory_rules: loader_data.inventory_rules
+       }}
+    end
+  end
+
+  @doc """
+  Loads, parses, and validates a rule system by slug, raising on failure.
+
+  See `load_system/1` for the non-raising variant.
 
   ## Examples
       iex> ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd") |> is_struct(ExTTRPGDev.RuleSystems.LoadedSystem)
@@ -153,23 +182,12 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def load_system!(system) when is_bitstring(system) do
-    path = system_path!(system)
-    loader_data = Loader.load!(path)
-
-    case Graph.build(loader_data) do
-      {:ok, system_map} ->
-        %LoadedSystem{
-          module: loader_data.module,
-          graph: system_map.graph,
-          nodes: system_map.nodes,
-          rolling_methods: loader_data.rolling_methods,
-          concept_metadata: loader_data.concept_metadata,
-          effects: loader_data.effects,
-          inventory_rules: loader_data.inventory_rules
-        }
+    case load_system(system) do
+      {:ok, loaded_system} ->
+        loaded_system
 
       {:error, reason} ->
-        raise "Failed to build rule system graph for #{system}: #{inspect(reason)}"
+        raise "Failed to load rule system #{system}: #{inspect(reason)}"
     end
   end
 end

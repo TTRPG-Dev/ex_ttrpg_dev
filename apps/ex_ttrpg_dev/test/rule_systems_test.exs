@@ -18,6 +18,19 @@ defmodule ExTTRPGDevTest.RuleSystems do
     assert_raise RuntimeError, fn -> RuleSystems.load_system!("not_a_real_system_xyz") end
   end
 
+  test "load_system/1 for bundled system returns {:ok, %LoadedSystem{}}" do
+    [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
+
+    assert {:ok, %LoadedSystem{module: rule_module}} =
+             RuleSystems.load_system(bundled_system_slug)
+
+    assert rule_module.slug == bundled_system_slug
+  end
+
+  test "load_system/1 for unconfigured system returns an error tuple" do
+    assert {:error, _reason} = RuleSystems.load_system("not_a_real_system_xyz")
+  end
+
   test "system_path!/1" do
     [bundled_system_slug | _tail] = RuleSystems.list_bundled_systems()
 
