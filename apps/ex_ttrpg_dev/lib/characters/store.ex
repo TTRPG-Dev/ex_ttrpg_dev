@@ -124,11 +124,7 @@ defmodule ExTTRPGDev.Characters.Store do
   def load_character(character_slug) do
     case character_file_path(character_slug) |> File.read() do
       {:ok, contents} ->
-        try do
-          {:ok, Character.from_json!(contents)}
-        rescue
-          e -> {:error, {:invalid_character_data, Exception.message(e)}}
-        end
+        Character.from_json(contents)
 
       {:error, :enoent} ->
         {:error, :not_found}

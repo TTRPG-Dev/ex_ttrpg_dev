@@ -108,8 +108,30 @@ defmodule ExTTRPGDev.Characters.Character do
 
   @doc """
   Deserializes a character from its JSON string representation.
+
+  Returns `{:ok, character}`, or `{:error, {:invalid_character_data, message}}`
+  if `json` is malformed or doesn't match the expected character shape.
+  """
+  def from_json(json) when is_bitstring(json) do
+    {:ok, parse_json!(json)}
+  rescue
+    e -> {:error, {:invalid_character_data, Exception.message(e)}}
+  end
+
+  @doc """
+  Deserializes a character from its JSON string representation, raising on
+  failure.
+
+  See `from_json/1` for the non-raising variant.
   """
   def from_json!(json) when is_bitstring(json) do
+    case from_json(json) do
+      {:ok, character} -> character
+      {:error, reason} -> raise "Failed to parse character JSON: #{inspect(reason)}"
+    end
+  end
+
+  defp parse_json!(json) do
     map = Poison.decode!(json)
 
     generated_values =

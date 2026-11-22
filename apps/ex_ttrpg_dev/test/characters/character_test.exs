@@ -175,6 +175,34 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert item.concept_id == "longsword"
   end
 
+  test "from_json/1 round-trips a character and returns {:ok, character}" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    original = Character.gen_character!(system)
+
+    json = original |> Character.to_json_map() |> Poison.encode!()
+    assert {:ok, restored} = Character.from_json(json)
+
+    assert restored.name == original.name
+    assert restored.metadata.slug == original.metadata.slug
+  end
+
+  test "from_json/1 returns {:error, {:invalid_character_data, _}} for malformed JSON" do
+    assert {:error, {:invalid_character_data, _message}} = Character.from_json("not valid json")
+  end
+
+  test "from_json/1 returns {:error, {:invalid_character_data, _}} for valid JSON with the wrong shape" do
+    assert {:error, {:invalid_character_data, _message}} =
+             Character.from_json(
+               Poison.encode!(%{"generated_values" => %{"missing_colons" => 1}})
+             )
+  end
+
+  test "from_json!/1 raises for malformed JSON" do
+    assert_raise RuntimeError, ~r/Failed to parse character JSON/, fn ->
+      Character.from_json!("not valid json")
+    end
+  end
+
   test "to_json_map/1 and from_json!/1 round-trip correctly" do
     system = RuleSystems.load_system!("dnd_5e_srd")
     original = Character.gen_character!(system)
