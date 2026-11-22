@@ -32,13 +32,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def list_bundled_systems do
-    base = Globals.system_configs_path()
-
-    File.ls!(base)
-    |> Enum.filter(fn name ->
-      File.dir?(Path.join(base, name)) and
-        File.exists?(Path.join([base, name, "module.toml"]))
-    end)
+    list_systems_in(Globals.system_configs_path())
   end
 
   @doc """
@@ -50,8 +44,13 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def list_local_systems do
-    base = Globals.local_system_configs_path()
+    list_systems_in(Globals.local_system_configs_path())
+  end
 
+  # Lists the direct subdirectories of `base` that contain a `module.toml`,
+  # or [] if `base` itself doesn't exist. Shared by list_bundled_systems/0
+  # and list_local_systems/0, which differ only in their base directory.
+  defp list_systems_in(base) do
     if File.exists?(base) do
       File.ls!(base)
       |> Enum.filter(fn name ->
