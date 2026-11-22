@@ -88,12 +88,33 @@ defmodule ExTTRPGDevTest.Characters.Store do
     delete_test_character(character)
   end
 
+  test "list_characters/0 returns {:ok, slugs}" do
+    assert {:ok, characters_list_first} = Characters.list_characters()
+    character = save_test_character()
+    assert {:ok, characters_list_second} = Characters.list_characters()
+    assert Enum.count(characters_list_first) < Enum.count(characters_list_second)
+    assert Enum.member?(characters_list_second, character.metadata.slug)
+
+    # cleanup
+    delete_test_character(character)
+  end
+
   test "load_character/1" do
     character = save_test_character()
     loaded_character = Characters.load_character!(character.metadata.slug)
     assert character == loaded_character
 
     delete_test_character(character)
+  end
+
+  test "load_character/1 returns {:ok, character}, and {:error, :not_found} for unknown slug" do
+    character = save_test_character()
+    assert {:ok, loaded_character} = Characters.load_character(character.metadata.slug)
+    assert character == loaded_character
+
+    delete_test_character(character)
+
+    assert {:error, :not_found} = Characters.load_character("nonexistent_character_xyz")
   end
 
   test "delete_character/1 deletes an existing character and returns :ok" do

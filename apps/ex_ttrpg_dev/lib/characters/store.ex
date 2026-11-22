@@ -91,25 +91,63 @@ defmodule ExTTRPGDev.Characters.Store do
   @doc """
   List saved characters.
 
+  See `ExTTRPGDev.Characters.list_characters/0` for documentation.
+  """
+  def list_characters() do
+    path = Globals.characters_path()
+
+    if File.exists?(path) do
+      case File.ls(path) do
+        {:ok, entries} ->
+          {:ok, Enum.map(entries, fn x -> String.trim_trailing(x, ".json") end)}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:ok, []}
+    end
+  end
+
+  @doc """
+  List saved characters, raising on failure.
+
   See `ExTTRPGDev.Characters.list_characters!/0` for documentation.
   """
   def list_characters!() do
-    if File.exists?(Globals.characters_path()) do
-      File.ls!(Globals.characters_path())
-      |> Enum.map(fn x -> String.trim_trailing(x, ".json") end)
-    else
-      []
+    case list_characters() do
+      {:ok, slugs} -> slugs
+      {:error, reason} -> raise "Failed to list characters: #{inspect(reason)}"
     end
   end
 
   @doc """
   Load a saved character.
 
+  See `ExTTRPGDev.Characters.load_character/1` for documentation.
+  """
+  def load_character(character_slug) do
+    case character_file_path!(character_slug) |> File.read() do
+      {:ok, contents} ->
+        {:ok, Character.from_json!(contents)}
+
+      {:error, :enoent} ->
+        {:error, :not_found}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Load a saved character, raising on failure.
+
   See `ExTTRPGDev.Characters.load_character!/1` for documentation.
   """
   def load_character!(character_slug) do
-    character_file_path!(character_slug)
-    |> File.read!()
-    |> Character.from_json!()
+    case load_character(character_slug) do
+      {:ok, character} -> character
+      {:error, reason} -> raise "Failed to load character #{character_slug}: #{inspect(reason)}"
+    end
   end
 end

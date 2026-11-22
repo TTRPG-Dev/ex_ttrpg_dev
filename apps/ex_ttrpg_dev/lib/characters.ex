@@ -78,7 +78,17 @@ defmodule ExTTRPGDev.Characters do
   defdelegate delete_character(character_slug), to: Store
 
   @doc """
-  List saved characters
+  List saved characters.
+
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the characters
+  directory exists but cannot be listed.
+  """
+  defdelegate list_characters(), to: Store
+
+  @doc """
+  List saved characters, raising on failure.
+
+  See `list_characters/0` for the non-raising variant.
 
   ## Example
 
@@ -88,7 +98,17 @@ defmodule ExTTRPGDev.Characters do
   defdelegate list_characters!(), to: Store
 
   @doc """
-  Load a saved character
+  Load a saved character.
+
+  Returns `{:ok, character}`, or `{:error, :not_found}` if no character
+  with that slug exists.
+  """
+  defdelegate load_character(character_slug), to: Store
+
+  @doc """
+  Load a saved character, raising on failure.
+
+  See `load_character/1` for the non-raising variant.
 
   ## Example
 
