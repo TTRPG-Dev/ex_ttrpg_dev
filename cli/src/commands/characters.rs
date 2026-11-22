@@ -284,8 +284,8 @@ fn handle_characters_award(
         return;
     };
     display::print_character(&c);
-    if let Some(choices) = &c.pending_choices {
-        display::print_pending_choices(choices);
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
     }
 }
 
@@ -309,8 +309,8 @@ fn handle_characters_award_no_value(
     if let Some(xp) = c.awarded_xp {
         println!("Awarded {award_id}: +{xp} XP");
     }
-    if let Some(choices) = &c.pending_choices {
-        display::print_pending_choices(choices);
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
     }
 }
 
@@ -417,10 +417,8 @@ fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engin
         return;
     };
     display::print_character(&c);
-    if let Some(remaining) = &c.pending_choices
-        && !remaining.is_empty()
-    {
-        display::print_pending_choices(remaining);
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
     }
 }
 
@@ -462,10 +460,10 @@ fn resolve_build_progressions(
     engine: &mut Engine,
 ) -> Option<CharacterData> {
     loop {
-        let pending: Vec<PendingChoice> = match &character.pending_choices {
-            Some(p) if !p.is_empty() => p.clone(),
-            _ => return Some(character),
-        };
+        if character.pending_choices.is_empty() {
+            return Some(character);
+        }
+        let pending = character.pending_choices.clone();
         let choice = select_pending_choice(&pending)?.clone();
         let (value, selection) = prompt_choice_value(&choice, engine)?;
         let req = build_resolve_choice_request(slug, &choice, value, &selection);

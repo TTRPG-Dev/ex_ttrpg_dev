@@ -209,7 +209,7 @@ mod tests {
             character_lists: vec![],
             concept_types: vec![],
             selected_concepts: vec![],
-            pending_choices: None,
+            pending_choices: vec![],
             awarded_xp: None,
         }
     }

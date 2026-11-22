@@ -81,7 +81,8 @@ pub(crate) struct CharacterData {
     pub(crate) concept_types: Vec<ConceptTypeValues>,
     #[serde(default)]
     pub(crate) selected_concepts: Vec<SelectedConcept>,
-    pub(crate) pending_choices: Option<Vec<PendingChoice>>,
+    #[serde(default)]
+    pub(crate) pending_choices: Vec<PendingChoice>,
     #[serde(default)]
     pub(crate) awarded_xp: Option<i64>,
 }
@@ -797,7 +798,7 @@ mod tests {
         assert_eq!(c.rule_system, "dnd_5e_srd");
         assert!(c.slug.is_none());
         assert!(c.temp_id.is_none());
-        assert!(c.pending_choices.is_none());
+        assert!(c.pending_choices.is_empty());
     }
 
     #[test]
@@ -817,7 +818,7 @@ mod tests {
         assert_eq!(c.choices[0].type_name, "Race");
         assert_eq!(c.character_lists[0].label, "Skill Proficiencies");
         assert_eq!(c.character_lists[0].items, vec!["Stealth"]);
-        let pending = c.pending_choices.unwrap();
+        let pending = &c.pending_choices;
         assert_eq!(pending[0].id, "hp_1");
         assert_eq!(pending[0].roll.as_deref(), Some("d8"));
         assert_eq!(pending[0].count, Some(1));
