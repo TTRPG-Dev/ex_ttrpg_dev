@@ -76,8 +76,11 @@ pub(crate) struct CharacterData {
     pub(crate) slug: Option<String>,
     pub(crate) name: String,
     pub(crate) rule_system: String,
+    #[serde(default)]
     pub(crate) choices: Vec<ChoiceEntry>,
+    #[serde(default)]
     pub(crate) character_lists: Vec<CharacterListCategory>,
+    #[serde(default)]
     pub(crate) concept_types: Vec<ConceptTypeValues>,
     #[serde(default)]
     pub(crate) selected_concepts: Vec<SelectedConcept>,
