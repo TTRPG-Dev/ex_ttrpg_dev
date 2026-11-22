@@ -39,17 +39,20 @@ defmodule ExTTRPGDev.Characters do
 
   ## Examples
 
-      iex> Characters.character_exists?(%Characters.Character{name: "This Character exists"})
-      true
-
-      iex> Characters.character_exists?("this_character_exists")
-      true
-
-      iex> Characters.Character_exists?(%Characters.Character{name: "This character doesn't exist})
+      iex> ExTTRPGDev.Characters.character_exists?("a_character_that_almost_certainly_does_not_exist")
       false
 
-      iex> Characters.Character_exists?("this_character_doesnt_exist")
-      false
+      iex> alias ExTTRPGDev.Characters
+      ExTTRPGDev.Characters
+      iex> alias ExTTRPGDev.Characters.{Character, Metadata}
+      [ExTTRPGDev.Characters.Character, ExTTRPGDev.Characters.Metadata]
+      iex> character = %Character{name: "Doctest Character", generated_values: %{}, metadata: %Metadata{slug: "doctest_character_exists_example", rule_system: "none"}}
+      iex> Characters.save_character!(character)
+      :ok
+      iex> Characters.character_exists?(character)
+      true
+      iex> File.rm!(Characters.character_file_path(character))
+      :ok
   """
   defdelegate character_exists?(character), to: Store
 
@@ -65,6 +68,22 @@ defmodule ExTTRPGDev.Characters do
   `overwrite` is set to true.
 
   See `save_character/2` for the non-raising variant.
+
+  ## Examples
+
+      iex> alias ExTTRPGDev.Characters
+      ExTTRPGDev.Characters
+      iex> alias ExTTRPGDev.Characters.{Character, Metadata}
+      [ExTTRPGDev.Characters.Character, ExTTRPGDev.Characters.Metadata]
+      iex> character = %Character{name: "Doctest Save Character", generated_values: %{}, metadata: %Metadata{slug: "doctest_save_character_example", rule_system: "none"}}
+      iex> Characters.save_character!(character)
+      :ok
+      iex> Characters.save_character!(character)
+      ** (RuntimeError) Character named Doctest Save Character already exists. To overwrite, pass `overwrite` as true
+      iex> Characters.save_character!(character, true)
+      :ok
+      iex> File.rm!(Characters.character_file_path(character))
+      :ok
   """
   defdelegate save_character!(character, overwrite \\ false), to: Store
 
@@ -89,10 +108,19 @@ defmodule ExTTRPGDev.Characters do
 
   See `list_characters/0` for the non-raising variant.
 
-  ## Example
+  ## Examples
 
-      iex> Characters.list_characters!()
-      [%Character{}, %Character{}, ...]
+      iex> alias ExTTRPGDev.Characters
+      ExTTRPGDev.Characters
+      iex> alias ExTTRPGDev.Characters.{Character, Metadata}
+      [ExTTRPGDev.Characters.Character, ExTTRPGDev.Characters.Metadata]
+      iex> character = %Character{name: "Doctest List Character", generated_values: %{}, metadata: %Metadata{slug: "doctest_list_characters_example", rule_system: "none"}}
+      iex> Characters.save_character!(character)
+      :ok
+      iex> "doctest_list_characters_example" in Characters.list_characters!()
+      true
+      iex> File.rm!(Characters.character_file_path(character))
+      :ok
   """
   defdelegate list_characters!(), to: Store
 
@@ -110,10 +138,19 @@ defmodule ExTTRPGDev.Characters do
 
   See `load_character/1` for the non-raising variant.
 
-  ## Example
+  ## Examples
 
-      iex> Character.load_character!("misu_park_the_cat")
-      %Character{}
+      iex> alias ExTTRPGDev.Characters
+      ExTTRPGDev.Characters
+      iex> alias ExTTRPGDev.Characters.{Character, Metadata}
+      [ExTTRPGDev.Characters.Character, ExTTRPGDev.Characters.Metadata]
+      iex> character = %Character{name: "Doctest Load Character", generated_values: %{}, metadata: %Metadata{slug: "doctest_load_character_example", rule_system: "none"}}
+      iex> Characters.save_character!(character)
+      :ok
+      iex> Characters.load_character!("doctest_load_character_example").name
+      "Doctest Load Character"
+      iex> File.rm!(Characters.character_file_path(character))
+      :ok
   """
   defdelegate load_character!(character_slug), to: Store
 
