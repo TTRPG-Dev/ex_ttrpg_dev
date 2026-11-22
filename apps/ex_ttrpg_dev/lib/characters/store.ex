@@ -78,13 +78,10 @@ defmodule ExTTRPGDev.Characters.Store do
   See `ExTTRPGDev.Characters.delete_character/1` for documentation.
   """
   def delete_character(character_slug) do
-    path = character_file_path!(character_slug)
-
-    if File.exists?(path) do
-      File.rm!(path)
-      :ok
-    else
-      {:error, :not_found}
+    case character_file_path!(character_slug) |> File.rm() do
+      :ok -> :ok
+      {:error, :enoent} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 
