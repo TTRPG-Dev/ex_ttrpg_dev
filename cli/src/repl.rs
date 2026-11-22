@@ -7,9 +7,10 @@ use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
 use reedline::{
-    ColumnarMenu, Completer, DefaultHinter, DefaultValidator, Emacs, KeyCode, KeyModifiers,
-    MenuBuilder, Prompt, PromptEditMode, PromptHistorySearch, PromptHistorySearchStatus, Reedline,
-    ReedlineEvent, ReedlineMenu, Signal, Suggestion, default_emacs_keybindings,
+    ColumnarMenu, Completer, CompletionResult, DefaultHinter, DefaultValidator, Emacs, KeyCode,
+    KeyModifiers, MenuBuilder, Prompt, PromptEditMode, PromptHistorySearch,
+    PromptHistorySearchStatus, Reedline, ReedlineEvent, ReedlineMenu, Signal, Suggestion,
+    default_emacs_keybindings,
 };
 
 use crate::commands::{self, DisplayMode};
@@ -115,7 +116,7 @@ impl CommandCompleter {
 }
 
 impl Completer for CommandCompleter {
-    fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
+    fn complete(&mut self, line: &str, pos: usize) -> CompletionResult {
         let prefix = &line[..pos];
         let word_start = prefix.rfind(' ').map(|i| i + 1).unwrap_or(0);
         let context = prefix[..word_start].trim();
@@ -130,11 +131,12 @@ impl Completer for CommandCompleter {
         };
 
         if let Some(values) = completions {
-            return values
+            let suggestions: Vec<Suggestion> = values
                 .into_iter()
                 .filter(|s| s.starts_with(current_word))
                 .map(|value| Suggestion {
                     value,
+                    display_override: None,
                     description: None,
                     style: None,
                     extra: None,
@@ -143,12 +145,14 @@ impl Completer for CommandCompleter {
                         end: pos,
                     },
                     append_whitespace: true,
+                    match_indices: None,
                 })
                 .collect();
+            return CompletionResult::fresh(suggestions);
         }
 
         let mut seen = std::collections::HashSet::new();
-        COMMANDS
+        let suggestions: Vec<Suggestion> = COMMANDS
             .iter()
             .filter(|cmd| cmd.starts_with(prefix))
             .filter_map(|cmd| {
@@ -156,6 +160,7 @@ impl Completer for CommandCompleter {
                 if seen.insert(token) {
                     Some(Suggestion {
                         value: token.to_string(),
+                        display_override: None,
                         description: None,
                         style: None,
                         extra: None,
@@ -164,12 +169,14 @@ impl Completer for CommandCompleter {
                             end: pos,
                         },
                         append_whitespace: true,
+                        match_indices: None,
                     })
                 } else {
                     None
                 }
             })
-            .collect()
+            .collect();
+        CompletionResult::fresh(suggestions)
     }
 }
 
@@ -298,10 +305,13 @@ fn run_reedline(engine: Arc<Mutex<Engine>>, display_mode: &mut DisplayMode) {
                     break;
                 }
             }
-            Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => {
+            Ok(Signal::CtrlD) | Ok(Signal::CtrlC(_)) => {
                 println!("\nGoodbye!");
                 break;
             }
+            // `Signal` is `#[non_exhaustive]`; `HostCommand`/`ExternalBreak` are
+            // only emitted by event bindings we don't register, so just loop.
+            Ok(_) => continue,
             Err(e) => {
                 eprintln!("Input error: {e}");
                 break;
@@ -321,6 +331,14 @@ fn history_path() -> std::path::PathBuf {
 mod tests {
     use super::*;
     use reedline::Completer;
+
+    fn completion_values(result: CompletionResult) -> Vec<String> {
+        result
+            .suggestions()
+            .iter()
+            .map(|s| s.value.clone())
+            .collect()
+    }
 
     #[test]
     fn static_completions() {
@@ -349,11 +367,7 @@ mod tests {
         let mut c = CommandCompleter { engine: None };
         for case in &cases {
             let pos = case.input.len();
-            let values: Vec<String> = c
-                .complete(case.input, pos)
-                .into_iter()
-                .map(|s| s.value)
-                .collect();
+            let values = completion_values(c.complete(case.input, pos));
             for token in case.contains {
                 assert!(
                     values.contains(&token.to_string()),
@@ -374,7 +388,7 @@ mod tests {
     #[test]
     fn no_completions_for_unknown_prefix() {
         let mut c = CommandCompleter { engine: None };
-        assert!(c.complete("zzz", 3).is_empty());
+        assert!(completion_values(c.complete("zzz", 3)).is_empty());
     }
 
     #[test]
@@ -382,11 +396,7 @@ mod tests {
         // "characters inventory", "characters inventory add", "characters inventory set"
         // all share the "inventory" token — it should appear only once
         let mut c = CommandCompleter { engine: None };
-        let values: Vec<String> = c
-            .complete("characters inv", 14)
-            .into_iter()
-            .map(|s| s.value)
-            .collect();
+        let values = completion_values(c.complete("characters inv", 14));
         let inventory_count = values.iter().filter(|v| *v == "inventory").count();
         assert_eq!(inventory_count, 1);
     }
@@ -396,11 +406,7 @@ mod tests {
         // Without an engine, slug completion returns empty rather than
         // falling through to static command completions.
         let mut c = CommandCompleter { engine: None };
-        let values: Vec<String> = c
-            .complete("characters show ", 16)
-            .into_iter()
-            .map(|s| s.value)
-            .collect();
+        let values = completion_values(c.complete("characters show ", 16));
         assert!(values.is_empty());
     }
 
@@ -411,7 +417,7 @@ mod tests {
         let mut c = CommandCompleter { engine: None };
         for cmd in &["characters gen ", "systems show "] {
             let pos = cmd.len();
-            let values: Vec<String> = c.complete(cmd, pos).into_iter().map(|s| s.value).collect();
+            let values = completion_values(c.complete(cmd, pos));
             assert!(values.is_empty(), "expected empty for '{cmd}'");
         }
     }
