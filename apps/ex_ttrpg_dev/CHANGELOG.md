@@ -9,11 +9,15 @@ Tracking starts at 0.15.0; earlier releases are not covered here.
 
 ## [Unreleased]
 
-### Added
+### Documentation
 
-- `README.md`, `CHANGELOG.md`, and `LICENSE` are now included in the published
-  Hex package and rendered on hexdocs (previously only lived at the repo root,
-  outside the package directory Hex looks at).
+- Add library-specific README for ex_ttrpg_dev
+- Add CHANGELOG for ex_ttrpg_dev
+
+### Fixed
+
+- Include LICENSE in ex_ttrpg_dev Hex package
+- Render README and CHANGELOG as hexdocs pages
 
 Prior releases (up through 0.15.0) aren't itemized here; see the
 [GitHub releases page](https://github.com/TTRPG-Dev/ex_ttrpg_dev/releases)

@@ -1,0 +1,76 @@
+# git-cliff configuration for the ex_ttrpg_dev Hex package's CHANGELOG.md.
+# https://git-cliff.org/docs/configuration
+#
+# Scoped to apps/ex_ttrpg_dev/ only: CLI (apps/ttrpg_dev_cli/, cli/) changes
+# never ship in the Hex package, so they must never show up in this
+# changelog either. Run from the repo root so `include_paths` resolves
+# against the full tree:
+#
+#   git-cliff --config apps/ex_ttrpg_dev/cliff.toml \
+#     --tag-pattern '^lib/v' \
+#     --output apps/ex_ttrpg_dev/CHANGELOG.md
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to `ex_ttrpg_dev` will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Tracking starts at 0.15.0; earlier releases are not covered here.
+"""
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="lib/v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }}
+{% endfor %}
+{% endfor %}\
+"""
+footer = ""
+trim = true
+
+[git]
+# Parse commits per the conventional-commits `type(scope): subject` style
+# already required by this repo's commit conventions.
+conventional_commits = true
+# Drop anything that doesn't parse as a conventional commit (e.g. GitHub's
+# own "Merge pull request #N from ..." commits).
+filter_unconventional = true
+# Drop any conventional commit whose type isn't matched below (e.g. "build:").
+filter_commits = true
+protect_breaking_commits = false
+topo_order = false
+sort_commits = "oldest"
+
+# Only consider commits that touched the library itself. The release
+# workflow's version-bump commit also touches apps/ex_ttrpg_dev/mix.exs
+# (just the version line) — that's handled by the "chore: release" skip
+# rule below, not by path filtering, since the commit genuinely does
+# touch a file under this path.
+include_paths = ["apps/ex_ttrpg_dev/**"]
+
+# Only group releases by the library's own tags; the CLI's "vX.Y.Z" tags
+# are a separate versioning scheme and must not be treated as boundaries
+# here.
+tag_pattern = "^lib/v.*"
+
+commit_parsers = [
+  { message = "^chore: release", skip = true },
+  { message = "^feat", group = "Added" },
+  { message = "^fix", group = "Fixed" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^refactor", group = "Changed" },
+  { message = "^perf", group = "Changed" },
+  { message = "^chore", group = "Changed" },
+  { message = "^test", skip = true },
+  { message = "^style", skip = true },
+  { message = "^ci", skip = true },
+]
