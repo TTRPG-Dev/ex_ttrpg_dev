@@ -103,6 +103,17 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystemTest do
     assert log =~ ~s(declares version "1.0.1")
   end
 
+  test "list_entries/0 fails, rather than omitting the slug, if a slug can't be read", %{
+    root: root
+  } do
+    :ok = put(source("sys", "1.0.0", "~> 0.15.0"))
+    slug_dir = Path.join(root, "sys")
+    File.chmod!(slug_dir, 0o000)
+    on_exit(fn -> File.chmod(slug_dir, 0o755) end)
+
+    assert {:error, {"sys", :eacces}} = FileSystem.list_entries()
+  end
+
   test "fetch/2 returns the stored content" do
     canonical = source("sys", "1.0.0", "~> 0.15.0")
     flat = source("homebrew", "draft")

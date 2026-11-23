@@ -54,13 +54,30 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
 
     case File.ls(root) do
       {:ok, names} ->
-        {:ok, names |> Enum.sort() |> Enum.flat_map(&slug_entries(root, &1))}
+        names |> Enum.sort() |> collect_entries(root)
 
       {:error, :enoent} ->
         {:ok, []}
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # Fails as a whole if any slug directory can't be read, rather than
+  # leaving that slug out: an unreadable slug would otherwise look
+  # uninstalled, and callers (sync, collision checks) act on absence.
+  defp collect_entries(slugs, root) do
+    slugs
+    |> Enum.reduce_while({:ok, []}, fn slug, {:ok, acc} ->
+      case slug_entries(root, slug) do
+        {:ok, entries} -> {:cont, {:ok, [entries | acc]}}
+        {:error, reason} -> {:halt, {:error, {slug, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, nested} -> {:ok, nested |> Enum.reverse() |> List.flatten()}
+      error -> error
     end
   end
 
@@ -75,8 +92,8 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
     dir = Path.join(root, slug)
 
     cond do
-      not valid_slug?(slug) or not File.dir?(dir) -> []
-      system_dir?(dir) -> [read_entry(slug, dir)]
+      not valid_slug?(slug) or not File.dir?(dir) -> {:ok, []}
+      system_dir?(dir) -> {:ok, [read_entry(slug, dir)]}
       true -> versioned_entries(slug, dir)
     end
   end
@@ -89,18 +106,21 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
   defp versioned_entries(slug, slug_dir) do
     case File.ls(slug_dir) do
       {:ok, versions} ->
-        for version <- Enum.sort(versions),
-            valid_version?(version),
-            # A binding, not a filter: always matches. Gives the path a name
-            # for the check and the read below.
-            version_dir = Path.join(slug_dir, version),
-            system_dir?(version_dir),
-            entry = read_entry(slug, version_dir),
-            version_matches_dir?(entry, version, version_dir),
-            do: entry
+        entries =
+          for version <- Enum.sort(versions),
+              valid_version?(version),
+              # A binding, not a filter: always matches. Gives the path a
+              # name for the check and the read below.
+              version_dir = Path.join(slug_dir, version),
+              system_dir?(version_dir),
+              entry = read_entry(slug, version_dir),
+              version_matches_dir?(entry, version, version_dir),
+              do: entry
 
-      {:error, _} ->
-        []
+        {:ok, entries}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
