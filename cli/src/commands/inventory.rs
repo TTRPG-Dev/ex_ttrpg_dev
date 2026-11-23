@@ -6,13 +6,10 @@ use crate::engine::Engine;
 use crate::protocol::{InventoryResponse, Request};
 
 pub(crate) fn handle_inventory(tokens: &[&str], engine: &mut Engine) {
+    // A trailing `--help` here is already intercepted by
+    // `table::dispatch_help(tokens, "characters")` before dispatch reaches
+    // `handle_characters`'s `["inventory", rest @ ..]` arm.
     match tokens {
-        ["add", "--help"] => {
-            println!("Usage: characters inventory add <slug> <type> <id> [--equipped]")
-        }
-        ["set", "--help"] => {
-            println!("Usage: characters inventory set <slug> <index> <field> <value>")
-        }
         [slug] => {
             let req = Request::CharactersInventory { character: slug };
             call_inventory(&req, engine);

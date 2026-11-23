@@ -8,6 +8,7 @@ mod help;
 mod inventory;
 mod roll;
 mod systems;
+mod table;
 
 use serde::de::DeserializeOwned;
 
@@ -18,6 +19,7 @@ pub(crate) use characters::handle_characters;
 pub(crate) use help::print_help;
 pub(crate) use roll::handle_roll;
 pub(crate) use systems::handle_systems;
+pub(crate) use table::{COMMAND_TABLE, Completion};
 
 /// Send `req` to the engine and return its parsed response, or print a
 /// uniform `Error: {e}` to stderr and return `None` on failure. Collapses
