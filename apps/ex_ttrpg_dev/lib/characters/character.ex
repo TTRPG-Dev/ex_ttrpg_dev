@@ -30,7 +30,7 @@ defmodule ExTTRPGDev.Characters.Character do
   @type t :: %__MODULE__{
           name: String.t() | nil,
           generated_values: %{optional(Effect.node_key()) => integer()} | nil,
-          metadata: %Metadata{slug: String.t() | nil, rule_system: String.t() | nil} | nil,
+          metadata: Metadata.t() | nil,
           effects: [Effect.t()],
           decisions: [Decision.t()],
           inventory: [
@@ -91,7 +91,8 @@ defmodule ExTTRPGDev.Characters.Character do
       inventory: starting_inventory,
       metadata: %Metadata{
         slug: slugify(character_name),
-        rule_system: system.module.slug
+        rule_system: system.module.slug,
+        rule_system_version: system.module.version
       }
     }
   end
@@ -131,7 +132,8 @@ defmodule ExTTRPGDev.Characters.Character do
         end),
       "metadata" => %{
         "slug" => char.metadata.slug,
-        "rule_system" => char.metadata.rule_system
+        "rule_system" => char.metadata.rule_system,
+        "rule_system_version" => char.metadata.rule_system_version
       }
     }
   end
@@ -205,7 +207,8 @@ defmodule ExTTRPGDev.Characters.Character do
       pending_choice_slots: pending_choice_slots,
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
-        rule_system: map["metadata"]["rule_system"]
+        rule_system: map["metadata"]["rule_system"],
+        rule_system_version: map["metadata"]["rule_system_version"]
       }
     }
   end
