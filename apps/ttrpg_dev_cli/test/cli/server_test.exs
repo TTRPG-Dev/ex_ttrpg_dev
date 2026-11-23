@@ -706,4 +706,20 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert run(%{"command" => "characters.save", "temp_id" => "999"}).status == "error"
     end
   end
+
+  # ── response encoding ────────────────────────────────────────────────────────
+
+  describe "encode_response/1" do
+    test "encodes a normal response as-is" do
+      json = Server.encode_response(%{status: "ok", data: %{}})
+      assert Jason.decode!(json) == %{"status" => "ok", "data" => %{}}
+    end
+
+    test "falls back to an error response instead of raising on unencodable data" do
+      json = Server.encode_response(%{status: "ok", data: %{bad: {1, 2}}})
+
+      assert %{"status" => "error", "message" => message} = Jason.decode!(json)
+      assert message =~ "not JSON-encodable"
+    end
+  end
 end
