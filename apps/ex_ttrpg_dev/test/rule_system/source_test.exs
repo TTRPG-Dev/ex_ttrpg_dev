@@ -42,6 +42,22 @@ defmodule ExTTRPGDev.RuleSystem.SourceTest do
     assert {:error, {:module_parse_error, :enoent}} = Source.read(tmp_dir())
   end
 
+  test "write/2 produces a directory read/1 decodes back to the same source" do
+    {:ok, source} = Source.read(@dnd_path)
+    dir = tmp_dir()
+
+    assert :ok = Source.write(source, dir)
+    assert Source.read(dir) == {:ok, source}
+  end
+
+  test "write/2 skips optional files that are nil" do
+    dir = tmp_dir()
+    source = %Source{module: %{"module" => %{"name" => "X"}}}
+
+    assert :ok = Source.write(source, dir)
+    assert File.ls!(dir) == ["module.toml"]
+  end
+
   test "Loader.load_source/1 builds the same system as Loader.load/1" do
     {:ok, source} = Source.read(@dnd_path)
     assert Loader.load_source(source) == Loader.load(@dnd_path)

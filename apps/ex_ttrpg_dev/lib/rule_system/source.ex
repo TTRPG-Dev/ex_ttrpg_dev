@@ -86,6 +86,40 @@ defmodule ExTTRPGDev.RuleSystem.Source do
     end
   end
 
+  @doc """
+  Writes a source as a directory of TOML files under `path`, in the layout
+  `read/1` reads. Optional files that are `nil` are not written.
+
+  Writes into `path` as-is: callers that need an all-or-nothing write
+  should write to a fresh directory and move it into place.
+
+  Returns `:ok`, or `{:error, {file_name, reason}}` for the first file that
+  couldn't be encoded or written.
+  """
+  @spec write(t(), Path.t()) :: :ok | {:error, {String.t(), term()}}
+  def write(%__MODULE__{} = source, path) do
+    [
+      {@module_file, source.module},
+      {@character_building_file, source.character_building},
+      {@inventory_rules_file, source.inventory_rules}
+      | source.concepts
+    ]
+    |> Enum.reject(fn {_name, map} -> is_nil(map) end)
+    |> Enum.reduce_while(:ok, fn {name, map}, :ok ->
+      case write_toml(Path.join(path, name), map) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, {name, reason}}}
+      end
+    end)
+  end
+
+  defp write_toml(file_path, map) do
+    with {:ok, toml} <- TomlElixir.encode(map),
+         :ok <- File.mkdir_p(Path.dirname(file_path)) do
+      File.write(file_path, toml)
+    end
+  end
+
   defp read_toml(file_path) do
     with {:ok, contents} <- File.read(file_path) do
       TomlElixir.decode(contents)
