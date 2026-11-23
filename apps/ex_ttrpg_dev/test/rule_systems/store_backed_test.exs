@@ -161,4 +161,71 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
       assert {:error, {:not_configured, "nope"}} = RuleSystems.clone_system("nope", "x")
     end
   end
+
+  describe "update_system/2" do
+    defp rename_ability(source, name) do
+      update_in(source.concepts, fn concepts ->
+        Enum.map(concepts, fn {file, map} ->
+          {file, put_in_existing(map, ["ability", "strength", "name"], name)}
+        end)
+      end)
+    end
+
+    defp put_in_existing(map, path, value) do
+      if get_in(map, path), do: put_in(map, path, value), else: map
+    end
+
+    defp strength_name(slug) do
+      RuleSystems.load_system!(slug).concept_metadata[{"ability", "strength"}]["name"]
+    end
+
+    setup ctx do
+      install(local_copy(ctx.bundled, "my_dnd", "1.0.0"), true)
+      :ok
+    end
+
+    test "edits a modifiable system in place" do
+      assert :ok = RuleSystems.update_system("my_dnd", &rename_ability(&1, "Might"))
+      assert strength_name("my_dnd") == "Might"
+    end
+
+    test "refuses a non-modifiable system and leaves it untouched" do
+      capture_log(fn -> RuleSystems.load_system!(@slug) end)
+
+      assert {:error, {:not_modifiable, :clone_required}} =
+               RuleSystems.update_system(@slug, &rename_ability(&1, "Might"))
+
+      assert strength_name(@slug) == "Strength"
+    end
+
+    test "can change the version" do
+      assert :ok =
+               RuleSystems.update_system(
+                 "my_dnd",
+                 &put_in(&1.module["module"]["version"], "1.1.0")
+               )
+
+      assert [%Entry{version: "1.1.0"}] =
+               Enum.filter(RuleSystems.list_installed_systems!(), &(&1.slug == "my_dnd"))
+    end
+
+    test "rejects identity changes and content that doesn't load" do
+      assert {:error, {:invalid_update, :slug_changed}} =
+               RuleSystems.update_system("my_dnd", &put_in(&1.module["module"]["slug"], "x"))
+
+      assert {:error, {:invalid_update, :library_requirement_changed}} =
+               RuleSystems.update_system(
+                 "my_dnd",
+                 &put_in(&1.module["module"]["library_requirement"], "~> 0.15.0")
+               )
+
+      assert {:error, {:invalid_update, {:module_parse_error, _}}} =
+               RuleSystems.update_system(
+                 "my_dnd",
+                 &update_in(&1.module["module"], fn m -> Map.delete(m, "name") end)
+               )
+
+      assert strength_name("my_dnd") == "Strength"
+    end
+  end
 end

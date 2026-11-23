@@ -334,6 +334,28 @@ defmodule ExTTRPGDev.RuleSystems do
   defdelegate clone_system(source_slug, new_slug, opts \\ []), to: ExTTRPGDev.RuleSystems.Editing
 
   @doc """
+  Edits an installed system in place: `update_fun` receives its current
+  `ExTTRPGDev.RuleSystem.Source` and returns the new one.
+
+  Only modifiable systems can be updated. A non-modifiable system (every
+  seeded bundled system, or one a host has locked) fails with
+  `{:error, {:not_modifiable, :clone_required}}` and is left untouched;
+  `clone_system/3` it first and update the clone. The library never clones
+  implicitly, so a caller can't end up editing a copy it didn't ask for.
+
+  The update may change content and `version`, but not the `slug` or the
+  `library_requirement`, and the result must load; otherwise
+  `{:error, {:invalid_update, reason}}` and nothing is stored.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.update_system("dnd_5e_srd", & &1)
+      {:error, {:not_modifiable, :clone_required}}
+
+  Returns `:ok` or `{:error, reason}`.
+  """
+  defdelegate update_system(slug, update_fun), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
   Loads, parses, and validates a rule system by slug, raising on failure.
 
   See `load_system/1` for the non-raising variant.
