@@ -75,7 +75,10 @@ defmodule ExTTRPGDev.CLI.Server do
   `characters.save` / `characters.build_finish` is called or the server exits.
   """
 
+  require Logger
+
   alias ExTTRPGDev.CLI.Server.Handlers
+  alias ExTTRPGDev.RuleSystems
 
   @type state :: %{
           pending: %{String.t() => ExTTRPGDev.Characters.Character.t()},
@@ -112,7 +115,24 @@ defmodule ExTTRPGDev.CLI.Server do
 
   def run do
     log_to_stderr()
+    Logger.configure(level: :info)
+    sync_rule_systems()
     loop(%{pending: %{}, next_id: 1})
+  end
+
+  # The engine is the host application for the library, so it decides when
+  # installed rule systems may be replaced: once, at startup, before any
+  # command is served, so content never changes under a session. A failed
+  # sync is logged but not fatal: installed systems still load, and an
+  # absent bundled system is still seeded on first load.
+  @doc false
+  def sync_rule_systems do
+    case RuleSystems.sync_bundled() do
+      {:ok, _results} -> :ok
+      {:error, reason} -> Logger.error("rule system sync failed: #{inspect(reason)}")
+    end
+
+    :ok
   end
 
   # stdout is the protocol channel: the frontend parses every line on it as

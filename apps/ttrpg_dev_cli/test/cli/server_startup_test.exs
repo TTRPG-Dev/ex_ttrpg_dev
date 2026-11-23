@@ -1,5 +1,6 @@
-defmodule ExTTRPGDev.CLI.ServerLoggingTest do
-  # Not async: replaces the global :default logger handler.
+defmodule ExTTRPGDev.CLI.ServerStartupTest do
+  # Not async: replaces the global :default logger handler and writes to
+  # the suite-wide rule system store.
   use ExUnit.Case
   alias ExTTRPGDev.CLI.Server
 
@@ -16,5 +17,14 @@ defmodule ExTTRPGDev.CLI.ServerLoggingTest do
     assert :ok = Server.log_to_stderr()
     assert :ok = Server.log_to_stderr()
     assert {:ok, %{config: %{type: :standard_error}}} = :logger.get_handler_config(:default)
+  end
+
+  test "sync_rule_systems/0 installs bundled systems into the store" do
+    ExUnit.CaptureLog.capture_log(fn -> assert :ok = Server.sync_rule_systems() end)
+
+    assert Enum.any?(
+             ExTTRPGDev.RuleSystems.list_installed_systems!(),
+             &(&1.slug == "dnd_5e_srd" and not &1.is_modifiable)
+           )
   end
 end
