@@ -84,39 +84,9 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     concept_types_raw = Map.get(map, "concept_type", [])
     metadata_contributions_raw = Map.get(map, "metadata_contributions", [])
 
-    with nil <- Enum.find(@required_keys, &(not Map.has_key?(module_map, &1))),
+    with :ok <- validate_required_keys(module_map),
          :ok <- validate_concept_types(concept_types_raw),
          :ok <- validate_metadata_contributions(metadata_contributions_raw) do
-      concept_types =
-        Enum.map(concept_types_raw, fn et ->
-          %ConceptType{
-            id: et["id"],
-            name: et["name"],
-            display_template: get_in(et, ["display", "template"])
-          }
-        end)
-
-      character_lists =
-        map
-        |> Map.get("character_list", [])
-        |> Enum.map(fn cl ->
-          %CharacterListCategory{
-            label: cl["label"],
-            metadata_key: cl["metadata_key"],
-            concept_type: cl["concept_type"],
-            choice_concept_type: cl["choice_concept_type"]
-          }
-        end)
-
-      display_config =
-        case Map.get(map, "display") do
-          nil -> %DisplayConfig{}
-          dc -> %DisplayConfig{signed_fields: Map.get(dc, "signed_fields", [])}
-        end
-
-      metadata_contributions =
-        Enum.map(metadata_contributions_raw, &parse_metadata_contribution/1)
-
       {:ok,
        %__MODULE__{
          name: module_map["name"],
@@ -126,19 +96,57 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          series: module_map["series"],
          publisher: module_map["publisher"],
          level_node: module_map["level_node"],
-         concept_types: concept_types,
-         character_lists: character_lists,
-         display_config: display_config,
-         metadata_contributions: metadata_contributions,
+         concept_types: parse_concept_types(concept_types_raw),
+         character_lists: parse_character_lists(map),
+         display_config: parse_display_config(map),
+         metadata_contributions: parse_metadata_contributions(metadata_contributions_raw),
          custom_metadata_keys: Map.get(module_map, "custom_metadata_keys", [])
        }}
-    else
-      missing when is_binary(missing) -> {:error, {:missing_required_key, missing}}
-      error -> error
     end
   end
 
   def from_map(_), do: {:error, {:missing_required_key, "module"}}
+
+  defp validate_required_keys(module_map) do
+    case Enum.find(@required_keys, &(not Map.has_key?(module_map, &1))) do
+      nil -> :ok
+      missing -> {:error, {:missing_required_key, missing}}
+    end
+  end
+
+  defp parse_concept_types(concept_types_raw) do
+    Enum.map(concept_types_raw, fn et ->
+      %ConceptType{
+        id: et["id"],
+        name: et["name"],
+        display_template: get_in(et, ["display", "template"])
+      }
+    end)
+  end
+
+  defp parse_character_lists(map) do
+    map
+    |> Map.get("character_list", [])
+    |> Enum.map(fn cl ->
+      %CharacterListCategory{
+        label: cl["label"],
+        metadata_key: cl["metadata_key"],
+        concept_type: cl["concept_type"],
+        choice_concept_type: cl["choice_concept_type"]
+      }
+    end)
+  end
+
+  defp parse_display_config(map) do
+    case Map.get(map, "display") do
+      nil -> %DisplayConfig{}
+      dc -> %DisplayConfig{signed_fields: Map.get(dc, "signed_fields", [])}
+    end
+  end
+
+  defp parse_metadata_contributions(list) do
+    Enum.map(list, &parse_metadata_contribution/1)
+  end
 
   defp validate_concept_types(list) do
     case Enum.find_index(list, fn et -> is_nil(et["id"]) end) do
