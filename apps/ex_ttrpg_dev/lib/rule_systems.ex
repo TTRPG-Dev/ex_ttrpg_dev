@@ -223,6 +223,18 @@ defmodule ExTTRPGDev.RuleSystems do
   def system_path!(system), do: system_path(system)
 
   @doc """
+  Installs, updates, or replaces bundled systems in the store, per the
+  rules in `ExTTRPGDev.RuleSystems.Replacement`, logging every decision.
+
+  This is the only operation that replaces installed content; loading a
+  system never does. Hosts call it deliberately, e.g. at boot or as a
+  release step. See `ExTTRPGDev.RuleSystems.Sync`.
+
+  Returns `{:ok, [{slug, result}, ...]}` or `{:error, reason}`.
+  """
+  defdelegate sync_bundled(), to: ExTTRPGDev.RuleSystems.Sync, as: :sync_all
+
+  @doc """
   Loads, parses, and validates a rule system by slug.
 
   Returns `{:ok, %LoadedSystem{}}` containing the parsed module, validated

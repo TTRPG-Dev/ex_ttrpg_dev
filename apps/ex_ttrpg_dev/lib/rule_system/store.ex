@@ -63,6 +63,15 @@ defmodule ExTTRPGDev.RuleSystem.Store do
     end
   end
 
+  @doc """
+  The store adapter in use: currently always
+  `ExTTRPGDev.RuleSystem.Store.FileSystem`. Making it configurable through
+  application env is tracked by #165; everything that reaches the store
+  goes through this function so that change is local to it.
+  """
+  @spec adapter() :: module()
+  def adapter, do: ExTTRPGDev.RuleSystem.Store.FileSystem
+
   @doc "Lists every installed entry, across all slugs and versions."
   @callback list_entries() :: {:ok, [Entry.t()]} | {:error, term()}
 
