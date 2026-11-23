@@ -129,15 +129,27 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp evaluate_mapping(input_formula, steps, resolved) do
     with {:ok, input_value} <- Expression.evaluate(input_formula, resolved) do
-      result =
-        steps
-        |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)
-        |> List.last()
+      resolve_mapping_step(steps, input_value)
+    end
+  end
 
-      case result do
-        [_, output] -> {:ok, output}
-        nil -> {:error, {:mapping_no_match, input_value}}
-      end
+  @doc """
+  Resolves a mapping node's `steps` for a given already-evaluated `input_value`:
+  the value of the last step whose threshold is `<= input_value`.
+
+  Exposed so callers that already know a mapping node's input value (e.g.
+  computing a character's current level from accumulated XP) can reuse this
+  instead of re-implementing the same threshold-matching rule.
+
+  Returns `{:ok, value}` or `{:error, {:mapping_no_match, input_value}}`.
+  """
+  def resolve_mapping_step(steps, input_value) do
+    steps
+    |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)
+    |> List.last()
+    |> case do
+      [_, output] -> {:ok, output}
+      nil -> {:error, {:mapping_no_match, input_value}}
     end
   end
 

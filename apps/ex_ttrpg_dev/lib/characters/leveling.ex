@@ -35,14 +35,11 @@ defmodule ExTTRPGDev.Characters.Leveling do
         |> Enum.map(& &1.value)
         |> Enum.sum()
 
-      current_level =
-        thresholds
-        |> Enum.filter(fn {_level, threshold} -> threshold <= current_xp end)
-        |> Enum.max_by(fn {_level, threshold} -> threshold end, fn -> nil end)
-        |> case do
-          nil -> 1
-          {level, _} -> level
-        end
+      # Resolves the level mapping node's own steps for current_xp, via the
+      # same step-matching rule Evaluator uses, rather than re-implementing
+      # it here against an inverted %{level => threshold} view.
+      %Node{steps: steps} = level_mapping_node(system)
+      {:ok, current_level} = Evaluator.resolve_mapping_step(steps, current_xp)
 
       next_level =
         thresholds
@@ -58,17 +55,29 @@ defmodule ExTTRPGDev.Characters.Leveling do
     end
   end
 
+  # The system's level mapping node, or `nil` when the system defines no
+  # level mapping (no level_node, an unresolvable ref, or the referenced
+  # node isn't a :mapping node).
+  defp level_mapping_node(%LoadedSystem{} = system) do
+    with level_node when not is_nil(level_node) <- system.module.level_node,
+         [node_key | _] <- Expression.extract_refs(level_node),
+         %Node{type: :mapping} = node <- Map.get(system.nodes, node_key) do
+      node
+    else
+      _ -> nil
+    end
+  end
+
   # The `%{level => xp_threshold}` map derived from the system's level node,
   # or `%{}` when the system defines no level mapping.
   @doc false
   def level_xp_thresholds(%LoadedSystem{} = system) do
-    with level_node when not is_nil(level_node) <- system.module.level_node,
-         [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         %Node{type: :mapping, steps: steps} when not is_nil(steps) <-
-           Map.get(system.nodes, {type_id, concept_id, field_name}) do
-      Map.new(steps, fn [threshold, level] -> {level, threshold} end)
-    else
-      _ -> %{}
+    case level_mapping_node(system) do
+      %Node{steps: steps} when not is_nil(steps) ->
+        Map.new(steps, fn [threshold, level] -> {level, threshold} end)
+
+      _ ->
+        %{}
     end
   end
 
@@ -76,12 +85,9 @@ defmodule ExTTRPGDev.Characters.Leveling do
   # or `nil` when the system defines no level mapping.
   @doc false
   def xp_effect_target(%LoadedSystem{} = system) do
-    with level_node when not is_nil(level_node) <- system.module.level_node,
-         [{type_id, concept_id, field_name} | _] <- Expression.extract_refs(level_node),
-         %Node{type: :mapping, input: input} when not is_nil(input) <-
-           Map.get(system.nodes, {type_id, concept_id, field_name}),
-         [node_key | _] <- Expression.extract_refs(input) do
-      node_key
+    with %Node{input: input} when not is_nil(input) <- level_mapping_node(system),
+         [effect_target | _] <- Expression.extract_refs(input) do
+      effect_target
     else
       _ -> nil
     end
