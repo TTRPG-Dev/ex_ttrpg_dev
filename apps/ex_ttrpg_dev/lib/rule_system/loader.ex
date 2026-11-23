@@ -129,11 +129,15 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   require Logger
 
-  alias ExTTRPGDev.RuleSystem.{Effect, Expression, InventoryRules, Node, RuleModule, Vocabulary}
-
-  @module_file "module.toml"
-  @character_building_file "character_building.toml"
-  @inventory_rules_file "inventory_rules.toml"
+  alias ExTTRPGDev.RuleSystem.{
+    Effect,
+    Expression,
+    InventoryRules,
+    Node,
+    RuleModule,
+    Source,
+    Vocabulary
+  }
 
   # Bound to attributes at compile time; the names are owned by
   # ExTTRPGDev.RuleSystem.Vocabulary. The MapSet is bound here rather than
@@ -142,19 +146,18 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   @rolling_method_type Vocabulary.rolling_method_type()
   @structural_metadata_keys MapSet.new(Vocabulary.structural_metadata_keys())
 
-  @doc "Loads a rule system directory, returning `{:ok, data}` or `{:error, reason}`."
+  @doc """
+  Reads a rule system directory and builds it, returning `{:ok, data}` or
+  `{:error, reason}`. Equivalent to `ExTTRPGDev.RuleSystem.Source.read/1`
+  followed by `load_source/1`.
+  """
   def load(path) do
-    with {:ok, rule_module} <- load_module(path),
-         {:ok, data} <- load_concept_files(path, rule_module),
-         {:ok, inventory_rules} <- load_inventory_rules(path) do
-      data = expand_metadata_contributions(data, rule_module)
-      warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
-      warn_rolling_method_issues(data)
-      {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
+    with {:ok, source} <- Source.read(path) do
+      load_source(source)
     end
   end
 
-  @doc "Loads a rule system directory, raising on failure."
+  @doc "Reads and builds a rule system directory, raising on failure."
   def load!(path) do
     case load(path) do
       {:ok, data} -> data
@@ -162,67 +165,43 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end
   end
 
-  defp load_module(path) do
-    with {:ok, rule_module} <- parse_module_file(path),
-         {:ok, choices} <- load_character_building_choices(path) do
-      {:ok, %{rule_module | character_building_choices: choices}}
+  @doc """
+  Builds a rule system from already-decoded `ExTTRPGDev.RuleSystem.Source`
+  data, returning `{:ok, data}` or `{:error, reason}`.
+  """
+  def load_source(%Source{} = source) do
+    with {:ok, rule_module} <- build_module(source),
+         {:ok, data} <- build_concepts(source.concepts, rule_module),
+         {:ok, inventory_rules} <- build_inventory_rules(source.inventory_rules) do
+      data = expand_metadata_contributions(data, rule_module)
+      warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
+      warn_rolling_method_issues(data)
+      {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
     end
   end
 
-  defp parse_module_file(path) do
-    module_path = Path.join(path, @module_file)
-
-    with {:ok, contents} <- File.read(module_path),
-         {:ok, map} <- TomlElixir.decode(contents),
-         {:ok, rule_module} <- RuleModule.from_map(map) do
-      {:ok, rule_module}
-    else
-      {:error, reason} -> {:error, {:module_parse_error, reason}}
-    end
-  end
-
-  # A missing file is fine (the system has no inventory rules); any other
-  # failure — unreadable file, TOML syntax error, validation error from
-  # InventoryRules.from_map — must surface, not silently yield an empty
-  # default.
-  defp load_inventory_rules(path) do
-    rules_path = Path.join(path, @inventory_rules_file)
-
-    case File.read(rules_path) do
-      {:error, :enoent} ->
-        {:ok, %InventoryRules{}}
+  defp build_module(%Source{module: module_map, character_building: building}) do
+    case RuleModule.from_map(module_map) do
+      {:ok, rule_module} ->
+        {:ok, %{rule_module | character_building_choices: parse_character_choices(building)}}
 
       {:error, reason} ->
-        {:error, {:inventory_rules_error, reason}}
-
-      {:ok, contents} ->
-        with {:ok, map} <- TomlElixir.decode(contents),
-             {:ok, rules} <- InventoryRules.from_map(map) do
-          {:ok, rules}
-        else
-          {:error, reason} -> {:error, {:inventory_rules_error, reason}}
-        end
+        {:error, {:module_parse_error, reason}}
     end
   end
 
-  # Same policy as load_inventory_rules: only a missing file falls back.
-  defp load_character_building_choices(path) do
-    building_path = Path.join(path, @character_building_file)
+  # A system without inventory rules gets an empty default; a present but
+  # invalid map must surface, not silently yield that default.
+  defp build_inventory_rules(nil), do: {:ok, %InventoryRules{}}
 
-    case File.read(building_path) do
-      {:error, :enoent} ->
-        {:ok, []}
-
-      {:error, reason} ->
-        {:error, {:character_building_error, reason}}
-
-      {:ok, contents} ->
-        case TomlElixir.decode(contents) do
-          {:ok, map} -> {:ok, parse_character_choices(map)}
-          {:error, reason} -> {:error, {:character_building_error, reason}}
-        end
+  defp build_inventory_rules(map) do
+    case InventoryRules.from_map(map) do
+      {:ok, rules} -> {:ok, rules}
+      {:error, reason} -> {:error, {:inventory_rules_error, reason}}
     end
   end
+
+  defp parse_character_choices(nil), do: []
 
   defp parse_character_choices(map) do
     map
@@ -235,31 +214,21 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end)
   end
 
-  defp load_concept_files(path, rule_module) do
+  defp build_concepts(concepts, rule_module) do
     type_ids = RuleModule.concept_type_ids(rule_module)
-
     initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, effects: []}
 
-    path
-    |> Path.join("concepts/**/*.toml")
-    |> Path.wildcard()
-    |> Enum.reduce_while({:ok, initial}, fn file_path, {:ok, acc} ->
-      with {:ok, contents} <- File.read(file_path),
-           {:ok, toml_map} <- TomlElixir.decode(contents) do
-        {:cont, {:ok, process_toml_map(toml_map, acc, type_ids)}}
-      else
-        {:error, reason} -> {:halt, {:error, {:file_parse_error, file_path, reason}}}
-      end
-    end)
-    |> finalize_effects_order()
-  end
+    acc =
+      Enum.reduce(concepts, initial, fn {_name, toml_map}, acc ->
+        process_toml_map(toml_map, acc, type_ids)
+      end)
 
-  # process_concept/4 builds `effects` by prepending each concept's effects
-  # (cheap: proportional to that concept's own effect count, not the
-  # accumulator's), so the accumulated list is in reverse encounter order
-  # until this undoes it in one pass.
-  defp finalize_effects_order({:ok, acc}), do: {:ok, %{acc | effects: Enum.reverse(acc.effects)}}
-  defp finalize_effects_order(error), do: error
+    # process_concept/4 builds `effects` by prepending each concept's effects
+    # (cheap: proportional to that concept's own effect count, not the
+    # accumulator's), so the accumulated list is in reverse encounter order
+    # until this undoes it in one pass.
+    {:ok, %{acc | effects: Enum.reverse(acc.effects)}}
+  end
 
   defp process_toml_map(toml_map, acc, type_ids) do
     Enum.reduce(toml_map, acc, fn {type_id, concepts}, acc ->
