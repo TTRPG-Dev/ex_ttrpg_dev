@@ -21,7 +21,8 @@ defmodule ExTTRPGDev.RuleSystems do
   """
 
   alias ExTTRPGDev.Globals
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Store}
+  alias ExTTRPGDev.Characters.{Character, Metadata}
+  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Store, Versioning}
   alias ExTTRPGDev.RuleSystems.{Bundled, LoadedSystem, Sync}
 
   @doc """
@@ -239,8 +240,21 @@ defmodule ExTTRPGDev.RuleSystems do
   @doc """
   Loads, parses, and validates a rule system by slug.
 
+  Without a `version`, loads the newest installed version. With one,
+  loads the newest installed version on that version's release line (see
+  `ExTTRPGDev.RuleSystem.Versioning.same_release_line?/2`): a non-breaking
+  update replaces content in place, so asking for 1.1.0 after 1.2.0 was
+  installed loads 1.2.0. A local system (user-authored or cloned) has a
+  single version and is loaded whatever `version` is given.
+
+  If the slug is a bundled system with nothing installed, it's installed
+  first (see `sync_bundled/0`). Loading never replaces installed content.
+
   Returns `{:ok, %LoadedSystem{}}` containing the parsed module, validated
-  DAG, and all supporting data needed for evaluation, or `{:error, reason}`.
+  DAG, and all supporting data needed for evaluation, or `{:error, reason}`
+  (`{:not_configured, slug}` for an unknown slug,
+  `{:version_not_installed, slug, version}` when nothing on the requested
+  release line is installed).
 
   ## Examples
       iex> {:ok, system} = ExTTRPGDev.RuleSystems.load_system("dnd_5e_srd")
@@ -248,12 +262,12 @@ defmodule ExTTRPGDev.RuleSystems do
       true
 
   """
-  def load_system(system) when is_bitstring(system) do
+  def load_system(system, version \\ nil) when is_bitstring(system) do
     store = Store.adapter()
 
     with :ok <- Sync.seed_if_absent(system),
          {:ok, entries} <- store.list_entries(),
-         {:ok, entry} <- select_entry(entries, system),
+         {:ok, entry} <- select_entry(entries, system, version),
          {:ok, source} <- store.fetch(entry.slug, entry.version),
          {:ok, loader_data} <- Loader.load_source(source),
          {:ok, system_map} <- Graph.build(loader_data) do
@@ -272,8 +286,10 @@ defmodule ExTTRPGDev.RuleSystems do
 
   # Picks the installed entry to load for a slug. A non-canonical entry
   # (local or clone) wins if one holds the slug, matching the collision
-  # policy; otherwise the newest installed canonical version.
-  defp select_entry(entries, slug) do
+  # policy, whatever version was asked for: it's the only version there is.
+  # Otherwise, the newest canonical version on the requested version's
+  # release line, or the newest overall when no version is requested.
+  defp select_entry(entries, slug, version) do
     {canonical, local} =
       entries
       |> Enum.filter(&(&1.slug == slug))
@@ -282,9 +298,20 @@ defmodule ExTTRPGDev.RuleSystems do
     case {local, canonical} do
       {[entry | _], _} -> {:ok, entry}
       {[], []} -> {:error, {:not_configured, slug}}
-      {[], versions} -> {:ok, Enum.max_by(versions, & &1.version, Version)}
+      {[], installed} -> select_canonical(installed, slug, version)
     end
   end
+
+  defp select_canonical(installed, _slug, nil), do: {:ok, newest(installed)}
+
+  defp select_canonical(installed, slug, version) do
+    case Enum.filter(installed, &Versioning.same_release_line?(&1.version, version)) do
+      [] -> {:error, {:version_not_installed, slug, version}}
+      on_line -> {:ok, newest(on_line)}
+    end
+  end
+
+  defp newest(entries), do: Enum.max_by(entries, & &1.version, Version)
 
   @doc """
   Loads, parses, and validates a rule system by slug, raising on failure.
@@ -296,13 +323,33 @@ defmodule ExTTRPGDev.RuleSystems do
       true
 
   """
-  def load_system!(system) when is_bitstring(system) do
-    case load_system(system) do
+  def load_system!(system, version \\ nil) when is_bitstring(system) do
+    case load_system(system, version) do
       {:ok, loaded_system} ->
         loaded_system
 
       {:error, reason} ->
         raise "Failed to load rule system #{system}: #{inspect(reason)}"
     end
+  end
+
+  @doc """
+  Loads the rule system a character was built with, at the version it
+  recorded (see `load_system/2`). A character saved before versions were
+  recorded loads the newest installed version.
+
+  Returns `{:ok, %LoadedSystem{}}` or `{:error, reason}`.
+  """
+  def load_system_for(%Character{metadata: %Metadata{} = metadata}) do
+    load_system(metadata.rule_system, metadata.rule_system_version)
+  end
+
+  @doc """
+  Loads the rule system a character was built with, raising on failure.
+
+  See `load_system_for/1` for the non-raising variant.
+  """
+  def load_system_for!(%Character{metadata: %Metadata{} = metadata}) do
+    load_system!(metadata.rule_system, metadata.rule_system_version)
   end
 end

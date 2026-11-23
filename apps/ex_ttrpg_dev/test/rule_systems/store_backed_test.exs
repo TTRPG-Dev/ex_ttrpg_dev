@@ -3,6 +3,7 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
   # so installed fixtures can't leak into tests loading the real systems.
   use ExUnit.Case
   import ExUnit.CaptureLog
+  alias ExTTRPGDev.Characters.{Character, Metadata}
   alias ExTTRPGDev.RuleSystem.Store.{Entry, FileSystem}
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.{Bundled, LoadedSystem}
@@ -59,6 +60,50 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     install(put_in(bundled.module["module"]["version"], "2.0.0"), false)
 
     assert {:ok, %LoadedSystem{module: %{version: "2.0.0"}}} = RuleSystems.load_system(@slug)
+  end
+
+  describe "load_system/2 with a version" do
+    setup %{bundled: bundled} do
+      for v <- ["1.0.0", "1.2.0", "2.0.0"] do
+        install(put_in(bundled.module["module"]["version"], v), false)
+      end
+
+      :ok
+    end
+
+    test "loads the newest version on the requested release line" do
+      assert {:ok, %LoadedSystem{module: %{version: "1.2.0"}}} =
+               RuleSystems.load_system(@slug, "1.0.0")
+
+      assert {:ok, %LoadedSystem{module: %{version: "2.0.0"}}} =
+               RuleSystems.load_system(@slug, "2.0.0")
+    end
+
+    test "fails when nothing on the release line is installed" do
+      assert {:error, {:version_not_installed, @slug, "3.0.0"}} =
+               RuleSystems.load_system(@slug, "3.0.0")
+    end
+
+    test "load_system_for/1 uses the character's recorded version" do
+      character = %Character{
+        metadata: %Metadata{rule_system: @slug, rule_system_version: "1.1.0"}
+      }
+
+      assert {:ok, %LoadedSystem{module: %{version: "1.2.0"}}} =
+               RuleSystems.load_system_for(character)
+
+      legacy = put_in(character.metadata.rule_system_version, nil)
+
+      assert {:ok, %LoadedSystem{module: %{version: "2.0.0"}}} =
+               RuleSystems.load_system_for(legacy)
+    end
+  end
+
+  test "a local system loads whatever version is requested", ctx do
+    install(local_copy(ctx.bundled, "my_variant", "draft 2"), true)
+
+    assert {:ok, %LoadedSystem{module: %{version: "draft 2"}}} =
+             RuleSystems.load_system("my_variant", "draft 1")
   end
 
   test "lists installed local systems alongside bundled ones", ctx do
