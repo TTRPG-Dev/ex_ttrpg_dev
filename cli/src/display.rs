@@ -436,7 +436,17 @@ pub(crate) fn page_output(content: &str) {
     }
 
     let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
-    if let Ok(mut child) = Command::new(&pager).stdin(Stdio::piped()).spawn() {
+    let mut pager_parts = pager.split_whitespace();
+    let Some(program) = pager_parts.next() else {
+        print!("{content}");
+        return;
+    };
+
+    if let Ok(mut child) = Command::new(program)
+        .args(pager_parts)
+        .stdin(Stdio::piped())
+        .spawn()
+    {
         if let Some(mut stdin) = child.stdin.take() {
             let _ = stdin.write_all(content.as_bytes());
         }
