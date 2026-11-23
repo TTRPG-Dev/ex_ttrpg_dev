@@ -62,6 +62,13 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
     end
   end
 
+  # Each directory under the root is one slug, in one of two layouts:
+  #
+  # - flat: `{slug}/module.toml` exists, so the directory *is* the system
+  #   (non-canonical content). Its subdirectories (e.g. `concepts/`) are
+  #   content, never versions, so they aren't scanned.
+  # - nested: no `{slug}/module.toml`, so each subdirectory is one installed
+  #   version of canonical content: `{slug}/{version}/module.toml`.
   defp slug_entries(root, slug) do
     dir = Path.join(root, slug)
 
@@ -72,12 +79,18 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
     end
   end
 
-  defp versioned_entries(slug, dir) do
-    case File.ls(dir) do
-      {:ok, names} ->
-        for name <- Enum.sort(names),
-            valid_version?(name),
-            version_dir = Path.join(dir, name),
+  # Only called for the nested layout (see slug_entries/2), so every child
+  # of `slug_dir` is named after a version. A child is an entry if its name
+  # is a usable version (which also skips dot-directories such as
+  # interrupted `.tmp-*` writes) and it contains a module.toml.
+  defp versioned_entries(slug, slug_dir) do
+    case File.ls(slug_dir) do
+      {:ok, versions} ->
+        for version <- Enum.sort(versions),
+            valid_version?(version),
+            # A binding, not a filter: always matches. Gives the path a name
+            # for the check and the read below.
+            version_dir = Path.join(slug_dir, version),
             system_dir?(version_dir),
             do: read_entry(slug, version_dir)
 
