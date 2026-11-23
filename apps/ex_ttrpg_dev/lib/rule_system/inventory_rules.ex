@@ -73,15 +73,11 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
     types_map = Map.get(map, "inventory_type", %{})
 
     result =
-      Enum.reduce(types_map, {:ok, %{}}, fn
-        {type_id, type_map}, {:ok, acc} ->
-          case parse_type_config(type_map) do
-            {:ok, config} -> {:ok, Map.put(acc, type_id, config)}
-            error -> error
-          end
-
-        _, error ->
-          error
+      Enum.reduce_while(types_map, {:ok, %{}}, fn {type_id, type_map}, {:ok, acc} ->
+        case parse_type_config(type_map) do
+          {:ok, config} -> {:cont, {:ok, Map.put(acc, type_id, config)}}
+          error -> {:halt, error}
+        end
       end)
 
     case result do
@@ -179,15 +175,11 @@ defmodule ExTTRPGDev.RuleSystem.InventoryRules do
   end
 
   defp parse_schema(schema_map) do
-    Enum.reduce(schema_map, {:ok, %{}}, fn
-      {field_name, field_map}, {:ok, acc} ->
-        case parse_field_schema(field_name, field_map) do
-          {:ok, field_schema} -> {:ok, Map.put(acc, field_name, field_schema)}
-          error -> error
-        end
-
-      _, error ->
-        error
+    Enum.reduce_while(schema_map, {:ok, %{}}, fn {field_name, field_map}, {:ok, acc} ->
+      case parse_field_schema(field_name, field_map) do
+        {:ok, field_schema} -> {:cont, {:ok, Map.put(acc, field_name, field_schema)}}
+        error -> {:halt, error}
+      end
     end)
   end
 
