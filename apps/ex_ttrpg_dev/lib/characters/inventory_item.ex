@@ -46,15 +46,9 @@ defmodule ExTTRPGDev.Characters.InventoryItem do
   def set_field(%__MODULE__{} = item, field_name, value, %InventoryRules{} = inventory_rules) do
     schema = InventoryRules.type_schema(inventory_rules, item.concept_type)
 
-    case Map.fetch(schema, field_name) do
-      {:ok, field_schema} ->
-        case validate_field_value(value, field_schema) do
-          :ok -> {:ok, %{item | fields: Map.put(item.fields, field_name, value)}}
-          error -> error
-        end
-
-      :error ->
-        {:error, {:unknown_field, field_name}}
+    with {:ok, field_schema} <- fetch_schema_field(schema, field_name),
+         :ok <- validate_field_value(value, field_schema) do
+      {:ok, %{item | fields: Map.put(item.fields, field_name, value)}}
     end
   end
 

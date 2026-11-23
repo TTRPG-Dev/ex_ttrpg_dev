@@ -18,8 +18,8 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   - `:nodes` — node registry from the loader
   - `:rolling_methods`, `:concept_metadata`, `:effects` — passed through
 
-  Returns `{:error, reason}` if any references are undefined.
-  Raises if the graph contains cycles.
+  Returns `{:error, reason}` if any references are undefined, or
+  `{:error, {:cycle_detected, reason}}` if the graph contains cycles.
   """
   def build(loader_data) do
     %{nodes: nodes, effects: effects, concept_metadata: concept_metadata} = loader_data
@@ -29,7 +29,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
       |> Map.keys()
       |> Enum.reduce(Graph.new(type: :directed), &Graph.add_vertex(&2, &1))
 
-    with {:ok, _} <- validate_choice_options(concept_metadata),
+    with :ok <- validate_choice_options(concept_metadata),
          {:ok, graph} <- add_node_edges(graph, nodes),
          {:ok, graph} <- add_effect_edges(graph, nodes, effects),
          {:ok, graph} <- add_choice_contributes_edges(graph, nodes, concept_metadata) do
@@ -118,7 +118,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
         end)
       end)
 
-    if error, do: error, else: {:ok, nil}
+    if error, do: error, else: :ok
   end
 
   defp check_choice(
@@ -128,7 +128,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
          concept_metadata
        ) do
     choice_type = choice_def["type"]
-    options = Map.get(choice_def, "options", [])
+    options = choice_def["options"] || []
 
     if MapSet.member?(valid_type_ids, choice_type) do
       missing = Enum.find(options, &(not Map.has_key?(concept_metadata, {choice_type, &1})))

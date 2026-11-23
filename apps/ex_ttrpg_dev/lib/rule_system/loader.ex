@@ -251,7 +251,15 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
         {:error, reason} -> {:halt, {:error, {:file_parse_error, file_path, reason}}}
       end
     end)
+    |> finalize_effects_order()
   end
+
+  # process_concept/4 builds `effects` by prepending each concept's effects
+  # (cheap: proportional to that concept's own effect count, not the
+  # accumulator's), so the accumulated list is in reverse encounter order
+  # until this undoes it in one pass.
+  defp finalize_effects_order({:ok, acc}), do: {:ok, %{acc | effects: Enum.reverse(acc.effects)}}
+  defp finalize_effects_order(error), do: error
 
   defp process_toml_map(toml_map, acc, type_ids) do
     Enum.reduce(toml_map, acc, fn {type_id, concepts}, acc ->
@@ -291,7 +299,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       acc
       | nodes: Map.merge(acc.nodes, nodes),
         concept_metadata: Map.put(acc.concept_metadata, {type_id, concept_id}, metadata),
-        effects: acc.effects ++ effects
+        effects: Enum.reverse(effects) ++ acc.effects
     }
   end
 

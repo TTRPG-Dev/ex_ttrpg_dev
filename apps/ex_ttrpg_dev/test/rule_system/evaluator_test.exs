@@ -2,8 +2,6 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   use ExUnit.Case, async: true
   alias ExTTRPGDev.RuleSystem.{Effect, Evaluator, Graph, Loader, Node}
 
-  doctest ExTTRPGDev.RuleSystem.Evaluator
-
   defp minimal_system do
     loader_data = %{
       nodes: %{
@@ -24,6 +22,14 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     {:ok, system} = Graph.build(loader_data)
     system
+  end
+
+  test "evaluate/3 computes zero modifier for an average base score (moduledoc example)" do
+    system = minimal_system()
+    generated = %{{"attr", "strength", "base_score"} => 10}
+
+    assert {:ok, resolved} = Evaluator.evaluate(system, generated)
+    assert resolved[{"attr", "strength", "modifier"}] == 0
   end
 
   defp dnd_path do

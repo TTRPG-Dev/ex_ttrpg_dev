@@ -260,6 +260,39 @@ pub(crate) fn format_concept_detail(detail: &ConceptDetail) -> String {
     lines.join("\n")
 }
 
+pub(crate) fn page_output(content: &str) {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let terminal_height = crossterm::terminal::size()
+        .map(|(_, h)| h as usize)
+        .unwrap_or(24);
+    if content.lines().count() <= terminal_height {
+        print!("{content}");
+        return;
+    }
+
+    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
+    let mut pager_parts = pager.split_whitespace();
+    let Some(program) = pager_parts.next() else {
+        print!("{content}");
+        return;
+    };
+
+    if let Ok(mut child) = Command::new(program)
+        .args(pager_parts)
+        .stdin(Stdio::piped())
+        .spawn()
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(content.as_bytes());
+        }
+        let _ = child.wait();
+    } else {
+        print!("{content}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,28 +453,5 @@ mod tests {
         let out = format_character(&c);
         assert!(out.contains("Skills: Stealth"));
         assert!(out.contains("Languages: Common"));
-    }
-}
-
-pub(crate) fn page_output(content: &str) {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-
-    let terminal_height = crossterm::terminal::size()
-        .map(|(_, h)| h as usize)
-        .unwrap_or(24);
-    if content.lines().count() <= terminal_height {
-        print!("{content}");
-        return;
-    }
-
-    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
-    if let Ok(mut child) = Command::new(&pager).stdin(Stdio::piped()).spawn() {
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(content.as_bytes());
-        }
-        let _ = child.wait();
-    } else {
-        print!("{content}");
     }
 }

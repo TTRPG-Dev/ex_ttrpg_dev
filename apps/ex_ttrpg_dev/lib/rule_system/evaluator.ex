@@ -18,14 +18,20 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   Returns `{:ok, resolved_map}` or `{:error, reason}`.
 
-  ## Examples
-      iex> system = ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd")
-      iex> attrs = ~w[strength dexterity constitution wisdom intelligence charisma]
-      iex> generated = Map.new(attrs, &{{"ability", &1, "base_score"}, 10})
-      iex> {:ok, resolved} = ExTTRPGDev.RuleSystem.Evaluator.evaluate(system, generated)
-      iex> resolved[{"ability", "strength", "modifier"}]
-      0
+  ## Example
 
+  Given a system with an `"ability"` type whose `base_score` is a generated
+  node and whose `modifier` is a formula node derived from it, resolving a
+  base score of 10 yields a modifier of 0:
+
+      system = load_system!(...)
+      generated = %{{"ability", "strength", "base_score"} => 10}
+      {:ok, resolved} = Evaluator.evaluate(system, generated)
+      resolved[{"ability", "strength", "modifier"}]
+      #=> 0
+
+  See `ExTTRPGDev.RuleSystem.EvaluatorTest` for a runnable version of this
+  example built from a minimal fixture system.
   """
   def evaluate(system, generated_values, effects \\ []) do
     order = Graph.topological_order(system)
@@ -123,15 +129,27 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp evaluate_mapping(input_formula, steps, resolved) do
     with {:ok, input_value} <- Expression.evaluate(input_formula, resolved) do
-      result =
-        steps
-        |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)
-        |> List.last()
+      resolve_mapping_step(steps, input_value)
+    end
+  end
 
-      case result do
-        [_, output] -> {:ok, output}
-        nil -> {:error, {:mapping_no_match, input_value}}
-      end
+  @doc """
+  Resolves a mapping node's `steps` for a given already-evaluated `input_value`:
+  the value of the last step whose threshold is `<= input_value`.
+
+  Exposed so callers that already know a mapping node's input value (e.g.
+  computing a character's current level from accumulated XP) can reuse this
+  instead of re-implementing the same threshold-matching rule.
+
+  Returns `{:ok, value}` or `{:error, {:mapping_no_match, input_value}}`.
+  """
+  def resolve_mapping_step(steps, input_value) do
+    steps
+    |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)
+    |> List.last()
+    |> case do
+      [_, output] -> {:ok, output}
+      nil -> {:error, {:mapping_no_match, input_value}}
     end
   end
 

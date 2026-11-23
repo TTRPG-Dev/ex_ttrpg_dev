@@ -21,7 +21,28 @@ defmodule ExTTRPGDev.Characters.Character do
     tracking unresolved selection slots with the max concept level available when they were earned
     (defaults to [])
   """
-  @type t :: %__MODULE__{}
+  @type pending_choice_slot :: %{
+          progression_id: String.t(),
+          earned_at_level: integer(),
+          max_level_cap: integer() | nil
+        }
+
+  @type t :: %__MODULE__{
+          name: String.t() | nil,
+          generated_values: %{optional(Effect.node_key()) => integer()} | nil,
+          metadata: %Metadata{slug: String.t() | nil, rule_system: String.t() | nil} | nil,
+          effects: [Effect.t()],
+          decisions: [Decision.t()],
+          inventory: [
+            %InventoryItem{
+              concept_type: String.t() | nil,
+              concept_id: String.t() | nil,
+              fields: %{optional(String.t()) => term()} | nil
+            }
+          ],
+          pending_choice_slots: [pending_choice_slot()]
+        }
+
   defstruct [
     :name,
     :generated_values,

@@ -151,8 +151,24 @@ defmodule ExTTRPGDev.CLI.Server do
           |> String.trim()
           |> dispatch(state)
 
-        IO.puts(Jason.encode!(response))
+        IO.puts(encode_response(response))
         loop(new_state)
+    end
+  end
+
+  # Jason.encode/2 returns {:error, _} rather than raising for a value with
+  # no Jason.Encoder implementation (e.g. a raw tuple that slipped into a
+  # handler's response data), so falling back here keeps one bad response
+  # from crashing the whole server loop. Public (like handle_command/2)
+  # so this fallback is directly testable without driving stdin/stdout.
+  @doc false
+  def encode_response(response) do
+    case Jason.encode(response) do
+      {:ok, json} ->
+        json
+
+      {:error, reason} ->
+        Jason.encode!(error("response was not JSON-encodable: #{inspect(reason)}"))
     end
   end
 

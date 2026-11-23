@@ -177,6 +177,21 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert slug in slugs
     end
 
+    test "characters.list skips a corrupt character file instead of failing entirely", %{
+      slug: slug
+    } do
+      corrupt_path = Path.join(ExTTRPGDev.Globals.characters_path(), "corrupt.json")
+      File.write!(corrupt_path, "not valid json")
+      on_exit(fn -> File.rm(corrupt_path) end)
+
+      slugs =
+        run(%{"command" => "characters.list"}).data.characters
+        |> Enum.map(& &1.slug)
+
+      assert slug in slugs
+      refute "corrupt" in slugs
+    end
+
     test "characters.show renders language scripts in default mode", %{slug: slug} do
       data =
         run(%{
@@ -689,6 +704,22 @@ defmodule ExTTRPGDev.CLI.ServerTest do
 
     test "characters.save with unknown temp_id returns error" do
       assert run(%{"command" => "characters.save", "temp_id" => "999"}).status == "error"
+    end
+  end
+
+  # ── response encoding ────────────────────────────────────────────────────────
+
+  describe "encode_response/1" do
+    test "encodes a normal response as-is" do
+      json = Server.encode_response(%{status: "ok", data: %{}})
+      assert Jason.decode!(json) == %{"status" => "ok", "data" => %{}}
+    end
+
+    test "falls back to an error response instead of raising on unencodable data" do
+      json = Server.encode_response(%{status: "ok", data: %{bad: {1, 2}}})
+
+      assert %{"status" => "error", "message" => message} = Jason.decode!(json)
+      assert message =~ "not JSON-encodable"
     end
   end
 end

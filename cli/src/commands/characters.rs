@@ -9,7 +9,8 @@ use crate::engine::Engine;
 use crate::prompts::{prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
-    PendingChoice, PreparationStateResponse, RandomResolveResult, Request, SaveResult,
+    InventoryResponse, PendingChoice, PreparationStateResponse, RandomResolveResult, Request,
+    SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -84,6 +85,15 @@ fn print_characters_usage() {
     }
 }
 
+/// Pulls `--verbose`/`--succinct` out of the token stream before subcommand
+/// dispatch, so they can appear anywhere in a `characters` invocation
+/// regardless of which subcommand follows — intentionally including
+/// subcommands (`list`, `delete`, `gen`, ...) that don't take a
+/// `DisplayMode` and so end up ignoring the result. This is deliberately
+/// more permissive than `delete-all`'s own flag parser
+/// (`parse_delete_all_flags`), which rejects any flag it doesn't recognize;
+/// these two are treated as cross-cutting session flags rather than
+/// per-subcommand arguments.
 fn strip_display_flags<'a>(
     tokens: &[&'a str],
     session_mode: DisplayMode,
@@ -452,10 +462,10 @@ fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) 
         verb,
         items,
     };
-    let Some(_) = call_or_report::<serde_json::Value>(engine, &req) else {
+    let Some(r) = call_or_report::<InventoryResponse>(engine, &req) else {
         return;
     };
-    println!("Done.");
+    display::print_inventory(&r.inventory);
 }
 
 #[cfg(test)]

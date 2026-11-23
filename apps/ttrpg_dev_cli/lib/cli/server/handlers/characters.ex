@@ -54,7 +54,12 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
 
     characters =
       Characters.list_characters!()
-      |> Enum.map(&Characters.load_character!/1)
+      |> Enum.flat_map(fn slug ->
+        case Characters.load_character(slug) do
+          {:ok, c} -> [c]
+          {:error, _reason} -> []
+        end
+      end)
       |> Enum.filter(fn c ->
         system_filter == nil or c.metadata.rule_system == system_filter
       end)
