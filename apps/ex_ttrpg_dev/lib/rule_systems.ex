@@ -22,8 +22,8 @@ defmodule ExTTRPGDev.RuleSystems do
 
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.Characters.{Character, Metadata}
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Store, Versioning}
-  alias ExTTRPGDev.RuleSystems.{Bundled, LoadedSystem, Sync}
+  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Store}
+  alias ExTTRPGDev.RuleSystems.{Bundled, Installed, LoadedSystem}
 
   @doc """
   Lists all available systems: everything installed in the store, plus
@@ -263,12 +263,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def load_system(system, version \\ nil) when is_bitstring(system) do
-    store = Store.adapter()
-
-    with :ok <- Sync.seed_if_absent(system),
-         {:ok, entries} <- store.list_entries(),
-         {:ok, entry} <- select_entry(entries, system, version),
-         {:ok, source} <- store.fetch(entry.slug, entry.version),
+    with {:ok, _entry, source} <- Installed.resolve(system, version),
          {:ok, loader_data} <- Loader.load_source(source),
          {:ok, system_map} <- Graph.build(loader_data) do
       {:ok,
@@ -283,35 +278,6 @@ defmodule ExTTRPGDev.RuleSystems do
        }}
     end
   end
-
-  # Picks the installed entry to load for a slug. A non-canonical entry
-  # (local or clone) wins if one holds the slug, matching the collision
-  # policy, whatever version was asked for: it's the only version there is.
-  # Otherwise, the newest canonical version on the requested version's
-  # release line, or the newest overall when no version is requested.
-  defp select_entry(entries, slug, version) do
-    {canonical, local} =
-      entries
-      |> Enum.filter(&(&1.slug == slug))
-      |> Enum.split_with(&(not is_nil(&1.library_requirement)))
-
-    case {local, canonical} do
-      {[entry | _], _} -> {:ok, entry}
-      {[], []} -> {:error, {:not_configured, slug}}
-      {[], installed} -> select_canonical(installed, slug, version)
-    end
-  end
-
-  defp select_canonical(installed, _slug, nil), do: {:ok, newest(installed)}
-
-  defp select_canonical(installed, slug, version) do
-    case Enum.filter(installed, &Versioning.same_release_line?(&1.version, version)) do
-      [] -> {:error, {:version_not_installed, slug, version}}
-      on_line -> {:ok, newest(on_line)}
-    end
-  end
-
-  defp newest(entries), do: Enum.max_by(entries, & &1.version, Version)
 
   @doc """
   Loads, parses, and validates a rule system by slug, raising on failure.
