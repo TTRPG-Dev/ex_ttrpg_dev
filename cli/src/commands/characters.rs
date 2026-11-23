@@ -489,93 +489,6 @@ fn resolve_sub_choices(
     true
 }
 
-fn format_field_value(val: &serde_json::Value) -> Option<String> {
-    if let Some(s) = val.as_str() {
-        return if s.is_empty() {
-            None
-        } else {
-            Some(s.to_string())
-        };
-    }
-    let arr = val.as_array()?;
-    let text = arr
-        .iter()
-        .filter_map(|v| v.as_str())
-        .collect::<Vec<_>>()
-        .join(", ");
-    if text.is_empty() { None } else { Some(text) }
-}
-
-fn format_choice_entry(id: &str, cd: &serde_json::Value) -> String {
-    let cname = cd["name"].as_str().unwrap_or(id).replace('_', " ");
-    let count = cd.get("count").and_then(|v| v.as_u64()).unwrap_or(1);
-    let from = match cd.get("options").and_then(|v| v.as_array()) {
-        Some(o) => format!("{} option(s)", o.len()),
-        None => format!("all {}", cd["type"].as_str().unwrap_or("?")),
-    };
-    format!("  • {cname} (pick {count} from {from})")
-}
-
-fn format_contribute_entry(c: &serde_json::Value) -> Option<String> {
-    let target = c.get("target")?.as_str()?;
-    let value = c.get("value")?;
-    Some(match c.get("when").and_then(|w| w.as_str()) {
-        Some(w) => format!("  • {target}: {value} (when {w})"),
-        None => format!("  • {target}: {value}"),
-    })
-}
-
-fn format_contributes(f: &serde_json::Value) -> Vec<String> {
-    let Some(arr) = f.get("contributes").and_then(|v| v.as_array()) else {
-        return vec![];
-    };
-    arr.iter().filter_map(format_contribute_entry).collect()
-}
-
-fn format_required_choices(f: &serde_json::Value) -> Vec<String> {
-    let Some(choices) = f.get("choices").and_then(|c| c.as_object()) else {
-        return vec![];
-    };
-    choices
-        .iter()
-        .filter(|(_, cd)| {
-            cd.get("required")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-        })
-        .map(|(id, cd)| format_choice_entry(id, cd))
-        .collect()
-}
-
-fn format_concept_detail(detail: &ConceptDetail) -> String {
-    const FIELDS: &[(&str, &str)] = &[
-        ("hit_die", "Hit die"),
-        ("armor_proficiencies", "Armor"),
-        ("weapon_proficiencies", "Weapons"),
-        ("languages", "Languages"),
-        ("damage_resistances", "Resistances"),
-    ];
-    let f = &detail.fields;
-    let name = f["name"].as_str().unwrap_or(&detail.concept_type);
-    let mut lines = vec![format!("=== {name} ===")];
-    lines.extend(FIELDS.iter().filter_map(|(key, label)| {
-        f.get(*key)
-            .and_then(format_field_value)
-            .map(|t| format!("{label}: {t}"))
-    }));
-    let contributes = format_contributes(f);
-    if !contributes.is_empty() {
-        lines.push("Contributes:".to_string());
-        lines.extend(contributes);
-    }
-    let required = format_required_choices(f);
-    if !required.is_empty() {
-        lines.push("Choices to make:".to_string());
-        lines.extend(required);
-    }
-    lines.join("\n")
-}
-
 fn show_concept_detail(system: &str, concept_type: &str, concept_id: &str, engine: &mut Engine) {
     let req = Request::SystemsShow {
         system,
@@ -583,7 +496,7 @@ fn show_concept_detail(system: &str, concept_type: &str, concept_id: &str, engin
         concept_id: Some(concept_id),
     };
     match engine.call::<_, ConceptDetail>(&req) {
-        Ok(detail) => println!("\n{}\n", format_concept_detail(&detail)),
+        Ok(detail) => println!("\n{}\n", display::format_concept_detail(&detail)),
         Err(e) => eprintln!("Could not load details: {e}"),
     }
 }

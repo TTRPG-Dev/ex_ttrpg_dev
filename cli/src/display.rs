@@ -3,8 +3,9 @@
 //! Also provides `page_output` for piping long content through the system pager.
 
 use crate::protocol::{
-    CharacterData, CharacterListCategory, CharacterSummary, ConceptsList, InventoryItemData,
-    PendingChoice, PreparationStateResponse, SelectedConcept, SystemInfo,
+    CharacterData, CharacterListCategory, CharacterSummary, ConceptDetail, ConceptFields,
+    ConceptsList, ContributeEntry, InventoryItemData, PendingChoice, PreparationStateResponse,
+    RequiredChoice, SelectedConcept, SystemInfo,
 };
 
 pub(crate) fn format_character(c: &CharacterData) -> String {
@@ -192,6 +193,71 @@ pub(crate) fn print_pending_choices(choices: &[PendingChoice]) {
         }
     }
     println!("  Use `characters resolve_choice <slug>` to resolve.");
+}
+
+fn format_list_field(label: &str, values: &[String]) -> Option<String> {
+    if values.is_empty() {
+        None
+    } else {
+        Some(format!("{label}: {}", values.join(", ")))
+    }
+}
+
+fn format_choice_entry(id: &str, choice: &RequiredChoice) -> String {
+    let name = choice
+        .name
+        .clone()
+        .unwrap_or_else(|| id.to_string())
+        .replace('_', " ");
+    let count = choice.count.unwrap_or(1);
+    let from = if choice.options.is_empty() {
+        format!("all {}", choice.choice_type.as_deref().unwrap_or("?"))
+    } else {
+        format!("{} option(s)", choice.options.len())
+    };
+    format!("  • {name} (pick {count} from {from})")
+}
+
+fn format_contribute_entry(c: &ContributeEntry) -> String {
+    match &c.when {
+        Some(w) => format!("  • {}: {} (when {})", c.target, c.value, w),
+        None => format!("  • {}: {}", c.target, c.value),
+    }
+}
+
+fn format_required_choices(fields: &ConceptFields) -> Vec<String> {
+    fields
+        .choices
+        .iter()
+        .filter(|(_, choice)| choice.required)
+        .map(|(id, choice)| format_choice_entry(id, choice))
+        .collect()
+}
+
+pub(crate) fn format_concept_detail(detail: &ConceptDetail) -> String {
+    let f = &detail.fields;
+    let name = f.name.as_deref().unwrap_or(&detail.concept_type);
+    let mut lines = vec![format!("=== {name} ===")];
+    lines.extend(
+        f.hit_die
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(|s| format!("Hit die: {s}")),
+    );
+    lines.extend(format_list_field("Armor", &f.armor_proficiencies));
+    lines.extend(format_list_field("Weapons", &f.weapon_proficiencies));
+    lines.extend(format_list_field("Languages", &f.languages));
+    lines.extend(format_list_field("Resistances", &f.damage_resistances));
+    if !f.contributes.is_empty() {
+        lines.push("Contributes:".to_string());
+        lines.extend(f.contributes.iter().map(format_contribute_entry));
+    }
+    let required = format_required_choices(f);
+    if !required.is_empty() {
+        lines.push("Choices to make:".to_string());
+        lines.extend(required);
+    }
+    lines.join("\n")
 }
 
 #[cfg(test)]
