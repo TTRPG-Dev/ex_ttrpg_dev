@@ -128,7 +128,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
          concept_metadata
        ) do
     choice_type = choice_def["type"]
-    options = Map.get(choice_def, "options", [])
+    options = choice_def["options"] || []
 
     if MapSet.member?(valid_type_ids, choice_type) do
       missing = Enum.find(options, &(not Map.has_key?(concept_metadata, {choice_type, &1})))
