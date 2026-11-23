@@ -1,6 +1,21 @@
 defmodule ExTTRPGDev.RuleSystem.RuleModule do
   @moduledoc """
   Represents the parsed contents of a rule system's `module.toml` manifest.
+
+  ## Versioning keys
+
+  Two `[module]` keys describe how a system's content is versioned:
+
+  - `"version"` *(string, required)* — the system's own content version (its
+    `rule_system_version`), bumped on the system's own cadence rather than
+    the library's. A change that could invalidate saved character data
+    (renaming or removing a concept, node, or effect target) bumps its
+    breaking component; purely additive content does not.
+  - `"library_requirement"` *(string, optional)* — a Hex/SemVer requirement
+    (e.g. `"~> 0.15.0"`) naming the library releases this content's structure
+    is compatible with. Only canonical content maintained alongside the
+    library declares it. When present, `"version"` must be valid SemVer so
+    that releases can be compared.
   """
 
   defmodule ConceptType do
@@ -61,6 +76,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     :name,
     :slug,
     :version,
+    :library_requirement,
     :family,
     :series,
     :publisher,
@@ -85,6 +101,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     metadata_contributions_raw = Map.get(map, "metadata_contributions", [])
 
     with :ok <- validate_required_keys(module_map),
+         :ok <- validate_versioning(module_map),
          :ok <- validate_concept_types(concept_types_raw),
          :ok <- validate_metadata_contributions(metadata_contributions_raw) do
       {:ok,
@@ -92,6 +109,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          name: module_map["name"],
          slug: module_map["slug"],
          version: module_map["version"],
+         library_requirement: module_map["library_requirement"],
          family: module_map["family"],
          series: module_map["series"],
          publisher: module_map["publisher"],
@@ -113,6 +131,39 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
       missing -> {:error, {:missing_required_key, missing}}
     end
   end
+
+  # A system that declares no library_requirement isn't canonical content, so
+  # its "version" is free-form and never compared. One that does must have a
+  # parseable requirement and a SemVer "version", or replacement decisions
+  # couldn't be made for it.
+  defp validate_versioning(%{"library_requirement" => nil}), do: :ok
+
+  defp validate_versioning(%{"library_requirement" => requirement, "version" => version}) do
+    with :ok <- validate_library_requirement(requirement) do
+      validate_semver(version)
+    end
+  end
+
+  defp validate_versioning(_module_map), do: :ok
+
+  defp validate_library_requirement(requirement) when is_binary(requirement) do
+    case Version.parse_requirement(requirement) do
+      {:ok, _} -> :ok
+      :error -> {:error, {:invalid_library_requirement, requirement}}
+    end
+  end
+
+  defp validate_library_requirement(requirement),
+    do: {:error, {:invalid_library_requirement, requirement}}
+
+  defp validate_semver(version) when is_binary(version) do
+    case Version.parse(version) do
+      {:ok, _} -> :ok
+      :error -> {:error, {:invalid_rule_system_version, version}}
+    end
+  end
+
+  defp validate_semver(version), do: {:error, {:invalid_rule_system_version, version}}
 
   defp parse_concept_types(concept_types_raw) do
     Enum.map(concept_types_raw, fn et ->

@@ -23,6 +23,36 @@ defmodule ExTTRPGDev.RuleSystem.RuleModuleTest do
     assert pkg.publisher == "Test Publisher"
   end
 
+  test "from_map/1 defaults library_requirement to nil when absent" do
+    assert {:ok, %RuleModule{library_requirement: nil}} = RuleModule.from_map(@valid_map)
+  end
+
+  test "from_map/1 parses library_requirement when present" do
+    map = put_in(@valid_map, ["module", "library_requirement"], "~> 0.15")
+    assert {:ok, %RuleModule{library_requirement: "~> 0.15"}} = RuleModule.from_map(map)
+  end
+
+  test "from_map/1 rejects an unparseable library_requirement" do
+    map = put_in(@valid_map, ["module", "library_requirement"], "not a requirement")
+
+    assert {:error, {:invalid_library_requirement, "not a requirement"}} =
+             RuleModule.from_map(map)
+  end
+
+  test "from_map/1 requires a SemVer version alongside library_requirement" do
+    map =
+      @valid_map
+      |> put_in(["module", "library_requirement"], "~> 0.15")
+      |> put_in(["module", "version"], "1.0")
+
+    assert {:error, {:invalid_rule_system_version, "1.0"}} = RuleModule.from_map(map)
+  end
+
+  test "from_map/1 leaves version free-form without library_requirement" do
+    map = put_in(@valid_map, ["module", "version"], "first draft")
+    assert {:ok, %RuleModule{version: "first draft"}} = RuleModule.from_map(map)
+  end
+
   test "from_map/1 parses concept types" do
     {:ok, pkg} = RuleModule.from_map(@valid_map)
     assert length(pkg.concept_types) == 2
