@@ -89,6 +89,23 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     custom_metadata_keys: []
   ]
 
+  @type t :: %__MODULE__{
+          name: String.t(),
+          slug: String.t(),
+          version: String.t(),
+          library_requirement: String.t() | nil,
+          family: String.t() | nil,
+          series: String.t() | nil,
+          publisher: String.t() | nil,
+          concept_types: [%ConceptType{}],
+          level_node: String.t() | nil,
+          character_building_choices: [%CharacterChoice{}],
+          character_lists: [%CharacterListCategory{}],
+          display_config: %DisplayConfig{} | nil,
+          metadata_contributions: [%MetadataContribution{}],
+          custom_metadata_keys: [String.t()]
+        }
+
   @required_keys ["name", "slug", "version"]
 
   @doc """
