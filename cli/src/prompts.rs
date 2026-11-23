@@ -4,9 +4,12 @@ use std::io::{self, BufRead};
 
 use crate::protocol::OptionEntry;
 
-pub(crate) fn prompt_integer(question: &str) -> Option<i64> {
+/// Shared skeleton for a "print a prompt, read one stdin line, retry on bad
+/// input" loop. `parse` turns the raw line into `Some(T)`, or prints its own
+/// error and returns `None` to make the loop print `prompt` again.
+fn prompt_loop<T>(prompt: &str, mut parse: impl FnMut(&str) -> Result<T, String>) -> Option<T> {
     loop {
-        print!("{question} ");
+        print!("{prompt}");
         let _ = std::io::Write::flush(&mut io::stdout());
         let stdin = io::stdin();
         match stdin.lock().lines().next() {
@@ -14,32 +17,38 @@ pub(crate) fn prompt_integer(question: &str) -> Option<i64> {
                 println!();
                 return None;
             }
-            Some(Ok(line)) => {
-                if let Ok(n) = line.trim().parse::<i64>() {
-                    return Some(n);
-                }
-                eprintln!("Please enter a valid number.");
-            }
+            Some(Ok(line)) => match parse(&line) {
+                Ok(v) => return Some(v),
+                Err(msg) => eprintln!("{msg}"),
+            },
         }
     }
 }
 
-pub(crate) fn prompt_string(question: &str) -> Option<String> {
-    print!("{question} ");
-    let _ = std::io::Write::flush(&mut io::stdout());
-    let stdin = io::stdin();
-    match stdin.lock().lines().next() {
-        None | Some(Err(_)) => {
-            println!();
-            None
+pub(crate) fn prompt_integer(question: &str) -> Option<i64> {
+    prompt_loop(&format!("{question} "), |line| {
+        line.trim()
+            .parse::<i64>()
+            .map_err(|_| "Please enter a valid number.".to_string())
+    })
+}
+
+/// Retries until the trimmed input is non-empty.
+pub(crate) fn prompt_nonempty_string(question: &str) -> Option<String> {
+    prompt_loop(&format!("{question} "), |line| {
+        let trimmed = line.trim().to_string();
+        if trimmed.is_empty() {
+            Err("Please enter a non-empty value.".to_string())
+        } else {
+            Ok(trimmed)
         }
-        Some(Ok(line)) => Some(line),
-    }
+    })
 }
 
 pub(crate) fn prompt_yes_no(question: &str) -> Option<bool> {
-    let line = prompt_string(&format!("(y/n) {question}"))?;
-    Some(matches!(line.trim().to_lowercase().as_str(), "y" | "yes"))
+    prompt_loop(&format!("(y/n) {question} "), |line| {
+        Ok(matches!(line.trim().to_lowercase().as_str(), "y" | "yes"))
+    })
 }
 
 /// Prints a numbered list of `entries` and prompts the user to pick one by
@@ -49,21 +58,17 @@ pub(crate) fn prompt_from_option_entries(label: &str, entries: &[OptionEntry]) -
     for (i, entry) in entries.iter().enumerate() {
         println!("  {}. {}", i + 1, entry.label);
     }
-    loop {
-        print!("Select {} (1-{}): ", label, entries.len());
-        let _ = std::io::Write::flush(&mut io::stdout());
-        let stdin = io::stdin();
-        match stdin.lock().lines().next() {
-            None | Some(Err(_)) => {
-                println!();
-                return None;
-            }
-            Some(Ok(line)) => match line.trim().parse::<usize>() {
-                Ok(n) if n >= 1 && n <= entries.len() => return Some(entries[n - 1].id.clone()),
-                _ => eprintln!("Please enter a number between 1 and {}.", entries.len()),
-            },
-        }
-    }
+    prompt_loop(
+        &format!("Select {} (1-{}): ", label, entries.len()),
+        |line| {
+            line.trim()
+                .parse::<usize>()
+                .ok()
+                .filter(|&n| n >= 1 && n <= entries.len())
+                .map(|n| entries[n - 1].id.clone())
+                .ok_or_else(|| format!("Please enter a number between 1 and {}.", entries.len()))
+        },
+    )
 }
 
 /// Action returned by [`prompt_from_option_entries_or_detail`].
@@ -74,28 +79,23 @@ pub(crate) enum EntryAction {
     ShowDetail(usize),
 }
 
-fn parse_entry_input(trimmed: &str, entries: &[OptionEntry]) -> Option<EntryAction> {
+fn parse_entry_input(trimmed: &str, entries: &[OptionEntry]) -> Result<EntryAction, String> {
     let len = entries.len();
     if let Some(rest) = trimmed.strip_prefix("show ") {
-        let idx = rest
+        return rest
             .trim()
             .parse::<usize>()
             .ok()
-            .filter(|&n| n >= 1 && n <= len);
-        if idx.is_none() {
-            eprintln!("Please enter 'show N' where N is between 1 and {len}.");
-        }
-        return idx.map(|n| EntryAction::ShowDetail(n - 1));
+            .filter(|&n| n >= 1 && n <= len)
+            .map(|n| EntryAction::ShowDetail(n - 1))
+            .ok_or_else(|| format!("Please enter 'show N' where N is between 1 and {len}."));
     }
-    let n = trimmed
+    trimmed
         .parse::<usize>()
         .ok()
-        .filter(|&n| n >= 1 && n <= len);
-    if let Some(n) = n {
-        return Some(EntryAction::Selected(entries[n - 1].id.clone()));
-    }
-    eprintln!("Enter a number (1-{len}) or 'show N' for details.");
-    None
+        .filter(|&n| n >= 1 && n <= len)
+        .map(|n| EntryAction::Selected(entries[n - 1].id.clone()))
+        .ok_or_else(|| format!("Enter a number (1-{len}) or 'show N' for details."))
 }
 
 /// Like [`prompt_from_option_entries`] but also accepts `show N` to inspect an
@@ -109,25 +109,12 @@ pub(crate) fn prompt_from_option_entries_or_detail(
     for (i, entry) in entries.iter().enumerate() {
         println!("  {}. {}", i + 1, entry.label);
     }
-    loop {
-        print!(
+    prompt_loop(
+        &format!(
             "Select {} (1-{}, or 'show N' for details): ",
             label,
             entries.len()
-        );
-        let _ = std::io::Write::flush(&mut io::stdout());
-        let stdin = io::stdin();
-        match stdin.lock().lines().next() {
-            None | Some(Err(_)) => {
-                println!();
-                return None;
-            }
-            Some(Ok(line)) => {
-                let trimmed = line.trim().to_lowercase();
-                if let Some(action) = parse_entry_input(&trimmed, entries) {
-                    return Some(action);
-                }
-            }
-        }
-    }
+        ),
+        |line| parse_entry_input(line.trim().to_lowercase().as_str(), entries),
+    )
 }

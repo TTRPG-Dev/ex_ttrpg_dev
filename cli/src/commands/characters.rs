@@ -7,7 +7,7 @@ use crate::display;
 use crate::engine::Engine;
 use crate::prompts::{
     EntryAction, prompt_from_option_entries, prompt_from_option_entries_or_detail, prompt_integer,
-    prompt_string, prompt_yes_no,
+    prompt_nonempty_string, prompt_yes_no,
 };
 use crate::protocol::{
     BuildStartResult, BuildSubChoiceResult, CharacterData, CharacterSummary, CharactersList,
@@ -625,14 +625,8 @@ fn resolve_building_choices(
 }
 
 fn handle_characters_build(system: &str, engine: &mut Engine) {
-    let name = loop {
-        let Some(input) = prompt_string("Character name:") else {
-            return;
-        };
-        let trimmed = input.trim().to_string();
-        if !trimmed.is_empty() {
-            break trimmed;
-        }
+    let Some(name) = prompt_nonempty_string("Character name:") else {
+        return;
     };
     let req = Request::CharactersBuildStart {
         system,
