@@ -82,6 +82,19 @@ jobs:
             LIB_CHANGED="true"
           fi
 
+          # ---- Bundled rule systems: re-certify library_requirement ----
+          # Bundled systems ship with (and are tested against) the library, so a
+          # minor/major lib release re-certifies them for the new release line.
+          # A patch release needs nothing: "~> X.Y.0" already admits X.Y.*.
+          case "${{ inputs.lib_bump }}" in
+            minor|major)
+              IFS='.' read -r new_major new_minor _ <<< "$LIB_NEW"
+              for manifest in apps/ex_ttrpg_dev/priv/system_configs/*/module.toml; do
+                sed -i -E "s/^library_requirement = \".*\"$/library_requirement = \"~> ${new_major}.${new_minor}.0\"/" "$manifest"
+              done
+              ;;
+          esac
+
           echo "cli_version=$CLI_NEW" >> "$GITHUB_OUTPUT"
           echo "lib_version=$LIB_NEW" >> "$GITHUB_OUTPUT"
           echo "lib_changed=$LIB_CHANGED" >> "$GITHUB_OUTPUT"
@@ -109,7 +122,7 @@ jobs:
           git add mix.exs apps/ttrpg_dev_cli/mix.exs cli/Cargo.toml
 
           if [ "${{ steps.bump.outputs.lib_changed }}" == "true" ]; then
-            git add apps/ex_ttrpg_dev/mix.exs apps/ex_ttrpg_dev/CHANGELOG.md
+            git add apps/ex_ttrpg_dev/mix.exs apps/ex_ttrpg_dev/CHANGELOG.md apps/ex_ttrpg_dev/priv/system_configs
             MSG="chore: release ttrpg_dev_cli v${{ steps.bump.outputs.cli_version }}, ex_ttrpg_dev v${{ steps.bump.outputs.lib_version }}"
           else
             MSG="chore: release ttrpg_dev_cli v${{ steps.bump.outputs.cli_version }}"

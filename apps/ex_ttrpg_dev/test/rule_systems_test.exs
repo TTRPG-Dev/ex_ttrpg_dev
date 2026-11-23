@@ -16,9 +16,9 @@ defmodule ExTTRPGDevTest.RuleSystems do
   end
 
   # Bundled systems are canonical content: they must declare a
-  # library_requirement, and the library they ship in must satisfy it. This
-  # fails after a minor/major library bump until each bundled system's
-  # requirement is re-certified for the new release.
+  # library_requirement, and the library they ship in must satisfy it. The
+  # release workflow re-certifies bundled requirements on a minor/major lib
+  # bump; this catches a version bumped any other way.
   test "every bundled system is canonical and compatible with the running library" do
     for slug <- RuleSystems.list_bundled_systems!() do
       %LoadedSystem{module: mod} = RuleSystems.load_system!(slug)
