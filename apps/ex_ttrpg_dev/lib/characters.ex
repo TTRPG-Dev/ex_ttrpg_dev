@@ -415,6 +415,15 @@ defmodule ExTTRPGDev.Characters do
   """
   defdelegate compute_pending_choice_slots(system, character), to: Progression
 
+  @doc """
+  Returns the sorted concept IDs that are valid options for a selection
+  progression's metadata (`meta`), given the currently active concepts and
+  the character's resolved node values.
+
+  Filters by the progression's `type`, its `filter.level`/`min_level`/
+  `max_level_node`, its `filter.active_in`, and each candidate concept's own
+  `requires`.
+  """
   defdelegate concept_options(meta, concept_metadata, active, resolved), to: Progression
 
   @doc """
