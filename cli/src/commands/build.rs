@@ -15,6 +15,14 @@ use crate::protocol::{
     OptionEntry, PendingChoice, Request, RollResult,
 };
 
+/// How a pending choice was resolved: by picking from its `options`, or by
+/// arriving at a numeric value (manual entry, a die roll, or taking the
+/// average) along with the method name the engine records.
+pub(crate) enum ChoiceResolution {
+    Option(String),
+    Value { value: i64, method: String },
+}
+
 pub(crate) fn handle_characters_build(system: &str, engine: &mut Engine) {
     let Some(name) = prompt_nonempty_string("Character name:") else {
         return;
@@ -141,8 +149,8 @@ fn resolve_build_progressions(
         }
         let pending = character.pending_choices.clone();
         let choice = select_pending_choice(&pending)?.clone();
-        let (value, selection) = prompt_choice_value(&choice, engine)?;
-        let req = build_resolve_choice_request(slug, &choice, value, &selection);
+        let resolution = prompt_choice_value(&choice, engine)?;
+        let req = build_resolve_choice_request(slug, &choice, &resolution);
         character = call_or_report::<CharacterData>(engine, &req)?;
     }
 }
@@ -150,15 +158,18 @@ fn resolve_build_progressions(
 pub(crate) fn prompt_choice_value(
     choice: &PendingChoice,
     engine: &mut Engine,
-) -> Option<(i64, String)> {
+) -> Option<ChoiceResolution> {
     if let Some(options) = &choice.options {
         let selection = prompt_from_option_entries(&choice.name, options)?;
-        return Some((0, selection));
+        return Some(ChoiceResolution::Option(selection));
     }
 
     let Some(die) = &choice.roll else {
-        let v = prompt_integer(&format!("Value for {}:", choice.name))?;
-        return Some((v, "manual".to_string()));
+        let value = prompt_integer(&format!("Value for {}:", choice.name))?;
+        return Some(ChoiceResolution::Value {
+            value,
+            method: "manual".to_string(),
+        });
     };
 
     let sides: i64 = die.trim_start_matches('d').parse().unwrap_or(8);
@@ -169,7 +180,10 @@ pub(crate) fn prompt_choice_value(
     if !prompt_yes_no(&format!(
         "Roll {die} for HP? (no = take average of {average})"
     ))? {
-        return Some((average, "average".to_string()));
+        return Some(ChoiceResolution::Value {
+            value: average,
+            method: "average".to_string(),
+        });
     }
 
     let dice = format!("1{die}");
@@ -179,7 +193,10 @@ pub(crate) fn prompt_choice_value(
             Some(first) => {
                 let rolled = first.total;
                 println!("Rolled: {rolled}");
-                Some((rolled, "rolled".to_string()))
+                Some(ChoiceResolution::Value {
+                    value: rolled,
+                    method: "rolled".to_string(),
+                })
             }
             None => {
                 eprintln!("Error rolling: engine returned no results.");

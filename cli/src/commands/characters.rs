@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use super::build::{handle_characters_build, prompt_choice_value};
+use super::build::{ChoiceResolution, handle_characters_build, prompt_choice_value};
 use super::inventory::handle_inventory;
 use super::table::{self, COMMAND_TABLE};
 use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode, call_or_report};
@@ -354,9 +354,12 @@ fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut
 pub(crate) fn build_resolve_choice_request<'a>(
     slug: &'a str,
     choice: &'a PendingChoice,
-    value: i64,
-    selection: &'a str,
+    resolution: &'a ChoiceResolution,
 ) -> Request<'a> {
+    let (value, selection): (i64, &str) = match resolution {
+        ChoiceResolution::Option(selection) => (0, selection),
+        ChoiceResolution::Value { value, method } => (*value, method),
+    };
     match (&choice.scope_type, &choice.scope_id) {
         (Some(scope_type), Some(scope_id)) => {
             Request::resolve_choice_scope(slug, (scope_type, scope_id), &choice.id, selection)
@@ -389,11 +392,11 @@ fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engin
         return;
     };
 
-    let Some((value, selection)) = prompt_choice_value(choice, engine) else {
+    let Some(resolution) = prompt_choice_value(choice, engine) else {
         return;
     };
 
-    let req = build_resolve_choice_request(slug, choice, value, &selection);
+    let req = build_resolve_choice_request(slug, choice, &resolution);
     let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
         return;
     };
