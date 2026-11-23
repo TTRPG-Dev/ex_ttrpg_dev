@@ -1,6 +1,7 @@
 defmodule ExTTRPGDev.RuleSystem.Store.FileSystemTest do
   # Not async: overrides the global :local_system_configs_path app env.
   use ExUnit.Case
+  import ExUnit.CaptureLog
   alias ExTTRPGDev.RuleSystem.Source
   alias ExTTRPGDev.RuleSystem.Store.{Entry, FileSystem}
 
@@ -82,6 +83,24 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystemTest do
 
     assert {:ok, [%Entry{slug: "broken", version: nil}]} = FileSystem.list_entries()
     assert {:error, {:module_parse_error, _}} = FileSystem.fetch("broken", nil)
+  end
+
+  test "a nested version whose module.toml disagrees with its directory is skipped", %{
+    root: root
+  } do
+    :ok = put(source("sys", "1.0.0", "~> 0.15.0"))
+    :ok = put(source("sys", "2.0.0", "~> 0.15.0"))
+
+    module_path = Path.join(root, "sys/1.0.0/module.toml")
+    File.write!(module_path, String.replace(File.read!(module_path), "1.0.0", "1.0.1"))
+
+    log =
+      capture_log(fn ->
+        assert {:ok, [%Entry{version: "2.0.0"}]} = FileSystem.list_entries()
+      end)
+
+    assert log =~ "sys/1.0.0"
+    assert log =~ ~s(declares version "1.0.1")
   end
 
   test "fetch/2 returns the stored content" do

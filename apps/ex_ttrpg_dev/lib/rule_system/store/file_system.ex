@@ -37,6 +37,8 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
 
   @behaviour ExTTRPGDev.RuleSystem.Store
 
+  require Logger
+
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Source
   alias ExTTRPGDev.RuleSystem.Store.Entry
@@ -82,7 +84,8 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
   # Only called for the nested layout (see slug_entries/2), so every child
   # of `slug_dir` is named after a version. A child is an entry if its name
   # is a usable version (which also skips dot-directories such as
-  # interrupted `.tmp-*` writes) and it contains a module.toml.
+  # interrupted `.tmp-*` writes), it contains a module.toml, and that
+  # module.toml declares the same version as the directory name.
   defp versioned_entries(slug, slug_dir) do
     case File.ls(slug_dir) do
       {:ok, versions} ->
@@ -92,11 +95,29 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
             # for the check and the read below.
             version_dir = Path.join(slug_dir, version),
             system_dir?(version_dir),
-            do: read_entry(slug, version_dir)
+            entry = read_entry(slug, version_dir),
+            version_matches_dir?(entry, version, version_dir),
+            do: entry
 
       {:error, _} ->
         []
     end
+  end
+
+  # The directory name is the entry's address (fetch/2 and delete/2 find a
+  # version by it), while the entry's version comes from module.toml. put/3
+  # always writes them in agreement; if a hand edit makes them disagree,
+  # listing the entry would advertise a version fetch/2 can't find, so it's
+  # skipped and a warning names the directory to fix.
+  defp version_matches_dir?(%Entry{version: version}, version, _dir), do: true
+
+  defp version_matches_dir?(%Entry{version: declared}, dir_version, dir) do
+    Logger.warning(
+      "Ignoring rule system at #{dir}: its module.toml declares version " <>
+        "#{inspect(declared)}, but it is installed as #{dir_version}"
+    )
+
+    false
   end
 
   # A module.toml that can't be decoded still yields an entry, with no
