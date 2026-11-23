@@ -8,7 +8,7 @@ defmodule ExTTRPGDevTest.Characters.Store do
   # isolated temp directory instead of sharing the real on-disk characters dir.
   use ExUnit.Case
   alias ExTTRPGDev.Characters
-  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.{Character, Metadata}
   alias ExTTRPGDev.RuleSystems
 
   setup do
@@ -166,5 +166,53 @@ defmodule ExTTRPGDevTest.Characters.Store do
 
   test "delete_character/1 returns error for unknown slug" do
     assert {:error, :not_found} = Characters.delete_character("nonexistent_character_xyz")
+  end
+
+  describe "characters_depending_on/2" do
+    defp save_with_version(slug, rule_system, version) do
+      character = %Character{
+        name: slug,
+        generated_values: %{},
+        metadata: %Metadata{slug: slug, rule_system: rule_system, rule_system_version: version}
+      }
+
+      :ok = Characters.save_character(character)
+    end
+
+    test "matches characters on the same release line of the system" do
+      save_with_version("exact", "sys", "1.2.0")
+      save_with_version("older_patch", "sys", "1.1.9")
+      save_with_version("next_major", "sys", "2.0.0")
+      save_with_version("other_system", "other", "1.2.0")
+
+      assert {:ok, slugs} = Characters.characters_depending_on("sys", "1.2.0")
+      assert Enum.sort(slugs) == ["exact", "older_patch"]
+    end
+
+    test "treats characters without a recorded version as depending on every version" do
+      save_with_version("legacy", "sys", nil)
+
+      assert {:ok, ["legacy"]} = Characters.characters_depending_on("sys", "9.0.0")
+      assert {:ok, []} = Characters.characters_depending_on("other", "9.0.0")
+    end
+
+    test "compares non-SemVer versions by equality" do
+      save_with_version("draft", "sys", "first draft")
+
+      assert {:ok, ["draft"]} = Characters.characters_depending_on("sys", "first draft")
+      assert {:ok, []} = Characters.characters_depending_on("sys", "second draft")
+    end
+
+    test "returns an empty list when no characters are saved" do
+      assert {:ok, []} = Characters.characters_depending_on("sys", "1.0.0")
+    end
+
+    test "fails closed when a saved character can't be read" do
+      save_with_version("fine", "sys", "1.0.0")
+      File.write!(Characters.character_file_path("corrupt"), "not json")
+
+      assert {:error, {:unreadable_characters, [{"corrupt", _reason}]}} =
+               Characters.characters_depending_on("sys", "1.0.0")
+    end
   end
 end

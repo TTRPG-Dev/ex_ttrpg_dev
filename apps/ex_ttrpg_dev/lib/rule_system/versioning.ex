@@ -97,6 +97,32 @@ defmodule ExTTRPGDev.RuleSystem.Versioning do
     breaking_component(Version.parse!(from)) != breaking_component(Version.parse!(to))
   end
 
+  @doc """
+  Returns true if content version `a` and `b` are on the same release line,
+  i.e. moving between them is not a breaking change.
+
+  Versions that aren't valid SemVer (allowed for non-canonical systems) are
+  only on the same line as themselves.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystem.Versioning.same_release_line?("1.2.0", "1.4.1")
+      true
+      iex> ExTTRPGDev.RuleSystem.Versioning.same_release_line?("1.2.0", "2.0.0")
+      false
+      iex> ExTTRPGDev.RuleSystem.Versioning.same_release_line?("first draft", "first draft")
+      true
+
+  """
+  @spec same_release_line?(String.t(), String.t()) :: boolean()
+  def same_release_line?(a, b) do
+    with {:ok, _} <- Version.parse(a),
+         {:ok, _} <- Version.parse(b) do
+      not breaking_change?(a, b)
+    else
+      :error -> a == b
+    end
+  end
+
   defp breaking_component(%Version{major: 0, minor: minor}), do: {0, minor}
   defp breaking_component(%Version{major: major}), do: {major}
 end
