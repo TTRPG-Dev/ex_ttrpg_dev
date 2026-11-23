@@ -9,7 +9,8 @@ use crate::engine::Engine;
 use crate::prompts::{prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
-    PendingChoice, PreparationStateResponse, RandomResolveResult, Request, SaveResult,
+    InventoryResponse, PendingChoice, PreparationStateResponse, RandomResolveResult, Request,
+    SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -452,10 +453,10 @@ fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) 
         verb,
         items,
     };
-    let Some(_) = call_or_report::<serde_json::Value>(engine, &req) else {
+    let Some(r) = call_or_report::<InventoryResponse>(engine, &req) else {
         return;
     };
-    println!("Done.");
+    display::print_inventory(&r.inventory);
 }
 
 #[cfg(test)]
