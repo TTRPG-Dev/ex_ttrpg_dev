@@ -37,6 +37,16 @@ impl std::fmt::Display for EngineError {
     }
 }
 
+impl std::error::Error for EngineError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            EngineError::Io(e) => Some(e),
+            EngineError::Json(e) => Some(e),
+            EngineError::ErrorResponse(_) | EngineError::UnexpectedEof => None,
+        }
+    }
+}
+
 impl From<std::io::Error> for EngineError {
     fn from(e: std::io::Error) -> Self {
         EngineError::Io(e)
@@ -69,8 +79,16 @@ impl Engine {
                 )))
             })?;
 
-        let stdin = child.stdin.take().unwrap();
-        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let stdin = child
+            .stdin
+            .take()
+            .expect("child was spawned with stdin(Stdio::piped())");
+        let stdout = BufReader::new(
+            child
+                .stdout
+                .take()
+                .expect("child was spawned with stdout(Stdio::piped())"),
+        );
 
         Ok(Engine {
             _child: child,
