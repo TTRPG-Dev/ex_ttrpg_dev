@@ -160,11 +160,12 @@ defmodule ExTTRPGDev.RuleSystems.Replacement do
   end
 
   @doc """
-  Logs a decision made by `decide/3` for `release`, at `:info` when it
-  applies cleanly or is a no-op, `:warning` when it leaves something for a
-  human (blocked, slug taken, retained versions), and `:error` when
-  dependents couldn't be determined. Returns the decision unchanged, so
-  calls can be piped.
+  Logs a decision made by `decide/3` for `release`: `:info` when it
+  changes the store, `:debug` when it's a no-op (already installed,
+  superseded, not canonical) so routine syncs stay quiet, `:warning` when
+  it leaves something for a human (blocked, slug taken, retained
+  versions), and `:error` when dependents couldn't be determined. Returns
+  the decision unchanged, so calls can be piped.
   """
   @spec log(decision(), RuleModule.t()) :: decision()
   def log(decision, %RuleModule{slug: slug, version: version} = release) do
@@ -189,7 +190,7 @@ defmodule ExTTRPGDev.RuleSystems.Replacement do
   end
 
   defp describe({:skip, :not_canonical}, _release) do
-    {:info, "not canonical content (no library_requirement); never applied automatically"}
+    {:debug, "not canonical content (no library_requirement); never applied automatically"}
   end
 
   defp describe({:skip, {:slug_taken, local_version}}, _release) do
@@ -198,10 +199,10 @@ defmodule ExTTRPGDev.RuleSystems.Replacement do
        "Rename or clone it to receive canonical releases"}
   end
 
-  defp describe({:skip, {:already_installed, _}}, _release), do: {:info, "already installed"}
+  defp describe({:skip, {:already_installed, _}}, _release), do: {:debug, "already installed"}
 
   defp describe({:skip, {:superseded_by, newer}}, _release) do
-    {:info, "older than installed #{newer}; skipping"}
+    {:debug, "older than installed #{newer}; skipping"}
   end
 
   defp describe({:blocked, {:library_requirement, requirement, running}}, _release) do

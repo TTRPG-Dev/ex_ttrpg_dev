@@ -107,6 +107,16 @@ defmodule ExTTRPGDev.RuleSystems.ReplacementTest do
       assert log =~ ~s("sys" 1.1.0: applying, replacing 1.0.0)
     end
 
+    test "logs no-op decisions at debug" do
+      release = canonical("1.0.0")
+      decision = decide([canonical("1.0.0")], release)
+
+      assert capture_log([level: :info], fn -> Replacement.log(decision, release) end) == ""
+
+      assert capture_log([level: :debug], fn -> Replacement.log(decision, release) end) =~
+               "already installed"
+    end
+
     test "warns about retained versions" do
       release = canonical("2.0.0")
       decision = decide([canonical("1.0.0")], release, %{"1.0.0" => [:a, :b]})
