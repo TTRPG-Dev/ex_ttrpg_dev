@@ -54,6 +54,38 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
+  Fetches every installed system version with its stored metadata, as
+  `ExTTRPGDev.RuleSystem.Store.Entry` structs: `slug`, `version` (the
+  system's own content version), `library_requirement` (canonical content
+  only), and `is_modifiable`.
+
+  Unlike `fetch_systems/0`, this only reports what is installed: a bundled
+  system that hasn't been seeded yet isn't listed.
+
+  Returns `{:ok, [%Entry{}, ...]}` or `{:error, reason}`.
+  """
+  def fetch_installed_systems, do: Store.adapter().list_entries()
+
+  @doc """
+  Lists every installed system version with its stored metadata, raising
+  on failure. See `fetch_installed_systems/0`.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.list_installed_systems!()
+      ...> |> Enum.find(&(&1.slug == "dnd_5e_srd"))
+      ...> |> then(&{&1.is_modifiable, is_binary(&1.library_requirement)})
+      {false, true}
+
+  """
+  def list_installed_systems! do
+    case fetch_installed_systems() do
+      {:ok, entries} -> entries
+      {:error, reason} -> raise "Failed to list installed systems: #{inspect(reason)}"
+    end
+  end
+
+  @doc """
   Fetches bundled systems shipped with the library.
 
   Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the bundled
