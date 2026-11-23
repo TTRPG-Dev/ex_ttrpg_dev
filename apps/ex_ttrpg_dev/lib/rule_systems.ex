@@ -2,17 +2,31 @@ defmodule ExTTRPGDev.RuleSystems do
   @moduledoc """
   Public API for interacting with rule systems.
 
-  Rule systems are defined as directories of TOML files under `priv/system_configs/`
-  (bundled) or `local_system_configs/` (user-defined). Each system directory must
-  contain a `module.toml` manifest.
+  Every rule system is loaded from one store (`ExTTRPGDev.RuleSystem.Store`),
+  whatever its origin:
+
+  - **Bundled** systems ship in the library under `priv/system_configs/`.
+    They are releases that get installed into the store, by
+    `sync_bundled/0` or lazily the first time an uninstalled bundled slug
+    is loaded, and are stored non-modifiable.
+  - **Local** systems are user-authored (or cloned) systems in the store.
+    With the default filesystem store these are directories of TOML files
+    under `local_system_configs/`, each with a `module.toml` manifest.
+
+  Bundled and local systems share one slug namespace. If a local system
+  already holds a bundled system's slug, the local system wins: the
+  bundled release is skipped (with a logged warning) rather than
+  overwriting or shadowing it. Rename or clone the local system to
+  receive the bundled one.
   """
 
   alias ExTTRPGDev.Globals
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader}
-  alias ExTTRPGDev.RuleSystems.LoadedSystem
+  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Store}
+  alias ExTTRPGDev.RuleSystems.{Bundled, LoadedSystem, Sync}
 
   @doc """
-  Lists all available systems (bundled + local).
+  Lists all available systems: everything installed in the store, plus
+  bundled systems not yet installed (they install on first load).
 
   ## Examples
       iex> ExTTRPGDev.RuleSystems.list_systems() |> Enum.member?("dnd_5e_srd")
@@ -24,15 +38,17 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
-  Fetches all available systems (bundled + local).
+  Fetches all available systems: bundled systems first, then any other
+  installed systems.
 
-  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if either systems
-  directory exists but cannot be listed.
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the bundled
+  systems or the store cannot be listed.
   """
   def fetch_systems do
     with {:ok, bundled} <- fetch_bundled_systems(),
-         {:ok, local} <- fetch_local_systems() do
-      {:ok, bundled ++ local}
+         {:ok, entries} <- Store.adapter().list_entries() do
+      installed = entries |> Enum.map(& &1.slug) |> Enum.uniq()
+      {:ok, bundled ++ (installed -- bundled)}
     end
   end
 
@@ -42,9 +58,7 @@ defmodule ExTTRPGDev.RuleSystems do
   Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the bundled
   systems directory exists but cannot be listed.
   """
-  def fetch_bundled_systems do
-    fetch_systems_in(Globals.system_configs_path())
-  end
+  def fetch_bundled_systems, do: Bundled.list()
 
   @doc """
   Lists bundled systems shipped with the library, raising on failure.
@@ -68,14 +82,20 @@ defmodule ExTTRPGDev.RuleSystems do
   def list_bundled_systems, do: list_bundled_systems!()
 
   @doc """
-  Fetches user-defined local systems.
+  Fetches local systems: installed systems that aren't canonical content,
+  i.e. user-authored systems and clones.
 
-  Returns `{:ok, [slug, ...]}`, or `{:ok, []}` if the local systems
-  directory doesn't exist, or `{:error, reason}` if it exists but cannot
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the store cannot
   be listed.
   """
   def fetch_local_systems do
-    fetch_systems_in(Globals.local_system_configs_path())
+    with {:ok, entries} <- Store.adapter().list_entries() do
+      {:ok,
+       entries
+       |> Enum.filter(&is_nil(&1.library_requirement))
+       |> Enum.map(& &1.slug)
+       |> Enum.uniq()}
+    end
   end
 
   @doc """
@@ -98,28 +118,6 @@ defmodule ExTTRPGDev.RuleSystems do
   @doc false
   @deprecated "Use list_local_systems!/0 instead; this always could raise despite no bang"
   def list_local_systems, do: list_local_systems!()
-
-  # Fetches the direct subdirectories of `base` that contain a `module.toml`,
-  # as {:ok, [slug, ...]}, or {:ok, []} if `base` itself doesn't exist.
-  # Shared by fetch_bundled_systems/0 and fetch_local_systems/0, which
-  # differ only in their base directory.
-  defp fetch_systems_in(base) do
-    if File.exists?(base) do
-      case File.ls(base) do
-        {:ok, entries} ->
-          {:ok,
-           Enum.filter(entries, fn name ->
-             File.dir?(Path.join(base, name)) and
-               File.exists?(Path.join([base, name, "module.toml"]))
-           end)}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:ok, []}
-    end
-  end
 
   @doc """
   Returns true if the system is a bundled system.
@@ -199,7 +197,11 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
-  Returns the filesystem path to the given system's directory.
+  Returns the filesystem path to the given system's source directory: the
+  bundled copy under `priv/system_configs/` for a bundled slug, otherwise
+  the flat directory a local system has (or would have) in the default
+  filesystem store. Systems are not *loaded* from this path; they're
+  loaded from the store.
 
   Never raises: an unconfigured slug still yields a (non-existent) path
   under the local systems directory, since this is also used to build the
@@ -247,9 +249,13 @@ defmodule ExTTRPGDev.RuleSystems do
 
   """
   def load_system(system) when is_bitstring(system) do
-    path = system_path(system)
+    store = Store.adapter()
 
-    with {:ok, loader_data} <- Loader.load(path),
+    with :ok <- Sync.seed_if_absent(system),
+         {:ok, entries} <- store.list_entries(),
+         {:ok, entry} <- select_entry(entries, system),
+         {:ok, source} <- store.fetch(entry.slug, entry.version),
+         {:ok, loader_data} <- Loader.load_source(source),
          {:ok, system_map} <- Graph.build(loader_data) do
       {:ok,
        %LoadedSystem{
@@ -261,6 +267,22 @@ defmodule ExTTRPGDev.RuleSystems do
          effects: loader_data.effects,
          inventory_rules: loader_data.inventory_rules
        }}
+    end
+  end
+
+  # Picks the installed entry to load for a slug. A non-canonical entry
+  # (local or clone) wins if one holds the slug, matching the collision
+  # policy; otherwise the newest installed canonical version.
+  defp select_entry(entries, slug) do
+    {canonical, local} =
+      entries
+      |> Enum.filter(&(&1.slug == slug))
+      |> Enum.split_with(&(not is_nil(&1.library_requirement)))
+
+    case {local, canonical} do
+      {[entry | _], _} -> {:ok, entry}
+      {[], []} -> {:error, {:not_configured, slug}}
+      {[], versions} -> {:ok, Enum.max_by(versions, & &1.version, Version)}
     end
   end
 
