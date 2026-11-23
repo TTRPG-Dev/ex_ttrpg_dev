@@ -12,6 +12,7 @@ defmodule ExTTRPGDev.MixProject do
       package: package(),
       name: "ExTTRPGDev",
       source_url: "https://github.com/TTRPG-Dev/ex_ttrpg_dev",
+      docs: docs(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [plt_file: {:no_warn, "priv/plts/dialyzer.plt"}]
     ]
@@ -58,6 +59,13 @@ defmodule ExTTRPGDev.MixProject do
     [
       licenses: ["AGPL-3.0-or-later"],
       links: %{"GitHub" => "https://github.com/TTRPG-Dev/ex_ttrpg_dev"}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"]
     ]
   end
 end

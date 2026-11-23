@@ -38,6 +38,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
 
       - name: Configure git identity
         run: |
@@ -85,13 +86,30 @@ jobs:
           echo "lib_version=$LIB_NEW" >> "$GITHUB_OUTPUT"
           echo "lib_changed=$LIB_CHANGED" >> "$GITHUB_OUTPUT"
 
+      - name: Install git-cliff
+        if: steps.bump.outputs.lib_changed == 'true'
+        run: |
+          curl -fsSL -o /tmp/git-cliff.tar.gz \
+            https://github.com/orhun/git-cliff/releases/download/v2.14.2/git-cliff-2.14.2-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzf /tmp/git-cliff.tar.gz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/git-cliff-2.14.2" >> "$GITHUB_PATH"
+
+      - name: Update library changelog
+        if: steps.bump.outputs.lib_changed == 'true'
+        run: |
+          git-cliff \
+            --config apps/ex_ttrpg_dev/cliff.toml \
+            --tag "lib/v${{ steps.bump.outputs.lib_version }}" \
+            --unreleased \
+            --prepend apps/ex_ttrpg_dev/CHANGELOG.md
+
       - name: Commit and push version bumps
         id: commit
         run: |
           git add mix.exs apps/ttrpg_dev_cli/mix.exs cli/Cargo.toml
 
           if [ "${{ steps.bump.outputs.lib_changed }}" == "true" ]; then
-            git add apps/ex_ttrpg_dev/mix.exs
+            git add apps/ex_ttrpg_dev/mix.exs apps/ex_ttrpg_dev/CHANGELOG.md
             MSG="chore: release ttrpg_dev_cli v${{ steps.bump.outputs.cli_version }}, ex_ttrpg_dev v${{ steps.bump.outputs.lib_version }}"
           else
             MSG="chore: release ttrpg_dev_cli v${{ steps.bump.outputs.cli_version }}"
