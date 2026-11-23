@@ -3,6 +3,7 @@ defmodule ExTTRPGDevTest.RuleSystems do
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.LoadedSystem
   alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.RuleSystem.Versioning
 
   doctest ExTTRPGDev.RuleSystems
 
@@ -12,6 +13,21 @@ defmodule ExTTRPGDevTest.RuleSystems do
     %LoadedSystem{module: rule_module} = RuleSystems.load_system!(bundled_system_slug)
 
     assert rule_module.slug == bundled_system_slug
+  end
+
+  # Bundled systems are canonical content: they must declare a
+  # library_requirement, and the library they ship in must satisfy it. The
+  # release workflow re-certifies bundled requirements on a minor/major lib
+  # bump; this catches a version bumped any other way.
+  test "every bundled system is canonical and compatible with the running library" do
+    for slug <- RuleSystems.list_bundled_systems!() do
+      %LoadedSystem{module: mod} = RuleSystems.load_system!(slug)
+      assert Versioning.canonical?(mod), "#{slug} declares no library_requirement"
+
+      assert Versioning.library_compatible?(mod),
+             "#{slug} requires #{mod.library_requirement}, " <>
+               "running library is #{Versioning.library_version()}"
+    end
   end
 
   test "load_system!/1 for unconfigured system raises" do

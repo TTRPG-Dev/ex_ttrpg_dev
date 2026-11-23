@@ -125,6 +125,29 @@ defmodule ExTTRPGDev.Characters do
   defdelegate list_characters!(), to: Store
 
   @doc """
+  List the slugs of saved characters that depend on version `version` of
+  rule system `rule_system`.
+
+  A character depends on a version when it was built with that system and
+  its recorded `rule_system_version` is on the same release line (see
+  `ExTTRPGDev.RuleSystem.Versioning.same_release_line?/2`): after a
+  non-breaking in-place update, characters built against the older version
+  are running on the newer one.
+
+  The check fails closed, because it gates whether a rule system update may
+  replace content characters rely on:
+
+  - Characters with no recorded `rule_system_version` (saved before it was
+    tracked) count as depending on every version of their system.
+  - If any saved character can't be read, returns
+    `{:error, {:unreadable_characters, [{slug, reason}, ...]}}` rather than
+    reporting an incomplete list.
+
+  Returns `{:ok, [slug, ...]}` or `{:error, reason}`.
+  """
+  defdelegate characters_depending_on(rule_system, version), to: Store
+
+  @doc """
   Load a saved character.
 
   Returns `{:ok, character}`, `{:error, :not_found}` if no character with

@@ -11,6 +11,7 @@ defmodule ExTTRPGDev.Characters.Store do
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.RuleSystem.Versioning
 
   @doc """
   Get the file path for a character.
@@ -115,6 +116,45 @@ defmodule ExTTRPGDev.Characters.Store do
       {:error, reason} -> raise "Failed to list characters: #{inspect(reason)}"
     end
   end
+
+  @doc """
+  List the slugs of saved characters that depend on version `version` of
+  rule system `rule_system`.
+
+  See `ExTTRPGDev.Characters.characters_depending_on/2` for documentation.
+  """
+  def characters_depending_on(rule_system, version)
+      when is_bitstring(rule_system) and is_bitstring(version) do
+    with {:ok, slugs} <- list_characters() do
+      slugs
+      |> Enum.map(&{&1, load_character(&1)})
+      |> collect_dependents(rule_system, version)
+    end
+  end
+
+  defp collect_dependents(loaded, rule_system, version) do
+    {unreadable, characters} =
+      Enum.split_with(loaded, fn {_slug, result} -> match?({:error, _}, result) end)
+
+    if unreadable == [] do
+      dependents =
+        for {slug, {:ok, character}} <- characters,
+            depends_on?(character, rule_system, version),
+            do: slug
+
+      {:ok, dependents}
+    else
+      {:error,
+       {:unreadable_characters, Enum.map(unreadable, fn {slug, {:error, r}} -> {slug, r} end)}}
+    end
+  end
+
+  defp depends_on?(%Character{metadata: %Metadata{rule_system: system} = meta}, system, version) do
+    is_nil(meta.rule_system_version) or
+      Versioning.same_release_line?(meta.rule_system_version, version)
+  end
+
+  defp depends_on?(_character, _rule_system, _version), do: false
 
   @doc """
   Load a saved character.

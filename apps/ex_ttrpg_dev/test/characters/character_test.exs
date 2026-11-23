@@ -20,6 +20,7 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert character.metadata.slug != nil
     refute String.contains?(character.metadata.slug, " ")
     assert character.metadata.rule_system == "dnd_5e_srd"
+    assert character.metadata.rule_system_version == system.module.version
     assert character.effects == []
     assert character.decisions == []
     assert character.inventory == []
@@ -250,10 +251,24 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert restored.name == original.name
     assert restored.metadata.slug == original.metadata.slug
     assert restored.metadata.rule_system == original.metadata.rule_system
+    assert restored.metadata.rule_system_version == original.metadata.rule_system_version
     assert restored.generated_values == original.generated_values
     assert restored.effects == original.effects
     assert restored.decisions == original.decisions
     assert restored.inventory == original.inventory
+  end
+
+  test "from_json!/1 leaves rule_system_version nil for characters saved without it" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+
+    json =
+      system
+      |> Character.gen_character!()
+      |> Character.to_json_map()
+      |> update_in(["metadata"], &Map.delete(&1, "rule_system_version"))
+      |> Jason.encode!()
+
+    assert %Character{metadata: %{rule_system_version: nil}} = Character.from_json!(json)
   end
 
   test "to_json_map/1 and from_json!/1 round-trip preserves inventory" do
