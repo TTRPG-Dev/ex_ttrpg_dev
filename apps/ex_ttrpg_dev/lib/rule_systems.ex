@@ -312,6 +312,28 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
+  Copies a system's full content (module, concepts, character-building and
+  inventory-rules data) under `new_slug`, as a local system.
+
+  The clone is modifiable and has no `library_requirement`, so it is never
+  replaced by `sync_bundled/0`: cloning deliberately severs the link to
+  the library's versioning. Its `version` is kept, as a record of what it
+  was cloned from. This is how to change a non-modifiable system: clone
+  it, then `update_system/2` the clone.
+
+  Options:
+
+  - `:version` — clone the installed version on this release line rather
+    than the newest (see `load_system/2`).
+
+  Returns `{:ok, new_slug}`, `{:error, {:slug_taken, new_slug}}` if
+  `new_slug` is installed or is a bundled system's slug, or
+  `{:error, reason}` if the source can't be resolved or the clone can't be
+  stored.
+  """
+  defdelegate clone_system(source_slug, new_slug, opts \\ []), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
   Loads, parses, and validates a rule system by slug, raising on failure.
 
   See `load_system/1` for the non-raising variant.

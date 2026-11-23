@@ -120,4 +120,45 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     assert {:error, {:not_configured, "nope"}} = RuleSystems.load_system("nope")
     assert {:ok, []} = FileSystem.list_entries()
   end
+
+  describe "clone_system/3" do
+    test "copies a non-modifiable system into a modifiable, non-canonical one", ctx do
+      capture_log(fn ->
+        assert {:ok, "my_dnd"} = RuleSystems.clone_system(@slug, "my_dnd")
+      end)
+
+      assert {:ok, clone} = FileSystem.fetch("my_dnd", ctx.bundled.module["module"]["version"])
+      assert clone.concepts == ctx.bundled.concepts
+      assert clone.inventory_rules == ctx.bundled.inventory_rules
+      assert clone.character_building == ctx.bundled.character_building
+      refute Map.has_key?(clone.module["module"], "library_requirement")
+
+      assert %Entry{is_modifiable: true, library_requirement: nil} =
+               Enum.find(RuleSystems.list_installed_systems!(), &(&1.slug == "my_dnd"))
+
+      assert {:ok, %LoadedSystem{module: %{slug: "my_dnd"}}} = RuleSystems.load_system("my_dnd")
+      assert "my_dnd" in RuleSystems.list_local_systems!()
+    end
+
+    test "a clone is never touched by sync", ctx do
+      capture_log(fn ->
+        {:ok, _} = RuleSystems.clone_system(@slug, "my_dnd")
+        {:ok, results} = RuleSystems.sync_bundled()
+        refute List.keymember?(results, "my_dnd", 0)
+      end)
+
+      assert {:ok, _} = FileSystem.fetch("my_dnd", ctx.bundled.module["module"]["version"])
+    end
+
+    test "refuses a slug that is installed or bundled", ctx do
+      install(local_copy(ctx.bundled, "taken", "draft"), true)
+
+      assert {:error, {:slug_taken, "taken"}} = RuleSystems.clone_system(@slug, "taken")
+      assert {:error, {:slug_taken, @slug}} = RuleSystems.clone_system("taken", @slug)
+    end
+
+    test "fails for an unknown source" do
+      assert {:error, {:not_configured, "nope"}} = RuleSystems.clone_system("nope", "x")
+    end
+  end
 end
