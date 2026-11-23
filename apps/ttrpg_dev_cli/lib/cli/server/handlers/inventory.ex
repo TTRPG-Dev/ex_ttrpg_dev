@@ -28,7 +28,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Inventory do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
     custom_fields = Map.get(cmd, "fields", %{})
 
     case InventoryItem.new(type, id, system.inventory_rules, custom_fields) do
@@ -53,7 +53,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Inventory do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     item =
       Enum.at(character.inventory, index) ||
@@ -73,7 +73,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Inventory do
 
   def handle(%{"command" => "characters.spells", "character" => slug}, state) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     # Only the first preparation type is returned. Returning multiple types
     # would require a protocol change on both this handler and the Rust
@@ -108,7 +108,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Inventory do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     case InventoryRules.type_for_activate_command(system.inventory_rules, verb) do
       nil ->

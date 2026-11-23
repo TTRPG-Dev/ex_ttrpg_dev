@@ -39,7 +39,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
         state
       ) do
     character = Common.fetch_pending!(state, temp_id)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
     decision = %Decision{scope: nil, choice: concept_type, selection: concept_id}
     updated = %{character | decisions: character.decisions ++ [decision]}
 
@@ -67,7 +67,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
         state
       ) do
     character = Common.fetch_pending!(state, temp_id)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
     scope = {scope_type, scope_id}
     choice_def = Characters.fetch_choice_def!(system, scope, choice_id)
     valid = Characters.valid_sub_choices(system, scope, choice_def, character.decisions)
@@ -84,7 +84,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
 
   def handle(%{"command" => "characters.build_finish", "temp_id" => temp_id} = msg, state) do
     char = Common.fetch_pending!(state, temp_id)
-    sys = RuleSystems.load_system!(char.metadata.rule_system)
+    sys = RuleSystems.load_system_for!(char)
 
     {:ok, %{items: inv, errors: inventory_errors}} =
       Character.inventory_from_decisions(char.decisions, sys)
