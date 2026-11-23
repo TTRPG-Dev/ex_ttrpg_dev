@@ -1,14 +1,14 @@
 use super::call_or_report;
+use super::table;
 use crate::display;
 use crate::engine::Engine;
 use crate::protocol::{ConceptsList, Request, SystemInfo, SystemsList};
 
 pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
+    if table::dispatch_help(tokens, "systems") {
+        return;
+    }
     match tokens {
-        ["list", "--help"] => println!("Usage: systems list"),
-        ["show", "--help"] => {
-            println!("Usage: systems show <slug> [--concept-type <type>]")
-        }
         ["list"] => {
             let req = Request::SystemsList;
             let Some(result) = call_or_report::<SystemsList>(engine, &req) else {

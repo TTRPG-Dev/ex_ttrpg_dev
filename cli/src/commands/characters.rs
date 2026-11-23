@@ -1,6 +1,7 @@
 use serde_json::json;
 
 use super::inventory::handle_inventory;
+use super::table::{self, COMMAND_TABLE};
 use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode, call_or_report};
 use crate::display;
 use crate::engine::Engine;
@@ -17,7 +18,7 @@ use crate::protocol::{
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
     let (tokens, display_mode) = strip_display_flags(tokens, session_mode);
     let tokens = tokens.as_slice();
-    if dispatch_characters_help(tokens) {
+    if table::dispatch_help(tokens, "characters") {
         return;
     }
     match tokens {
@@ -59,49 +60,31 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ["prepare", slug, items @ ..] if !items.is_empty() => {
             handle_activate("prepare", slug, items, engine)
         }
-        [] | ["--help"] => println!(
-            "Usage: characters list | gen <system> | build <system> | show <slug> | delete <slug> | delete-all\n\
-             \x20      characters roll <slug> <type> <concept>\n\
-             \x20      characters award <slug> <award_id> <value> | choices <slug>\n\
-             \x20      characters resolve_choice <slug> [--random-resolve]\n\
-             \x20      characters inventory <slug>\n\
-             \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
-             \x20      characters inventory set <slug> <index> <field> <value>\n\
-             \x20      characters spells <slug>\n\
-             \x20      characters prepare <slug> <spell_id> [spell_id ...]"
-        ),
+        [] | ["--help"] => print_characters_usage(),
         [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `characters --help`."),
     }
 }
 
-fn dispatch_characters_help(tokens: &[&str]) -> bool {
-    match tokens {
-        ["gen", "--help"] => println!("Usage: characters gen <system>"),
-        ["list", "--help"] => println!("Usage: characters list [--system <system>]"),
-        ["delete", "--help"] => println!("Usage: characters delete <slug>"),
-        ["delete-all", "--help"] => {
-            println!("Usage: characters delete-all [-y|--yes] [--system <system>]")
+/// Lists every `characters` subcommand's usage, pulled from the same
+/// `COMMAND_TABLE` row each subcommand's own `--help` prints from (see
+/// `table::dispatch_help`).
+// "characters inventory"'s own usage already lists these as continuation
+// lines; their standalone rows are skipped in the overview below so it
+// doesn't show each of them twice.
+const COVERED_BY_INVENTORY_USAGE: &[&str] =
+    &["characters inventory add", "characters inventory set"];
+
+fn print_characters_usage() {
+    println!("Usage:");
+    for spec in COMMAND_TABLE {
+        if !spec.path.starts_with("characters ") {
+            continue;
         }
-        ["show", "--help"] => println!("Usage: characters show <slug>"),
-        ["roll", "--help"] => println!("Usage: characters roll <slug> <type> <concept>"),
-        ["award", "--help"] => println!(
-            "Usage: characters award <slug> <award_id> <value>\n\
-             \x20      characters award <slug> level_up"
-        ),
-        ["choices", "--help"] => println!("Usage: characters choices <slug>"),
-        ["build", "--help"] => println!("Usage: characters build <system>"),
-        ["inventory", "--help"] => println!(
-            "Usage: characters inventory <slug>\n\
-             \x20      characters inventory add <slug> <type> <id> [--equipped]\n\
-             \x20      characters inventory set <slug> <index> <field> <value>"
-        ),
-        ["spells", "--help"] => println!("Usage: characters spells <slug>"),
-        ["prepare", "--help"] => {
-            println!("Usage: characters prepare <slug> <spell_id> [spell_id ...]");
+        if COVERED_BY_INVENTORY_USAGE.contains(&spec.path) {
+            continue;
         }
-        _ => return false,
+        println!("  {}", spec.usage);
     }
-    true
 }
 
 fn strip_display_flags<'a>(
@@ -387,7 +370,8 @@ fn build_resolve_choice_request<'a>(
 
 fn dispatch_resolve_choice(rest: &[&str], display_mode: DisplayMode, engine: &mut Engine) {
     match rest {
-        ["--help"] => println!("Usage: characters resolve_choice <slug> [--random-resolve]"),
+        // A bare `--help` here is already intercepted by
+        // `table::dispatch_help` before dispatch reaches this match.
         [slug] => handle_characters_resolve_choice(slug, display_mode, engine),
         [slug, "--random-resolve"] => handle_characters_random_resolve(slug, display_mode, engine),
         _ => eprintln!("Unknown subcommand. Try `characters resolve_choice --help`."),

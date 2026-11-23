@@ -13,7 +13,7 @@ use reedline::{
     default_emacs_keybindings,
 };
 
-use crate::commands::{self, DisplayMode};
+use crate::commands::{self, COMMAND_TABLE, Completion, DisplayMode};
 use crate::engine::Engine;
 use crate::protocol::{CharactersList, Request, SystemsList};
 
@@ -47,45 +47,41 @@ impl Prompt for TtrpgPrompt {
 }
 
 // ── Tab completion ─────────────────────────────────────────────────────────────
+//
+// The command list and what (if anything) completes after each one come
+// from `commands::COMMAND_TABLE` — the single source of truth also used for
+// dispatch and `help` (see `commands::table`).
 
-static COMMANDS: &[&str] = &[
-    "roll",
-    "systems list",
-    "systems show",
-    "characters gen",
-    "characters build",
-    "characters list",
-    "characters show",
-    "characters roll",
-    "characters award",
-    "characters choices",
-    "characters delete",
-    "characters delete-all",
-    "characters resolve_choice",
-    "characters inventory",
-    "characters inventory add",
-    "characters inventory set",
-    "set display succinct",
-    "set display default",
-    "set display verbose",
-    "help",
-    "exit",
-    "quit",
-];
-
-// Commands where the next token after the subcommand is a system slug.
-static SYSTEM_COMMANDS: &[&str] = &["characters gen", "characters build", "systems show"];
-
-// Commands where the next token after the subcommand is a character slug.
-static SLUG_COMMANDS: &[&str] = &[
-    "characters show",
-    "characters delete",
-    "characters roll",
-    "characters award",
-    "characters choices",
-    "characters resolve_choice",
-    "characters inventory",
-];
+/// Finds the `COMMAND_TABLE` row whose path is the longest exact-token
+/// prefix of `tokens`, and returns what completes next — unless a
+/// positional (non-flag) argument has already been typed past that row's
+/// path, in which case nothing from the table applies anymore.
+///
+/// Matching by token position (rather than comparing the typed prefix
+/// against the row's path as a string) means a flag between the path and
+/// the cursor — e.g. `characters show --verbose <TAB>` — doesn't defeat
+/// completion the way an exact-prefix match would.
+fn resolve_completion_kind(tokens: &[&str]) -> Option<Completion> {
+    let mut best: Option<(&'static str, Completion)> = None;
+    for spec in COMMAND_TABLE {
+        let words: Vec<&str> = spec.path.split(' ').collect();
+        let len = words.len();
+        if len <= tokens.len() && tokens[..len] == words[..] {
+            let best_len = best.map(|(path, _)| path.split(' ').count()).unwrap_or(0);
+            if len > best_len {
+                best = Some((spec.path, spec.completion));
+            }
+        }
+    }
+    let (path, completion) = best?;
+    let path_len = path.split(' ').count();
+    let positional_typed = tokens[path_len..].iter().any(|t| !t.starts_with('-'));
+    if positional_typed {
+        None
+    } else {
+        Some(completion)
+    }
+}
 
 struct CommandCompleter {
     engine: Option<Arc<Mutex<Engine>>>,
@@ -116,15 +112,14 @@ impl Completer for CommandCompleter {
     fn complete(&mut self, line: &str, pos: usize) -> CompletionResult {
         let prefix = &line[..pos];
         let word_start = prefix.rfind(' ').map(|i| i + 1).unwrap_or(0);
-        let context = prefix[..word_start].trim();
         let current_word = &prefix[word_start..];
+        let typed_tokens: Vec<&str> = prefix[..word_start].split_whitespace().collect();
 
-        let completions: Option<Vec<String>> = if SLUG_COMMANDS.contains(&context) {
-            Some(self.fetch_character_slugs())
-        } else if SYSTEM_COMMANDS.contains(&context) {
-            Some(self.fetch_system_slugs())
-        } else {
-            None
+        let completions: Option<Vec<String>> = match resolve_completion_kind(&typed_tokens) {
+            Some(Completion::Slug) => Some(self.fetch_character_slugs()),
+            Some(Completion::System) => Some(self.fetch_system_slugs()),
+            Some(Completion::None) => Some(Vec::new()),
+            None => None,
         };
 
         if let Some(values) = completions {
@@ -149,8 +144,9 @@ impl Completer for CommandCompleter {
         }
 
         let mut seen = std::collections::HashSet::new();
-        let suggestions: Vec<Suggestion> = COMMANDS
+        let suggestions: Vec<Suggestion> = COMMAND_TABLE
             .iter()
+            .map(|spec| spec.path)
             .filter(|cmd| cmd.starts_with(prefix))
             .filter_map(|cmd| {
                 let token = cmd[word_start..].split_whitespace().next()?;
@@ -357,7 +353,15 @@ mod tests {
             },
             Case {
                 input: "characters ",
-                contains: &["list", "gen", "show", "roll", "inventory"],
+                contains: &[
+                    "list",
+                    "gen",
+                    "show",
+                    "roll",
+                    "inventory",
+                    "spells",
+                    "prepare",
+                ],
                 excludes: &[],
             },
         ];
@@ -417,5 +421,44 @@ mod tests {
             let values = completion_values(c.complete(cmd, pos));
             assert!(values.is_empty(), "expected empty for '{cmd}'");
         }
+    }
+
+    #[test]
+    fn resolve_completion_kind_finds_the_longest_matching_path() {
+        assert_eq!(
+            resolve_completion_kind(&["characters", "show"]),
+            Some(Completion::Slug)
+        );
+        assert_eq!(
+            resolve_completion_kind(&["characters", "gen"]),
+            Some(Completion::System)
+        );
+        // "characters inventory" (Slug) is a prefix of "characters inventory
+        // add" (None) — the longer, more specific path should win.
+        assert_eq!(
+            resolve_completion_kind(&["characters", "inventory", "add"]),
+            Some(Completion::None)
+        );
+    }
+
+    #[test]
+    fn resolve_completion_kind_sees_past_flags_typed_before_the_slug() {
+        // A flag between the subcommand and the cursor used to defeat
+        // completion entirely, because it broke the old exact
+        // prefix-against-context string match.
+        assert_eq!(
+            resolve_completion_kind(&["characters", "show", "--verbose"]),
+            Some(Completion::Slug)
+        );
+    }
+
+    #[test]
+    fn resolve_completion_kind_stops_once_the_positional_arg_is_typed() {
+        // Once the slug itself has been typed, nothing further completes
+        // from the table.
+        assert_eq!(
+            resolve_completion_kind(&["characters", "show", "some-slug"]),
+            None
+        );
     }
 }
