@@ -218,7 +218,48 @@ pub(crate) struct BuildSubChoiceResult {
 #[derive(Deserialize)]
 pub(crate) struct ConceptDetail {
     pub(crate) concept_type: String,
-    pub(crate) fields: serde_json::Value,
+    pub(crate) fields: ConceptFields,
+}
+
+/// Concept metadata as rendered by `show_concept_detail` — the fields a
+/// `race`/`class`/`background` concept may define in its TOML entry (see
+/// `ConceptDetail`'s `fields`). Not every concept type sets every field;
+/// absent ones deserialize to `None`/empty.
+#[derive(Deserialize)]
+pub(crate) struct ConceptFields {
+    pub(crate) name: Option<String>,
+    pub(crate) hit_die: Option<String>,
+    #[serde(default)]
+    pub(crate) armor_proficiencies: Vec<String>,
+    #[serde(default)]
+    pub(crate) weapon_proficiencies: Vec<String>,
+    #[serde(default)]
+    pub(crate) languages: Vec<String>,
+    #[serde(default)]
+    pub(crate) damage_resistances: Vec<String>,
+    #[serde(default)]
+    pub(crate) contributes: Vec<ContributeEntry>,
+    #[serde(default)]
+    pub(crate) choices: std::collections::BTreeMap<String, RequiredChoice>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct ContributeEntry {
+    pub(crate) target: String,
+    pub(crate) value: serde_json::Value,
+    pub(crate) when: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct RequiredChoice {
+    pub(crate) name: Option<String>,
+    #[serde(default)]
+    pub(crate) required: bool,
+    #[serde(rename = "type")]
+    pub(crate) choice_type: Option<String>,
+    pub(crate) count: Option<u64>,
+    #[serde(default)]
+    pub(crate) options: Vec<String>,
 }
 
 #[derive(Deserialize)]

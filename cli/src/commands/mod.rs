@@ -3,6 +3,7 @@
 //! Each submodule owns one domain of commands. Shared types (DisplayMode,
 //! argument bundles) live here and are imported by the submodules.
 
+mod build;
 mod characters;
 mod help;
 mod inventory;
