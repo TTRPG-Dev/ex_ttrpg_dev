@@ -29,7 +29,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
       |> Map.keys()
       |> Enum.reduce(Graph.new(type: :directed), &Graph.add_vertex(&2, &1))
 
-    with {:ok, _} <- validate_choice_options(concept_metadata),
+    with :ok <- validate_choice_options(concept_metadata),
          {:ok, graph} <- add_node_edges(graph, nodes),
          {:ok, graph} <- add_effect_edges(graph, nodes, effects),
          {:ok, graph} <- add_choice_contributes_edges(graph, nodes, concept_metadata) do
@@ -118,7 +118,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
         end)
       end)
 
-    if error, do: error, else: {:ok, nil}
+    if error, do: error, else: :ok
   end
 
   defp check_choice(
