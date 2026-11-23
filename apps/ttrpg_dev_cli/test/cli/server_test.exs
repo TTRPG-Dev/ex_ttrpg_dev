@@ -177,6 +177,21 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert slug in slugs
     end
 
+    test "characters.list skips a corrupt character file instead of failing entirely", %{
+      slug: slug
+    } do
+      corrupt_path = Path.join(ExTTRPGDev.Globals.characters_path(), "corrupt.json")
+      File.write!(corrupt_path, "not valid json")
+      on_exit(fn -> File.rm(corrupt_path) end)
+
+      slugs =
+        run(%{"command" => "characters.list"}).data.characters
+        |> Enum.map(& &1.slug)
+
+      assert slug in slugs
+      refute "corrupt" in slugs
+    end
+
     test "characters.show renders language scripts in default mode", %{slug: slug} do
       data =
         run(%{
