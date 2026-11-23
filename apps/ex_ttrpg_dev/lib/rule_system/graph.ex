@@ -18,8 +18,8 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   - `:nodes` — node registry from the loader
   - `:rolling_methods`, `:concept_metadata`, `:effects` — passed through
 
-  Returns `{:error, reason}` if any references are undefined.
-  Raises if the graph contains cycles.
+  Returns `{:error, reason}` if any references are undefined, or
+  `{:error, {:cycle_detected, reason}}` if the graph contains cycles.
   """
   def build(loader_data) do
     %{nodes: nodes, effects: effects, concept_metadata: concept_metadata} = loader_data
