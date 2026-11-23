@@ -155,6 +155,8 @@ fn resolve_build_progressions(
     }
 }
 
+/// Resolves a single pending choice to a [`ChoiceResolution`]: a selected
+/// option, a manually-entered value, or a hit-die roll/average.
 pub(crate) fn prompt_choice_value(
     choice: &PendingChoice,
     engine: &mut Engine,
@@ -172,7 +174,13 @@ pub(crate) fn prompt_choice_value(
         });
     };
 
-    let sides: i64 = die.trim_start_matches('d').parse().unwrap_or(8);
+    let Some(sides) = die.strip_prefix('d').and_then(|s| s.parse::<i64>().ok()) else {
+        eprintln!(
+            "Error: malformed die spec '{die}' for choice '{}'.",
+            choice.name
+        );
+        return None;
+    };
     let average = sides / 2 + 1;
     println!("\nResolving: {} ({})", choice.name, die);
     println!("Average HP (no roll): {average}");
