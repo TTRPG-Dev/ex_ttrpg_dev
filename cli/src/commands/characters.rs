@@ -85,6 +85,15 @@ fn print_characters_usage() {
     }
 }
 
+/// Pulls `--verbose`/`--succinct` out of the token stream before subcommand
+/// dispatch, so they can appear anywhere in a `characters` invocation
+/// regardless of which subcommand follows — intentionally including
+/// subcommands (`list`, `delete`, `gen`, ...) that don't take a
+/// `DisplayMode` and so end up ignoring the result. This is deliberately
+/// more permissive than `delete-all`'s own flag parser
+/// (`parse_delete_all_flags`), which rejects any flag it doesn't recognize;
+/// these two are treated as cross-cutting session flags rather than
+/// per-subcommand arguments.
 fn strip_display_flags<'a>(
     tokens: &[&'a str],
     session_mode: DisplayMode,
