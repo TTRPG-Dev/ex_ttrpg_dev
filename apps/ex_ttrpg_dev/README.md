@@ -47,6 +47,37 @@ resolved[{"ability", "strength", "modifier"}]
 `ExTTRPGDev.RuleSystems.list_systems/0` lists bundled and user-defined
 ("local") systems available to load.
 
+#### Installing, versioning, and editing systems
+
+All systems are loaded from one store (by default, TOML directories under
+`local_system_configs/`). Bundled systems ship inside the library and are
+installed into the store, read-only (`is_modifiable: false`), the first time
+they're loaded. To pick up newer bundled content after upgrading the library,
+call `sync_bundled/0` deliberately (e.g. at boot); loading never replaces
+installed content mid-session:
+
+```elixir
+{:ok, results} = ExTTRPGDev.RuleSystems.sync_bundled()
+```
+
+Sync only applies a bundled release when the running library satisfies its
+`library_requirement`. A non-breaking release replaces the installed version in
+place. A breaking release is installed alongside older versions that saved
+characters still depend on, and each character loads the version it was built
+with (`ExTTRPGDev.RuleSystems.load_system_for/1`). Host applications can report
+their own dependents via `ExTTRPGDev.RuleSystems.Dependents`.
+
+To change a bundled system, clone it into an editable local system:
+
+```elixir
+{:ok, "my_dnd"} = ExTTRPGDev.RuleSystems.clone_system("dnd_5e_srd", "my_dnd")
+:ok = ExTTRPGDev.RuleSystems.update_system("my_dnd", fn source -> source end)
+```
+
+Bundled and local systems share one slug namespace. If a local system already
+uses a bundled system's slug, the local system wins, and the bundled release is
+skipped with a warning.
+
 ### Characters
 
 Characters hold generated values, active effects (equipped items, feats,
