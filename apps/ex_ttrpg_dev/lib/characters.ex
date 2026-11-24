@@ -5,7 +5,7 @@ defmodule ExTTRPGDev.Characters do
   This module is a thin facade: every function delegates to a submodule
   that owns a single concern —
 
-  - `ExTTRPGDev.Characters.Store` — disk persistence
+  - `ExTTRPGDev.Characters.Store` — persistence, via a storage adapter
   - `ExTTRPGDev.Characters.Generation` — random character-building decisions
   - `ExTTRPGDev.Characters.Effects` — active concepts, effect aggregation, resolved state
   - `ExTTRPGDev.Characters.Leveling` — XP and level math
@@ -24,18 +24,23 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Resolution
   alias ExTTRPGDev.Characters.Rolls
   alias ExTTRPGDev.Characters.Store
+  alias ExTTRPGDev.Characters.Store.FileSystem
 
   @doc """
   Get the file path for a character.
+
+  Specific to the filesystem adapter,
+  `ExTTRPGDev.Characters.Store.FileSystem`: returns the path that adapter
+  uses, even when a different adapter is configured.
   """
-  defdelegate character_file_path(character), to: Store
+  defdelegate character_file_path(character), to: FileSystem
 
   @doc false
   @deprecated "Use character_file_path/1 instead; it never raised despite the bang"
-  defdelegate character_file_path!(character), to: Store, as: :character_file_path
+  defdelegate character_file_path!(character), to: FileSystem, as: :character_file_path
 
   @doc """
-  Returns a boolean as to whether the character exists on disk
+  Returns a boolean as to whether the character is saved.
 
   ## Examples
 
@@ -57,14 +62,14 @@ defmodule ExTTRPGDev.Characters do
   defdelegate character_exists?(character), to: Store
 
   @doc """
-  Saves the given character to disk.
+  Saves the given character.
 
   Returns `:ok`, or `{:error, :already_exists}` unless `overwrite` is `true`.
   """
   defdelegate save_character(character, overwrite \\ false), to: Store
 
   @doc """
-  Saves the given character to disk, raising if it already exists unless
+  Saves the given character, raising if it already exists unless
   `overwrite` is set to true.
 
   See `save_character/2` for the non-raising variant.

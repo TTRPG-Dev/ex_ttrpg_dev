@@ -1,60 +1,132 @@
 defmodule ExTTRPGDev.Characters.Store do
   @moduledoc """
-  Disk persistence for characters: file paths, existence checks, saving,
-  loading, listing, and deletion under `Globals.characters_path()`.
+  Where saved characters live: a behaviour for storage adapters, plus the
+  adapter-agnostic persistence functions built on it.
+
+  Adapters implement only the core operations (the callbacks below). The
+  functions in this module dispatch to the adapter in use and add what
+  doesn't depend on where characters are stored: raising variants, and
+  `characters_depending_on/2`, which is derived from listing and loading.
 
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
-  (e.g. `ExTTRPGDev.Characters.save_character!/2`); this module hosts the
-  implementation.
+  (e.g. `ExTTRPGDev.Characters.save_character!/2`).
+
+  ## Choosing an adapter
+
+  The default adapter is `ExTTRPGDev.Characters.Store.FileSystem`, which
+  saves each character as a JSON file. A host application that keeps
+  characters elsewhere (e.g. a database) implements this behaviour and
+  names its module in config:
+
+      # config/config.exs
+      config :ex_ttrpg_dev, :characters_store, MyApp.CharacterStore
+
+      defmodule MyApp.CharacterStore do
+        @behaviour ExTTRPGDev.Characters.Store
+
+        alias ExTTRPGDev.Characters.Character
+
+        @impl true
+        def character_exists?(slug), do: MyApp.Repo.exists?(slug)
+
+        @impl true
+        def save_character(%Character{} = character, overwrite) do
+          # Store Jason.encode!(Character.to_json_map(character)) under
+          # character.metadata.slug; return {:error, :already_exists}
+          # when the slug is taken and overwrite is false.
+        end
+
+        @impl true
+        def delete_character(slug), do: # :ok | {:error, :not_found}
+
+        @impl true
+        def list_characters(), do: # {:ok, [slug, ...]}
+
+        @impl true
+        def load_character(slug) do
+          # Rebuild the stored JSON with Character.from_json/1, or
+          # return {:error, :not_found}.
+        end
+      end
+
+  The adapter is read at call time, so it can be changed while the
+  application is running (tests do this). Calls into
+  `ExTTRPGDev.Characters` are unchanged whichever adapter is configured.
+  `ExTTRPGDev.Characters.Character.to_json_map/1` and
+  `ExTTRPGDev.Characters.Character.from_json/1` are the same JSON
+  round-trip the filesystem adapter uses, so an adapter needn't track the
+  struct's fields itself.
+
+  Rule system content is pluggable the same way, through
+  `ExTTRPGDev.RuleSystem.Store`.
   """
 
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
-  alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystem.Versioning
 
-  @doc """
-  Get the file path for a character.
+  @doc "Whether a character with `slug` is saved."
+  @callback character_exists?(slug :: String.t()) :: boolean()
 
-  See `ExTTRPGDev.Characters.character_file_path/1` for documentation.
+  @doc """
+  Saves `character`, keyed by its `metadata.slug`. With `overwrite` false,
+  fails with `{:error, :already_exists}` if that slug is saved; with
+  `overwrite` true, replaces it.
   """
-  def character_file_path(%Character{metadata: %Metadata{slug: slug}}) do
-    character_file_path(slug)
-  end
+  @callback save_character(character :: Character.t(), overwrite :: boolean()) ::
+              :ok | {:error, :already_exists} | {:error, term()}
 
-  def character_file_path(character_slug) when is_bitstring(character_slug) do
-    Path.join(Globals.characters_path(), "#{character_slug}.json")
+  @doc "Deletes the character saved under `slug`."
+  @callback delete_character(slug :: String.t()) ::
+              :ok | {:error, :not_found} | {:error, term()}
+
+  @doc "Lists the slugs of all saved characters."
+  @callback list_characters() :: {:ok, [String.t()]} | {:error, term()}
+
+  @doc """
+  Loads the character saved under `slug`. Saved data that can't be read
+  back as a character should be reported as
+  `{:error, {:invalid_character_data, message}}`, as
+  `ExTTRPGDev.Characters.Character.from_json/1` does.
+  """
+  @callback load_character(slug :: String.t()) ::
+              {:ok, Character.t()} | {:error, :not_found} | {:error, term()}
+
+  @doc """
+  The store adapter in use: the module configured under
+  `:characters_store`, defaulting to
+  `ExTTRPGDev.Characters.Store.FileSystem`.
+
+  ## Examples
+      iex> ExTTRPGDev.Characters.Store.adapter()
+      ExTTRPGDev.Characters.Store.FileSystem
+
+  """
+  @spec adapter() :: module()
+  def adapter do
+    Application.get_env(:ex_ttrpg_dev, :characters_store, ExTTRPGDev.Characters.Store.FileSystem)
   end
 
   @doc """
-  Returns a boolean as to whether the character exists on disk.
+  Returns a boolean as to whether the character is saved.
 
   See `ExTTRPGDev.Characters.character_exists?/1` for documentation.
   """
-  def character_exists?(character) do
-    character
-    |> character_file_path()
-    |> File.exists?()
-  end
+  @spec character_exists?(Character.t() | String.t()) :: boolean()
+  def character_exists?(%Character{metadata: %Metadata{slug: slug}}), do: character_exists?(slug)
+  def character_exists?(slug) when is_bitstring(slug), do: adapter().character_exists?(slug)
 
   @doc """
-  Saves the given character to disk.
+  Saves the given character.
 
   See `ExTTRPGDev.Characters.save_character/2` for documentation.
   """
   def save_character(%Character{} = character, overwrite \\ false) do
-    if character_exists?(character) and not overwrite do
-      {:error, :already_exists}
-    else
-      with :ok <- File.mkdir_p(Globals.characters_path()),
-           {:ok, json} <- Jason.encode(Character.to_json_map(character)) do
-        File.write(character_file_path(character), json)
-      end
-    end
+    adapter().save_character(character, overwrite)
   end
 
   @doc """
-  Saves the given character to disk, raising on failure.
+  Saves the given character, raising on failure.
 
   See `ExTTRPGDev.Characters.save_character!/2` for documentation.
   """
@@ -76,44 +148,43 @@ defmodule ExTTRPGDev.Characters.Store do
 
   See `ExTTRPGDev.Characters.delete_character/1` for documentation.
   """
-  def delete_character(character_slug) do
-    case character_file_path(character_slug) |> File.rm() do
-      :ok -> :ok
-      {:error, :enoent} -> {:error, :not_found}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  def delete_character(character_slug), do: adapter().delete_character(character_slug)
 
   @doc """
   List saved characters.
 
   See `ExTTRPGDev.Characters.list_characters/0` for documentation.
   """
-  def list_characters() do
-    path = Globals.characters_path()
-
-    if File.exists?(path) do
-      case File.ls(path) do
-        {:ok, entries} ->
-          {:ok, Enum.map(entries, fn x -> String.trim_trailing(x, ".json") end)}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:ok, []}
-    end
-  end
+  def list_characters, do: adapter().list_characters()
 
   @doc """
   List saved characters, raising on failure.
 
   See `ExTTRPGDev.Characters.list_characters!/0` for documentation.
   """
-  def list_characters!() do
+  def list_characters! do
     case list_characters() do
       {:ok, slugs} -> slugs
       {:error, reason} -> raise "Failed to list characters: #{inspect(reason)}"
+    end
+  end
+
+  @doc """
+  Load a saved character.
+
+  See `ExTTRPGDev.Characters.load_character/1` for documentation.
+  """
+  def load_character(character_slug), do: adapter().load_character(character_slug)
+
+  @doc """
+  Load a saved character, raising on failure.
+
+  See `ExTTRPGDev.Characters.load_character!/1` for documentation.
+  """
+  def load_character!(character_slug) do
+    case load_character(character_slug) do
+      {:ok, character} -> character
+      {:error, reason} -> raise "Failed to load character #{character_slug}: #{inspect(reason)}"
     end
   end
 
@@ -155,34 +226,4 @@ defmodule ExTTRPGDev.Characters.Store do
   end
 
   defp depends_on?(_character, _rule_system, _version), do: false
-
-  @doc """
-  Load a saved character.
-
-  See `ExTTRPGDev.Characters.load_character/1` for documentation.
-  """
-  def load_character(character_slug) do
-    case character_file_path(character_slug) |> File.read() do
-      {:ok, contents} ->
-        Character.from_json(contents)
-
-      {:error, :enoent} ->
-        {:error, :not_found}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  @doc """
-  Load a saved character, raising on failure.
-
-  See `ExTTRPGDev.Characters.load_character!/1` for documentation.
-  """
-  def load_character!(character_slug) do
-    case load_character(character_slug) do
-      {:ok, character} -> character
-      {:error, reason} -> raise "Failed to load character #{character_slug}: #{inspect(reason)}"
-    end
-  end
 end

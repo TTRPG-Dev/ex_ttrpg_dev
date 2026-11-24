@@ -11,6 +11,8 @@ defmodule ExTTRPGDevTest.Characters.Store do
   alias ExTTRPGDev.Characters.{Character, Metadata}
   alias ExTTRPGDev.RuleSystems
 
+  doctest ExTTRPGDev.Characters.Store
+
   setup do
     tmp_dir =
       Path.join(
