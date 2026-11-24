@@ -5,7 +5,7 @@ defmodule ExTTRPGDev.Characters do
   This module is a thin facade: every function delegates to a submodule
   that owns a single concern —
 
-  - `ExTTRPGDev.Characters.Store.FileSystem` — disk persistence
+  - `ExTTRPGDev.Characters.Store` — persistence, via a storage adapter
   - `ExTTRPGDev.Characters.Generation` — random character-building decisions
   - `ExTTRPGDev.Characters.Effects` — active concepts, effect aggregation, resolved state
   - `ExTTRPGDev.Characters.Leveling` — XP and level math
@@ -23,10 +23,15 @@ defmodule ExTTRPGDev.Characters do
   alias ExTTRPGDev.Characters.Progression
   alias ExTTRPGDev.Characters.Resolution
   alias ExTTRPGDev.Characters.Rolls
+  alias ExTTRPGDev.Characters.Store
   alias ExTTRPGDev.Characters.Store.FileSystem
 
   @doc """
   Get the file path for a character.
+
+  Specific to the filesystem adapter,
+  `ExTTRPGDev.Characters.Store.FileSystem`: returns the path that adapter
+  uses, even when a different adapter is configured.
   """
   defdelegate character_file_path(character), to: FileSystem
 
@@ -35,7 +40,7 @@ defmodule ExTTRPGDev.Characters do
   defdelegate character_file_path!(character), to: FileSystem, as: :character_file_path
 
   @doc """
-  Returns a boolean as to whether the character exists on disk
+  Returns a boolean as to whether the character is saved.
 
   ## Examples
 
@@ -54,17 +59,17 @@ defmodule ExTTRPGDev.Characters do
       iex> File.rm!(Characters.character_file_path(character))
       :ok
   """
-  defdelegate character_exists?(character), to: FileSystem
+  defdelegate character_exists?(character), to: Store
 
   @doc """
-  Saves the given character to disk.
+  Saves the given character.
 
   Returns `:ok`, or `{:error, :already_exists}` unless `overwrite` is `true`.
   """
-  defdelegate save_character(character, overwrite \\ false), to: FileSystem
+  defdelegate save_character(character, overwrite \\ false), to: Store
 
   @doc """
-  Saves the given character to disk, raising if it already exists unless
+  Saves the given character, raising if it already exists unless
   `overwrite` is set to true.
 
   See `save_character/2` for the non-raising variant.
@@ -85,7 +90,7 @@ defmodule ExTTRPGDev.Characters do
       iex> File.rm!(Characters.character_file_path(character))
       :ok
   """
-  defdelegate save_character!(character, overwrite \\ false), to: FileSystem
+  defdelegate save_character!(character, overwrite \\ false), to: Store
 
   @doc """
   Delete a saved character by slug.
@@ -93,7 +98,7 @@ defmodule ExTTRPGDev.Characters do
   Returns `:ok` if the character was deleted, `{:error, :not_found}` if no
   character with that slug exists.
   """
-  defdelegate delete_character(character_slug), to: FileSystem
+  defdelegate delete_character(character_slug), to: Store
 
   @doc """
   List saved characters.
@@ -101,7 +106,7 @@ defmodule ExTTRPGDev.Characters do
   Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the characters
   directory exists but cannot be listed.
   """
-  defdelegate list_characters(), to: FileSystem
+  defdelegate list_characters(), to: Store
 
   @doc """
   List saved characters, raising on failure.
@@ -122,7 +127,7 @@ defmodule ExTTRPGDev.Characters do
       iex> File.rm!(Characters.character_file_path(character))
       :ok
   """
-  defdelegate list_characters!(), to: FileSystem
+  defdelegate list_characters!(), to: Store
 
   @doc """
   List the slugs of saved characters that depend on version `version` of
@@ -145,7 +150,7 @@ defmodule ExTTRPGDev.Characters do
 
   Returns `{:ok, [slug, ...]}` or `{:error, reason}`.
   """
-  defdelegate characters_depending_on(rule_system, version), to: FileSystem
+  defdelegate characters_depending_on(rule_system, version), to: Store
 
   @doc """
   Load a saved character.
@@ -154,7 +159,7 @@ defmodule ExTTRPGDev.Characters do
   that slug exists, or `{:error, {:invalid_character_data, message}}` if
   the saved file exists but cannot be parsed as a character.
   """
-  defdelegate load_character(character_slug), to: FileSystem
+  defdelegate load_character(character_slug), to: Store
 
   @doc """
   Load a saved character, raising on failure.
@@ -175,7 +180,7 @@ defmodule ExTTRPGDev.Characters do
       iex> File.rm!(Characters.character_file_path(character))
       :ok
   """
-  defdelegate load_character!(character_slug), to: FileSystem
+  defdelegate load_character!(character_slug), to: Store
 
   @doc """
   Generates a random decision list for a system by randomly selecting a value for each required

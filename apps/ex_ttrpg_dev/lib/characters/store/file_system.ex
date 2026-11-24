@@ -1,17 +1,18 @@
 defmodule ExTTRPGDev.Characters.Store.FileSystem do
   @moduledoc """
-  Disk persistence for characters: file paths, existence checks, saving,
-  loading, listing, and deletion under `Globals.characters_path()`.
+  The default `ExTTRPGDev.Characters.Store` adapter: each character is a
+  JSON file, `{slug}.json`, under `Globals.characters_path()`.
 
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
   (e.g. `ExTTRPGDev.Characters.save_character!/2`); this module hosts the
-  implementation.
+  implementation. `character_file_path/1` is specific to this adapter.
   """
+
+  @behaviour ExTTRPGDev.Characters.Store
 
   alias ExTTRPGDev.Characters.Character
   alias ExTTRPGDev.Characters.Metadata
   alias ExTTRPGDev.Globals
-  alias ExTTRPGDev.RuleSystem.Versioning
 
   @doc """
   Get the file path for a character.
@@ -29,20 +30,18 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   @doc """
   Returns a boolean as to whether the character exists on disk.
 
-  See `ExTTRPGDev.Characters.character_exists?/1` for documentation.
+  Accepts a `Character` as well as a slug.
   """
+  @impl true
   def character_exists?(character) do
     character
     |> character_file_path()
     |> File.exists?()
   end
 
-  @doc """
-  Saves the given character to disk.
-
-  See `ExTTRPGDev.Characters.save_character/2` for documentation.
-  """
-  def save_character(%Character{} = character, overwrite \\ false) do
+  @doc "Saves the given character to disk."
+  @impl true
+  def save_character(%Character{} = character, overwrite) do
     if character_exists?(character) and not overwrite do
       {:error, :already_exists}
     else
@@ -53,29 +52,8 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
     end
   end
 
-  @doc """
-  Saves the given character to disk, raising on failure.
-
-  See `ExTTRPGDev.Characters.save_character!/2` for documentation.
-  """
-  def save_character!(%Character{} = character, overwrite \\ false) do
-    case save_character(character, overwrite) do
-      :ok ->
-        :ok
-
-      {:error, :already_exists} ->
-        raise "Character named #{character.name} already exists. To overwrite, pass `overwrite` as true"
-
-      {:error, reason} ->
-        raise "Failed to save character #{character.name}: #{inspect(reason)}"
-    end
-  end
-
-  @doc """
-  Delete a saved character by slug.
-
-  See `ExTTRPGDev.Characters.delete_character/1` for documentation.
-  """
+  @doc "Delete a saved character by slug."
+  @impl true
   def delete_character(character_slug) do
     case character_file_path(character_slug) |> File.rm() do
       :ok -> :ok
@@ -84,12 +62,9 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
     end
   end
 
-  @doc """
-  List saved characters.
-
-  See `ExTTRPGDev.Characters.list_characters/0` for documentation.
-  """
-  def list_characters() do
+  @doc "List saved characters."
+  @impl true
+  def list_characters do
     path = Globals.characters_path()
 
     if File.exists?(path) do
@@ -105,62 +80,8 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
     end
   end
 
-  @doc """
-  List saved characters, raising on failure.
-
-  See `ExTTRPGDev.Characters.list_characters!/0` for documentation.
-  """
-  def list_characters!() do
-    case list_characters() do
-      {:ok, slugs} -> slugs
-      {:error, reason} -> raise "Failed to list characters: #{inspect(reason)}"
-    end
-  end
-
-  @doc """
-  List the slugs of saved characters that depend on version `version` of
-  rule system `rule_system`.
-
-  See `ExTTRPGDev.Characters.characters_depending_on/2` for documentation.
-  """
-  def characters_depending_on(rule_system, version)
-      when is_bitstring(rule_system) and is_bitstring(version) do
-    with {:ok, slugs} <- list_characters() do
-      slugs
-      |> Enum.map(&{&1, load_character(&1)})
-      |> collect_dependents(rule_system, version)
-    end
-  end
-
-  defp collect_dependents(loaded, rule_system, version) do
-    {unreadable, characters} =
-      Enum.split_with(loaded, fn {_slug, result} -> match?({:error, _}, result) end)
-
-    if unreadable == [] do
-      dependents =
-        for {slug, {:ok, character}} <- characters,
-            depends_on?(character, rule_system, version),
-            do: slug
-
-      {:ok, dependents}
-    else
-      {:error,
-       {:unreadable_characters, Enum.map(unreadable, fn {slug, {:error, r}} -> {slug, r} end)}}
-    end
-  end
-
-  defp depends_on?(%Character{metadata: %Metadata{rule_system: system} = meta}, system, version) do
-    is_nil(meta.rule_system_version) or
-      Versioning.same_release_line?(meta.rule_system_version, version)
-  end
-
-  defp depends_on?(_character, _rule_system, _version), do: false
-
-  @doc """
-  Load a saved character.
-
-  See `ExTTRPGDev.Characters.load_character/1` for documentation.
-  """
+  @doc "Load a saved character."
+  @impl true
   def load_character(character_slug) do
     case character_file_path(character_slug) |> File.read() do
       {:ok, contents} ->
@@ -171,18 +92,6 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
 
       {:error, reason} ->
         {:error, reason}
-    end
-  end
-
-  @doc """
-  Load a saved character, raising on failure.
-
-  See `ExTTRPGDev.Characters.load_character!/1` for documentation.
-  """
-  def load_character!(character_slug) do
-    case load_character(character_slug) do
-      {:ok, character} -> character
-      {:error, reason} -> raise "Failed to load character #{character_slug}: #{inspect(reason)}"
     end
   end
 end
