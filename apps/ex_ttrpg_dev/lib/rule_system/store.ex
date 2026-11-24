@@ -16,7 +16,54 @@ defmodule ExTTRPGDev.RuleSystem.Store do
   installed, replaced, or modified. Those policies (the replacement gates,
   `is_modifiable` enforcement, clone semantics, slug collisions) live in
   `ExTTRPGDev.RuleSystems` and apply identically whichever adapter is used.
-  The default adapter is `ExTTRPGDev.RuleSystem.Store.FileSystem`.
+
+  ## Choosing an adapter
+
+  The default adapter is `ExTTRPGDev.RuleSystem.Store.FileSystem`, which
+  keeps each entry as a directory of TOML files. A host application that
+  keeps rule systems elsewhere (e.g. a database) implements this behaviour
+  and names its module in config:
+
+      # config/config.exs
+      config :ex_ttrpg_dev, :rule_system_store, MyApp.RuleSystemStore
+
+      defmodule MyApp.RuleSystemStore do
+        @behaviour ExTTRPGDev.RuleSystem.Store
+
+        alias ExTTRPGDev.RuleSystem.Source
+        alias ExTTRPGDev.RuleSystem.Store.Entry
+
+        @impl true
+        def list_entries, do: # {:ok, [%Entry{}, ...]}, without decoding content
+
+        @impl true
+        def fetch(slug, version), do: # {:ok, %Source{}} | {:error, :not_found}
+
+        @impl true
+        def put(%Entry{} = entry, %Source{} = source, overwrite) do
+          # Store both atomically under {entry.slug, entry.version};
+          # {:error, :already_exists} if present and overwrite is false.
+        end
+
+        @impl true
+        def delete(slug, version), do: # :ok | {:error, :not_found}
+      end
+
+  The configured adapter is the only store: bundled systems are seeded
+  into it (see `ExTTRPGDev.RuleSystems.sync_bundled/0`) just like into the
+  filesystem store, so a host adapter holds the library's canonical
+  content as well as its own. A `Source` is already-decoded data, so an
+  adapter never parses TOML; a system with no `character_building` or
+  `inventory_rules` simply has `nil` there.
+
+  An adapter may file each version of a slug separately, or keep a single
+  version per slug and replace it in place (as the filesystem adapter does
+  for non-canonical systems); `ExTTRPGDev.RuleSystems` handles both.
+
+  The adapter is read at call time, so it can be changed while the
+  application is running (tests do this). Character persistence is
+  pluggable the same way, through `ExTTRPGDev.Characters.Store` and the
+  `:characters_store` key (#164).
   """
 
   alias ExTTRPGDev.RuleSystem.Source
@@ -64,13 +111,19 @@ defmodule ExTTRPGDev.RuleSystem.Store do
   end
 
   @doc """
-  The store adapter in use: currently always
-  `ExTTRPGDev.RuleSystem.Store.FileSystem`. Making it configurable through
-  application env is tracked by #165; everything that reaches the store
-  goes through this function so that change is local to it.
+  The store adapter in use: the module configured under
+  `:rule_system_store`, defaulting to
+  `ExTTRPGDev.RuleSystem.Store.FileSystem`.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystem.Store.adapter()
+      ExTTRPGDev.RuleSystem.Store.FileSystem
+
   """
   @spec adapter() :: module()
-  def adapter, do: ExTTRPGDev.RuleSystem.Store.FileSystem
+  def adapter do
+    Application.get_env(:ex_ttrpg_dev, :rule_system_store, ExTTRPGDev.RuleSystem.Store.FileSystem)
+  end
 
   @doc "Lists every installed entry, across all slugs and versions."
   @callback list_entries() :: {:ok, [Entry.t()]} | {:error, term()}
