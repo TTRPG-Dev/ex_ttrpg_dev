@@ -59,21 +59,89 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
     Slug.valid?(slug) and File.exists?(path_for(slug))
   end
 
-  @doc "Saves the given character to disk."
+  @doc """
+  Saves the given character to disk.
+
+  The JSON is written in full to a temporary file in the characters
+  directory, then moved into place, so neither a reader nor a crash ever
+  sees a partially written character. Without `overwrite`, the slug is
+  claimed with a hard link, which fails if the file already exists, so of
+  two concurrent saves of the same new slug exactly one succeeds.
+  """
   @impl true
   def save_character(%Character{metadata: %Metadata{slug: slug}} = character, overwrite) do
+    dir = Globals.characters_path()
+
     with :ok <- check_slug(slug),
-         :ok <- check_absent(slug, overwrite),
-         :ok <- File.mkdir_p(Globals.characters_path()),
-         {:ok, json} <- Jason.encode(Character.to_json_map(character)) do
-      File.write(path_for(slug), json)
+         :ok <- File.mkdir_p(dir),
+         {:ok, json} <- Jason.encode(Character.to_json_map(character)),
+         {:ok, tmp} <- write_tmp(dir, json) do
+      result = install(tmp, path_for(slug), overwrite)
+      # Gone already if it was renamed into place; a leftover otherwise.
+      File.rm(tmp)
+      result
     end
   end
 
-  defp check_absent(_slug, true), do: :ok
+  # The leading "." keeps temp files out of list_characters/0 (not a valid
+  # slug). The OS pid makes the name unique across concurrent engine
+  # processes, not just within this VM; :exclusive guards the rest.
+  defp write_tmp(dir, json) do
+    tmp = Path.join(dir, ".tmp-#{System.pid()}-#{System.unique_integer([:positive])}.json")
 
-  defp check_absent(slug, false) do
-    if character_exists?(slug), do: {:error, :already_exists}, else: :ok
+    case File.write(tmp, json, [:exclusive, :sync]) do
+      :ok ->
+        {:ok, tmp}
+
+      {:error, reason} ->
+        File.rm(tmp)
+        {:error, reason}
+    end
+  end
+
+  defp install(tmp, target, true = _overwrite) do
+    case File.rename(tmp, target) do
+      :ok -> :ok
+      # Platforms whose rename won't replace an existing file.
+      {:error, reason} when reason in [:eexist, :eacces] -> replace_aside(tmp, target)
+      error -> error
+    end
+  end
+
+  defp install(tmp, target, false = _overwrite) do
+    case File.ln(tmp, target) do
+      :ok -> :ok
+      {:error, :eexist} -> {:error, :already_exists}
+      # Filesystems without hard links (FAT, exFAT).
+      {:error, reason} when reason in [:enotsup, :eperm] -> claim_without_link(tmp, target)
+      error -> error
+    end
+  end
+
+  # Moves the old file aside, renames the new one in, then drops the old
+  # one, restoring it if the rename fails. Not atomic (there is a moment
+  # with no file), but never leaves a partial one.
+  defp replace_aside(tmp, target) do
+    aside = "#{target}.old-#{System.pid()}-#{System.unique_integer([:positive])}"
+
+    with :ok <- File.rename(target, aside) do
+      case File.rename(tmp, target) do
+        :ok ->
+          File.rm(aside)
+          :ok
+
+        error ->
+          File.rename(aside, target)
+          error
+      end
+    end
+  end
+
+  # Without hard links there is no atomic create-if-absent for a fully
+  # written file, so check, then rename: contents stay atomic, but two
+  # concurrent saves of one new slug can race.
+  defp claim_without_link(tmp, target) do
+    if File.exists?(target), do: {:error, :already_exists}, else: File.rename(tmp, target)
   end
 
   @doc "Delete a saved character by slug."

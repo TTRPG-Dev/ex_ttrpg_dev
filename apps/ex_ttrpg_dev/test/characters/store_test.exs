@@ -274,4 +274,73 @@ defmodule ExTTRPGDevTest.Characters.Store do
       assert Characters.list_characters!() == ["kept"]
     end
   end
+
+  describe "atomic saves" do
+    defp versioned(slug, n) do
+      %Character{
+        name: "#{slug} v#{n}",
+        generated_values: %{},
+        metadata: %Metadata{slug: slug, rule_system: "sys"}
+      }
+    end
+
+    defp dir_entries do
+      File.ls!(Application.fetch_env!(:ex_ttrpg_dev, :characters_path)) |> Enum.sort()
+    end
+
+    test "concurrent non-overwriting saves of one new slug: exactly one wins" do
+      for round <- 1..10 do
+        slug = "race_#{round}"
+
+        results =
+          1..8
+          |> Enum.map(fn n ->
+            Task.async(fn -> Characters.save_character(versioned(slug, n)) end)
+          end)
+          |> Task.await_many()
+
+        assert Enum.count(results, &(&1 == :ok)) == 1
+        assert Enum.count(results, &(&1 == {:error, :already_exists})) == 7
+        assert {:ok, %Character{}} = Characters.load_character(slug)
+      end
+    end
+
+    test "concurrent overwriting saves leave one complete character" do
+      results =
+        1..8
+        |> Enum.map(fn n ->
+          Task.async(fn -> Characters.save_character(versioned("hot", n), true) end)
+        end)
+        |> Task.await_many()
+
+      assert Enum.all?(results, &(&1 == :ok))
+      assert {:ok, %Character{name: "hot v" <> _}} = Characters.load_character("hot")
+    end
+
+    test "saves leave no temporary files behind, including refused ones" do
+      :ok = Characters.save_character(versioned("tidy", 1))
+      :ok = Characters.save_character(versioned("tidy", 2), true)
+      {:error, :already_exists} = Characters.save_character(versioned("tidy", 3))
+
+      assert dir_entries() == ["tidy.json"]
+    end
+
+    test "a failed save leaves the existing character unchanged" do
+      :ok = Characters.save_character(versioned("keep", 1))
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+      File.chmod!(dir, 0o555)
+      on_exit(fn -> File.chmod(dir, 0o755) end)
+
+      # Running as root ignores directory permissions; nothing to check then.
+      probe = Path.join(dir, ".probe")
+
+      if File.write(probe, "") == :ok do
+        File.rm(probe)
+      else
+        assert {:error, _} = Characters.save_character(versioned("keep", 2), true)
+        assert Characters.load_character!("keep").name == "keep v1"
+        assert dir_entries() == ["keep.json"]
+      end
+    end
+  end
 end
