@@ -6,6 +6,7 @@ defmodule ExTTRPGDev.Characters.Character do
   alias ExTTRPGDev.RuleSystem.InventoryRules
   alias ExTTRPGDev.RuleSystem.Node
   alias ExTTRPGDev.RuleSystems.LoadedSystem
+  alias ExTTRPGDev.Slug
 
   @moduledoc """
   Definition of an individual character.
@@ -347,11 +348,36 @@ defmodule ExTTRPGDev.Characters.Character do
       iex> ExTTRPGDev.Characters.Character.slugify("D'Artagnan the Bold")
       "dartagnan_the_bold"
 
+  Letters in any script are kept; anything that can't appear in a slug
+  (path separators, quotes, brackets, ...) is dropped, so the result is
+  always safe to use as a file name. Names with nothing usable slugify to
+  `""`, which the store rejects as an invalid slug.
+
+      iex> ExTTRPGDev.Characters.Character.slugify("Zoë")
+      "zoë"
+
+      iex> ExTTRPGDev.Characters.Character.slugify("../Sir 'Bob' [II]")
+      "sir_bob_ii"
+
   """
   def slugify(name) do
     name
     |> String.downcase()
     |> String.replace(~r/[!#$%&()*+,.:;<=>?@\^_`'{|}~-]/, "")
-    |> String.replace(" ", "_")
+    |> String.replace(~r/\s/u, "_")
+    |> String.replace(~r/[^\p{L}\p{M}\p{N}_]/u, "")
+    |> String.normalize(:nfc)
+    |> truncate_bytes(Slug.max_bytes())
+  end
+
+  # Cut at a grapheme boundary, so a multi-byte letter is never split.
+  defp truncate_bytes(slug, max) when byte_size(slug) <= max, do: slug
+
+  defp truncate_bytes(slug, max) do
+    slug
+    |> String.graphemes()
+    |> Enum.reduce_while("", fn g, acc ->
+      if byte_size(acc) + byte_size(g) <= max, do: {:cont, acc <> g}, else: {:halt, acc}
+    end)
   end
 end

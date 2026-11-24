@@ -359,4 +359,43 @@ defmodule ExTTRPGDevTest.Characters.Character do
 
     assert %Effect{target: {"ability", "dexterity", "total_score"}, value: -1} in restored.effects
   end
+
+  describe "slugify/1" do
+    test "always produces a valid slug, or an empty string" do
+      names = [
+        "Mr. Whiskers",
+        "Zoë",
+        "Éowyn",
+        "日本の剣士",
+        "a/b",
+        "..\\evil",
+        "Sir \"Bob\" [II]",
+        "tab\tname",
+        "zoe\u0308",
+        "!!!",
+        String.duplicate("ë", 500)
+      ]
+
+      for name <- names do
+        slug = Character.slugify(name)
+
+        assert slug == "" or ExTTRPGDev.Slug.valid?(slug),
+               "#{inspect(name)} slugified to invalid #{inspect(slug)}"
+      end
+    end
+
+    test "decomposed and composed spellings slugify identically" do
+      assert Character.slugify("Zoe\u0308") == Character.slugify("Zoë")
+    end
+
+    test "long names are truncated without splitting a letter" do
+      slug = Character.slugify(String.duplicate("ë", 500))
+      assert String.valid?(slug)
+      assert byte_size(slug) <= ExTTRPGDev.Slug.max_bytes()
+    end
+
+    test "whitespace of any kind becomes an underscore" do
+      assert Character.slugify("tab\tname") == "tab_name"
+    end
+  end
 end
