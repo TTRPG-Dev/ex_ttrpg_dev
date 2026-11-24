@@ -242,7 +242,8 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
     tmp = Path.join(root, ".tmp-#{System.unique_integer([:positive])}")
 
     with :ok <- Source.write(source, tmp),
-         :ok <- File.write(Path.join(tmp, @meta_file), meta_toml(entry)) do
+         {:ok, meta} <- encode_meta(entry),
+         :ok <- File.write(Path.join(tmp, @meta_file), meta) do
       {:ok, tmp}
     else
       error ->
@@ -251,8 +252,11 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
     end
   end
 
-  defp meta_toml(%Entry{is_modifiable: is_modifiable}) do
-    "is_modifiable = #{is_modifiable}\n"
+  # The .store.toml format: entry metadata that isn't part of the content.
+  # Encoded with the same library read_is_modifiable/1 decodes with, so
+  # fields added later (e.g. strings needing escaping) stay round-trippable.
+  defp encode_meta(%Entry{is_modifiable: is_modifiable}) do
+    TomlElixir.encode(%{"is_modifiable" => is_modifiable})
   end
 
   defp install(root, tmp, target, overwrite) do
