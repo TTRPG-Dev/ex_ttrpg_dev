@@ -9,8 +9,56 @@ defmodule ExTTRPGDev.Characters.Store do
   `characters_depending_on/2`, which is derived from listing and loading.
 
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
-  (e.g. `ExTTRPGDev.Characters.save_character!/2`). The default adapter is
-  `ExTTRPGDev.Characters.Store.FileSystem`.
+  (e.g. `ExTTRPGDev.Characters.save_character!/2`).
+
+  ## Choosing an adapter
+
+  The default adapter is `ExTTRPGDev.Characters.Store.FileSystem`, which
+  saves each character as a JSON file. A host application that keeps
+  characters elsewhere (e.g. a database) implements this behaviour and
+  names its module in config:
+
+      # config/config.exs
+      config :ex_ttrpg_dev, :characters_store, MyApp.CharacterStore
+
+      defmodule MyApp.CharacterStore do
+        @behaviour ExTTRPGDev.Characters.Store
+
+        alias ExTTRPGDev.Characters.Character
+
+        @impl true
+        def character_exists?(slug), do: MyApp.Repo.exists?(slug)
+
+        @impl true
+        def save_character(%Character{} = character, overwrite) do
+          # Store Jason.encode!(Character.to_json_map(character)) under
+          # character.metadata.slug; return {:error, :already_exists}
+          # when the slug is taken and overwrite is false.
+        end
+
+        @impl true
+        def delete_character(slug), do: # :ok | {:error, :not_found}
+
+        @impl true
+        def list_characters(), do: # {:ok, [slug, ...]}
+
+        @impl true
+        def load_character(slug) do
+          # Rebuild the stored JSON with Character.from_json/1, or
+          # return {:error, :not_found}.
+        end
+      end
+
+  The adapter is read at call time, so it can be changed while the
+  application is running (tests do this). Calls into
+  `ExTTRPGDev.Characters` are unchanged whichever adapter is configured.
+  `ExTTRPGDev.Characters.Character.to_json_map/1` and
+  `ExTTRPGDev.Characters.Character.from_json/1` are the same JSON
+  round-trip the filesystem adapter uses, so an adapter needn't track the
+  struct's fields itself.
+
+  Rule system content is pluggable the same way, through
+  `ExTTRPGDev.RuleSystem.Store`.
   """
 
   alias ExTTRPGDev.Characters.Character
@@ -45,13 +93,19 @@ defmodule ExTTRPGDev.Characters.Store do
               {:ok, Character.t()} | {:error, :not_found} | {:error, term()}
 
   @doc """
-  The store adapter in use: currently always
-  `ExTTRPGDev.Characters.Store.FileSystem`. Everything that reaches the
-  store goes through this function, so making it configurable is local
-  to it.
+  The store adapter in use: the module configured under
+  `:characters_store`, defaulting to
+  `ExTTRPGDev.Characters.Store.FileSystem`.
+
+  ## Examples
+      iex> ExTTRPGDev.Characters.Store.adapter()
+      ExTTRPGDev.Characters.Store.FileSystem
+
   """
   @spec adapter() :: module()
-  def adapter, do: ExTTRPGDev.Characters.Store.FileSystem
+  def adapter do
+    Application.get_env(:ex_ttrpg_dev, :characters_store, ExTTRPGDev.Characters.Store.FileSystem)
+  end
 
   @doc """
   Returns a boolean as to whether the character is saved.
