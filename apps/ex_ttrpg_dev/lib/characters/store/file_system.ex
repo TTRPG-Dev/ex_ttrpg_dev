@@ -1,4 +1,4 @@
-defmodule ExTTRPGDev.Characters.Store do
+defmodule ExTTRPGDev.Characters.Store.FileSystem do
   @moduledoc """
   Disk persistence for characters: file paths, existence checks, saving,
   loading, listing, and deletion under `Globals.characters_path()`.
