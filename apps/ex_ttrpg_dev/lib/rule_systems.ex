@@ -2,17 +2,32 @@ defmodule ExTTRPGDev.RuleSystems do
   @moduledoc """
   Public API for interacting with rule systems.
 
-  Rule systems are defined as directories of TOML files under `priv/system_configs/`
-  (bundled) or `local_system_configs/` (user-defined). Each system directory must
-  contain a `module.toml` manifest.
+  Every rule system is loaded from one store (`ExTTRPGDev.RuleSystem.Store`),
+  whatever its origin:
+
+  - **Bundled** systems ship in the library under `priv/system_configs/`.
+    They are releases that get installed into the store, by
+    `sync_bundled/0` or lazily the first time an uninstalled bundled slug
+    is loaded, and are stored non-modifiable.
+  - **Local** systems are user-authored (or cloned) systems in the store.
+    With the default filesystem store these are directories of TOML files
+    under `local_system_configs/`, each with a `module.toml` manifest.
+
+  Bundled and local systems share one slug namespace. If a local system
+  already holds a bundled system's slug, the local system wins: the
+  bundled release is skipped (with a logged warning) rather than
+  overwriting or shadowing it. Rename or clone the local system to
+  receive the bundled one.
   """
 
   alias ExTTRPGDev.Globals
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader}
-  alias ExTTRPGDev.RuleSystems.LoadedSystem
+  alias ExTTRPGDev.Characters.{Character, Metadata}
+  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Store}
+  alias ExTTRPGDev.RuleSystems.{Bundled, Installed, LoadedSystem}
 
   @doc """
-  Lists all available systems (bundled + local).
+  Lists all available systems: everything installed in the store, plus
+  bundled systems not yet installed (they install on first load).
 
   ## Examples
       iex> ExTTRPGDev.RuleSystems.list_systems() |> Enum.member?("dnd_5e_srd")
@@ -24,15 +39,49 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
-  Fetches all available systems (bundled + local).
+  Fetches all available systems: bundled systems first, then any other
+  installed systems.
 
-  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if either systems
-  directory exists but cannot be listed.
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the bundled
+  systems or the store cannot be listed.
   """
   def fetch_systems do
     with {:ok, bundled} <- fetch_bundled_systems(),
-         {:ok, local} <- fetch_local_systems() do
-      {:ok, bundled ++ local}
+         {:ok, entries} <- Store.adapter().list_entries() do
+      installed = entries |> Enum.map(& &1.slug) |> Enum.uniq()
+      {:ok, bundled ++ (installed -- bundled)}
+    end
+  end
+
+  @doc """
+  Fetches every installed system version with its stored metadata, as
+  `ExTTRPGDev.RuleSystem.Store.Entry` structs: `slug`, `version` (the
+  system's own content version), `library_requirement` (canonical content
+  only), and `is_modifiable`.
+
+  Unlike `fetch_systems/0`, this only reports what is installed: a bundled
+  system that hasn't been seeded yet isn't listed.
+
+  Returns `{:ok, [%Entry{}, ...]}` or `{:error, reason}`.
+  """
+  def fetch_installed_systems, do: Store.adapter().list_entries()
+
+  @doc """
+  Lists every installed system version with its stored metadata, raising
+  on failure. See `fetch_installed_systems/0`.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.load_system!("dnd_5e_srd")
+      iex> ExTTRPGDev.RuleSystems.list_installed_systems!()
+      ...> |> Enum.find(&(&1.slug == "dnd_5e_srd"))
+      ...> |> then(&{&1.is_modifiable, is_binary(&1.library_requirement)})
+      {false, true}
+
+  """
+  def list_installed_systems! do
+    case fetch_installed_systems() do
+      {:ok, entries} -> entries
+      {:error, reason} -> raise "Failed to list installed systems: #{inspect(reason)}"
     end
   end
 
@@ -42,9 +91,7 @@ defmodule ExTTRPGDev.RuleSystems do
   Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the bundled
   systems directory exists but cannot be listed.
   """
-  def fetch_bundled_systems do
-    fetch_systems_in(Globals.system_configs_path())
-  end
+  def fetch_bundled_systems, do: Bundled.list()
 
   @doc """
   Lists bundled systems shipped with the library, raising on failure.
@@ -68,14 +115,20 @@ defmodule ExTTRPGDev.RuleSystems do
   def list_bundled_systems, do: list_bundled_systems!()
 
   @doc """
-  Fetches user-defined local systems.
+  Fetches local systems: installed systems that aren't canonical content,
+  i.e. user-authored systems and clones.
 
-  Returns `{:ok, [slug, ...]}`, or `{:ok, []}` if the local systems
-  directory doesn't exist, or `{:error, reason}` if it exists but cannot
+  Returns `{:ok, [slug, ...]}`, or `{:error, reason}` if the store cannot
   be listed.
   """
   def fetch_local_systems do
-    fetch_systems_in(Globals.local_system_configs_path())
+    with {:ok, entries} <- Store.adapter().list_entries() do
+      {:ok,
+       entries
+       |> Enum.filter(&is_nil(&1.library_requirement))
+       |> Enum.map(& &1.slug)
+       |> Enum.uniq()}
+    end
   end
 
   @doc """
@@ -98,28 +151,6 @@ defmodule ExTTRPGDev.RuleSystems do
   @doc false
   @deprecated "Use list_local_systems!/0 instead; this always could raise despite no bang"
   def list_local_systems, do: list_local_systems!()
-
-  # Fetches the direct subdirectories of `base` that contain a `module.toml`,
-  # as {:ok, [slug, ...]}, or {:ok, []} if `base` itself doesn't exist.
-  # Shared by fetch_bundled_systems/0 and fetch_local_systems/0, which
-  # differ only in their base directory.
-  defp fetch_systems_in(base) do
-    if File.exists?(base) do
-      case File.ls(base) do
-        {:ok, entries} ->
-          {:ok,
-           Enum.filter(entries, fn name ->
-             File.dir?(Path.join(base, name)) and
-               File.exists?(Path.join([base, name, "module.toml"]))
-           end)}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:ok, []}
-    end
-  end
 
   @doc """
   Returns true if the system is a bundled system.
@@ -199,7 +230,11 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
-  Returns the filesystem path to the given system's directory.
+  Returns the filesystem path to the given system's source directory: the
+  bundled copy under `priv/system_configs/` for a bundled slug, otherwise
+  the flat directory a local system has (or would have) in the default
+  filesystem store. Systems are not *loaded* from this path; they're
+  loaded from the store.
 
   Never raises: an unconfigured slug still yields a (non-existent) path
   under the local systems directory, since this is also used to build the
@@ -223,10 +258,35 @@ defmodule ExTTRPGDev.RuleSystems do
   def system_path!(system), do: system_path(system)
 
   @doc """
+  Installs, updates, or replaces bundled systems in the store, per the
+  rules in `ExTTRPGDev.RuleSystems.Replacement`, logging every decision.
+
+  This is the only operation that replaces installed content; loading a
+  system never does. Hosts call it deliberately, e.g. at boot or as a
+  release step. See `ExTTRPGDev.RuleSystems.Sync`.
+
+  Returns `{:ok, [{slug, result}, ...]}` or `{:error, reason}`.
+  """
+  defdelegate sync_bundled(), to: ExTTRPGDev.RuleSystems.Sync, as: :sync_all
+
+  @doc """
   Loads, parses, and validates a rule system by slug.
 
+  Without a `version`, loads the newest installed version. With one,
+  loads the newest installed version on that version's release line (see
+  `ExTTRPGDev.RuleSystem.Versioning.same_release_line?/2`): a non-breaking
+  update replaces content in place, so asking for 1.1.0 after 1.2.0 was
+  installed loads 1.2.0. A local system (user-authored or cloned) has a
+  single version and is loaded whatever `version` is given.
+
+  If the slug is a bundled system with nothing installed, it's installed
+  first (see `sync_bundled/0`). Loading never replaces installed content.
+
   Returns `{:ok, %LoadedSystem{}}` containing the parsed module, validated
-  DAG, and all supporting data needed for evaluation, or `{:error, reason}`.
+  DAG, and all supporting data needed for evaluation, or `{:error, reason}`
+  (`{:not_configured, slug}` for an unknown slug,
+  `{:version_not_installed, slug, version}` when nothing on the requested
+  release line is installed).
 
   ## Examples
       iex> {:ok, system} = ExTTRPGDev.RuleSystems.load_system("dnd_5e_srd")
@@ -234,10 +294,9 @@ defmodule ExTTRPGDev.RuleSystems do
       true
 
   """
-  def load_system(system) when is_bitstring(system) do
-    path = system_path(system)
-
-    with {:ok, loader_data} <- Loader.load(path),
+  def load_system(system, version \\ nil) when is_bitstring(system) do
+    with {:ok, _entry, source} <- Installed.resolve(system, version),
+         {:ok, loader_data} <- Loader.load_source(source),
          {:ok, system_map} <- Graph.build(loader_data) do
       {:ok,
        %LoadedSystem{
@@ -253,6 +312,50 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
+  Copies a system's full content (module, concepts, character-building and
+  inventory-rules data) under `new_slug`, as a local system.
+
+  The clone is modifiable and has no `library_requirement`, so it is never
+  replaced by `sync_bundled/0`: cloning deliberately severs the link to
+  the library's versioning. Its `version` is kept, as a record of what it
+  was cloned from. This is how to change a non-modifiable system: clone
+  it, then `update_system/2` the clone.
+
+  Options:
+
+  - `:version` — clone the installed version on this release line rather
+    than the newest (see `load_system/2`).
+
+  Returns `{:ok, new_slug}`, `{:error, {:slug_taken, new_slug}}` if
+  `new_slug` is installed or is a bundled system's slug, or
+  `{:error, reason}` if the source can't be resolved or the clone can't be
+  stored.
+  """
+  defdelegate clone_system(source_slug, new_slug, opts \\ []), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
+  Edits an installed system in place: `update_fun` receives its current
+  `ExTTRPGDev.RuleSystem.Source` and returns the new one.
+
+  Only modifiable systems can be updated. A non-modifiable system (every
+  seeded bundled system, or one a host has locked) fails with
+  `{:error, {:not_modifiable, :clone_required}}` and is left untouched;
+  `clone_system/3` it first and update the clone. The library never clones
+  implicitly, so a caller can't end up editing a copy it didn't ask for.
+
+  The update may change content and `version`, but not the `slug` or the
+  `library_requirement`, and the result must load; otherwise
+  `{:error, {:invalid_update, reason}}` and nothing is stored.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.update_system("dnd_5e_srd", & &1)
+      {:error, {:not_modifiable, :clone_required}}
+
+  Returns `:ok` or `{:error, reason}`.
+  """
+  defdelegate update_system(slug, update_fun), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
   Loads, parses, and validates a rule system by slug, raising on failure.
 
   See `load_system/1` for the non-raising variant.
@@ -262,13 +365,33 @@ defmodule ExTTRPGDev.RuleSystems do
       true
 
   """
-  def load_system!(system) when is_bitstring(system) do
-    case load_system(system) do
+  def load_system!(system, version \\ nil) when is_bitstring(system) do
+    case load_system(system, version) do
       {:ok, loaded_system} ->
         loaded_system
 
       {:error, reason} ->
         raise "Failed to load rule system #{system}: #{inspect(reason)}"
     end
+  end
+
+  @doc """
+  Loads the rule system a character was built with, at the version it
+  recorded (see `load_system/2`). A character saved before versions were
+  recorded loads the newest installed version.
+
+  Returns `{:ok, %LoadedSystem{}}` or `{:error, reason}`.
+  """
+  def load_system_for(%Character{metadata: %Metadata{} = metadata}) do
+    load_system(metadata.rule_system, metadata.rule_system_version)
+  end
+
+  @doc """
+  Loads the rule system a character was built with, raising on failure.
+
+  See `load_system_for/1` for the non-raising variant.
+  """
+  def load_system_for!(%Character{metadata: %Metadata{} = metadata}) do
+    load_system!(metadata.rule_system, metadata.rule_system_version)
   end
 end

@@ -34,7 +34,7 @@ This is an Elixir umbrella project with two independently versioned apps:
 
 ### Rule Systems (TOML-driven DAG)
 
-Rule systems live in `priv/system_configs/{system_slug}/` (bundled) or `local_system_configs/{system_slug}/` (user-defined). Each system has a `module.toml` and concept files under `concepts/**/*.toml`.
+Rule systems are authored as `module.toml` plus concept files under `concepts/**/*.toml`. Bundled systems ship in `priv/system_configs/{system_slug}/`, but every system is *loaded* from one store (`RuleSystem.Store`, default adapter `Store.FileSystem` under `local_system_configs/`): bundled systems are seeded there non-modifiable (nested as `{slug}/{version}/`), and user-defined/cloned systems live flat at `{slug}/`. Replacement of installed content only happens via `RuleSystems.sync_bundled/0` (the engine calls it at startup), gated by `RuleSystems.Replacement`. Editing `priv/` content therefore needs a `version` bump to reach an existing store; tests use a per-run temp store.
 
 The evaluation pipeline:
 1. **`Loader`** — reads TOML, produces a node registry and effects list

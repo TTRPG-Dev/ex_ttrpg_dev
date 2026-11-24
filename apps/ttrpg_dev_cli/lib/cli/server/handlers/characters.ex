@@ -79,7 +79,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
     explicit_value = Map.get(msg, "value")
 
     case Characters.apply_award(system, character, award_id, explicit_value) do
@@ -104,7 +104,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
 
   def handle(%{"command" => "characters.choices", "character" => slug} = msg, state) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     {_effects, resolved} = Characters.resolved_state(system, character)
 
@@ -129,7 +129,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     case Characters.resolve_progression_choice(
            system,
@@ -159,7 +159,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     scope = {scope_type, scope_id}
     choice_def = Characters.fetch_choice_def!(system, scope, choice_id)
@@ -177,7 +177,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
 
   def handle(%{"command" => "characters.random_resolve", "character" => slug} = msg, state) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
 
     {:ok, %{slots: slots, errors: slot_errors}} =
       Characters.compute_pending_choice_slots(system, character)
@@ -204,7 +204,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
 
   def handle(%{"command" => "characters.show", "character" => slug} = msg, state) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
     data = Serializer.serialize_character(system, character, slug, Common.parse_display_mode(msg))
     {:ok, data, state}
   end
@@ -219,7 +219,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
         state
       ) do
     character = Characters.load_character!(slug)
-    system = RuleSystems.load_system!(character.metadata.rule_system)
+    system = RuleSystems.load_system_for!(character)
     result = Characters.concept_roll!(system, character, type_id, concept_id)
 
     concept_name =

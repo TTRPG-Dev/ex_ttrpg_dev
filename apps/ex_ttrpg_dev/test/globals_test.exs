@@ -1,5 +1,8 @@
 defmodule ExTTRPGDevTest.Globals do
-  use ExUnit.Case, async: true
+  # Not async: overrides the global :local_system_configs_path and
+  # :characters_path app env, which async tests loading rule systems read
+  # (see characters/store_test.exs for the same reasoning).
+  use ExUnit.Case
   alias ExTTRPGDev.Globals
 
   doctest ExTTRPGDev.Globals
@@ -23,8 +26,12 @@ defmodule ExTTRPGDevTest.Globals do
   end
 
   test "local_system_configs_path/0 returns the configured path when set" do
+    previous = Application.fetch_env!(:ex_ttrpg_dev, :local_system_configs_path)
     Application.put_env(:ex_ttrpg_dev, :local_system_configs_path, "/tmp/injected_systems")
-    on_exit(fn -> Application.delete_env(:ex_ttrpg_dev, :local_system_configs_path) end)
+
+    on_exit(fn ->
+      Application.put_env(:ex_ttrpg_dev, :local_system_configs_path, previous)
+    end)
 
     assert Globals.local_system_configs_path() == "/tmp/injected_systems"
   end

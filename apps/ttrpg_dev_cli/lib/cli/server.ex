@@ -75,7 +75,10 @@ defmodule ExTTRPGDev.CLI.Server do
   `characters.save` / `characters.build_finish` is called or the server exits.
   """
 
+  require Logger
+
   alias ExTTRPGDev.CLI.Server.Handlers
+  alias ExTTRPGDev.RuleSystems
 
   @type state :: %{
           pending: %{String.t() => ExTTRPGDev.Characters.Character.t()},
@@ -111,7 +114,50 @@ defmodule ExTTRPGDev.CLI.Server do
   }
 
   def run do
+    log_to_stderr()
+    Logger.configure(level: :info)
+    sync_rule_systems()
     loop(%{pending: %{}, next_id: 1})
+  end
+
+  # The engine is the host application for the library, so it decides when
+  # installed rule systems may be replaced: once, at startup, before any
+  # command is served, so content never changes under a session. A failed
+  # sync is logged but not fatal: installed systems still load, and an
+  # absent bundled system is still seeded on first load.
+  @doc false
+  def sync_rule_systems do
+    case RuleSystems.sync_bundled() do
+      {:ok, _results} -> :ok
+      {:error, reason} -> Logger.error("rule system sync failed: #{inspect(reason)}")
+    end
+
+    :ok
+  end
+
+  # stdout is the protocol channel: the frontend parses every line on it as
+  # a response, so a log line there would be read as a malformed response
+  # (or worse, consumed in place of the real one). Logger's default handler
+  # writes to standard_io, and a running handler's output type can't be
+  # changed, so the handler is replaced with one writing to stderr, which
+  # the frontend passes through to the user.
+  @doc false
+  def log_to_stderr do
+    with {:ok, %{config: %{type: :standard_io}} = handler} <-
+           :logger.get_handler_config(:default) do
+      :ok = :logger.remove_handler(:default)
+
+      :ok =
+        :logger.add_handler(
+          :default,
+          :logger_std_h,
+          handler
+          |> Map.take([:level, :filters, :filter_default, :formatter])
+          |> Map.put(:config, %{type: :standard_error})
+        )
+    end
+
+    :ok
   end
 
   # The single rescue boundary for command handling: any exception raised by a
