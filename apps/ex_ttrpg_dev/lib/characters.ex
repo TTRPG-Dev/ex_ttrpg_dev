@@ -31,7 +31,8 @@ defmodule ExTTRPGDev.Characters do
 
   Specific to the filesystem adapter,
   `ExTTRPGDev.Characters.Store.FileSystem`: returns the path that adapter
-  uses, even when a different adapter is configured.
+  uses, even when a different adapter is configured. Raises `ArgumentError`
+  if the slug isn't valid for that adapter (e.g. `"../x"`).
   """
   defdelegate character_file_path(character), to: FileSystem
 

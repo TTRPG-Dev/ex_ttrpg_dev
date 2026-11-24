@@ -217,4 +217,61 @@ defmodule ExTTRPGDevTest.Characters.Store do
                Characters.characters_depending_on("sys", "1.0.0")
     end
   end
+
+  describe "slug validation" do
+    defp named(slug) do
+      %Character{
+        name: slug,
+        generated_values: %{},
+        metadata: %Metadata{slug: slug, rule_system: "sys"}
+      }
+    end
+
+    test "slugs that could escape the characters directory never touch the filesystem" do
+      # A uniquely named file just outside the characters directory, which
+      # "../{name}" would reach if slugs weren't validated.
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+      name = "escape_target_#{System.unique_integer([:positive])}"
+      outside = Path.join(Path.dirname(dir), "#{name}.json")
+      File.mkdir_p!(dir)
+      File.write!(outside, "{}")
+      on_exit(fn -> File.rm(outside) end)
+      escaping = "../#{name}"
+
+      assert {:error, {:invalid_slug, ^escaping}} = Characters.delete_character(escaping)
+      assert {:error, {:invalid_slug, ^escaping}} = Characters.load_character(escaping)
+      refute Characters.character_exists?(escaping)
+      assert File.exists?(outside)
+
+      assert {:error, {:invalid_slug, "a/b"}} = Characters.save_character(named("a/b"))
+      assert_raise ArgumentError, fn -> Characters.character_file_path("../notes") end
+    end
+
+    test "bang variants raise naming the invalid slug" do
+      assert_raise RuntimeError, ~r/invalid_slug/, fn -> Characters.load_character!("../x") end
+
+      assert_raise RuntimeError, ~r/invalid_slug/, fn ->
+        Characters.save_character!(named("a/b"))
+      end
+    end
+
+    test "characters with slugs in any script round-trip" do
+      zoe = named("zoë")
+      assert :ok = Characters.save_character(zoe)
+      assert Characters.character_exists?("zoë")
+      assert {:ok, ^zoe} = Characters.load_character("zoë")
+      assert "zoë" in Characters.list_characters!()
+    end
+
+    test "list_characters/0 ignores files that aren't {valid_slug}.json" do
+      :ok = Characters.save_character(named("kept"))
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+
+      for stray <- [".tmp-123.json", "notes.txt", "has space.json", ".DS_Store"] do
+        File.write!(Path.join(dir, stray), "{}")
+      end
+
+      assert Characters.list_characters!() == ["kept"]
+    end
+  end
 end
