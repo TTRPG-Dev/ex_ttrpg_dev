@@ -164,6 +164,14 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystemTest do
     assert {:error, :not_found} = FileSystem.delete("sys", "2.0.0")
   end
 
+  test "slugs in any script are stored, listed and fetched" do
+    unicode = source("règles_maison", "draft")
+    :ok = put(unicode)
+
+    assert {:ok, [%Entry{slug: "règles_maison"}]} = FileSystem.list_entries()
+    assert {:ok, ^unicode} = FileSystem.fetch("règles_maison", "draft")
+  end
+
   test "slugs and versions that could escape the root are rejected" do
     assert {:error, {:invalid_slug, "../x"}} = put(source("../x", "draft"))
     assert {:error, {:invalid_version, "../1"}} = put(source("sys", "../1", "~> 0.15.0"))
