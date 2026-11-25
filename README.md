@@ -106,8 +106,9 @@ ttrpg-dev systems show dnd_5e_srd --concept-type skill
 # family and series), then add concept types and concepts by hand
 ttrpg-dev systems create
 
-# Copy a system (bundled or local) into a new, editable local one. Without
-# a slug, the copy is named <system>_copy_1, _copy_2, ...
+# Copy a system (bundled or local) into a new, editable local one, named
+# "<source name> (copy)". Without a slug, its slug is <system>_copy_1,
+# then _copy_2, ...
 ttrpg-dev systems copy dnd_5e_srd my_homebrew
 ttrpg-dev systems copy dnd_5e_srd
 
