@@ -1,12 +1,102 @@
 defmodule ExTTRPGDev.RuleSystems.Editing do
   @moduledoc false
-  # Implementation of RuleSystems.clone_system/3, update_system/2 and
-  # delete_system/1; see the documentation there.
+  # Implementation of RuleSystems.create_system/1, slug_from_name/1,
+  # clone_system/3, update_system/2 and delete_system/1; see the
+  # documentation there.
 
   alias ExTTRPGDev.RuleSystem.{Graph, Loader, Source, Store}
   alias ExTTRPGDev.RuleSystem.Store.Entry
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.{Dependents, Installed}
+
+  # The [module] keys create_system/1 accepts. Deliberately not every key
+  # module.toml allows: library_requirement would make the system look
+  # canonical, and the structural keys (level_node, custom_metadata_keys...)
+  # only mean something once there's content, which is authored afterwards.
+  @creatable_keys ~w(name slug version publisher family series)
+  @default_version "1.0.0"
+
+  def create_system(fields) when is_map(fields) do
+    with {:ok, module} <- new_module(fields),
+         :ok <- check_slug_free(module["slug"]),
+         source = %Source{module: %{"module" => module}},
+         :ok <- check_new_loads(source) do
+      case Store.adapter().put(Entry.from_source(source, true), source, false) do
+        :ok -> {:ok, module["slug"]}
+        {:error, :already_exists} -> {:error, {:slug_taken, module["slug"]}}
+        error -> error
+      end
+    end
+  end
+
+  def slug_from_name(name) when is_binary(name) do
+    name
+    |> String.downcase()
+    |> String.replace(~r/[\s-]+/u, "_")
+    |> String.replace(~r/[^a-z0-9_]/, "")
+    |> String.replace(~r/_+/, "_")
+    |> String.trim("_")
+  end
+
+  # Values are trimmed, and nil or blank values dropped, so an optional
+  # field left empty is omitted rather than stored as "".
+  defp new_module(fields) do
+    with :ok <- check_known_keys(fields),
+         {:ok, present} <- present_values(fields),
+         {:ok, name} <- fetch_name(present),
+         {:ok, slug} <- new_slug(present, name) do
+      {:ok,
+       present
+       |> Map.put("slug", slug)
+       |> Map.put_new("version", @default_version)}
+    end
+  end
+
+  defp check_known_keys(fields) do
+    case Enum.find(Map.keys(fields), &(&1 not in @creatable_keys)) do
+      nil -> :ok
+      key -> {:error, {:invalid_module, {:unknown_key, key}}}
+    end
+  end
+
+  defp present_values(fields) do
+    Enum.reduce_while(fields, {:ok, %{}}, fn
+      {_key, nil}, acc ->
+        {:cont, acc}
+
+      {key, value}, {:ok, acc} when is_binary(value) ->
+        case String.trim(value) do
+          "" -> {:cont, {:ok, acc}}
+          trimmed -> {:cont, {:ok, Map.put(acc, key, trimmed)}}
+        end
+
+      {key, value}, _acc ->
+        {:halt, {:error, {:invalid_module, {:not_a_string, key, value}}}}
+    end)
+  end
+
+  defp fetch_name(%{"name" => name}), do: {:ok, name}
+  defp fetch_name(_), do: {:error, {:invalid_module, {:missing_required_key, "name"}}}
+
+  # A given slug must already be in the form a derived one takes, so every
+  # created system's slug is safe as a directory name and in protocol args.
+  defp new_slug(%{"slug" => slug}, _name), do: check_slug_form(slug)
+  defp new_slug(_present, name), do: check_slug_form(slug_from_name(name))
+
+  defp check_slug_form(slug) do
+    if slug != "" and slug_from_name(slug) == slug,
+      do: {:ok, slug},
+      else: {:error, {:invalid_slug, slug}}
+  end
+
+  defp check_new_loads(source) do
+    with {:ok, data} <- Loader.load_source(source),
+         {:ok, _graph} <- Graph.build(data) do
+      :ok
+    else
+      {:error, reason} -> {:error, {:invalid_module, reason}}
+    end
+  end
 
   def clone_system(source_slug, new_slug, opts) do
     with :ok <- check_slug_free(new_slug),
@@ -139,9 +229,10 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
     end
   end
 
-  # A clone must not collide with an installed slug, nor with a bundled one
-  # that isn't installed yet: it would block that bundled system forever
-  # (local content wins a slug), which is never what cloning is for.
+  # A new system (created or cloned) must not collide with an installed
+  # slug, nor with a bundled one that isn't installed yet: it would block
+  # that bundled system forever (local content wins a slug), which is never
+  # what creating or cloning is for.
   defp check_slug_free(slug) do
     with {:ok, slugs} <- RuleSystems.fetch_systems() do
       if slug in slugs, do: {:error, {:slug_taken, slug}}, else: :ok

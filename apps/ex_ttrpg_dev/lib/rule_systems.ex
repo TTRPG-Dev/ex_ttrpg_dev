@@ -312,6 +312,59 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
+  Creates a new, empty local system from `[module]` metadata, ready for
+  content (concept types, concepts, character lists) to be authored.
+
+  `fields` is a map with string keys:
+
+  - `"name"` *(required)* — display name.
+  - `"slug"` *(optional)* — defaults to `slug_from_name/1` of the name. A
+    given slug must already be in that form (lowercase ASCII letters,
+    digits, single underscores).
+  - `"version"` *(optional)* — defaults to `"1.0.0"`. Free-form, as for
+    any local system.
+  - `"publisher"`, `"family"`, `"series"` *(optional)*.
+
+  Values are trimmed; `nil` or blank optional values are omitted from the
+  stored module rather than stored empty. The system is modifiable and has
+  no `library_requirement`, so it's never replaced by `sync_bundled/0`.
+
+  Returns `{:ok, slug}`, or `{:error, reason}`:
+
+  - `{:slug_taken, slug}` if the slug is installed or is a bundled
+    system's slug (as for `clone_system/3`).
+  - `{:invalid_slug, slug}` if a given slug isn't in slug form, or the name
+    yields an empty slug (e.g. it has no ASCII letters or digits).
+  - `{:invalid_module, reason}` for a missing name, an unknown key, a
+    non-string value, or a module that doesn't load.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.create_system(%{"name" => "SRD", "slug" => "dnd_5e_srd"})
+      {:error, {:slug_taken, "dnd_5e_srd"}}
+
+      iex> ExTTRPGDev.RuleSystems.create_system(%{"publisher" => "Acme Games"})
+      {:error, {:invalid_module, {:missing_required_key, "name"}}}
+
+  """
+  defdelegate create_system(fields), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
+  Derives a system slug from a display name: lowercased, runs of
+  whitespace and hyphens become one underscore, anything other than ASCII
+  letters, digits and underscores is removed, repeated underscores are
+  collapsed, and leading/trailing underscores trimmed.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.slug_from_name("My Fantasy System")
+      "my_fantasy_system"
+
+      iex> ExTTRPGDev.RuleSystems.slug_from_name("  Sci-Fi: Year 3000! ")
+      "sci_fi_year_3000"
+
+  """
+  defdelegate slug_from_name(name), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
   Copies a system's full content (module, concepts, character-building and
   inventory-rules data) under `new_slug`, as a local system.
 
