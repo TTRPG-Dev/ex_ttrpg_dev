@@ -133,10 +133,18 @@ defmodule ExTTRPGDev.RuleSystem.Store do
               {:ok, Source.t()} | {:error, :not_found} | {:error, term()}
 
   @doc """
-  Stores `source` as `entry`. With `overwrite` false, fails with
-  `{:error, :already_exists}` if that `{slug, version}` is installed;
-  with `overwrite` true, replaces it. Must be all-or-nothing: a failed or
+  Stores `source` as `entry`. Must be all-or-nothing: a failed or
   concurrent put never leaves a partially written entry visible.
+
+  With `overwrite` false, fails with `{:error, :already_exists}` if
+  anything already occupies the place the entry would be stored: an
+  installed `{slug, version}`, *or* anything else there that
+  `list_entries/0` doesn't report (e.g. leftover or half-written data).
+  The occupant must be left untouched. The library tells the two cases
+  apart by listing again, so `:already_exists` should be returned for
+  both, not a different error.
+
+  With `overwrite` true, replaces an installed entry.
   """
   @callback put(entry :: Entry.t(), source :: Source.t(), overwrite :: boolean()) ::
               :ok | {:error, :already_exists} | {:error, term()}

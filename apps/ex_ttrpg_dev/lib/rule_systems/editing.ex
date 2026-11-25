@@ -22,11 +22,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
          :ok <- check_slug_free(module["slug"]),
          source = %Source{module: %{"module" => module}},
          :ok <- check_new_loads(source) do
-      case Store.adapter().put(Entry.from_source(source, true), source, false) do
-        :ok -> {:ok, module["slug"]}
-        {:error, :already_exists} -> {:error, {:slug_taken, module["slug"]}}
-        error -> error
-      end
+      put_new(source, module["slug"])
     end
   end
 
@@ -112,13 +108,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   def clone_system(source_slug, new_slug, opts) do
     with :ok <- check_slug_free(new_slug),
          {:ok, _entry, source} <- Installed.resolve(source_slug, opts[:version]) do
-      clone = as_clone(source, new_slug)
-
-      case Store.adapter().put(Entry.from_source(clone, true), clone, false) do
-        :ok -> {:ok, new_slug}
-        {:error, :already_exists} -> {:error, {:slug_taken, new_slug}}
-        error -> error
-      end
+      put_new(as_clone(source, new_slug), new_slug)
     end
   end
 
@@ -247,6 +237,35 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp check_slug_free(slug) do
     with {:ok, slugs} <- RuleSystems.fetch_systems() do
       if slug in slugs, do: {:error, {:slug_taken, slug}}, else: :ok
+    end
+  end
+
+  # Stores a new (created or cloned) system as modifiable, never
+  # overwriting whatever the store already holds at its address.
+  defp put_new(%Source{} = source, slug) do
+    case Store.adapter().put(Entry.from_source(source, true), source, false) do
+      :ok -> {:ok, slug}
+      {:error, :already_exists} -> already_exists_error(slug)
+      error -> error
+    end
+  end
+
+  # check_slug_free/1 passed, yet the store has something at the slug's
+  # address. Either a system was stored there since (a concurrent create),
+  # or what's there isn't a system the store lists, e.g. a directory with
+  # no module.toml. Listing again tells them apart. If listing fails, the
+  # last successful listing (check_slug_free/1's, moments ago) had no such
+  # system, so :slug_occupied is the better answer: :slug_taken would claim
+  # a system exists that no listing has shown.
+  defp already_exists_error(slug) do
+    case Store.adapter().list_entries() do
+      {:ok, entries} ->
+        if Enum.any?(entries, &(&1.slug == slug)),
+          do: {:error, {:slug_taken, slug}},
+          else: {:error, {:slug_occupied, slug}}
+
+      {:error, _} ->
+        {:error, {:slug_occupied, slug}}
     end
   end
 

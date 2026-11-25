@@ -108,10 +108,13 @@ fn prompt_create_answers() -> Option<CreateAnswers> {
 /// version defaulted, by the engine; the CLI doesn't repeat those rules,
 /// and reports the version it stored rather than predicting it.
 ///
-/// Every error the engine can return for what this command sends is about
-/// the name (its slug is taken, empty or too long), so on one the user is
-/// asked for another name, keeping their other answers. Transport errors
-/// (the engine died) end the command instead.
+/// Every error the engine can return for what this command sends is
+/// resolved through the name: its slug is taken, empty or too long, or
+/// something that isn't a system occupies its directory. So on one the
+/// user is asked for another name, keeping their other answers. The
+/// occupied case can also be fixed by removing that directory and entering
+/// the *same* name again, so the retry must not refuse an unchanged name.
+/// Transport errors (the engine died) end the command instead.
 fn handle_systems_create(engine: &mut Engine) {
     let Some(mut a) = prompt_create_answers() else {
         println!("Not created.");

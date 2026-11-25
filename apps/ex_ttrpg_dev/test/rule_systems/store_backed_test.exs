@@ -208,6 +208,53 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     end
   end
 
+  describe "creating or cloning onto a directory that isn't a system" do
+    defp occupy(slug, files) do
+      dir = Path.join(ExTTRPGDev.Globals.local_system_configs_path(), slug)
+      File.mkdir_p!(dir)
+      for {name, contents} <- files, do: File.write!(Path.join(dir, name), contents)
+      dir
+    end
+
+    defp entries_in(dir), do: dir |> File.ls!() |> Enum.sort()
+
+    for {label, files} <- [
+          {"empty", []},
+          {"half-authored", [{"abilities.toml", "[ability.strength]\nname = \"Strength\"\n"}]}
+        ] do
+      test "#{label}: create says the slug is occupied, not taken, and leaves it alone" do
+        dir = occupy("homebrew", unquote(Macro.escape(files)))
+        before = entries_in(dir)
+
+        refute "homebrew" in RuleSystems.list_systems()
+
+        assert {:error, {:slug_occupied, "homebrew"}} =
+                 RuleSystems.create_system(%{"name" => "Homebrew"})
+
+        assert entries_in(dir) == before
+      end
+
+      test "#{label}: clone says the slug is occupied, not taken, and leaves it alone" do
+        dir = occupy("homebrew", unquote(Macro.escape(files)))
+        before = entries_in(dir)
+
+        capture_log(fn ->
+          assert {:error, {:slug_occupied, "homebrew"}} =
+                   RuleSystems.clone_system(@slug, "homebrew")
+        end)
+
+        assert entries_in(dir) == before
+      end
+    end
+
+    test "a real system there is still :slug_taken" do
+      {:ok, "homebrew"} = RuleSystems.create_system(%{"name" => "Homebrew"})
+
+      assert {:error, {:slug_taken, "homebrew"}} =
+               RuleSystems.create_system(%{"name" => "Homebrew"})
+    end
+  end
+
   describe "clone_system/3" do
     test "copies a non-modifiable system into a modifiable, non-canonical one", ctx do
       capture_log(fn ->
