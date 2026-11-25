@@ -93,6 +93,11 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
       :ok ->
         {:ok, tmp}
 
+      # The name is taken: the file is another writer's, not a leftover of
+      # this write, so it's left alone.
+      {:error, :eexist} ->
+        {:error, :eexist}
+
       {:error, reason} ->
         File.rm(tmp)
         {:error, reason}
