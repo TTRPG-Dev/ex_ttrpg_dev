@@ -139,15 +139,24 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   defp replace_aside(tmp, target) do
     aside = "#{target}.old-#{System.pid()}-#{System.unique_integer([:positive])}"
 
-    with :ok <- File.rename(target, aside) do
-      case File.rename(tmp, target) do
-        :ok ->
-          File.rm(aside)
-          :ok
+    case File.rename(target, aside) do
+      :ok ->
+        case File.rename(tmp, target) do
+          :ok ->
+            File.rm(aside)
+            :ok
 
-        {:error, reason} ->
-          restore(aside, target, reason)
-      end
+          {:error, reason} ->
+            restore(aside, target, reason)
+        end
+
+      # Already gone (e.g. a concurrent overwrite moved it aside first):
+      # nothing to replace, so this is a plain rename into place.
+      {:error, :enoent} ->
+        File.rename(tmp, target)
+
+      error ->
+        error
     end
   end
 
