@@ -2,7 +2,9 @@ defmodule ExTTRPGDev.CLI.ServerTest do
   use ExUnit.Case, async: false
 
   alias ExTTRPGDev.Characters
+  alias ExTTRPGDev.Characters.{Character, Metadata}
   alias ExTTRPGDev.CLI.Server
+  alias ExTTRPGDev.RuleSystems
 
   @initial_state %{pending: %{}, next_id: 1}
 
@@ -54,6 +56,76 @@ defmodule ExTTRPGDev.CLI.ServerTest do
 
     test "systems.show errors for unknown system" do
       assert run(%{"command" => "systems.show", "system" => "nonexistent"}).status == "error"
+    end
+  end
+
+  describe "systems.delete" do
+    # Delete checks every saved character, so point the characters store at
+    # an empty temp directory rather than whatever the working tree holds.
+    setup do
+      characters =
+        Path.join(System.tmp_dir!(), "ttrpg_cli_delete_#{System.unique_integer([:positive])}")
+
+      Application.put_env(:ex_ttrpg_dev, :characters_path, characters)
+
+      on_exit(fn ->
+        Application.delete_env(:ex_ttrpg_dev, :characters_path)
+        File.rm_rf!(characters)
+        RuleSystems.delete_system("delete_me")
+      end)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        {:ok, _} = RuleSystems.clone_system("dnd_5e_srd", "delete_me")
+      end)
+
+      :ok
+    end
+
+    test "deletes a local system and reports its path" do
+      data = run(%{"command" => "systems.delete", "system" => "delete_me"}).data
+      assert data.deleted == "delete_me"
+      assert data.path == Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "delete_me")
+      refute File.exists?(data.path)
+      refute RuleSystems.configured?("delete_me")
+    end
+
+    test "refuses a bundled system" do
+      response = run(%{"command" => "systems.delete", "system" => "dnd_5e_srd"})
+      assert response.status == "error"
+      assert response.message =~ "not modifiable"
+    end
+
+    test "refuses an unknown system" do
+      response = run(%{"command" => "systems.delete", "system" => "nonexistent"})
+      assert response.message == ~s(rule system not found: "nonexistent")
+    end
+
+    test "refuses while saved characters use it, listing them" do
+      for slug <- ["aria", "boblin"] do
+        :ok =
+          Characters.save_character(%Character{
+            name: slug,
+            generated_values: %{},
+            metadata: %Metadata{slug: slug, rule_system: "delete_me", rule_system_version: "x"}
+          })
+      end
+
+      response = run(%{"command" => "systems.delete", "system" => "delete_me"})
+      assert response.status == "error"
+      assert response.message =~ "2 saved character(s) use it: "
+      assert response.message =~ "aria"
+      assert response.message =~ "boblin"
+      assert RuleSystems.configured?("delete_me")
+    end
+
+    test "refuses when a character file can't be read" do
+      dir = ExTTRPGDev.Globals.characters_path()
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "corrupt.json"), "not json")
+
+      response = run(%{"command" => "systems.delete", "system" => "delete_me"})
+      assert response.message =~ "can't be read: corrupt"
+      assert RuleSystems.configured?("delete_me")
     end
   end
 
