@@ -88,6 +88,8 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp new_slug(%{"slug" => slug}, _name), do: check_slug(slug)
   defp new_slug(_present, name), do: check_slug(slug_from_name(name))
 
+  defp check_slug(slug) when not is_binary(slug), do: {:error, {:invalid_slug, slug}}
+
   defp check_slug(slug) do
     cond do
       slug == "" or slug_from_name(slug) != slug -> {:error, {:invalid_slug, slug}}
@@ -105,12 +107,20 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
     end
   end
 
+  # The new slug is held to the form create_system/1 requires, so a
+  # clone's slug can't be one no created system could have (uppercase,
+  # hyphens), and an over-long one gets {:slug_too_long, ...} rather than
+  # the store's generic {:invalid_slug, slug}.
   def clone_system(source_slug, new_slug, opts) do
-    with :ok <- check_slug_free(new_slug),
+    with {:ok, new_slug} <- check_slug(new_slug),
+         {:ok, overrides} <- present_values(Map.new(Keyword.take(opts, [:name]), &stringify/1)),
+         :ok <- check_slug_free(new_slug),
          {:ok, _entry, source} <- Installed.resolve(source_slug, opts[:version]) do
-      put_new(as_clone(source, new_slug), new_slug)
+      put_new(as_clone(source, new_slug, overrides), new_slug)
     end
   end
+
+  defp stringify({key, value}), do: {Atom.to_string(key), value}
 
   def update_system(slug, update_fun) when is_function(update_fun, 1) do
     with {:ok, entry, source} <- Installed.resolve(slug, nil),
@@ -271,10 +281,13 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
 
   # Cloning severs the link to the library's versioning: the clone isn't
   # canonical (no library_requirement), so it's never replaced by a sync.
-  # Its version is kept as a record of what it was cloned from.
-  defp as_clone(%Source{module: module_map} = source, new_slug) do
+  # Its version is kept as a record of what it was cloned from. overrides
+  # holds the [module] values the caller gave (only "name"), already
+  # trimmed with blanks dropped.
+  defp as_clone(%Source{module: module_map} = source, new_slug, overrides) do
     module =
       module_map["module"]
+      |> Map.merge(overrides)
       |> Map.put("slug", new_slug)
       |> Map.delete("library_requirement")
 

@@ -146,6 +146,120 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  describe "systems.copy" do
+    setup do
+      on_exit(fn ->
+        for slug <- RuleSystems.list_local_systems!(), do: RuleSystems.delete_system(slug)
+      end)
+    end
+
+    defp copy(cmd) do
+      ExUnit.CaptureLog.capture_log(fn -> send(self(), {:copied, run(cmd)}) end)
+      assert_received {:copied, response}
+      response
+    end
+
+    test "copies to the given slug, naming the copy after the source" do
+      data =
+        copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => "my_dnd"}).data
+
+      assert data == %{
+               copied: "dnd_5e_srd",
+               created: "my_dnd",
+               name: "Dungeons and Dragons 5th Edition SRD (copy)",
+               path: Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "my_dnd")
+             }
+
+      shown = run(%{"command" => "systems.show", "system" => "my_dnd"}).data
+      assert shown.slug == "my_dnd"
+      assert shown.name == data.name
+    end
+
+    test "without a slug, takes the first free <source>_copy_N" do
+      created =
+        for _ <- 1..2 do
+          copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd"}).data.created
+        end
+
+      assert created == ["dnd_5e_srd_copy_1", "dnd_5e_srd_copy_2"]
+    end
+
+    test "a null slug means none was given" do
+      response = copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => nil})
+      assert response.data.created == "dnd_5e_srd_copy_1"
+    end
+
+    test "skips a _copy_N slug something that isn't a system occupies" do
+      dir = Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "dnd_5e_srd_copy_1")
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      assert copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd"}).data.created ==
+               "dnd_5e_srd_copy_2"
+    end
+
+    test "refuses a given slug that is taken" do
+      response =
+        copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => "dnd_5e_srd"})
+
+      assert response.message == ~s(a rule system with slug "dnd_5e_srd" already exists)
+    end
+
+    test "refuses a malformed or too-long slug" do
+      response =
+        copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => "My-DnD"})
+
+      assert response.message =~ ~s(invalid slug "My-DnD")
+
+      long = String.duplicate("a", 250)
+      response = copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => long})
+      assert response.message == "the slug is too long: it's 250 bytes, and the limit is 200"
+    end
+
+    test "asks for a slug when the source's can't take a _copy_N suffix" do
+      long = String.duplicate("a", 195)
+      {:ok, ^long} = RuleSystems.create_system(%{"name" => "Long", "slug" => long})
+
+      response = copy(%{"command" => "systems.copy", "system" => long})
+
+      assert response.message ==
+               ~s(can't derive a slug for the copy from "#{long}"; ) <>
+                 "give one: systems copy #{long} <new_slug>"
+    end
+
+    test "copies a system whose content doesn't load" do
+      ExUnit.CaptureLog.capture_log(fn ->
+        {:ok, "draft"} = RuleSystems.clone_system("dnd_5e_srd", "draft", name: "Draft")
+      end)
+
+      concepts = Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "draft/concepts")
+      File.mkdir_p!(concepts)
+
+      File.write!(Path.join(concepts, "broken.toml"), """
+      [ability.broken]
+      name = "Broken"
+      score.type = "formula"
+      score.formula = "ability('nope').score"
+      """)
+
+      assert {:error, _} = RuleSystems.load_system("draft")
+
+      data = copy(%{"command" => "systems.copy", "system" => "draft", "slug" => "draft_fix"}).data
+      assert {data.created, data.name} == {"draft_fix", "Draft (copy)"}
+    end
+
+    test "refuses an unknown source" do
+      response = copy(%{"command" => "systems.copy", "system" => "nonexistent"})
+      assert response.message == ~s(rule system not found: "nonexistent")
+    end
+
+    test "rejects a slug that isn't a string" do
+      response = run(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => 7})
+      assert response.status == "error"
+      assert RuleSystems.list_local_systems!() == []
+    end
+  end
+
   describe "systems.delete" do
     # Delete checks every saved character, so point the characters store at
     # an empty temp directory rather than whatever the working tree holds.

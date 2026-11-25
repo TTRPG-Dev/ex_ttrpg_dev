@@ -4,7 +4,7 @@ use crate::display;
 use crate::engine::{Engine, EngineError};
 use crate::prompts::{prompt_loop, prompt_nonempty_string, prompt_yes_no};
 use crate::protocol::{
-    ConceptsList, CreatedSystem, DeletedSystem, Request, SystemInfo, SystemsList,
+    ConceptsList, CopiedSystem, CreatedSystem, DeletedSystem, Request, SystemInfo, SystemsList,
 };
 
 pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
@@ -18,6 +18,11 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
         ["create"] => handle_systems_create(engine),
         ["create", extra, ..] => {
             eprintln!("Unexpected argument '{extra}'. Try `systems create --help`.")
+        }
+        ["copy", system] => handle_systems_copy(system, None, engine),
+        ["copy", system, slug] => handle_systems_copy(system, Some(slug), engine),
+        ["copy", ..] => {
+            eprintln!("Expected a system and an optional new slug. Try `systems copy --help`.")
         }
         ["delete", rest @ ..] => match parse_delete_args(rest) {
             Ok(args) => handle_systems_delete(args, engine),
@@ -146,6 +151,19 @@ fn print_created(r: &CreatedSystem) {
         Some(v) => println!("Created rule system {} version {v}: {}", r.created, r.path),
         None => println!("Created rule system {}: {}", r.created, r.path),
     }
+}
+
+/// The engine picks the slug when none is given, names the copy, and
+/// refuses a taken or malformed slug; the CLI repeats none of those rules.
+fn handle_systems_copy(system: &str, slug: Option<&str>, engine: &mut Engine) {
+    let req = Request::SystemsCopy { system, slug };
+    let Some(r) = call_or_report::<CopiedSystem>(engine, &req) else {
+        return;
+    };
+    println!(
+        "Copied {} to {} (\"{}\"): {}",
+        r.copied, r.created, r.name, r.path
+    );
 }
 
 #[derive(Debug, PartialEq)]

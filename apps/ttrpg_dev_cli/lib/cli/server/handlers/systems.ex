@@ -1,13 +1,15 @@
 defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   @moduledoc """
-  Handles the `systems.*` commands: listing, inspecting, creating, and
-  deleting rule systems.
+  Handles the `systems.*` commands: listing, inspecting, creating, copying
+  and deleting rule systems.
   """
 
   alias ExTTRPGDev.CLI.Serializer
   alias ExTTRPGDev.Globals
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.Dependents
+
+  defguardp is_optional_string(value) when is_binary(value) or is_nil(value)
 
   def handle(%{"command" => "systems.list"}, state) do
     {:ok, %{systems: RuleSystems.list_systems()}, state}
@@ -53,6 +55,18 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
     end
   end
 
+  # Without a "slug" (or with null, as create treats nil fields), the copy
+  # takes the first free <source>_copy_N. Any other non-string "slug"
+  # matches neither clause, so it's refused as invalid arguments rather
+  # than reaching the library.
+  def handle(%{"command" => "systems.copy", "system" => source, "slug" => slug}, state)
+      when is_binary(source) and is_optional_string(slug),
+      do: copy(source, slug, state)
+
+  def handle(%{"command" => "systems.copy", "system" => source} = cmd, state)
+      when is_binary(source) and not is_map_key(cmd, "slug"),
+      do: copy(source, nil, state)
+
   def handle(%{"command" => "systems.delete", "system" => slug}, state) do
     case RuleSystems.delete_system(slug) do
       # The engine always uses the default filesystem store, where a
@@ -79,22 +93,8 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
     end
   end
 
-  defp create_error_message(_fields, {:slug_taken, slug}),
-    do: "a rule system with slug #{inspect(slug)} already exists"
-
-  # The engine always uses the filesystem store, so the slug is occupied
-  # at (or, on a case-insensitive filesystem, by a differently cased name
-  # matching) the directory a new system would be written to. The message
-  # says only what's certain: something is there and isn't listed as a
-  # system. It may be empty, lack a module.toml, or be a real system under
-  # a name that isn't a valid slug (e.g. "Homebrew/" on macOS).
-  defp create_error_message(_fields, {:slug_occupied, slug}) do
-    dir = Path.join(Globals.local_system_configs_path(), slug)
-
-    "something already exists at #{dir} (or a differently cased name) " <>
-      "that isn't a listed rule system, e.g. a directory with no module.toml. " <>
-      "Remove or rename it, or choose another name."
-  end
+  defp create_error_message(_fields, {tag, _} = reason) when tag in [:slug_taken, :slug_occupied],
+    do: new_slug_error_message(reason)
 
   defp create_error_message(fields, {:invalid_slug, ""}),
     do:
@@ -108,8 +108,8 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
       "and the limit is #{max_bytes}. Try a shorter #{what}."
   end
 
-  defp create_error_message(_fields, {:invalid_slug, slug}),
-    do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
+  defp create_error_message(_fields, {:invalid_slug, _} = reason),
+    do: new_slug_error_message(reason)
 
   defp create_error_message(_fields, {:invalid_module, {:missing_required_key, key}}),
     do: "#{key} is required"
@@ -122,6 +122,106 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   defp create_error_message(_fields, reason),
     do: "cannot create rule system: #{inspect(reason)}"
+
+  # Why a slug for a new (created or copied) system was refused, for the
+  # reasons that don't depend on what the user typed to get that slug.
+  defp new_slug_error_message({:slug_taken, slug}),
+    do: "a rule system with slug #{inspect(slug)} already exists"
+
+  # The engine always uses the filesystem store, so the slug is occupied
+  # at (or, on a case-insensitive filesystem, by a differently cased name
+  # matching) the directory a new system would be written to. The message
+  # says only what's certain: something is there and isn't listed as a
+  # system. It may be empty, lack a module.toml, or be a real system under
+  # a name that isn't a valid slug (e.g. "Homebrew/" on macOS).
+  defp new_slug_error_message({:slug_occupied, slug}) do
+    dir = Path.join(Globals.local_system_configs_path(), slug)
+
+    "something already exists at #{dir} (or a differently cased name) " <>
+      "that isn't a listed rule system, e.g. a directory with no module.toml. " <>
+      "Remove or rename it, or choose another name."
+  end
+
+  defp new_slug_error_message({:invalid_slug, slug}),
+    do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
+
+  # The source's name is read first, which also reports an unknown source
+  # before any slug is tried. Only its module.toml is read, not loaded as a
+  # whole: copying a system whose content doesn't load (to fix it in the
+  # copy) must work, since clone_system/3 doesn't need it to load either.
+  defp copy(source, new_slug, state) do
+    with {:ok, name} <- copy_name(source),
+         {:ok, slug} <- copy_to(source, new_slug, name) do
+      path = Path.join(Globals.local_system_configs_path(), slug)
+      {:ok, %{copied: source, created: slug, name: name, path: path}, state}
+    else
+      {:error, reason} -> {:error, copy_error_message(source, new_slug, reason)}
+    end
+  end
+
+  # A module.toml that doesn't parse has no name to trust, so the copy is
+  # named after the slug instead; the copy is still worth making.
+  defp copy_name(source) do
+    case RuleSystems.fetch_module(source) do
+      {:ok, module} -> {:ok, "#{module.name} (copy)"}
+      {:error, {:module_parse_error, _}} -> {:ok, "#{source} (copy)"}
+      error -> error
+    end
+  end
+
+  # The slugs are listed once and the listed ones skipped without a clone
+  # attempt, since each attempt lists and resolves again. clone_system/3
+  # still has the last word: a slug occupied by something that isn't a
+  # system isn't listed, and one may be taken after the listing.
+  defp copy_to(source, nil, name) do
+    with {:ok, slugs} <- RuleSystems.fetch_systems() do
+      copy_to_next_free(source, name, 1, MapSet.new(slugs))
+    end
+  end
+
+  defp copy_to(source, slug, name), do: RuleSystems.clone_system(source, slug, name: name)
+
+  # Each refused candidate is a system or something occupying its
+  # directory, so this ends after at most that many tries.
+  defp copy_to_next_free(source, name, n, listed) do
+    slug = "#{source}_copy_#{n}"
+
+    if MapSet.member?(listed, slug),
+      do: copy_to_next_free(source, name, n + 1, listed),
+      else: try_copy_to(source, name, n, listed)
+  end
+
+  defp try_copy_to(source, name, n, listed) do
+    case RuleSystems.clone_system(source, "#{source}_copy_#{n}", name: name) do
+      {:error, {tag, _}} when tag in [:slug_taken, :slug_occupied] ->
+        copy_to_next_free(source, name, n + 1, listed)
+
+      result ->
+        result
+    end
+  end
+
+  defp copy_error_message(source, _new_slug, {:not_configured, _}),
+    do: "rule system not found: #{inspect(source)}"
+
+  defp copy_error_message(_source, slug, {tag, _} = reason)
+       when slug != nil and tag in [:slug_taken, :slug_occupied, :invalid_slug],
+       do: new_slug_error_message(reason)
+
+  defp copy_error_message(_source, slug, {:slug_too_long, _, max_bytes}) when slug != nil,
+    do: "the slug is too long: it's #{byte_size(slug)} bytes, and the limit is #{max_bytes}"
+
+  # Only reachable without a given slug, when the source's own slug can't
+  # take a _copy_N suffix: it's an older slug not in today's form, or it's
+  # near the length limit.
+  defp copy_error_message(source, nil, reason)
+       when elem(reason, 0) in [:invalid_slug, :slug_too_long] do
+    "can't derive a slug for the copy from #{inspect(source)}; " <>
+      "give one: systems copy #{source} <new_slug>"
+  end
+
+  defp copy_error_message(source, _new_slug, reason),
+    do: "cannot copy rule system #{inspect(source)}: #{inspect(reason)}"
 
   defp delete_error_message(slug, :not_modifiable),
     do: "rule system #{inspect(slug)} is not modifiable (bundled systems can't be deleted)"

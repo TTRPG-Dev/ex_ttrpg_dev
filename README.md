@@ -106,7 +106,13 @@ ttrpg-dev systems show dnd_5e_srd --concept-type skill
 # family and series), then add concept types and concepts by hand
 ttrpg-dev systems create
 
-# Delete a local (user-made or cloned) system; bundled systems can't be
+# Copy a system (bundled or local) into a new, editable local one, named
+# "<source name> (copy)". Without a slug, its slug is <system>_copy_1,
+# then _copy_2, ...
+ttrpg-dev systems copy dnd_5e_srd my_homebrew
+ttrpg-dev systems copy dnd_5e_srd
+
+# Delete a local (user-made or copied) system; bundled systems can't be
 # deleted, nor can a system that saved characters still use
 ttrpg-dev systems delete my_homebrew
 ```

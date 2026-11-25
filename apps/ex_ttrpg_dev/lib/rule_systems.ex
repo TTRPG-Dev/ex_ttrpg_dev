@@ -312,6 +312,33 @@ defmodule ExTTRPGDev.RuleSystems do
   end
 
   @doc """
+  Reads a rule system's `module.toml` metadata (name, slug, version,
+  publisher, concept types, ...) without loading the rest of it.
+
+  Unlike `load_system/2`, the concepts aren't parsed and no DAG is built,
+  so this succeeds for a system whose content doesn't load yet, e.g. one
+  being authored. `version` selects the installed version as for
+  `load_system/2`, and a bundled system with nothing installed is
+  installed first.
+
+  Returns `{:ok, %RuleModule{}}`, or `{:error, reason}`:
+  `{:not_configured, slug}` for an unknown slug,
+  `{:version_not_installed, slug, version}` as for `load_system/2`, or
+  `{:module_parse_error, reason}` if `module.toml` itself is invalid.
+
+  ## Examples
+      iex> {:ok, module} = ExTTRPGDev.RuleSystems.fetch_module("dnd_5e_srd")
+      iex> module.slug
+      "dnd_5e_srd"
+
+  """
+  def fetch_module(system, version \\ nil) when is_bitstring(system) do
+    with {:ok, _entry, source} <- Installed.resolve(system, version) do
+      Loader.build_module(source)
+    end
+  end
+
+  @doc """
   Creates a new, empty local system from `[module]` metadata, ready for
   content (concept types, concepts, character lists) to be authored.
 
@@ -392,13 +419,25 @@ defmodule ExTTRPGDev.RuleSystems do
 
   - `:version` — clone the installed version on this release line rather
     than the newest (see `load_system/2`).
+  - `:name` — the clone's display name. Trimmed; when omitted, `nil` or
+    blank, the clone keeps the source's name.
 
-  Returns `{:ok, new_slug}`, `{:error, {:slug_taken, new_slug}}` if
-  `new_slug` is installed or is a bundled system's slug,
-  `{:error, {:slug_occupied, new_slug}}` if the store already holds
-  something that isn't a system where it would go (see `create_system/1`),
-  or `{:error, reason}` if the source can't be resolved or the clone can't be
-  stored.
+  `new_slug` must be in slug form, as a slug given to `create_system/1`
+  must (lowercase letters and digits in any script, single underscores).
+
+  Returns `{:ok, new_slug}`, or `{:error, reason}`:
+
+  - `{:invalid_slug, new_slug}` if `new_slug` isn't a string in slug form.
+  - `{:slug_too_long, new_slug, max_bytes}` if it's longer than
+    `max_bytes` bytes of UTF-8.
+  - `{:slug_taken, new_slug}` if it's installed or is a bundled system's
+    slug.
+  - `{:slug_occupied, new_slug}` if the store already holds something that
+    isn't a system where it would go (see `create_system/1`).
+  - `{:invalid_module, {:not_a_string, "name", name}}` if `:name` isn't a
+    string.
+  - any other reason if the source can't be resolved or the clone can't be
+    stored.
   """
   defdelegate clone_system(source_slug, new_slug, opts \\ []), to: ExTTRPGDev.RuleSystems.Editing
 

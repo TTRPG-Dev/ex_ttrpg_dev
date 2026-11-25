@@ -255,6 +255,52 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     end
   end
 
+  # A system whose module.toml is fine but whose content doesn't build: a
+  # formula refers to a node that doesn't exist.
+  defp broken_copy(bundled, slug) do
+    concept =
+      {"concepts/broken.toml",
+       %{
+         "ability" => %{
+           "broken" => %{
+             "name" => "Broken",
+             "score" => %{
+               "type" => "formula",
+               "formula" => "ability('nope').score"
+             }
+           }
+         }
+       }}
+
+    local_copy(bundled, slug, "draft") |> Map.update!(:concepts, &[concept | &1])
+  end
+
+  describe "fetch_module/2" do
+    test "reads the module of a system whose content doesn't load", ctx do
+      install(broken_copy(ctx.bundled, "broken"), true)
+
+      assert {:error, _} = RuleSystems.load_system("broken")
+
+      assert {:ok, %{slug: "broken", version: "draft", name: name}} =
+               RuleSystems.fetch_module("broken")
+
+      assert name == ctx.bundled.module["module"]["name"]
+    end
+
+    test "reports an invalid module.toml and an unknown slug", ctx do
+      install(
+        update_in(
+          local_copy(ctx.bundled, "nameless", "x").module["module"],
+          &Map.delete(&1, "name")
+        ),
+        true
+      )
+
+      assert {:error, {:module_parse_error, _}} = RuleSystems.fetch_module("nameless")
+      assert {:error, {:not_configured, "nope"}} = RuleSystems.fetch_module("nope")
+    end
+  end
+
   describe "clone_system/3" do
     test "copies a non-modifiable system into a modifiable, non-canonical one", ctx do
       capture_log(fn ->
@@ -293,6 +339,48 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
 
     test "fails for an unknown source" do
       assert {:error, {:not_configured, "nope"}} = RuleSystems.clone_system("nope", "x")
+    end
+
+    test "keeps the source's name unless given one", ctx do
+      source_name = ctx.bundled.module["module"]["name"]
+
+      capture_log(fn ->
+        {:ok, _} = RuleSystems.clone_system(@slug, "kept")
+        {:ok, _} = RuleSystems.clone_system(@slug, "blank", name: "  ")
+        {:ok, _} = RuleSystems.clone_system(@slug, "renamed", name: "  My DnD ")
+      end)
+
+      names =
+        Map.new(~w(kept blank renamed), fn slug ->
+          {:ok, %LoadedSystem{module: module}} = RuleSystems.load_system(slug)
+          {slug, module.name}
+        end)
+
+      assert names == %{"kept" => source_name, "blank" => source_name, "renamed" => "My DnD"}
+    end
+
+    test "refuses a name that isn't a string, storing nothing" do
+      assert {:error, {:invalid_module, {:not_a_string, "name", 7}}} =
+               RuleSystems.clone_system(@slug, "my_dnd", name: 7)
+
+      assert RuleSystems.list_local_systems!() == []
+    end
+
+    test "refuses a new slug create_system/1 would refuse, storing nothing" do
+      too_long = String.duplicate("a", 201)
+
+      for {slug, reason} <- [
+            {"My-DnD", {:invalid_slug, "My-DnD"}},
+            {"", {:invalid_slug, ""}},
+            {"_dnd", {:invalid_slug, "_dnd"}},
+            {nil, {:invalid_slug, nil}},
+            {7, {:invalid_slug, 7}},
+            {too_long, {:slug_too_long, too_long, 200}}
+          ] do
+        assert {:error, ^reason} = RuleSystems.clone_system(@slug, slug)
+      end
+
+      assert RuleSystems.list_local_systems!() == []
     end
   end
 

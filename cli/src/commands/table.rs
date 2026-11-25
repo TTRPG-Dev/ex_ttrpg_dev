@@ -57,6 +57,12 @@ pub(crate) static COMMAND_TABLE: &[CommandSpec] = &[
         completion: Completion::None,
     },
     CommandSpec {
+        path: "systems copy",
+        usage: "systems copy <system> [new_slug]",
+        summary: "Copy a rule system into a new local one (default slug <system>_copy_N)",
+        completion: Completion::System,
+    },
+    CommandSpec {
         path: "systems delete",
         usage: "systems delete <system> [-y|--yes]",
         summary: "Delete a local rule system (confirms unless --yes)",
@@ -242,6 +248,7 @@ mod tests {
         "systems list",
         "systems show",
         "systems create",
+        "systems copy",
         "systems delete",
         "characters list",
         "characters gen",
