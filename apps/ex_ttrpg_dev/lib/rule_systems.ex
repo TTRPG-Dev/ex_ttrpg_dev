@@ -392,6 +392,8 @@ defmodule ExTTRPGDev.RuleSystems do
 
   - `:version` — clone the installed version on this release line rather
     than the newest (see `load_system/2`).
+  - `:name` — the clone's display name. Trimmed; when omitted, `nil` or
+    blank, the clone keeps the source's name.
 
   `new_slug` must be in slug form, as a slug given to `create_system/1`
   must (lowercase letters and digits in any script, single underscores).
@@ -405,6 +407,8 @@ defmodule ExTTRPGDev.RuleSystems do
     slug.
   - `{:slug_occupied, new_slug}` if the store already holds something that
     isn't a system where it would go (see `create_system/1`).
+  - `{:invalid_module, {:not_a_string, "name", name}}` if `:name` isn't a
+    string.
   - any other reason if the source can't be resolved or the clone can't be
     stored.
   """

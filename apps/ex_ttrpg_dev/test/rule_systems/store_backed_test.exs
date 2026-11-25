@@ -295,6 +295,31 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
       assert {:error, {:not_configured, "nope"}} = RuleSystems.clone_system("nope", "x")
     end
 
+    test "keeps the source's name unless given one", ctx do
+      source_name = ctx.bundled.module["module"]["name"]
+
+      capture_log(fn ->
+        {:ok, _} = RuleSystems.clone_system(@slug, "kept")
+        {:ok, _} = RuleSystems.clone_system(@slug, "blank", name: "  ")
+        {:ok, _} = RuleSystems.clone_system(@slug, "renamed", name: "  My DnD ")
+      end)
+
+      names =
+        Map.new(~w(kept blank renamed), fn slug ->
+          {:ok, %LoadedSystem{module: module}} = RuleSystems.load_system(slug)
+          {slug, module.name}
+        end)
+
+      assert names == %{"kept" => source_name, "blank" => source_name, "renamed" => "My DnD"}
+    end
+
+    test "refuses a name that isn't a string, storing nothing" do
+      assert {:error, {:invalid_module, {:not_a_string, "name", 7}}} =
+               RuleSystems.clone_system(@slug, "my_dnd", name: 7)
+
+      assert RuleSystems.list_local_systems!() == []
+    end
+
     test "refuses a new slug create_system/1 would refuse, storing nothing" do
       too_long = String.duplicate("a", 201)
 
