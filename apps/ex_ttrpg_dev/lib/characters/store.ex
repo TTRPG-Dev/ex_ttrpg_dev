@@ -196,24 +196,26 @@ defmodule ExTTRPGDev.Characters.Store do
   """
   def characters_depending_on(rule_system, version)
       when is_bitstring(rule_system) and is_bitstring(version) do
+    find_characters(&depends_on?(&1, rule_system, version))
+  end
+
+  # Loads every saved character and returns the slugs of those matching
+  # `match?`. Fails closed: if any character can't be read, the result
+  # would be incomplete, so the unreadable ones are reported instead.
+  defp find_characters(match?) do
     with {:ok, slugs} <- list_characters() do
       slugs
       |> Enum.map(&{&1, load_character(&1)})
-      |> collect_dependents(rule_system, version)
+      |> collect_matching(match?)
     end
   end
 
-  defp collect_dependents(loaded, rule_system, version) do
+  defp collect_matching(loaded, match?) do
     {unreadable, characters} =
       Enum.split_with(loaded, fn {_slug, result} -> match?({:error, _}, result) end)
 
     if unreadable == [] do
-      dependents =
-        for {slug, {:ok, character}} <- characters,
-            depends_on?(character, rule_system, version),
-            do: slug
-
-      {:ok, dependents}
+      {:ok, for({slug, {:ok, character}} <- characters, match?.(character), do: slug)}
     else
       {:error,
        {:unreadable_characters, Enum.map(unreadable, fn {slug, {:error, r}} -> {slug, r} end)}}
