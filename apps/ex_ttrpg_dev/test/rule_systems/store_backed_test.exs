@@ -195,7 +195,11 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
              {:invalid_module, {:unknown_key, "level_node"}}},
             {%{"name" => "X", "library_requirement" => "~> 0.1"},
              {:invalid_module, {:unknown_key, "library_requirement"}}},
-            {%{"name" => 3}, {:invalid_module, {:not_a_string, "name", 3}}}
+            {%{"name" => 3}, {:invalid_module, {:not_a_string, "name", 3}}},
+            {%{"name" => String.duplicate("a", 201)},
+             {:slug_too_long, String.duplicate("a", 201), 200}},
+            {%{"name" => String.duplicate("é", 101)},
+             {:slug_too_long, String.duplicate("é", 101), 200}}
           ] do
         assert {:error, ^error} = RuleSystems.create_system(fields)
       end

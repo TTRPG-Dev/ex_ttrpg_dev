@@ -76,6 +76,13 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
       "can't derive a slug from name #{inspect(fields["name"])}: " <>
         "it needs at least one letter or digit"
 
+  defp create_error_message(fields, {:slug_too_long, slug, max_bytes}) do
+    what = if Map.has_key?(fields, "slug"), do: "slug", else: "name"
+
+    "the #{what} is too long: its slug would be #{byte_size(slug)} bytes, " <>
+      "and the limit is #{max_bytes}. Try a shorter #{what}."
+  end
+
   defp create_error_message(_fields, {:invalid_slug, slug}),
     do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
 

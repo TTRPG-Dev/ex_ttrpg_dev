@@ -8,6 +8,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   alias ExTTRPGDev.RuleSystem.Store.Entry
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.{Dependents, Installed}
+  alias ExTTRPGDev.Slug
 
   # The [module] keys create_system/1 accepts. Deliberately not every key
   # module.toml allows: library_requirement would make the system look
@@ -85,13 +86,18 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
 
   # A given slug must already be in the form a derived one takes, so every
   # created system's slug is safe as a directory name and in protocol args.
-  defp new_slug(%{"slug" => slug}, _name), do: check_slug_form(slug)
-  defp new_slug(_present, name), do: check_slug_form(slug_from_name(name))
+  # The length is checked here, against the limit the store enforces, so
+  # an over-long name gets its own error rather than the store's generic
+  # {:invalid_slug, slug}, which would suggest the characters are wrong.
+  defp new_slug(%{"slug" => slug}, _name), do: check_slug(slug)
+  defp new_slug(_present, name), do: check_slug(slug_from_name(name))
 
-  defp check_slug_form(slug) do
-    if slug != "" and slug_from_name(slug) == slug,
-      do: {:ok, slug},
-      else: {:error, {:invalid_slug, slug}}
+  defp check_slug(slug) do
+    cond do
+      slug == "" or slug_from_name(slug) != slug -> {:error, {:invalid_slug, slug}}
+      byte_size(slug) > Slug.max_bytes() -> {:error, {:slug_too_long, slug, Slug.max_bytes()}}
+      true -> {:ok, slug}
+    end
   end
 
   defp check_new_loads(source) do

@@ -104,6 +104,14 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert response.message =~ ~s(can't derive a slug from name "!!!")
     end
 
+    test "explains a name too long for a slug" do
+      response = run(%{"command" => "systems.create", "name" => String.duplicate("a", 250)})
+
+      assert response.message ==
+               "the name is too long: its slug would be 250 bytes, " <>
+                 "and the limit is 200. Try a shorter name."
+    end
+
     test "requires a name" do
       response = run(%{"command" => "systems.create", "publisher" => "Acme"})
       assert response.message == "name is required"

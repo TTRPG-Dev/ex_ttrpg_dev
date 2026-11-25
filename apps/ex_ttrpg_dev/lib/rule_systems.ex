@@ -335,6 +335,8 @@ defmodule ExTTRPGDev.RuleSystems do
     system's slug (as for `clone_system/3`).
   - `{:invalid_slug, slug}` if a given slug isn't in slug form, or the name
     yields an empty slug (it has no letters or digits).
+  - `{:slug_too_long, slug, max_bytes}` if the slug (given or derived) is
+    longer than `max_bytes` bytes of UTF-8, the most a store accepts.
   - `{:invalid_module, reason}` for a missing name, an unknown key, a
     non-string value, or a module that doesn't load.
 
