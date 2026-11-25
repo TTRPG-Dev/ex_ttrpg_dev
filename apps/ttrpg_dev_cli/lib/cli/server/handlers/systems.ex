@@ -9,6 +9,8 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.Dependents
 
+  defguardp is_optional_string(value) when is_binary(value) or is_nil(value)
+
   def handle(%{"command" => "systems.list"}, state) do
     {:ok, %{systems: RuleSystems.list_systems()}, state}
   end
@@ -53,11 +55,12 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
     end
   end
 
-  # Without a "slug", the copy takes the first free <source>_copy_N. A
-  # non-string "slug" matches neither clause, so it's refused as invalid
-  # arguments rather than reaching the library.
+  # Without a "slug" (or with null, as create treats nil fields), the copy
+  # takes the first free <source>_copy_N. Any other non-string "slug"
+  # matches neither clause, so it's refused as invalid arguments rather
+  # than reaching the library.
   def handle(%{"command" => "systems.copy", "system" => source, "slug" => slug}, state)
-      when is_binary(source) and is_binary(slug),
+      when is_binary(source) and is_optional_string(slug),
       do: copy(source, slug, state)
 
   def handle(%{"command" => "systems.copy", "system" => source} = cmd, state)

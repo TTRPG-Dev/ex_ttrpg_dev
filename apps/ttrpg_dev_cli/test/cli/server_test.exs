@@ -184,6 +184,11 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert created == ["dnd_5e_srd_copy_1", "dnd_5e_srd_copy_2"]
     end
 
+    test "a null slug means none was given" do
+      response = copy(%{"command" => "systems.copy", "system" => "dnd_5e_srd", "slug" => nil})
+      assert response.data.created == "dnd_5e_srd_copy_1"
+    end
+
     test "skips a _copy_N slug something that isn't a system occupies" do
       dir = Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "dnd_5e_srd_copy_1")
       File.mkdir_p!(dir)
