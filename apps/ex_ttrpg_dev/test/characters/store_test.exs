@@ -298,7 +298,14 @@ defmodule ExTTRPGDevTest.Characters.Store do
       :ok = Characters.save_character(named("kept"))
       dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
 
-      for stray <- [".tmp-123.json", "notes.txt", "has space.json", ".DS_Store"] do
+      for stray <- [
+            ".tmp-123.json",
+            "notes.txt",
+            "has space.json",
+            ".DS_Store",
+            "kept.json.json",
+            "other.json.json"
+          ] do
         File.write!(Path.join(dir, stray), "{}")
       end
 

@@ -189,7 +189,7 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   defp listed_slug(entry) do
     with true <- String.ends_with?(entry, ".json"),
          true <- String.valid?(entry),
-         name = String.trim_trailing(entry, ".json"),
+         name = String.replace_suffix(entry, ".json", ""),
          slug = String.normalize(name, :nfc),
          true <- Slug.valid?(slug),
          true <- slug == name or File.exists?(path_for(slug)) do
