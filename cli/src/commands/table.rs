@@ -106,6 +106,12 @@ pub(crate) static COMMAND_TABLE: &[CommandSpec] = &[
         completion: Completion::Slug,
     },
     CommandSpec {
+        path: "characters copy",
+        usage: "characters copy <slug> [new_slug]",
+        summary: "Copy a saved character (default slug <slug>_copy_N)",
+        completion: Completion::Slug,
+    },
+    CommandSpec {
         path: "characters delete",
         usage: "characters delete <slug>",
         summary: "Delete a saved character",
@@ -256,6 +262,7 @@ mod tests {
         "characters show",
         "characters roll",
         "characters award",
+        "characters copy",
         "characters delete",
         "characters delete-all",
         "characters choices",

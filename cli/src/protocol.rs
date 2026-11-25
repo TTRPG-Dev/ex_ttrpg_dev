@@ -77,6 +77,13 @@ pub(crate) struct DeletedSystem {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct CopiedCharacter {
+    pub(crate) copied: String,
+    pub(crate) created: String,
+    pub(crate) name: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct DeletedCharacter {
     pub(crate) deleted: String,
 }
@@ -365,6 +372,14 @@ pub(crate) enum Request<'a> {
         system: Option<&'a str>,
     },
 
+    /// Without `slug`, the engine picks the first free `<character>_copy_N`.
+    #[serde(rename = "characters.copy")]
+    CharactersCopy {
+        character: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        slug: Option<&'a str>,
+    },
+
     #[serde(rename = "characters.delete")]
     CharactersDelete { character: &'a str },
 
@@ -641,6 +656,24 @@ mod tests {
                 system: Some("dnd_5e_srd")
             }),
             serde_json::json!({"command": "characters.list", "system": "dnd_5e_srd"})
+        );
+    }
+
+    #[test]
+    fn serializes_characters_copy_request() {
+        assert_eq!(
+            to_value(&Request::CharactersCopy {
+                character: "aria",
+                slug: Some("aria_backup")
+            }),
+            serde_json::json!({"command": "characters.copy", "character": "aria", "slug": "aria_backup"})
+        );
+        assert_eq!(
+            to_value(&Request::CharactersCopy {
+                character: "aria",
+                slug: None
+            }),
+            serde_json::json!({"command": "characters.copy", "character": "aria"})
         );
     }
 
@@ -957,6 +990,16 @@ mod tests {
         let d: DeletedSystem = serde_json::from_str(json).unwrap();
         assert_eq!(d.deleted, "my_homebrew");
         assert_eq!(d.path, "/x/local_system_configs/my_homebrew");
+    }
+
+    #[test]
+    fn deserialize_copied_character() {
+        let json = r#"{"copied":"aria","created":"aria_copy_1","name":"Aria (copy)"}"#;
+        let c: CopiedCharacter = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            (&*c.copied, &*c.created, &*c.name),
+            ("aria", "aria_copy_1", "Aria (copy)")
+        );
     }
 
     #[test]
