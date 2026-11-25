@@ -88,6 +88,8 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp new_slug(%{"slug" => slug}, _name), do: check_slug(slug)
   defp new_slug(_present, name), do: check_slug(slug_from_name(name))
 
+  defp check_slug(slug) when not is_binary(slug), do: {:error, {:invalid_slug, slug}}
+
   defp check_slug(slug) do
     cond do
       slug == "" or slug_from_name(slug) != slug -> {:error, {:invalid_slug, slug}}

@@ -327,6 +327,8 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
             {"My-DnD", {:invalid_slug, "My-DnD"}},
             {"", {:invalid_slug, ""}},
             {"_dnd", {:invalid_slug, "_dnd"}},
+            {nil, {:invalid_slug, nil}},
+            {7, {:invalid_slug, 7}},
             {too_long, {:slug_too_long, too_long, 200}}
           ] do
         assert {:error, ^reason} = RuleSystems.clone_system(@slug, slug)

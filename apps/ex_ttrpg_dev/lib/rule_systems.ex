@@ -400,7 +400,7 @@ defmodule ExTTRPGDev.RuleSystems do
 
   Returns `{:ok, new_slug}`, or `{:error, reason}`:
 
-  - `{:invalid_slug, new_slug}` if `new_slug` isn't in slug form.
+  - `{:invalid_slug, new_slug}` if `new_slug` isn't a string in slug form.
   - `{:slug_too_long, new_slug, max_bytes}` if it's longer than
     `max_bytes` bytes of UTF-8.
   - `{:slug_taken, new_slug}` if it's installed or is a bundled system's
