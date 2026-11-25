@@ -1,7 +1,7 @@
 defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   @moduledoc """
-  Handles the `systems.*` commands: listing, inspecting, creating, and
-  deleting rule systems.
+  Handles the `systems.*` commands: listing, inspecting, creating, copying
+  and deleting rule systems.
   """
 
   alias ExTTRPGDev.CLI.Serializer
@@ -52,6 +52,17 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
         {:error, create_error_message(fields, reason)}
     end
   end
+
+  # Without a "slug", the copy takes the first free <source>_copy_N. A
+  # non-string "slug" matches neither clause, so it's refused as invalid
+  # arguments rather than reaching the library.
+  def handle(%{"command" => "systems.copy", "system" => source, "slug" => slug}, state)
+      when is_binary(source) and is_binary(slug),
+      do: copy(source, slug, state)
+
+  def handle(%{"command" => "systems.copy", "system" => source} = cmd, state)
+      when is_binary(source) and not is_map_key(cmd, "slug"),
+      do: copy(source, nil, state)
 
   def handle(%{"command" => "systems.delete", "system" => slug}, state) do
     case RuleSystems.delete_system(slug) do
@@ -130,6 +141,56 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   defp new_slug_error_message({:invalid_slug, slug}),
     do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
+
+  # The source is loaded first for its name, which also reports an unknown
+  # source before any slug is tried.
+  defp copy(source, new_slug, state) do
+    with {:ok, system} <- RuleSystems.load_system(source),
+         name = "#{system.module.name} (copy)",
+         {:ok, slug} <- copy_to(source, new_slug, name) do
+      path = Path.join(Globals.local_system_configs_path(), slug)
+      {:ok, %{copied: source, created: slug, name: name, path: path}, state}
+    else
+      {:error, reason} -> {:error, copy_error_message(source, new_slug, reason)}
+    end
+  end
+
+  defp copy_to(source, nil, name), do: copy_to_next_free(source, name, 1)
+  defp copy_to(source, slug, name), do: RuleSystems.clone_system(source, slug, name: name)
+
+  # Each refused candidate is a listed system or something occupying its
+  # directory, so this ends after at most that many tries.
+  defp copy_to_next_free(source, name, n) do
+    case RuleSystems.clone_system(source, "#{source}_copy_#{n}", name: name) do
+      {:error, {tag, _}} when tag in [:slug_taken, :slug_occupied] ->
+        copy_to_next_free(source, name, n + 1)
+
+      result ->
+        result
+    end
+  end
+
+  defp copy_error_message(source, _new_slug, {:not_configured, _}),
+    do: "rule system not found: #{inspect(source)}"
+
+  defp copy_error_message(_source, slug, {tag, _} = reason)
+       when slug != nil and tag in [:slug_taken, :slug_occupied, :invalid_slug],
+       do: new_slug_error_message(reason)
+
+  defp copy_error_message(_source, slug, {:slug_too_long, _, max_bytes}) when slug != nil,
+    do: "the slug is too long: it's #{byte_size(slug)} bytes, and the limit is #{max_bytes}"
+
+  # Only reachable without a given slug, when the source's own slug can't
+  # take a _copy_N suffix: it's an older slug not in today's form, or it's
+  # near the length limit.
+  defp copy_error_message(source, nil, reason)
+       when elem(reason, 0) in [:invalid_slug, :slug_too_long] do
+    "can't derive a slug for the copy from #{inspect(source)}; " <>
+      "give one: systems copy #{source} <new_slug>"
+  end
+
+  defp copy_error_message(source, _new_slug, reason),
+    do: "cannot copy rule system #{inspect(source)}: #{inspect(reason)}"
 
   defp delete_error_message(slug, :not_modifiable),
     do: "rule system #{inspect(slug)} is not modifiable (bundled systems can't be deleted)"
