@@ -217,4 +217,130 @@ defmodule ExTTRPGDevTest.Characters.Store do
                Characters.characters_depending_on("sys", "1.0.0")
     end
   end
+
+  describe "slug validation" do
+    defp named(slug) do
+      %Character{
+        name: slug,
+        generated_values: %{},
+        metadata: %Metadata{slug: slug, rule_system: "sys"}
+      }
+    end
+
+    test "slugs that could escape the characters directory never touch the filesystem" do
+      # A uniquely named file just outside the characters directory, which
+      # "../{name}" would reach if slugs weren't validated.
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+      name = "escape_target_#{System.unique_integer([:positive])}"
+      outside = Path.join(Path.dirname(dir), "#{name}.json")
+      File.mkdir_p!(dir)
+      File.write!(outside, "{}")
+      on_exit(fn -> File.rm(outside) end)
+      escaping = "../#{name}"
+
+      assert {:error, {:invalid_slug, ^escaping}} = Characters.delete_character(escaping)
+      assert {:error, {:invalid_slug, ^escaping}} = Characters.load_character(escaping)
+      refute Characters.character_exists?(escaping)
+      assert File.exists?(outside)
+
+      assert {:error, {:invalid_slug, "a/b"}} = Characters.save_character(named("a/b"))
+      assert_raise ArgumentError, fn -> Characters.character_file_path("../notes") end
+    end
+
+    test "bang variants raise naming the invalid slug" do
+      assert_raise RuntimeError, ~r/invalid_slug/, fn -> Characters.load_character!("../x") end
+
+      assert_raise RuntimeError, ~r/invalid_slug/, fn ->
+        Characters.save_character!(named("a/b"))
+      end
+    end
+
+    test "characters with slugs in any script round-trip" do
+      zoe = named("zoë")
+      assert :ok = Characters.save_character(zoe)
+      assert Characters.character_exists?("zoë")
+      assert {:ok, ^zoe} = Characters.load_character("zoë")
+      assert "zoë" in Characters.list_characters!()
+    end
+
+    test "list_characters/0 ignores files that aren't {valid_slug}.json" do
+      :ok = Characters.save_character(named("kept"))
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+
+      for stray <- [".tmp-123.json", "notes.txt", "has space.json", ".DS_Store"] do
+        File.write!(Path.join(dir, stray), "{}")
+      end
+
+      assert Characters.list_characters!() == ["kept"]
+    end
+  end
+
+  describe "atomic saves" do
+    defp versioned(slug, n) do
+      %Character{
+        name: "#{slug} v#{n}",
+        generated_values: %{},
+        metadata: %Metadata{slug: slug, rule_system: "sys"}
+      }
+    end
+
+    defp dir_entries do
+      File.ls!(Application.fetch_env!(:ex_ttrpg_dev, :characters_path)) |> Enum.sort()
+    end
+
+    test "concurrent non-overwriting saves of one new slug: exactly one wins" do
+      for round <- 1..10 do
+        slug = "race_#{round}"
+
+        results =
+          1..8
+          |> Enum.map(fn n ->
+            Task.async(fn -> Characters.save_character(versioned(slug, n)) end)
+          end)
+          |> Task.await_many()
+
+        assert Enum.count(results, &(&1 == :ok)) == 1
+        assert Enum.count(results, &(&1 == {:error, :already_exists})) == 7
+        assert {:ok, %Character{}} = Characters.load_character(slug)
+      end
+    end
+
+    test "concurrent overwriting saves leave one complete character" do
+      results =
+        1..8
+        |> Enum.map(fn n ->
+          Task.async(fn -> Characters.save_character(versioned("hot", n), true) end)
+        end)
+        |> Task.await_many()
+
+      assert Enum.all?(results, &(&1 == :ok))
+      assert {:ok, %Character{name: "hot v" <> _}} = Characters.load_character("hot")
+    end
+
+    test "saves leave no temporary files behind, including refused ones" do
+      :ok = Characters.save_character(versioned("tidy", 1))
+      :ok = Characters.save_character(versioned("tidy", 2), true)
+      {:error, :already_exists} = Characters.save_character(versioned("tidy", 3))
+
+      assert dir_entries() == ["tidy.json"]
+    end
+
+    test "a failed save leaves the existing character unchanged" do
+      :ok = Characters.save_character(versioned("keep", 1))
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+      File.chmod!(dir, 0o555)
+      on_exit(fn -> File.chmod(dir, 0o755) end)
+
+      # Running as root ignores directory permissions; nothing to check then.
+      probe = Path.join(dir, ".probe")
+
+      if File.write(probe, "") == :ok do
+        File.rm(probe)
+      else
+        assert {:error, _} = Characters.save_character(versioned("keep", 2), true)
+        assert Characters.load_character!("keep").name == "keep v1"
+        assert dir_entries() == ["keep.json"]
+      end
+    end
+  end
 end

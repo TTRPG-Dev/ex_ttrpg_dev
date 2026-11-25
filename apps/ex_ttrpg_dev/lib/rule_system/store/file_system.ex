@@ -40,12 +40,12 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
   require Logger
 
   alias ExTTRPGDev.Globals
+  alias ExTTRPGDev.Slug
   alias ExTTRPGDev.RuleSystem.Source
   alias ExTTRPGDev.RuleSystem.Store.Entry
 
   @module_file "module.toml"
   @meta_file ".store.toml"
-  @slug_pattern ~r/\A[A-Za-z0-9_\-]+\z/
   @version_pattern ~r/\A[A-Za-z0-9.+\-]+\z/
 
   @impl true
@@ -92,7 +92,7 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
     dir = Path.join(root, slug)
 
     cond do
-      not valid_slug?(slug) or not File.dir?(dir) -> {:ok, []}
+      not Slug.valid?(slug) or not File.dir?(dir) -> {:ok, []}
       system_dir?(dir) -> {:ok, [read_entry(slug, dir)]}
       true -> versioned_entries(slug, dir)
     end
@@ -215,7 +215,7 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
   end
 
   defp check_slug(slug) do
-    if valid_slug?(slug), do: :ok, else: {:error, {:invalid_slug, slug}}
+    if Slug.valid?(slug), do: :ok, else: {:error, {:invalid_slug, slug}}
   end
 
   # Only nested entries use their version as a path segment.
@@ -224,8 +224,6 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
       do: {:error, {:invalid_version, version}},
       else: :ok
   end
-
-  defp valid_slug?(slug), do: is_binary(slug) and Regex.match?(@slug_pattern, slug)
 
   defp valid_version?(version) do
     is_binary(version) and Regex.match?(@version_pattern, version) and
