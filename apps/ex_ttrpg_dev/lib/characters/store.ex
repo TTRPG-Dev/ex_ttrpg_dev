@@ -6,7 +6,7 @@ defmodule ExTTRPGDev.Characters.Store do
   Adapters implement only the core operations (the callbacks below). The
   functions in this module dispatch to the adapter in use and add what
   doesn't depend on where characters are stored: raising variants, and
-  `characters_depending_on/2`, which is derived from listing and loading.
+  `characters_depending_on/1,2`, which are derived from listing and loading.
 
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
   (e.g. `ExTTRPGDev.Characters.save_character!/2`).
@@ -196,24 +196,36 @@ defmodule ExTTRPGDev.Characters.Store do
   """
   def characters_depending_on(rule_system, version)
       when is_bitstring(rule_system) and is_bitstring(version) do
+    find_characters(&depends_on?(&1, rule_system, version))
+  end
+
+  @doc """
+  List the slugs of saved characters built with any version of rule system
+  `rule_system`.
+
+  See `ExTTRPGDev.Characters.characters_depending_on/1` for documentation.
+  """
+  def characters_depending_on(rule_system) when is_bitstring(rule_system) do
+    find_characters(&match?(%Character{metadata: %Metadata{rule_system: ^rule_system}}, &1))
+  end
+
+  # Loads every saved character and returns the slugs of those matching
+  # `match?`. Fails closed: if any character can't be read, the result
+  # would be incomplete, so the unreadable ones are reported instead.
+  defp find_characters(match?) do
     with {:ok, slugs} <- list_characters() do
       slugs
       |> Enum.map(&{&1, load_character(&1)})
-      |> collect_dependents(rule_system, version)
+      |> collect_matching(match?)
     end
   end
 
-  defp collect_dependents(loaded, rule_system, version) do
+  defp collect_matching(loaded, match?) do
     {unreadable, characters} =
       Enum.split_with(loaded, fn {_slug, result} -> match?({:error, _}, result) end)
 
     if unreadable == [] do
-      dependents =
-        for {slug, {:ok, character}} <- characters,
-            depends_on?(character, rule_system, version),
-            do: slug
-
-      {:ok, dependents}
+      {:ok, for({slug, {:ok, character}} <- characters, match?.(character), do: slug)}
     else
       {:error,
        {:unreadable_characters, Enum.map(unreadable, fn {slug, {:error, r}} -> {slug, r} end)}}

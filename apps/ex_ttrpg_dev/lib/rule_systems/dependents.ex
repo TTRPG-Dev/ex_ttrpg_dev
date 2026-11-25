@@ -71,8 +71,35 @@ defmodule ExTTRPGDev.RuleSystems.Dependents do
   """
   @spec find(String.t(), String.t()) :: {:ok, [t()]} | {:error, {module(), term()}}
   def find(rule_system, version) do
-    Enum.reduce_while(sources(), {:ok, []}, fn source, {:ok, acc} ->
-      case source.dependents(rule_system, version) do
+    sources()
+    |> Enum.map(&{&1, fn -> &1.dependents(rule_system, version) end})
+    |> collect()
+  end
+
+  @doc false
+  # Used by RuleSystems.delete_system/1: what depends on the system as a
+  # whole. Saved characters match at any version (a local system serves
+  # every version asked of it; see Characters.characters_depending_on/1).
+  # Host sources, whose contract is per version, are asked about each of
+  # `versions`. Same result shape as find/2, without duplicates.
+  @spec find_any_version(String.t(), [String.t()]) ::
+          {:ok, [t()]} | {:error, {module(), term()}}
+  def find_any_version(rule_system, versions) do
+    own = {__MODULE__, fn -> Characters.characters_depending_on(rule_system) end}
+
+    hosts =
+      for source <- sources() -- [__MODULE__], version <- versions do
+        {source, fn -> source.dependents(rule_system, version) end}
+      end
+
+    with {:ok, found} <- collect([own | hosts]), do: {:ok, Enum.uniq(found)}
+  end
+
+  # Runs each `{source, query}` in order, tagging what each finds with its
+  # source; stops at the first failure.
+  defp collect(queries) do
+    Enum.reduce_while(queries, {:ok, []}, fn {source, query}, {:ok, acc} ->
+      case query.() do
         {:ok, found} -> {:cont, {:ok, acc ++ Enum.map(found, &{source, &1})}}
         {:error, reason} -> {:halt, {:error, {source, reason}}}
       end

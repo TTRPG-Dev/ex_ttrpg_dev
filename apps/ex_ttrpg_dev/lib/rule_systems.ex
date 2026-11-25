@@ -356,6 +356,42 @@ defmodule ExTTRPGDev.RuleSystems do
   defdelegate update_system(slug, update_fun), to: ExTTRPGDev.RuleSystems.Editing
 
   @doc """
+  Removes a system from the store: every installed version of `slug`.
+
+  Only modifiable systems can be deleted. A non-modifiable system (every
+  seeded bundled system, or one a host has locked) fails with
+  `{:error, :not_modifiable}` and is left untouched, as does a bundled
+  slug that isn't installed yet: deleting a bundled system would achieve
+  nothing, since `sync_bundled/0` seeds it again. A local system holding a
+  bundled slug can be deleted; the bundled system is then seeded in its
+  place the next time it's loaded or synced.
+
+  Deletion is refused while anything depends on the system, so nothing is
+  left referring to a system that no longer exists:
+
+  - `{:error, {:has_dependents, [{module, dependent}, ...]}}` lists them,
+    tagged as by `ExTTRPGDev.RuleSystems.Dependents.find/2`. Saved
+    characters count whatever version they recorded (see
+    `ExTTRPGDev.Characters.characters_depending_on/1`); host dependents are
+    asked about each installed version.
+  - `{:error, {:dependents_unavailable, {module, reason}}}` if dependents
+    couldn't be determined (e.g. an unreadable character), which is never
+    treated as "no dependents".
+
+  Returns `:ok`, `{:error, {:not_configured, slug}}` for an unknown slug,
+  or one of the errors above.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.delete_system("dnd_5e_srd")
+      {:error, :not_modifiable}
+
+      iex> ExTTRPGDev.RuleSystems.delete_system("non_existent_system")
+      {:error, {:not_configured, "non_existent_system"}}
+
+  """
+  defdelegate delete_system(slug), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
   Loads, parses, and validates a rule system by slug, raising on failure.
 
   See `load_system/1` for the non-raising variant.

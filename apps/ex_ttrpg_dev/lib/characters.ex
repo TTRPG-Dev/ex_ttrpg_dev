@@ -154,6 +154,22 @@ defmodule ExTTRPGDev.Characters do
   defdelegate characters_depending_on(rule_system, version), to: Store
 
   @doc """
+  List the slugs of saved characters built with any version of rule system
+  `rule_system`, whatever version they recorded.
+
+  Use this rather than `characters_depending_on/2` when the question is
+  about the system as a whole, e.g. before removing it: a local
+  (non-canonical) system serves every version requested of it, so a
+  character that recorded an older version still runs on it.
+
+  Fails closed like `characters_depending_on/2`: if any saved character
+  can't be read, returns `{:error, {:unreadable_characters, [{slug, reason}, ...]}}`.
+
+  Returns `{:ok, [slug, ...]}` or `{:error, reason}`.
+  """
+  defdelegate characters_depending_on(rule_system), to: Store
+
+  @doc """
   Load a saved character.
 
   Returns `{:ok, character}`, `{:error, :not_found}` if no character with

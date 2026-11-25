@@ -101,6 +101,10 @@ ttrpg-dev roll 2d6,1d10
 ttrpg-dev systems list
 ttrpg-dev systems show dnd_5e_srd
 ttrpg-dev systems show dnd_5e_srd --concept-type skill
+
+# Delete a local (user-made or cloned) system; bundled systems can't be
+# deleted, nor can a system that saved characters still use
+ttrpg-dev systems delete my_homebrew
 ```
 
 ### Characters

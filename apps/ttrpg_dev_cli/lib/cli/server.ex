@@ -30,6 +30,7 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "systems.show", "system": "dnd_5e_srd"}
       {"command": "systems.show", "system": "dnd_5e_srd", "concept_type": "skill"}
       {"command": "systems.show", "system": "dnd_5e_srd", "concept_type": "skill", "concept_id": "acrobatics"}
+      {"command": "systems.delete", "system": "my_homebrew"}
 
   ### Characters
 
@@ -92,6 +93,7 @@ defmodule ExTTRPGDev.CLI.Server do
     "roll" => Handlers.Dice,
     "systems.list" => Handlers.Systems,
     "systems.show" => Handlers.Systems,
+    "systems.delete" => Handlers.Systems,
     "characters.gen" => Handlers.Characters,
     "characters.save" => Handlers.Characters,
     "characters.list" => Handlers.Characters,

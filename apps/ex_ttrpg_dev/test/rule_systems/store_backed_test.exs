@@ -3,10 +3,11 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
   # so installed fixtures can't leak into tests loading the real systems.
   use ExUnit.Case
   import ExUnit.CaptureLog
+  alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.{Character, Metadata}
   alias ExTTRPGDev.RuleSystem.Store.{Entry, FileSystem}
   alias ExTTRPGDev.RuleSystems
-  alias ExTTRPGDev.RuleSystems.{Bundled, LoadedSystem}
+  alias ExTTRPGDev.RuleSystems.{Bundled, Dependents, LoadedSystem}
 
   @slug "dnd_5e_srd"
 
@@ -226,6 +227,119 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
                )
 
       assert strength_name("my_dnd") == "Strength"
+    end
+  end
+
+  describe "delete_system/1" do
+    defmodule HostDependents do
+      @behaviour ExTTRPGDev.RuleSystems.Dependents
+      @impl true
+      def dependents("my_dnd", "1.0.0"), do: {:ok, [{:campaign, 7}]}
+      def dependents(_, _), do: {:ok, []}
+    end
+
+    defmodule FailingDependents do
+      @behaviour ExTTRPGDev.RuleSystems.Dependents
+      @impl true
+      def dependents(_, _), do: {:error, :db_down}
+    end
+
+    setup ctx do
+      characters =
+        Path.join(System.tmp_dir!(), "ex_ttrpg_rs_chars_#{System.unique_integer([:positive])}")
+
+      Application.put_env(:ex_ttrpg_dev, :characters_path, characters)
+
+      on_exit(fn ->
+        Application.delete_env(:ex_ttrpg_dev, :characters_path)
+        Application.delete_env(:ex_ttrpg_dev, :rule_system_dependents)
+        File.rm_rf!(characters)
+      end)
+
+      install(local_copy(ctx.bundled, "my_dnd", "1.0.0"), true)
+      :ok
+    end
+
+    defp save_character_on(slug, rule_system, version) do
+      :ok =
+        Characters.save_character(%Character{
+          name: slug,
+          generated_values: %{},
+          metadata: %Metadata{slug: slug, rule_system: rule_system, rule_system_version: version}
+        })
+    end
+
+    defp installed?(slug),
+      do: Enum.any?(RuleSystems.list_installed_systems!(), &(&1.slug == slug))
+
+    test "removes a modifiable system from the store" do
+      assert :ok = RuleSystems.delete_system("my_dnd")
+      refute installed?("my_dnd")
+      refute RuleSystems.configured?("my_dnd")
+      assert {:error, {:not_configured, "my_dnd"}} = RuleSystems.load_system("my_dnd")
+    end
+
+    test "refuses a non-modifiable system and leaves it installed" do
+      capture_log(fn -> RuleSystems.load_system!(@slug) end)
+
+      assert {:error, :not_modifiable} = RuleSystems.delete_system(@slug)
+      assert installed?(@slug)
+    end
+
+    test "refuses an uninstalled bundled system without installing it" do
+      assert {:error, :not_modifiable} = RuleSystems.delete_system(@slug)
+      refute installed?(@slug)
+    end
+
+    test "a local system holding a bundled slug can be deleted", ctx do
+      install(local_copy(ctx.bundled, @slug, "homebrew"), true)
+
+      assert :ok = RuleSystems.delete_system(@slug)
+      refute installed?(@slug)
+    end
+
+    test "fails for an unknown slug" do
+      assert {:error, {:not_configured, "nope"}} = RuleSystems.delete_system("nope")
+    end
+
+    test "refuses while characters use the system, at any version they recorded" do
+      save_character_on("current", "my_dnd", "1.0.0")
+      save_character_on("from_an_older_major", "my_dnd", "0.3.0")
+      save_character_on("elsewhere", "other", "1.0.0")
+
+      assert {:error, {:has_dependents, found}} = RuleSystems.delete_system("my_dnd")
+
+      assert Enum.sort(found) == [
+               {Dependents, "current"},
+               {Dependents, "from_an_older_major"}
+             ]
+
+      assert installed?("my_dnd")
+    end
+
+    test "refuses while a host reports dependents" do
+      Application.put_env(:ex_ttrpg_dev, :rule_system_dependents, [HostDependents])
+
+      assert {:error, {:has_dependents, [{HostDependents, {:campaign, 7}}]}} =
+               RuleSystems.delete_system("my_dnd")
+
+      assert installed?("my_dnd")
+    end
+
+    test "refuses when dependents can't be determined" do
+      Application.put_env(:ex_ttrpg_dev, :rule_system_dependents, [FailingDependents])
+
+      assert {:error, {:dependents_unavailable, {FailingDependents, :db_down}}} =
+               RuleSystems.delete_system("my_dnd")
+
+      File.mkdir_p!(Application.fetch_env!(:ex_ttrpg_dev, :characters_path))
+      Application.delete_env(:ex_ttrpg_dev, :rule_system_dependents)
+      File.write!(Characters.character_file_path("corrupt"), "not json")
+
+      assert {:error, {:dependents_unavailable, {Dependents, {:unreadable_characters, [_]}}}} =
+               RuleSystems.delete_system("my_dnd")
+
+      assert installed?("my_dnd")
     end
   end
 end

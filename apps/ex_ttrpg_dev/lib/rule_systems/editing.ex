@@ -1,12 +1,12 @@
 defmodule ExTTRPGDev.RuleSystems.Editing do
   @moduledoc false
-  # Implementation of RuleSystems.clone_system/3 and update_system/2; see
-  # the documentation there.
+  # Implementation of RuleSystems.clone_system/3, update_system/2 and
+  # delete_system/1; see the documentation there.
 
   alias ExTTRPGDev.RuleSystem.{Graph, Loader, Source, Store}
   alias ExTTRPGDev.RuleSystem.Store.Entry
   alias ExTTRPGDev.RuleSystems
-  alias ExTTRPGDev.RuleSystems.Installed
+  alias ExTTRPGDev.RuleSystems.{Dependents, Installed}
 
   def clone_system(source_slug, new_slug, opts) do
     with :ok <- check_slug_free(new_slug),
@@ -28,6 +28,54 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
          :ok <- check_update(source, updated) do
       store_update(entry, updated)
     end
+  end
+
+  # Deliberately doesn't go through Installed.resolve/2: that seeds an
+  # uninstalled bundled slug, and deleting must never install anything.
+  def delete_system(slug) do
+    store = Store.adapter()
+
+    with {:ok, entries} <- store.list_entries(),
+         {:ok, owned} <- deletable_entries(entries, slug),
+         :ok <- check_no_dependents(slug, owned) do
+      delete_entries(store, owned)
+    end
+  end
+
+  # Every installed entry for the slug must be modifiable; a slug with no
+  # entries is refused if it's bundled (it would be seeded on next load or
+  # sync, so there's nothing a delete could achieve) and unknown otherwise.
+  defp deletable_entries(entries, slug) do
+    case Enum.filter(entries, &(&1.slug == slug)) do
+      [] ->
+        uninstalled_error(slug)
+
+      owned ->
+        if Enum.all?(owned, & &1.is_modifiable), do: {:ok, owned}, else: {:error, :not_modifiable}
+    end
+  end
+
+  defp uninstalled_error(slug) do
+    with {:ok, bundled} <- RuleSystems.fetch_bundled_systems() do
+      if slug in bundled, do: {:error, :not_modifiable}, else: {:error, {:not_configured, slug}}
+    end
+  end
+
+  defp check_no_dependents(slug, entries) do
+    case Dependents.find_any_version(slug, Enum.map(entries, & &1.version)) do
+      {:ok, []} -> :ok
+      {:ok, found} -> {:error, {:has_dependents, found}}
+      {:error, reason} -> {:error, {:dependents_unavailable, reason}}
+    end
+  end
+
+  defp delete_entries(store, entries) do
+    Enum.reduce_while(entries, :ok, fn entry, :ok ->
+      case store.delete(entry.slug, entry.version) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp check_modifiable(%Entry{is_modifiable: true}), do: :ok
