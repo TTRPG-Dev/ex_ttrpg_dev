@@ -97,15 +97,16 @@ fn prompt_optional(prompt: &str) -> Option<Option<String>> {
 fn prompt_create_answers() -> Option<CreateAnswers> {
     Some(CreateAnswers {
         name: prompt_nonempty_string("System name:")?,
-        version: prompt_optional("Version [1.0.0]: ")?,
+        version: prompt_optional("Version (optional): ")?,
         publisher: prompt_optional("Publisher (optional): ")?,
         family: prompt_optional("Family (optional): ")?,
         series: prompt_optional("Series (optional): ")?,
     })
 }
 
-/// The slug is derived from the name, and collisions refused, by the
-/// engine; the CLI doesn't repeat those rules.
+/// The slug is derived from the name, collisions refused, and a blank
+/// version defaulted, by the engine; the CLI doesn't repeat those rules,
+/// and reports the version it stored rather than predicting it.
 fn handle_systems_create(engine: &mut Engine) {
     let Some(a) = prompt_create_answers() else {
         println!("Not created.");
@@ -122,7 +123,10 @@ fn handle_systems_create(engine: &mut Engine) {
         return;
     };
     println!();
-    println!("Created rule system {}: {}", r.created, r.path);
+    match r.version {
+        Some(v) => println!("Created rule system {} version {v}: {}", r.created, r.path),
+        None => println!("Created rule system {}: {}", r.created, r.path),
+    }
 }
 
 #[derive(Debug, PartialEq)]

@@ -56,6 +56,9 @@ pub(crate) struct DiceResult {
 #[derive(Deserialize)]
 pub(crate) struct CreatedSystem {
     pub(crate) created: String,
+    /// The version stored, possibly the library's default; `None` if the
+    /// engine couldn't read it back.
+    pub(crate) version: Option<String>,
     pub(crate) path: String,
 }
 
@@ -888,11 +891,15 @@ mod tests {
 
     #[test]
     fn deserialize_created_system() {
-        let json =
-            r#"{"created":"homebrew","path":"/x/local_system_configs/homebrew/module.toml"}"#;
+        let json = r#"{"created":"homebrew","version":"1.0.0","path":"/x/homebrew/module.toml"}"#;
         let c: CreatedSystem = serde_json::from_str(json).unwrap();
         assert_eq!(c.created, "homebrew");
-        assert_eq!(c.path, "/x/local_system_configs/homebrew/module.toml");
+        assert_eq!(c.version.as_deref(), Some("1.0.0"));
+        assert_eq!(c.path, "/x/homebrew/module.toml");
+
+        let json = r#"{"created":"homebrew","version":null,"path":"/x/homebrew/module.toml"}"#;
+        let c: CreatedSystem = serde_json::from_str(json).unwrap();
+        assert_eq!(c.version, None);
     }
 
     #[test]
