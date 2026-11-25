@@ -9,45 +9,48 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
         return;
     }
     match tokens {
-        ["list"] => {
-            let req = Request::SystemsList;
-            let Some(result) = call_or_report::<SystemsList>(engine, &req) else {
-                return;
-            };
-            if result.systems.is_empty() {
-                println!("No configured systems found.");
-            } else {
-                println!("Configured Systems:");
-                for s in &result.systems {
-                    println!("  - {s}");
-                }
-            }
-        }
-        ["show", slug] => {
-            let req = Request::SystemsShow {
-                system: slug,
-                concept_type: None,
-                concept_id: None,
-            };
-            let Some(info) = call_or_report::<SystemInfo>(engine, &req) else {
-                return;
-            };
-            display::print_system_info(info);
-        }
-        ["show", slug, "--concept-type", ct] => {
-            let req = Request::SystemsShow {
-                system: slug,
-                concept_type: Some(ct),
-                concept_id: None,
-            };
-            let Some(cl) = call_or_report::<ConceptsList>(engine, &req) else {
-                return;
-            };
-            display::print_concepts_list(&cl);
-        }
+        ["list"] => handle_systems_list(engine),
+        ["show", slug] => handle_systems_show(slug, None, engine),
+        ["show", slug, "--concept-type", ct] => handle_systems_show(slug, Some(ct), engine),
         [] | ["--help"] => {
             println!("Usage: systems list | systems show <slug> [--concept-type <type>]")
         }
         [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `systems --help`."),
+    }
+}
+
+fn handle_systems_list(engine: &mut Engine) {
+    let Some(result) = call_or_report::<SystemsList>(engine, &Request::SystemsList) else {
+        return;
+    };
+    if result.systems.is_empty() {
+        println!("No configured systems found.");
+    } else {
+        println!("Configured Systems:");
+        for s in &result.systems {
+            println!("  - {s}");
+        }
+    }
+}
+
+/// Without a concept type, shows the system itself; with one, lists that
+/// type's concepts. The two responses have different shapes.
+fn handle_systems_show(slug: &str, concept_type: Option<&str>, engine: &mut Engine) {
+    let req = Request::SystemsShow {
+        system: slug,
+        concept_type,
+        concept_id: None,
+    };
+    match concept_type {
+        None => {
+            if let Some(info) = call_or_report::<SystemInfo>(engine, &req) {
+                display::print_system_info(info);
+            }
+        }
+        Some(_) => {
+            if let Some(cl) = call_or_report::<ConceptsList>(engine, &req) {
+                display::print_concepts_list(&cl);
+            }
+        }
     }
 }
