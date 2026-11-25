@@ -26,6 +26,18 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
   currently `is_modifiable`. A directory without one is modifiable, which
   keeps hand-authored systems editable.
 
+  ## Slugs
+
+  Each slug directory's name must be a valid slug: letters and digits in
+  any script plus `_` and `-`, in Unicode NFC form, at most 200 bytes.
+  Other directories under the root are ignored by `list_entries/0`.
+
+  Up to and including 0.15.0 there was no length limit, so a system
+  installed under a slug longer than 200 bytes is no longer listed (and
+  looks uninstalled). It's left untouched on disk; renaming its directory
+  (and the `slug` in its `module.toml`) to a shorter slug makes it
+  reachable again.
+
   ## Atomicity
 
   `put/3` writes into a temporary directory under the root, then renames it
