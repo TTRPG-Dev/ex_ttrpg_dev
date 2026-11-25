@@ -166,15 +166,32 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
     end
   end
 
-  defp copy_to(source, nil, name), do: copy_to_next_free(source, name, 1)
+  # The slugs are listed once and the listed ones skipped without a clone
+  # attempt, since each attempt lists and resolves again. clone_system/3
+  # still has the last word: a slug occupied by something that isn't a
+  # system isn't listed, and one may be taken after the listing.
+  defp copy_to(source, nil, name) do
+    with {:ok, slugs} <- RuleSystems.fetch_systems() do
+      copy_to_next_free(source, name, 1, MapSet.new(slugs))
+    end
+  end
+
   defp copy_to(source, slug, name), do: RuleSystems.clone_system(source, slug, name: name)
 
-  # Each refused candidate is a listed system or something occupying its
+  # Each refused candidate is a system or something occupying its
   # directory, so this ends after at most that many tries.
-  defp copy_to_next_free(source, name, n) do
+  defp copy_to_next_free(source, name, n, listed) do
+    slug = "#{source}_copy_#{n}"
+
+    if MapSet.member?(listed, slug),
+      do: copy_to_next_free(source, name, n + 1, listed),
+      else: try_copy_to(source, name, n, listed)
+  end
+
+  defp try_copy_to(source, name, n, listed) do
     case RuleSystems.clone_system(source, "#{source}_copy_#{n}", name: name) do
       {:error, {tag, _}} when tag in [:slug_taken, :slug_occupied] ->
-        copy_to_next_free(source, name, n + 1)
+        copy_to_next_free(source, name, n + 1, listed)
 
       result ->
         result
