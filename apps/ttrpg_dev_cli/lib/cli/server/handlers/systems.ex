@@ -79,22 +79,8 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
     end
   end
 
-  defp create_error_message(_fields, {:slug_taken, slug}),
-    do: "a rule system with slug #{inspect(slug)} already exists"
-
-  # The engine always uses the filesystem store, so the slug is occupied
-  # at (or, on a case-insensitive filesystem, by a differently cased name
-  # matching) the directory a new system would be written to. The message
-  # says only what's certain: something is there and isn't listed as a
-  # system. It may be empty, lack a module.toml, or be a real system under
-  # a name that isn't a valid slug (e.g. "Homebrew/" on macOS).
-  defp create_error_message(_fields, {:slug_occupied, slug}) do
-    dir = Path.join(Globals.local_system_configs_path(), slug)
-
-    "something already exists at #{dir} (or a differently cased name) " <>
-      "that isn't a listed rule system, e.g. a directory with no module.toml. " <>
-      "Remove or rename it, or choose another name."
-  end
+  defp create_error_message(_fields, {tag, _} = reason) when tag in [:slug_taken, :slug_occupied],
+    do: new_slug_error_message(reason)
 
   defp create_error_message(fields, {:invalid_slug, ""}),
     do:
@@ -108,8 +94,8 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
       "and the limit is #{max_bytes}. Try a shorter #{what}."
   end
 
-  defp create_error_message(_fields, {:invalid_slug, slug}),
-    do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
+  defp create_error_message(_fields, {:invalid_slug, _} = reason),
+    do: new_slug_error_message(reason)
 
   defp create_error_message(_fields, {:invalid_module, {:missing_required_key, key}}),
     do: "#{key} is required"
@@ -122,6 +108,28 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   defp create_error_message(_fields, reason),
     do: "cannot create rule system: #{inspect(reason)}"
+
+  # Why a slug for a new (created or copied) system was refused, for the
+  # reasons that don't depend on what the user typed to get that slug.
+  defp new_slug_error_message({:slug_taken, slug}),
+    do: "a rule system with slug #{inspect(slug)} already exists"
+
+  # The engine always uses the filesystem store, so the slug is occupied
+  # at (or, on a case-insensitive filesystem, by a differently cased name
+  # matching) the directory a new system would be written to. The message
+  # says only what's certain: something is there and isn't listed as a
+  # system. It may be empty, lack a module.toml, or be a real system under
+  # a name that isn't a valid slug (e.g. "Homebrew/" on macOS).
+  defp new_slug_error_message({:slug_occupied, slug}) do
+    dir = Path.join(Globals.local_system_configs_path(), slug)
+
+    "something already exists at #{dir} (or a differently cased name) " <>
+      "that isn't a listed rule system, e.g. a directory with no module.toml. " <>
+      "Remove or rename it, or choose another name."
+  end
+
+  defp new_slug_error_message({:invalid_slug, slug}),
+    do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
 
   defp delete_error_message(slug, :not_modifiable),
     do: "rule system #{inspect(slug)} is not modifiable (bundled systems can't be deleted)"
