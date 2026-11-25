@@ -71,8 +71,16 @@ defmodule ExTTRPGDev.RuleSystems.Dependents do
   """
   @spec find(String.t(), String.t()) :: {:ok, [t()]} | {:error, {module(), term()}}
   def find(rule_system, version) do
-    Enum.reduce_while(sources(), {:ok, []}, fn source, {:ok, acc} ->
-      case source.dependents(rule_system, version) do
+    sources()
+    |> Enum.map(&{&1, fn -> &1.dependents(rule_system, version) end})
+    |> collect()
+  end
+
+  # Runs each `{source, query}` in order, tagging what each finds with its
+  # source; stops at the first failure.
+  defp collect(queries) do
+    Enum.reduce_while(queries, {:ok, []}, fn {source, query}, {:ok, acc} ->
+      case query.() do
         {:ok, found} -> {:cont, {:ok, acc ++ Enum.map(found, &{source, &1})}}
         {:error, reason} -> {:halt, {:error, {source, reason}}}
       end
