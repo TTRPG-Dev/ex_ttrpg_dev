@@ -82,6 +82,15 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   defp create_error_message(_fields, {:slug_taken, slug}),
     do: "a rule system with slug #{inspect(slug)} already exists"
 
+  # The engine always uses the filesystem store, so what occupies the slug
+  # is the directory a new system would be written to.
+  defp create_error_message(_fields, {:slug_occupied, slug}) do
+    dir = Path.join(Globals.local_system_configs_path(), slug)
+
+    "#{dir} already exists but isn't a rule system (e.g. it has no module.toml). " <>
+      "Remove it, finish authoring it, or choose another name."
+  end
+
   defp create_error_message(fields, {:invalid_slug, ""}),
     do:
       "can't derive a slug from name #{inspect(fields["name"])}: " <>

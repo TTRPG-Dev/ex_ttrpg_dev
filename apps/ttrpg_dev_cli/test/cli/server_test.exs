@@ -107,6 +107,20 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       assert response.message == ~s(a rule system with slug "dnd_5e_srd" already exists)
     end
 
+    test "names a directory that occupies the slug without being a system" do
+      dir = Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "my_fantasy_system")
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf(dir) end)
+
+      response = run(%{"command" => "systems.create", "name" => "My Fantasy System"})
+
+      assert response.message ==
+               "#{dir} already exists but isn't a rule system (e.g. it has no module.toml). " <>
+                 "Remove it, finish authoring it, or choose another name."
+
+      assert File.ls!(dir) == []
+    end
+
     test "explains a name that yields no slug" do
       response = run(%{"command" => "systems.create", "name" => "!!!"})
       assert response.message =~ ~s(can't derive a slug from name "!!!")
