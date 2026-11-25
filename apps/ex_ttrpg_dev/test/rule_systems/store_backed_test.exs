@@ -255,6 +255,52 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     end
   end
 
+  # A system whose module.toml is fine but whose content doesn't build: a
+  # formula refers to a node that doesn't exist.
+  defp broken_copy(bundled, slug) do
+    concept =
+      {"concepts/broken.toml",
+       %{
+         "ability" => %{
+           "broken" => %{
+             "name" => "Broken",
+             "score" => %{
+               "type" => "formula",
+               "formula" => "ability('nope').score"
+             }
+           }
+         }
+       }}
+
+    local_copy(bundled, slug, "draft") |> Map.update!(:concepts, &[concept | &1])
+  end
+
+  describe "fetch_module/2" do
+    test "reads the module of a system whose content doesn't load", ctx do
+      install(broken_copy(ctx.bundled, "broken"), true)
+
+      assert {:error, _} = RuleSystems.load_system("broken")
+
+      assert {:ok, %{slug: "broken", version: "draft", name: name}} =
+               RuleSystems.fetch_module("broken")
+
+      assert name == ctx.bundled.module["module"]["name"]
+    end
+
+    test "reports an invalid module.toml and an unknown slug", ctx do
+      install(
+        update_in(
+          local_copy(ctx.bundled, "nameless", "x").module["module"],
+          &Map.delete(&1, "name")
+        ),
+        true
+      )
+
+      assert {:error, {:module_parse_error, _}} = RuleSystems.fetch_module("nameless")
+      assert {:error, {:not_configured, "nope"}} = RuleSystems.fetch_module("nope")
+    end
+  end
+
   describe "clone_system/3" do
     test "copies a non-modifiable system into a modifiable, non-canonical one", ctx do
       capture_log(fn ->

@@ -180,7 +180,11 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end
   end
 
-  defp build_module(%Source{module: module_map, character_building: building}) do
+  @doc false
+  # Parses just a source's module.toml (and its character-building
+  # choices), without its concepts, so a caller can read a system's
+  # metadata even when the rest of it doesn't load.
+  def build_module(%Source{module: module_map, character_building: building}) do
     case RuleModule.from_map(module_map) do
       {:ok, rule_module} ->
         {:ok, %{rule_module | character_building_choices: parse_character_choices(building)}}
