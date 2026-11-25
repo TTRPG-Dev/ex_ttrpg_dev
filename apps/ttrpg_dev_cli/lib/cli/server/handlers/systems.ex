@@ -82,13 +82,18 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   defp create_error_message(_fields, {:slug_taken, slug}),
     do: "a rule system with slug #{inspect(slug)} already exists"
 
-  # The engine always uses the filesystem store, so what occupies the slug
-  # is the directory a new system would be written to.
+  # The engine always uses the filesystem store, so the slug is occupied
+  # at (or, on a case-insensitive filesystem, by a differently cased name
+  # matching) the directory a new system would be written to. The message
+  # says only what's certain: something is there and isn't listed as a
+  # system. It may be empty, lack a module.toml, or be a real system under
+  # a name that isn't a valid slug (e.g. "Homebrew/" on macOS).
   defp create_error_message(_fields, {:slug_occupied, slug}) do
     dir = Path.join(Globals.local_system_configs_path(), slug)
 
-    "#{dir} already exists but isn't a rule system (e.g. it has no module.toml). " <>
-      "Remove it, finish authoring it, or choose another name."
+    "something already exists at #{dir} (or a differently cased name) " <>
+      "that isn't a listed rule system, e.g. a directory with no module.toml. " <>
+      "Remove or rename it, or choose another name."
   end
 
   defp create_error_message(fields, {:invalid_slug, ""}),

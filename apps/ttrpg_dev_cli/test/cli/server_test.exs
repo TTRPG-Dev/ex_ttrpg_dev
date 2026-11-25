@@ -115,8 +115,9 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       response = run(%{"command" => "systems.create", "name" => "My Fantasy System"})
 
       assert response.message ==
-               "#{dir} already exists but isn't a rule system (e.g. it has no module.toml). " <>
-                 "Remove it, finish authoring it, or choose another name."
+               "something already exists at #{dir} (or a differently cased name) " <>
+                 "that isn't a listed rule system, e.g. a directory with no module.toml. " <>
+                 "Remove or rename it, or choose another name."
 
       assert File.ls!(dir) == []
     end
