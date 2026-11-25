@@ -6,7 +6,7 @@ defmodule ExTTRPGDev.Characters.Store do
   Adapters implement only the core operations (the callbacks below). The
   functions in this module dispatch to the adapter in use and add what
   doesn't depend on where characters are stored: raising variants, and
-  `characters_depending_on/2`, which is derived from listing and loading.
+  `characters_depending_on/1,2`, which are derived from listing and loading.
 
   Callers should use the delegating functions on `ExTTRPGDev.Characters`
   (e.g. `ExTTRPGDev.Characters.save_character!/2`).
@@ -197,6 +197,16 @@ defmodule ExTTRPGDev.Characters.Store do
   def characters_depending_on(rule_system, version)
       when is_bitstring(rule_system) and is_bitstring(version) do
     find_characters(&depends_on?(&1, rule_system, version))
+  end
+
+  @doc """
+  List the slugs of saved characters built with any version of rule system
+  `rule_system`.
+
+  See `ExTTRPGDev.Characters.characters_depending_on/1` for documentation.
+  """
+  def characters_depending_on(rule_system) when is_bitstring(rule_system) do
+    find_characters(&match?(%Character{metadata: %Metadata{rule_system: ^rule_system}}, &1))
   end
 
   # Loads every saved character and returns the slugs of those matching

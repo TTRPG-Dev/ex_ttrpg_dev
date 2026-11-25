@@ -218,6 +218,37 @@ defmodule ExTTRPGDevTest.Characters.Store do
     end
   end
 
+  describe "characters_depending_on/1" do
+    defp save_on(slug, rule_system, version) do
+      :ok =
+        Characters.save_character(%Character{
+          name: slug,
+          generated_values: %{},
+          metadata: %Metadata{slug: slug, rule_system: rule_system, rule_system_version: version}
+        })
+    end
+
+    test "matches characters of the system whatever version they recorded" do
+      save_on("v1", "sys", "1.0.0")
+      save_on("v2", "sys", "2.0.0")
+      save_on("draft", "sys", "first draft")
+      save_on("legacy", "sys", nil)
+      save_on("other_system", "other", "1.0.0")
+
+      assert {:ok, slugs} = Characters.characters_depending_on("sys")
+      assert Enum.sort(slugs) == ["draft", "legacy", "v1", "v2"]
+      assert {:ok, []} = Characters.characters_depending_on("nope")
+    end
+
+    test "fails closed when a saved character can't be read" do
+      save_on("fine", "sys", "1.0.0")
+      File.write!(Characters.character_file_path("corrupt"), "not json")
+
+      assert {:error, {:unreadable_characters, [{"corrupt", _reason}]}} =
+               Characters.characters_depending_on("sys")
+    end
+  end
+
   describe "slug validation" do
     defp named(slug) do
       %Character{
