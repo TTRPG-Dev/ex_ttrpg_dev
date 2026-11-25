@@ -12,6 +12,15 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   bytes. Anything else, including slugs that could reach outside the
   characters directory such as `"../x"`, is rejected with
   `{:error, {:invalid_slug, slug}}` without touching the filesystem.
+
+  ## Characters saved before slugs were validated
+
+  Up to and including 0.15.0, `Character.slugify/1` kept characters a slug can no longer
+  contain (e.g. `"`, `[`, `/`, tabs), didn't normalise to NFC, and turned
+  a name with no letters or digits into a bare `.json`. A file saved under
+  such a slug is no longer listed, loaded or deleted by slug, and isn't
+  migrated. It's left untouched on disk: renaming it to a valid slug (and
+  setting `metadata.slug` inside it to match) makes it reachable again.
   """
 
   @behaviour ExTTRPGDev.Characters.Store
