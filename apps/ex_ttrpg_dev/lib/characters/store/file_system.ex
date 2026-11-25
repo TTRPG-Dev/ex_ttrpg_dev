@@ -169,7 +169,7 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
 
     if File.exists?(path) do
       case File.ls(path) do
-        {:ok, entries} -> {:ok, Enum.flat_map(entries, &listed_slug/1)}
+        {:ok, entries} -> {:ok, entries |> Enum.flat_map(&listed_slug/1) |> Enum.uniq()}
         {:error, reason} -> {:error, reason}
       end
     else
@@ -180,11 +180,19 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   # HFS+ reports names decomposed (NFD) even when they were written
   # composed; normalising before validating keeps those characters listed,
   # and HFS+ resolves the composed name back to the same file.
+  #
+  # Other filesystems (e.g. ext4) compare names byte for byte, so a file
+  # actually named in NFD can't be loaded by its composed slug. A slug that
+  # normalising changed is only listed if it resolves to a file. Where a
+  # composed twin exists too, that's the file it resolves to, so the slug
+  # comes up twice; list_characters/0 drops the repeat.
   defp listed_slug(entry) do
     with true <- String.ends_with?(entry, ".json"),
          true <- String.valid?(entry),
-         slug = entry |> String.trim_trailing(".json") |> String.normalize(:nfc),
-         true <- Slug.valid?(slug) do
+         name = String.trim_trailing(entry, ".json"),
+         slug = String.normalize(name, :nfc),
+         true <- Slug.valid?(slug),
+         true <- slug == name or File.exists?(path_for(slug)) do
       [slug]
     else
       _ -> []

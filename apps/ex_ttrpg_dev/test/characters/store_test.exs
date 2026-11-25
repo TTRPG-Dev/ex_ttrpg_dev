@@ -304,6 +304,26 @@ defmodule ExTTRPGDevTest.Characters.Store do
 
       assert Characters.list_characters!() == ["kept"]
     end
+
+    test "list_characters/0 only lists a decomposed file name if its composed slug loads" do
+      dir = Application.fetch_env!(:ex_ttrpg_dev, :characters_path)
+      File.mkdir_p!(dir)
+      nfd = Path.join(dir, "zoë.json")
+      File.write!(nfd, "{}")
+
+      # On a filesystem that keeps the two forms apart (e.g. ext4), "zoë"
+      # can't reach the decomposed file, so it mustn't be listed. Where the
+      # filesystem resolves both forms to one file (HFS+), it is listed.
+      if File.exists?(Path.join(dir, "zoë.json")) do
+        assert Characters.list_characters!() == ["zoë"]
+      else
+        assert Characters.list_characters!() == []
+      end
+
+      # Next to a composed twin, the slug is listed once.
+      File.write!(Path.join(dir, "zoë.json"), "{}")
+      assert Characters.list_characters!() == ["zoë"]
+    end
   end
 
   describe "atomic saves" do
