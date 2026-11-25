@@ -22,11 +22,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
          :ok <- check_slug_free(module["slug"]),
          source = %Source{module: %{"module" => module}},
          :ok <- check_new_loads(source) do
-      case Store.adapter().put(Entry.from_source(source, true), source, false) do
-        :ok -> {:ok, module["slug"]}
-        {:error, :already_exists} -> {:error, {:slug_taken, module["slug"]}}
-        error -> error
-      end
+      put_new(source, module["slug"])
     end
   end
 
@@ -112,13 +108,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   def clone_system(source_slug, new_slug, opts) do
     with :ok <- check_slug_free(new_slug),
          {:ok, _entry, source} <- Installed.resolve(source_slug, opts[:version]) do
-      clone = as_clone(source, new_slug)
-
-      case Store.adapter().put(Entry.from_source(clone, true), clone, false) do
-        :ok -> {:ok, new_slug}
-        {:error, :already_exists} -> {:error, {:slug_taken, new_slug}}
-        error -> error
-      end
+      put_new(as_clone(source, new_slug), new_slug)
     end
   end
 
@@ -247,6 +237,16 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp check_slug_free(slug) do
     with {:ok, slugs} <- RuleSystems.fetch_systems() do
       if slug in slugs, do: {:error, {:slug_taken, slug}}, else: :ok
+    end
+  end
+
+  # Stores a new (created or cloned) system as modifiable, never
+  # overwriting whatever the store already holds at its address.
+  defp put_new(%Source{} = source, slug) do
+    case Store.adapter().put(Entry.from_source(source, true), source, false) do
+      :ok -> {:ok, slug}
+      {:error, :already_exists} -> {:error, {:slug_taken, slug}}
+      error -> error
     end
   end
 
