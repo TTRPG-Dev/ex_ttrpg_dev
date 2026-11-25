@@ -333,6 +333,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   - `{:slug_taken, slug}` if the slug is installed or is a bundled
     system's slug (as for `clone_system/3`).
+  - `{:slug_occupied, slug}` if no system has the slug, but the store
+    already holds something else where it would be stored (with the
+    default filesystem store, a `local_system_configs/{slug}` directory
+    that isn't a loadable system, e.g. one with no `module.toml`). It's
+    left untouched.
   - `{:invalid_slug, slug}` if a given slug isn't in slug form, or the name
     yields an empty slug (it has no letters or digits).
   - `{:slug_too_long, slug, max_bytes}` if the slug (given or derived) is
@@ -389,8 +394,10 @@ defmodule ExTTRPGDev.RuleSystems do
     than the newest (see `load_system/2`).
 
   Returns `{:ok, new_slug}`, `{:error, {:slug_taken, new_slug}}` if
-  `new_slug` is installed or is a bundled system's slug, or
-  `{:error, reason}` if the source can't be resolved or the clone can't be
+  `new_slug` is installed or is a bundled system's slug,
+  `{:error, {:slug_occupied, new_slug}}` if the store already holds
+  something that isn't a system where it would go (see `create_system/1`),
+  or `{:error, reason}` if the source can't be resolved or the clone can't be
   stored.
   """
   defdelegate clone_system(source_slug, new_slug, opts \\ []), to: ExTTRPGDev.RuleSystems.Editing

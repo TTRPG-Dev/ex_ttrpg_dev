@@ -55,6 +55,29 @@ defmodule ExTTRPGDev.RuleSystems.StoreAdapterTest do
     end
   end
 
+  defmodule LosesRace do
+    @moduledoc false
+    # InMemory, except every non-overwriting put finds that another writer
+    # stored the same entry just before it: the race between a create's
+    # collision check and its write.
+    @behaviour ExTTRPGDev.RuleSystem.Store
+
+    @impl true
+    defdelegate list_entries(), to: InMemory
+    @impl true
+    defdelegate fetch(slug, version), to: InMemory
+    @impl true
+    defdelegate delete(slug, version), to: InMemory
+
+    @impl true
+    def put(entry, source, false) do
+      :ok = InMemory.put(entry, source, false)
+      {:error, :already_exists}
+    end
+
+    def put(entry, source, true), do: InMemory.put(entry, source, true)
+  end
+
   setup do
     start_supervised!(InMemory)
     previous_root = Application.fetch_env!(:ex_ttrpg_dev, :local_system_configs_path)
@@ -121,5 +144,12 @@ defmodule ExTTRPGDev.RuleSystems.StoreAdapterTest do
              Enum.filter(entries, &(&1.slug == "my_srd"))
 
     refute File.exists?(root)
+  end
+
+  test "a create that loses a race for its slug is :slug_taken, not :slug_occupied" do
+    Application.put_env(:ex_ttrpg_dev, :rule_system_store, LosesRace)
+
+    assert {:error, {:slug_taken, "homebrew"}} =
+             RuleSystems.create_system(%{"name" => "Homebrew"})
   end
 end

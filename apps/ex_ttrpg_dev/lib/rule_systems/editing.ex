@@ -245,8 +245,25 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp put_new(%Source{} = source, slug) do
     case Store.adapter().put(Entry.from_source(source, true), source, false) do
       :ok -> {:ok, slug}
-      {:error, :already_exists} -> {:error, {:slug_taken, slug}}
+      {:error, :already_exists} -> already_exists_error(slug)
       error -> error
+    end
+  end
+
+  # check_slug_free/1 passed, yet the store has something at the slug's
+  # address. Either a system was stored there since (a concurrent create),
+  # or what's there isn't a system the store lists, e.g. a directory with
+  # no module.toml. Listing again tells them apart. If listing fails, the
+  # address is still taken, so :slug_taken stays true.
+  defp already_exists_error(slug) do
+    case Store.adapter().list_entries() do
+      {:ok, entries} ->
+        if Enum.any?(entries, &(&1.slug == slug)),
+          do: {:error, {:slug_taken, slug}},
+          else: {:error, {:slug_occupied, slug}}
+
+      {:error, _} ->
+        {:error, {:slug_taken, slug}}
     end
   end
 
