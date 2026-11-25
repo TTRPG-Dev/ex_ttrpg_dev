@@ -67,6 +67,12 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   sees a partially written character. Without `overwrite`, the slug is
   claimed with a hard link, which fails if the file already exists, so of
   two concurrent saves of the same new slug exactly one succeeds.
+
+  On platforms whose rename won't replace a file, an overwrite moves the
+  old file aside first. If the new file then can't be moved in and the
+  old one can't be moved back, the save fails with
+  `{:error, {:old_character_moved_to, path, reason}}`: the character is
+  no longer listed, and `path` is where its previous version is.
   """
   @impl true
   def save_character(%Character{metadata: %Metadata{slug: slug}} = character, overwrite) do
@@ -126,6 +132,10 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   # Moves the old file aside, renames the new one in, then drops the old
   # one, restoring it if the rename fails. Not atomic (there is a moment
   # with no file), but never leaves a partial one.
+  #
+  # If the restore fails too, the old character survives only in the aside
+  # file, which list_characters/0 doesn't see (not a valid slug), so the
+  # error names that file rather than reporting the rename failure alone.
   defp replace_aside(tmp, target) do
     aside = "#{target}.old-#{System.pid()}-#{System.unique_integer([:positive])}"
 
@@ -135,10 +145,16 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
           File.rm(aside)
           :ok
 
-        error ->
-          File.rename(aside, target)
-          error
+        {:error, reason} ->
+          restore(aside, target, reason)
       end
+    end
+  end
+
+  defp restore(aside, target, reason) do
+    case File.rename(aside, target) do
+      :ok -> {:error, reason}
+      {:error, _} -> {:error, {:old_character_moved_to, aside, reason}}
     end
   end
 
