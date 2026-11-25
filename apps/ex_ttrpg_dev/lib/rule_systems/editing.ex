@@ -29,11 +29,16 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
     end
   end
 
+  # Keeps exactly the characters ExTTRPGDev.Slug allows (letters, marks
+  # and digits in any script), less hyphens, and in the NFC form it
+  # requires. Normalizing first means a decomposed "é" (e + combining
+  # accent) gives the same slug as a composed one.
   def slug_from_name(name) when is_binary(name) do
     name
+    |> String.normalize(:nfc)
     |> String.downcase()
     |> String.replace(~r/[\s-]+/u, "_")
-    |> String.replace(~r/[^a-z0-9_]/, "")
+    |> String.replace(~r/[^\p{L}\p{M}\p{N}_]/u, "")
     |> String.replace(~r/_+/, "_")
     |> String.trim("_")
   end

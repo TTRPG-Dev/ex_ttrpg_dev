@@ -74,7 +74,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   defp create_error_message(fields, {:invalid_slug, ""}),
     do:
       "can't derive a slug from name #{inspect(fields["name"])}: " <>
-        "it needs at least one ASCII letter or digit"
+        "it needs at least one letter or digit"
 
   defp create_error_message(_fields, {:invalid_slug, slug}),
     do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"

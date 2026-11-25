@@ -319,8 +319,8 @@ defmodule ExTTRPGDev.RuleSystems do
 
   - `"name"` *(required)* — display name.
   - `"slug"` *(optional)* — defaults to `slug_from_name/1` of the name. A
-    given slug must already be in that form (lowercase ASCII letters,
-    digits, single underscores).
+    given slug must already be in that form (lowercase letters and digits
+    in any script, single underscores).
   - `"version"` *(optional)* — defaults to `"1.0.0"`. Free-form, as for
     any local system.
   - `"publisher"`, `"family"`, `"series"` *(optional)*.
@@ -334,7 +334,7 @@ defmodule ExTTRPGDev.RuleSystems do
   - `{:slug_taken, slug}` if the slug is installed or is a bundled
     system's slug (as for `clone_system/3`).
   - `{:invalid_slug, slug}` if a given slug isn't in slug form, or the name
-    yields an empty slug (e.g. it has no ASCII letters or digits).
+    yields an empty slug (it has no letters or digits).
   - `{:invalid_module, reason}` for a missing name, an unknown key, a
     non-string value, or a module that doesn't load.
 
@@ -349,10 +349,11 @@ defmodule ExTTRPGDev.RuleSystems do
   defdelegate create_system(fields), to: ExTTRPGDev.RuleSystems.Editing
 
   @doc """
-  Derives a system slug from a display name: lowercased, runs of
-  whitespace and hyphens become one underscore, anything other than ASCII
-  letters, digits and underscores is removed, repeated underscores are
-  collapsed, and leading/trailing underscores trimmed.
+  Derives a system slug from a display name: NFC-normalized and
+  lowercased, runs of whitespace and hyphens become one underscore,
+  anything other than letters, combining marks, digits (in any script) and
+  underscores is removed, repeated underscores are collapsed, and
+  leading/trailing underscores trimmed.
 
   ## Examples
       iex> ExTTRPGDev.RuleSystems.slug_from_name("My Fantasy System")
@@ -360,6 +361,12 @@ defmodule ExTTRPGDev.RuleSystems do
 
       iex> ExTTRPGDev.RuleSystems.slug_from_name("  Sci-Fi: Year 3000! ")
       "sci_fi_year_3000"
+
+      iex> ExTTRPGDev.RuleSystems.slug_from_name("Über Regeln")
+      "über_regeln"
+
+      iex> ExTTRPGDev.RuleSystems.slug_from_name("ドラゴン 2")
+      "ドラゴン_2"
 
   """
   defdelegate slug_from_name(name), to: ExTTRPGDev.RuleSystems.Editing

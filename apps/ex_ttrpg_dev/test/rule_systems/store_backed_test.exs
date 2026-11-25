@@ -167,6 +167,14 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
       assert module == %{"name" => "Homebrew", "slug" => "homebrew", "version" => "0.1"}
     end
 
+    test "derives a slug from a non-ASCII name, in NFC form" do
+      # e + combining acute, which must give the same slug as a composed é
+      decomposed = "Cafe\u0301 Rules"
+      refute decomposed == "Café Rules"
+      assert {:ok, "café_rules"} = RuleSystems.create_system(%{"name" => decomposed})
+      assert {:ok, %LoadedSystem{}} = RuleSystems.load_system("café_rules")
+    end
+
     test "refuses a slug that is installed or bundled" do
       assert {:ok, "taken"} = RuleSystems.create_system(%{"name" => "Taken"})
       assert {:error, {:slug_taken, "taken"}} = RuleSystems.create_system(%{"name" => "taken"})
