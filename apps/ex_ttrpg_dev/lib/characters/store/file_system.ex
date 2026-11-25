@@ -12,6 +12,15 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   bytes. Anything else, including slugs that could reach outside the
   characters directory such as `"../x"`, is rejected with
   `{:error, {:invalid_slug, slug}}` without touching the filesystem.
+
+  ## Characters saved before slugs were validated
+
+  Up to and including 0.15.0, `Character.slugify/1` kept characters a slug can no longer
+  contain (e.g. `"`, `[`, `/`, tabs), didn't normalise to NFC, and turned
+  a name with no letters or digits into a bare `.json`. A file saved under
+  such a slug is no longer listed, loaded or deleted by slug, and isn't
+  migrated. It's left untouched on disk: renaming it to a valid slug (and
+  setting `metadata.slug` inside it to match) makes it reachable again.
   """
 
   @behaviour ExTTRPGDev.Characters.Store
@@ -67,6 +76,12 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   sees a partially written character. Without `overwrite`, the slug is
   claimed with a hard link, which fails if the file already exists, so of
   two concurrent saves of the same new slug exactly one succeeds.
+
+  On platforms whose rename won't replace a file, an overwrite moves the
+  old file aside first. If the new file then can't be moved in and the
+  old one can't be moved back, the save fails with
+  `{:error, {:old_character_moved_to, path, reason}}`: the character is
+  no longer listed, and `path` is where its previous version is.
   """
   @impl true
   def save_character(%Character{metadata: %Metadata{slug: slug}} = character, overwrite) do
@@ -92,6 +107,11 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
     case File.write(tmp, json, [:exclusive, :sync]) do
       :ok ->
         {:ok, tmp}
+
+      # The name is taken: the file is another writer's, not a leftover of
+      # this write, so it's left alone.
+      {:error, :eexist} ->
+        {:error, :eexist}
 
       {:error, reason} ->
         File.rm(tmp)
@@ -121,19 +141,38 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   # Moves the old file aside, renames the new one in, then drops the old
   # one, restoring it if the rename fails. Not atomic (there is a moment
   # with no file), but never leaves a partial one.
+  #
+  # If the restore fails too, the old character survives only in the aside
+  # file, which list_characters/0 doesn't see (not a valid slug), so the
+  # error names that file rather than reporting the rename failure alone.
   defp replace_aside(tmp, target) do
     aside = "#{target}.old-#{System.pid()}-#{System.unique_integer([:positive])}"
 
-    with :ok <- File.rename(target, aside) do
-      case File.rename(tmp, target) do
-        :ok ->
-          File.rm(aside)
-          :ok
+    case File.rename(target, aside) do
+      :ok ->
+        case File.rename(tmp, target) do
+          :ok ->
+            File.rm(aside)
+            :ok
 
-        error ->
-          File.rename(aside, target)
-          error
-      end
+          {:error, reason} ->
+            restore(aside, target, reason)
+        end
+
+      # Already gone (e.g. a concurrent overwrite moved it aside first):
+      # nothing to replace, so this is a plain rename into place.
+      {:error, :enoent} ->
+        File.rename(tmp, target)
+
+      error ->
+        error
+    end
+  end
+
+  defp restore(aside, target, reason) do
+    case File.rename(aside, target) do
+      :ok -> {:error, reason}
+      {:error, _} -> {:error, {:old_character_moved_to, aside, reason}}
     end
   end
 
@@ -169,7 +208,7 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
 
     if File.exists?(path) do
       case File.ls(path) do
-        {:ok, entries} -> {:ok, Enum.flat_map(entries, &listed_slug/1)}
+        {:ok, entries} -> {:ok, entries |> Enum.flat_map(&listed_slug/1) |> Enum.uniq()}
         {:error, reason} -> {:error, reason}
       end
     else
@@ -180,11 +219,19 @@ defmodule ExTTRPGDev.Characters.Store.FileSystem do
   # HFS+ reports names decomposed (NFD) even when they were written
   # composed; normalising before validating keeps those characters listed,
   # and HFS+ resolves the composed name back to the same file.
+  #
+  # Other filesystems (e.g. ext4) compare names byte for byte, so a file
+  # actually named in NFD can't be loaded by its composed slug. A slug that
+  # normalising changed is only listed if it resolves to a file. Where a
+  # composed twin exists too, that's the file it resolves to, so the slug
+  # comes up twice; list_characters/0 drops the repeat.
   defp listed_slug(entry) do
     with true <- String.ends_with?(entry, ".json"),
          true <- String.valid?(entry),
-         slug = entry |> String.trim_trailing(".json") |> String.normalize(:nfc),
-         true <- Slug.valid?(slug) do
+         name = String.replace_suffix(entry, ".json", ""),
+         slug = String.normalize(name, :nfc),
+         true <- Slug.valid?(slug),
+         true <- slug == name or File.exists?(path_for(slug)) do
       [slug]
     else
       _ -> []

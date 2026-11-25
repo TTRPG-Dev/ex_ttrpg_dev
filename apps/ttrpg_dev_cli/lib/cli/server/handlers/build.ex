@@ -16,17 +16,17 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
         %{"command" => "characters.build_start", "system" => slug, "name" => name},
         state
       ) do
-    system = RuleSystems.load_system!(slug)
-    character = Character.gen_character!(system, [])
+    case Character.slugify(name) do
+      # Refused here, before any choices are made, rather than by the store
+      # at build_finish, when the whole build would be lost.
+      "" ->
+        {:error,
+         "can't derive a slug from name #{inspect(name)}: " <>
+           "it needs at least one letter or digit"}
 
-    slug = Character.slugify(name)
-    character = %{character | name: name, metadata: %{character.metadata | slug: slug}}
-    temp_id = Integer.to_string(state.next_id)
-    pending = Map.put(state.pending, temp_id, character)
-    new_state = %{state | pending: pending, next_id: state.next_id + 1}
-
-    building_choices = Serializer.serialize_building_choices(system)
-    {:ok, %{temp_id: temp_id, building_choices: building_choices}, new_state}
+      character_slug ->
+        start_build(slug, name, character_slug, state)
+    end
   end
 
   def handle(
@@ -106,4 +106,16 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Build do
 
   def handle(%{"command" => cmd}, _state),
     do: {:error, "invalid arguments for command: #{inspect(cmd)}"}
+
+  defp start_build(system_slug, name, character_slug, state) do
+    system = RuleSystems.load_system!(system_slug)
+    character = Character.gen_character!(system, [])
+    character = %{character | name: name, metadata: %{character.metadata | slug: character_slug}}
+    temp_id = Integer.to_string(state.next_id)
+    pending = Map.put(state.pending, temp_id, character)
+    new_state = %{state | pending: pending, next_id: state.next_id + 1}
+
+    building_choices = Serializer.serialize_building_choices(system)
+    {:ok, %{temp_id: temp_id, building_choices: building_choices}, new_state}
+  end
 end

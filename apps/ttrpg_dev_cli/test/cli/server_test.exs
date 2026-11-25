@@ -667,6 +667,18 @@ defmodule ExTTRPGDev.CLI.ServerTest do
 
       assert resp.status == "error"
     end
+
+    test "build_start refuses a name with no letters or digits, before any choices" do
+      {resp, state} =
+        Server.handle_command(
+          %{"command" => "characters.build_start", "system" => "dnd_5e_srd", "name" => "!!!"},
+          @initial_state
+        )
+
+      assert resp.status == "error"
+      assert resp.message =~ "at least one letter or digit"
+      assert state.pending == %{}
+    end
   end
 
   # ── resolve_choice scoped sub-choice validation ───────────────────────────────

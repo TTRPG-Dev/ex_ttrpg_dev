@@ -26,6 +26,18 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
   currently `is_modifiable`. A directory without one is modifiable, which
   keeps hand-authored systems editable.
 
+  ## Slugs
+
+  Each slug directory's name must be a valid slug: letters and digits in
+  any script plus `_` and `-`, in Unicode NFC form, at most 200 bytes.
+  Other directories under the root are ignored by `list_entries/0`.
+
+  Up to and including 0.15.0 there was no length limit, so a system
+  installed under a slug longer than 200 bytes is no longer listed (and
+  looks uninstalled). It's left untouched on disk; renaming its directory
+  (and the `slug` in its `module.toml`) to a shorter slug makes it
+  reachable again.
+
   ## Atomicity
 
   `put/3` writes into a temporary directory under the root, then renames it
@@ -54,7 +66,7 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
 
     case File.ls(root) do
       {:ok, names} ->
-        names |> Enum.sort() |> collect_entries(root)
+        names |> Enum.map(&composed/1) |> Enum.uniq() |> Enum.sort() |> collect_entries(root)
 
       {:error, :enoent} ->
         {:ok, []}
@@ -62,6 +74,17 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # HFS+ reports names decomposed (NFD) even when they were written
+  # composed, which Slug.valid?/1 rejects; normalising keeps those systems
+  # listed, and HFS+ resolves the composed name back to the same directory.
+  # Filesystems that compare names byte for byte (e.g. ext4) don't, so a
+  # directory actually named in NFD fails slug_entries/2's File.dir?/1
+  # check and is skipped rather than listed under a slug that can't be
+  # fetched. A composed twin normalises to the same name, hence the uniq.
+  defp composed(name) do
+    if String.valid?(name), do: String.normalize(name, :nfc), else: name
   end
 
   # Fails as a whole if any slug directory can't be read, rather than
