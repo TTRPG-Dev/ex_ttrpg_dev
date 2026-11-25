@@ -59,6 +59,62 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  describe "systems.create" do
+    setup do
+      on_exit(fn -> RuleSystems.delete_system("my_fantasy_system") end)
+    end
+
+    test "creates a loadable local system and reports its module.toml path" do
+      data =
+        run(%{
+          "command" => "systems.create",
+          "name" => "My Fantasy System",
+          "publisher" => "Acme Games",
+          "family" => ""
+        }).data
+
+      assert data.created == "my_fantasy_system"
+
+      assert data.path ==
+               Path.join([
+                 ExTTRPGDev.Globals.local_system_configs_path(),
+                 "my_fantasy_system",
+                 "module.toml"
+               ])
+
+      assert {:ok, %{"module" => module}} = data.path |> File.read!() |> TomlElixir.decode()
+
+      assert module == %{
+               "name" => "My Fantasy System",
+               "slug" => "my_fantasy_system",
+               "version" => "1.0.0",
+               "publisher" => "Acme Games"
+             }
+
+      assert run(%{"command" => "systems.show", "system" => "my_fantasy_system"}).status == "ok"
+    end
+
+    test "refuses a slug that's taken, including a bundled one" do
+      response = run(%{"command" => "systems.create", "name" => "DnD 5e SRD"})
+      assert response.message == ~s(a rule system with slug "dnd_5e_srd" already exists)
+    end
+
+    test "explains a name that yields no slug" do
+      response = run(%{"command" => "systems.create", "name" => "!!!"})
+      assert response.message =~ ~s(can't derive a slug from name "!!!")
+    end
+
+    test "requires a name" do
+      response = run(%{"command" => "systems.create", "publisher" => "Acme"})
+      assert response.message == "name is required"
+    end
+
+    test "rejects unknown fields" do
+      response = run(%{"command" => "systems.create", "name" => "X", "bogus" => "y"})
+      assert response.message == ~s(unknown rule system field: "bogus")
+    end
+  end
+
   describe "systems.delete" do
     # Delete checks every saved character, so point the characters store at
     # an empty temp directory rather than whatever the working tree holds.

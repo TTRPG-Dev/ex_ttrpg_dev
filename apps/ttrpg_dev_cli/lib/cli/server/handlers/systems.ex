@@ -1,7 +1,7 @@
 defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   @moduledoc """
-  Handles the `systems.*` commands: listing, inspecting, and deleting rule
-  systems.
+  Handles the `systems.*` commands: listing, inspecting, creating, and
+  deleting rule systems.
   """
 
   alias ExTTRPGDev.CLI.Serializer
@@ -35,6 +35,24 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
     {:ok, data, state}
   end
 
+  # Every field but "command" goes to the library as [module] metadata, so
+  # its validation (required name, known keys) is the single source of
+  # truth for what can be given.
+  def handle(%{"command" => "systems.create"} = cmd, state) do
+    fields = Map.delete(cmd, "command")
+
+    case RuleSystems.create_system(fields) do
+      # The engine always uses the default filesystem store, where a new
+      # (local) system lives flat at {root}/{slug}.
+      {:ok, slug} ->
+        path = Path.join([Globals.local_system_configs_path(), slug, "module.toml"])
+        {:ok, %{created: slug, path: path}, state}
+
+      {:error, reason} ->
+        {:error, create_error_message(fields, reason)}
+    end
+  end
+
   def handle(%{"command" => "systems.delete", "system" => slug}, state) do
     case RuleSystems.delete_system(slug) do
       # The engine always uses the default filesystem store, where a
@@ -49,6 +67,29 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   def handle(%{"command" => cmd}, _state),
     do: {:error, "invalid arguments for command: #{inspect(cmd)}"}
+
+  defp create_error_message(_fields, {:slug_taken, slug}),
+    do: "a rule system with slug #{inspect(slug)} already exists"
+
+  defp create_error_message(fields, {:invalid_slug, ""}),
+    do:
+      "can't derive a slug from name #{inspect(fields["name"])}: " <>
+        "it needs at least one ASCII letter or digit"
+
+  defp create_error_message(_fields, {:invalid_slug, slug}),
+    do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
+
+  defp create_error_message(_fields, {:invalid_module, {:missing_required_key, key}}),
+    do: "#{key} is required"
+
+  defp create_error_message(_fields, {:invalid_module, {:unknown_key, key}}),
+    do: "unknown rule system field: #{inspect(key)}"
+
+  defp create_error_message(_fields, {:invalid_module, {:not_a_string, key, _}}),
+    do: "rule system field #{inspect(key)} must be a string"
+
+  defp create_error_message(_fields, reason),
+    do: "cannot create rule system: #{inspect(reason)}"
 
   defp delete_error_message(slug, :not_modifiable),
     do: "rule system #{inspect(slug)} is not modifiable (bundled systems can't be deleted)"
