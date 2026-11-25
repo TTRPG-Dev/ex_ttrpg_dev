@@ -74,6 +74,7 @@ defmodule ExTTRPGDev.CLI.ServerTest do
         }).data
 
       assert data.created == "my_fantasy_system"
+      assert data.version == "1.0.0"
 
       assert data.path ==
                Path.join([
@@ -92,6 +93,13 @@ defmodule ExTTRPGDev.CLI.ServerTest do
              }
 
       assert run(%{"command" => "systems.show", "system" => "my_fantasy_system"}).status == "ok"
+    end
+
+    test "reports a given version" do
+      data =
+        run(%{"command" => "systems.create", "name" => "My Fantasy System", "version" => "0.1"}).data
+
+      assert data.version == "0.1"
     end
 
     test "refuses a slug that's taken, including a bundled one" do

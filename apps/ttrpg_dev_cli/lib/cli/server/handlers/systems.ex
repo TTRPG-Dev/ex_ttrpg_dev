@@ -46,7 +46,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
       # (local) system lives flat at {root}/{slug}.
       {:ok, slug} ->
         path = Path.join([Globals.local_system_configs_path(), slug, "module.toml"])
-        {:ok, %{created: slug, path: path}, state}
+        {:ok, %{created: slug, version: created_version(slug), path: path}, state}
 
       {:error, reason} ->
         {:error, create_error_message(fields, reason)}
@@ -67,6 +67,17 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   def handle(%{"command" => cmd}, _state),
     do: {:error, "invalid arguments for command: #{inspect(cmd)}"}
+
+  # The version the library stored, which may be its default rather than
+  # anything the user gave, so the CLI never has to know that default. A
+  # created system has exactly one installed entry. nil only if the store
+  # can't be listed right after the create succeeded.
+  defp created_version(slug) do
+    case RuleSystems.fetch_installed_systems() do
+      {:ok, entries} -> Enum.find_value(entries, &(&1.slug == slug and &1.version))
+      {:error, _} -> nil
+    end
+  end
 
   defp create_error_message(_fields, {:slug_taken, slug}),
     do: "a rule system with slug #{inspect(slug)} already exists"
