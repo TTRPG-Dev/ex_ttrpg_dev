@@ -37,7 +37,7 @@ defmodule ExTTRPGDev.Characters do
   defdelegate character_file_path(character), to: FileSystem
 
   @doc false
-  @deprecated "Use character_file_path/1 instead; it never raised despite the bang"
+  @deprecated "Use character_file_path/1 instead; the two are identical"
   defdelegate character_file_path!(character), to: FileSystem, as: :character_file_path
 
   @doc """
