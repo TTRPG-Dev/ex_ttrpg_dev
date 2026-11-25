@@ -63,6 +63,14 @@ pub(crate) struct CreatedSystem {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct CopiedSystem {
+    pub(crate) copied: String,
+    pub(crate) created: String,
+    pub(crate) name: String,
+    pub(crate) path: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct DeletedSystem {
     pub(crate) deleted: String,
     pub(crate) path: String,
@@ -334,6 +342,14 @@ pub(crate) enum Request<'a> {
         series: Option<&'a str>,
     },
 
+    /// Without `slug`, the engine picks the first free `<system>_copy_N`.
+    #[serde(rename = "systems.copy")]
+    SystemsCopy {
+        system: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        slug: Option<&'a str>,
+    },
+
     #[serde(rename = "systems.delete")]
     SystemsDelete { system: &'a str },
 
@@ -569,6 +585,24 @@ mod tests {
                 "name": "My Fantasy System",
                 "publisher": "Acme Games"
             })
+        );
+    }
+
+    #[test]
+    fn serializes_systems_copy_request() {
+        assert_eq!(
+            to_value(&Request::SystemsCopy {
+                system: "dnd_5e_srd",
+                slug: Some("my_dnd")
+            }),
+            serde_json::json!({"command": "systems.copy", "system": "dnd_5e_srd", "slug": "my_dnd"})
+        );
+        assert_eq!(
+            to_value(&Request::SystemsCopy {
+                system: "dnd_5e_srd",
+                slug: None
+            }),
+            serde_json::json!({"command": "systems.copy", "system": "dnd_5e_srd"})
         );
     }
 
@@ -900,6 +934,21 @@ mod tests {
         let json = r#"{"created":"homebrew","version":null,"path":"/x/homebrew/module.toml"}"#;
         let c: CreatedSystem = serde_json::from_str(json).unwrap();
         assert_eq!(c.version, None);
+    }
+
+    #[test]
+    fn deserialize_copied_system() {
+        let json = r#"{"copied":"dnd_5e_srd","created":"dnd_5e_srd_copy_1","name":"SRD (copy)","path":"/x/dnd_5e_srd_copy_1"}"#;
+        let c: CopiedSystem = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            (&*c.copied, &*c.created, &*c.name, &*c.path),
+            (
+                "dnd_5e_srd",
+                "dnd_5e_srd_copy_1",
+                "SRD (copy)",
+                "/x/dnd_5e_srd_copy_1"
+            )
+        );
     }
 
     #[test]
