@@ -222,6 +222,27 @@ defmodule ExTTRPGDev.CLI.ServerTest do
                  "give one: systems copy #{long} <new_slug>"
     end
 
+    test "copies a system whose content doesn't load" do
+      ExUnit.CaptureLog.capture_log(fn ->
+        {:ok, "draft"} = RuleSystems.clone_system("dnd_5e_srd", "draft", name: "Draft")
+      end)
+
+      concepts = Path.join(ExTTRPGDev.Globals.local_system_configs_path(), "draft/concepts")
+      File.mkdir_p!(concepts)
+
+      File.write!(Path.join(concepts, "broken.toml"), """
+      [ability.broken]
+      name = "Broken"
+      score.type = "formula"
+      score.formula = "ability('nope').score"
+      """)
+
+      assert {:error, _} = RuleSystems.load_system("draft")
+
+      data = copy(%{"command" => "systems.copy", "system" => "draft", "slug" => "draft_fix"}).data
+      assert {data.created, data.name} == {"draft_fix", "Draft (copy)"}
+    end
+
     test "refuses an unknown source" do
       response = copy(%{"command" => "systems.copy", "system" => "nonexistent"})
       assert response.message == ~s(rule system not found: "nonexistent")

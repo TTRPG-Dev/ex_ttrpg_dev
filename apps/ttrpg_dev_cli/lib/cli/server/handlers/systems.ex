@@ -142,16 +142,27 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   defp new_slug_error_message({:invalid_slug, slug}),
     do: "invalid slug #{inspect(slug)}: use lowercase letters, digits and single underscores"
 
-  # The source is loaded first for its name, which also reports an unknown
-  # source before any slug is tried.
+  # The source's name is read first, which also reports an unknown source
+  # before any slug is tried. Only its module.toml is read, not loaded as a
+  # whole: copying a system whose content doesn't load (to fix it in the
+  # copy) must work, since clone_system/3 doesn't need it to load either.
   defp copy(source, new_slug, state) do
-    with {:ok, system} <- RuleSystems.load_system(source),
-         name = "#{system.module.name} (copy)",
+    with {:ok, name} <- copy_name(source),
          {:ok, slug} <- copy_to(source, new_slug, name) do
       path = Path.join(Globals.local_system_configs_path(), slug)
       {:ok, %{copied: source, created: slug, name: name, path: path}, state}
     else
       {:error, reason} -> {:error, copy_error_message(source, new_slug, reason)}
+    end
+  end
+
+  # A module.toml that doesn't parse has no name to trust, so the copy is
+  # named after the slug instead; the copy is still worth making.
+  defp copy_name(source) do
+    case RuleSystems.fetch_module(source) do
+      {:ok, module} -> {:ok, "#{module.name} (copy)"}
+      {:error, {:module_parse_error, _}} -> {:ok, "#{source} (copy)"}
+      error -> error
     end
   end
 
