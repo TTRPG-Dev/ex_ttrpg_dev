@@ -1,7 +1,7 @@
 use super::call_or_report;
 use super::table::{self, COMMAND_TABLE};
 use crate::display;
-use crate::engine::Engine;
+use crate::engine::{Engine, EngineError};
 use crate::prompts::{prompt_loop, prompt_nonempty_string, prompt_yes_no};
 use crate::protocol::{
     ConceptsList, CreatedSystem, DeletedSystem, Request, SystemInfo, SystemsList,
@@ -107,23 +107,39 @@ fn prompt_create_answers() -> Option<CreateAnswers> {
 /// The slug is derived from the name, collisions refused, and a blank
 /// version defaulted, by the engine; the CLI doesn't repeat those rules,
 /// and reports the version it stored rather than predicting it.
+///
+/// Every error the engine can return for what this command sends is about
+/// the name (its slug is taken, empty or too long), so on one the user is
+/// asked for another name, keeping their other answers. Transport errors
+/// (the engine died) end the command instead.
 fn handle_systems_create(engine: &mut Engine) {
-    let Some(a) = prompt_create_answers() else {
+    let Some(mut a) = prompt_create_answers() else {
         println!("Not created.");
         return;
     };
-    let req = Request::SystemsCreate {
-        name: &a.name,
-        version: a.version.as_deref(),
-        publisher: a.publisher.as_deref(),
-        family: a.family.as_deref(),
-        series: a.series.as_deref(),
-    };
-    let Some(r) = call_or_report::<CreatedSystem>(engine, &req) else {
-        return;
-    };
+    loop {
+        let req = Request::SystemsCreate {
+            name: &a.name,
+            version: a.version.as_deref(),
+            publisher: a.publisher.as_deref(),
+            family: a.family.as_deref(),
+            series: a.series.as_deref(),
+        };
+        match engine.call::<_, CreatedSystem>(&req) {
+            Ok(r) => return print_created(&r),
+            Err(EngineError::ErrorResponse(msg)) => eprintln!("Error: {msg}"),
+            Err(e) => return eprintln!("Error: {e}"),
+        }
+        match prompt_optional("Try another name (blank to cancel): ") {
+            Some(Some(name)) => a.name = name,
+            _ => return println!("Not created."),
+        }
+    }
+}
+
+fn print_created(r: &CreatedSystem) {
     println!();
-    match r.version {
+    match &r.version {
         Some(v) => println!("Created rule system {} version {v}: {}", r.created, r.path),
         None => println!("Created rule system {}: {}", r.created, r.path),
     }
