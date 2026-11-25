@@ -294,6 +294,21 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     test "fails for an unknown source" do
       assert {:error, {:not_configured, "nope"}} = RuleSystems.clone_system("nope", "x")
     end
+
+    test "refuses a new slug create_system/1 would refuse, storing nothing" do
+      too_long = String.duplicate("a", 201)
+
+      for {slug, reason} <- [
+            {"My-DnD", {:invalid_slug, "My-DnD"}},
+            {"", {:invalid_slug, ""}},
+            {"_dnd", {:invalid_slug, "_dnd"}},
+            {too_long, {:slug_too_long, too_long, 200}}
+          ] do
+        assert {:error, ^reason} = RuleSystems.clone_system(@slug, slug)
+      end
+
+      assert RuleSystems.list_local_systems!() == []
+    end
   end
 
   describe "update_system/2" do

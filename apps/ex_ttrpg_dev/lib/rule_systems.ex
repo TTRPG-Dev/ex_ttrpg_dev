@@ -393,12 +393,20 @@ defmodule ExTTRPGDev.RuleSystems do
   - `:version` — clone the installed version on this release line rather
     than the newest (see `load_system/2`).
 
-  Returns `{:ok, new_slug}`, `{:error, {:slug_taken, new_slug}}` if
-  `new_slug` is installed or is a bundled system's slug,
-  `{:error, {:slug_occupied, new_slug}}` if the store already holds
-  something that isn't a system where it would go (see `create_system/1`),
-  or `{:error, reason}` if the source can't be resolved or the clone can't be
-  stored.
+  `new_slug` must be in slug form, as a slug given to `create_system/1`
+  must (lowercase letters and digits in any script, single underscores).
+
+  Returns `{:ok, new_slug}`, or `{:error, reason}`:
+
+  - `{:invalid_slug, new_slug}` if `new_slug` isn't in slug form.
+  - `{:slug_too_long, new_slug, max_bytes}` if it's longer than
+    `max_bytes` bytes of UTF-8.
+  - `{:slug_taken, new_slug}` if it's installed or is a bundled system's
+    slug.
+  - `{:slug_occupied, new_slug}` if the store already holds something that
+    isn't a system where it would go (see `create_system/1`).
+  - any other reason if the source can't be resolved or the clone can't be
+    stored.
   """
   defdelegate clone_system(source_slug, new_slug, opts \\ []), to: ExTTRPGDev.RuleSystems.Editing
 

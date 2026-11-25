@@ -105,8 +105,13 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
     end
   end
 
+  # The new slug is held to the form create_system/1 requires, so a
+  # clone's slug can't be one no created system could have (uppercase,
+  # hyphens), and an over-long one gets {:slug_too_long, ...} rather than
+  # the store's generic {:invalid_slug, slug}.
   def clone_system(source_slug, new_slug, opts) do
-    with :ok <- check_slug_free(new_slug),
+    with {:ok, new_slug} <- check_slug(new_slug),
+         :ok <- check_slug_free(new_slug),
          {:ok, _entry, source} <- Installed.resolve(source_slug, opts[:version]) do
       put_new(as_clone(source, new_slug), new_slug)
     end
