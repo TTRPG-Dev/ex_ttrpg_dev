@@ -333,11 +333,11 @@ defmodule ExTTRPGDev.RuleSystems do
 
   - `{:slug_taken, slug}` if the slug is installed or is a bundled
     system's slug (as for `clone_system/3`).
-  - `{:slug_occupied, slug}` if no system has the slug, but the store
-    already holds something else where it would be stored (with the
+  - `{:slug_occupied, slug}` if no listed system has the slug, but the
+    store already holds something where it would be stored (with the
     default filesystem store, a `local_system_configs/{slug}` directory
-    that isn't a loadable system, e.g. one with no `module.toml`). It's
-    left untouched.
+    that isn't a listed system, e.g. one with no `module.toml`). It's left
+    untouched. Also returned if the store can't be listed again to check.
   - `{:invalid_slug, slug}` if a given slug isn't in slug form, or the name
     yields an empty slug (it has no letters or digits).
   - `{:slug_too_long, slug, max_bytes}` if the slug (given or derived) is

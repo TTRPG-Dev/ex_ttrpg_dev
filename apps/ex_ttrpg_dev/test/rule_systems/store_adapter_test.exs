@@ -78,6 +78,30 @@ defmodule ExTTRPGDev.RuleSystems.StoreAdapterTest do
     def put(entry, source, true), do: InMemory.put(entry, source, true)
   end
 
+  defmodule ListFailsAfterPut do
+    @moduledoc false
+    # InMemory, except a non-overwriting put finds its address occupied and
+    # every listing after it fails, e.g. because an unrelated system's
+    # directory is unreadable.
+    @behaviour ExTTRPGDev.RuleSystem.Store
+
+    @impl true
+    def list_entries do
+      if Process.get(__MODULE__), do: {:error, :eacces}, else: InMemory.list_entries()
+    end
+
+    @impl true
+    defdelegate fetch(slug, version), to: InMemory
+    @impl true
+    defdelegate delete(slug, version), to: InMemory
+
+    @impl true
+    def put(_entry, _source, false) do
+      Process.put(__MODULE__, true)
+      {:error, :already_exists}
+    end
+  end
+
   setup do
     start_supervised!(InMemory)
     previous_root = Application.fetch_env!(:ex_ttrpg_dev, :local_system_configs_path)
@@ -150,6 +174,13 @@ defmodule ExTTRPGDev.RuleSystems.StoreAdapterTest do
     Application.put_env(:ex_ttrpg_dev, :rule_system_store, LosesRace)
 
     assert {:error, {:slug_taken, "homebrew"}} =
+             RuleSystems.create_system(%{"name" => "Homebrew"})
+  end
+
+  test "an occupied address is :slug_occupied even when listing again fails" do
+    Application.put_env(:ex_ttrpg_dev, :rule_system_store, ListFailsAfterPut)
+
+    assert {:error, {:slug_occupied, "homebrew"}} =
              RuleSystems.create_system(%{"name" => "Homebrew"})
   end
 end

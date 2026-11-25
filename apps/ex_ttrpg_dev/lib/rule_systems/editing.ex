@@ -254,7 +254,9 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   # address. Either a system was stored there since (a concurrent create),
   # or what's there isn't a system the store lists, e.g. a directory with
   # no module.toml. Listing again tells them apart. If listing fails, the
-  # address is still taken, so :slug_taken stays true.
+  # last successful listing (check_slug_free/1's, moments ago) had no such
+  # system, so :slug_occupied is the better answer: :slug_taken would claim
+  # a system exists that no listing has shown.
   defp already_exists_error(slug) do
     case Store.adapter().list_entries() do
       {:ok, entries} ->
@@ -263,7 +265,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
           else: {:error, {:slug_occupied, slug}}
 
       {:error, _} ->
-        {:error, {:slug_taken, slug}}
+        {:error, {:slug_occupied, slug}}
     end
   end
 
