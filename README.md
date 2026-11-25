@@ -102,6 +102,10 @@ ttrpg-dev systems list
 ttrpg-dev systems show dnd_5e_srd
 ttrpg-dev systems show dnd_5e_srd --concept-type skill
 
+# Scaffold a new, empty local system (prompts for name, version, publisher,
+# family and series), then add concept types and concepts by hand
+ttrpg-dev systems create
+
 # Delete a local (user-made or cloned) system; bundled systems can't be
 # deleted, nor can a system that saved characters still use
 ttrpg-dev systems delete my_homebrew
