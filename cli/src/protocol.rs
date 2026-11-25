@@ -54,6 +54,12 @@ pub(crate) struct DiceResult {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct DeletedSystem {
+    pub(crate) deleted: String,
+    pub(crate) path: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct DeletedCharacter {
     pub(crate) deleted: String,
 }
@@ -304,6 +310,9 @@ pub(crate) enum Request<'a> {
         concept_id: Option<&'a str>,
     },
 
+    #[serde(rename = "systems.delete")]
+    SystemsDelete { system: &'a str },
+
     #[serde(rename = "characters.gen")]
     CharactersGen { system: &'a str },
 
@@ -518,6 +527,16 @@ mod tests {
                 "concept_type": "race",
                 "concept_id": "dwarf"
             })
+        );
+    }
+
+    #[test]
+    fn serializes_systems_delete_request() {
+        assert_eq!(
+            to_value(&Request::SystemsDelete {
+                system: "my_homebrew"
+            }),
+            serde_json::json!({"command": "systems.delete", "system": "my_homebrew"})
         );
     }
 
@@ -826,6 +845,14 @@ mod tests {
         let json = r#"{"systems":["dnd_5e_srd","pathfinder"]}"#;
         let s: SystemsList = serde_json::from_str(json).unwrap();
         assert_eq!(s.systems, vec!["dnd_5e_srd", "pathfinder"]);
+    }
+
+    #[test]
+    fn deserialize_deleted_system() {
+        let json = r#"{"deleted":"my_homebrew","path":"/x/local_system_configs/my_homebrew"}"#;
+        let d: DeletedSystem = serde_json::from_str(json).unwrap();
+        assert_eq!(d.deleted, "my_homebrew");
+        assert_eq!(d.path, "/x/local_system_configs/my_homebrew");
     }
 
     #[test]
