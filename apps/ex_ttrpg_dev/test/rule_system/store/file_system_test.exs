@@ -172,6 +172,26 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystemTest do
     assert {:ok, ^unicode} = FileSystem.fetch("règles_maison", "draft")
   end
 
+  test "a decomposed directory name is listed only if its composed slug resolves", %{
+    root: root
+  } do
+    :ok = put(source("zoë", "draft"))
+    nfd = Path.join(root, "zoe\u0308")
+
+    if File.dir?(nfd) do
+      # HFS+-like: both forms name the one directory.
+      assert {:ok, [%Entry{slug: "zoë"}]} = FileSystem.list_entries()
+    else
+      # ext4-like: an NFD twin is a separate directory. It can't be fetched
+      # as "zoë", so only the composed one is listed.
+      File.cp_r!(Path.join(root, "zoë"), nfd)
+      assert {:ok, [%Entry{slug: "zoë"}]} = FileSystem.list_entries()
+
+      File.rm_rf!(Path.join(root, "zoë"))
+      assert {:ok, []} = FileSystem.list_entries()
+    end
+  end
+
   test "slugs and versions that could escape the root are rejected" do
     assert {:error, {:invalid_slug, "../x"}} = put(source("../x", "draft"))
     assert {:error, {:invalid_version, "../1"}} = put(source("sys", "../1", "~> 0.15.0"))

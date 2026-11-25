@@ -54,7 +54,7 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
 
     case File.ls(root) do
       {:ok, names} ->
-        names |> Enum.sort() |> collect_entries(root)
+        names |> Enum.map(&composed/1) |> Enum.uniq() |> Enum.sort() |> collect_entries(root)
 
       {:error, :enoent} ->
         {:ok, []}
@@ -62,6 +62,17 @@ defmodule ExTTRPGDev.RuleSystem.Store.FileSystem do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # HFS+ reports names decomposed (NFD) even when they were written
+  # composed, which Slug.valid?/1 rejects; normalising keeps those systems
+  # listed, and HFS+ resolves the composed name back to the same directory.
+  # Filesystems that compare names byte for byte (e.g. ext4) don't, so a
+  # directory actually named in NFD fails slug_entries/2's File.dir?/1
+  # check and is skipped rather than listed under a slug that can't be
+  # fetched. A composed twin normalises to the same name, hence the uniq.
+  defp composed(name) do
+    if String.valid?(name), do: String.normalize(name, :nfc), else: name
   end
 
   # Fails as a whole if any slug directory can't be read, rather than
