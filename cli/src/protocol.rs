@@ -54,6 +54,15 @@ pub(crate) struct DiceResult {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct CreatedSystem {
+    pub(crate) created: String,
+    /// The version stored, possibly the library's default; `None` if the
+    /// engine couldn't read it back.
+    pub(crate) version: Option<String>,
+    pub(crate) path: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct DeletedSystem {
     pub(crate) deleted: String,
     pub(crate) path: String,
@@ -310,6 +319,21 @@ pub(crate) enum Request<'a> {
         concept_id: Option<&'a str>,
     },
 
+    /// Optional fields left out are given library defaults (version) or
+    /// omitted from the created module.toml.
+    #[serde(rename = "systems.create")]
+    SystemsCreate {
+        name: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        version: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        publisher: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        family: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        series: Option<&'a str>,
+    },
+
     #[serde(rename = "systems.delete")]
     SystemsDelete { system: &'a str },
 
@@ -526,6 +550,24 @@ mod tests {
                 "system": "dnd_5e_srd",
                 "concept_type": "race",
                 "concept_id": "dwarf"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_systems_create_request_omitting_unset_fields() {
+        assert_eq!(
+            to_value(&Request::SystemsCreate {
+                name: "My Fantasy System",
+                version: None,
+                publisher: Some("Acme Games"),
+                family: None,
+                series: None,
+            }),
+            serde_json::json!({
+                "command": "systems.create",
+                "name": "My Fantasy System",
+                "publisher": "Acme Games"
             })
         );
     }
@@ -845,6 +887,19 @@ mod tests {
         let json = r#"{"systems":["dnd_5e_srd","pathfinder"]}"#;
         let s: SystemsList = serde_json::from_str(json).unwrap();
         assert_eq!(s.systems, vec!["dnd_5e_srd", "pathfinder"]);
+    }
+
+    #[test]
+    fn deserialize_created_system() {
+        let json = r#"{"created":"homebrew","version":"1.0.0","path":"/x/homebrew/module.toml"}"#;
+        let c: CreatedSystem = serde_json::from_str(json).unwrap();
+        assert_eq!(c.created, "homebrew");
+        assert_eq!(c.version.as_deref(), Some("1.0.0"));
+        assert_eq!(c.path, "/x/homebrew/module.toml");
+
+        let json = r#"{"created":"homebrew","version":null,"path":"/x/homebrew/module.toml"}"#;
+        let c: CreatedSystem = serde_json::from_str(json).unwrap();
+        assert_eq!(c.version, None);
     }
 
     #[test]

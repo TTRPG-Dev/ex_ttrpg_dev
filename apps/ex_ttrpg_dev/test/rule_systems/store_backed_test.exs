@@ -122,6 +122,92 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     assert {:ok, []} = FileSystem.list_entries()
   end
 
+  describe "create_system/1" do
+    test "stores a modifiable, non-canonical system that loads" do
+      assert {:ok, "my_fantasy_system"} =
+               RuleSystems.create_system(%{
+                 "name" => "My Fantasy System",
+                 "publisher" => "Acme Games"
+               })
+
+      assert {:ok, source} = FileSystem.fetch("my_fantasy_system", "1.0.0")
+
+      assert source.module == %{
+               "module" => %{
+                 "name" => "My Fantasy System",
+                 "slug" => "my_fantasy_system",
+                 "version" => "1.0.0",
+                 "publisher" => "Acme Games"
+               }
+             }
+
+      assert source.concepts == []
+
+      assert %Entry{is_modifiable: true, library_requirement: nil} =
+               Enum.find(RuleSystems.list_installed_systems!(), &(&1.slug == "my_fantasy_system"))
+
+      assert {:ok, %LoadedSystem{module: %{name: "My Fantasy System"}}} =
+               RuleSystems.load_system("my_fantasy_system")
+
+      assert "my_fantasy_system" in RuleSystems.list_local_systems!()
+    end
+
+    test "omits blank optional fields, trims values, and keeps a given version and slug" do
+      assert {:ok, "homebrew"} =
+               RuleSystems.create_system(%{
+                 "name" => "  Homebrew  ",
+                 "slug" => "homebrew",
+                 "version" => "0.1",
+                 "family" => "",
+                 "series" => "   ",
+                 "publisher" => nil
+               })
+
+      assert {:ok, %{module: %{"module" => module}}} = FileSystem.fetch("homebrew", "0.1")
+      assert module == %{"name" => "Homebrew", "slug" => "homebrew", "version" => "0.1"}
+    end
+
+    test "derives a slug from a non-ASCII name, in NFC form" do
+      # e + combining acute, which must give the same slug as a composed é
+      decomposed = "Cafe\u0301 Rules"
+      refute decomposed == "Café Rules"
+      assert {:ok, "café_rules"} = RuleSystems.create_system(%{"name" => decomposed})
+      assert {:ok, %LoadedSystem{}} = RuleSystems.load_system("café_rules")
+    end
+
+    test "refuses a slug that is installed or bundled" do
+      assert {:ok, "taken"} = RuleSystems.create_system(%{"name" => "Taken"})
+      assert {:error, {:slug_taken, "taken"}} = RuleSystems.create_system(%{"name" => "taken"})
+
+      assert {:error, {:slug_taken, @slug}} =
+               RuleSystems.create_system(%{"name" => "x", "slug" => @slug})
+
+      assert {:ok, [%Entry{slug: "taken"}]} = FileSystem.list_entries()
+    end
+
+    test "rejects invalid input without storing anything" do
+      for {fields, error} <- [
+            {%{}, {:invalid_module, {:missing_required_key, "name"}}},
+            {%{"name" => " "}, {:invalid_module, {:missing_required_key, "name"}}},
+            {%{"name" => "!!!"}, {:invalid_slug, ""}},
+            {%{"name" => "X", "slug" => "Not A Slug"}, {:invalid_slug, "Not A Slug"}},
+            {%{"name" => "X", "level_node" => "y"},
+             {:invalid_module, {:unknown_key, "level_node"}}},
+            {%{"name" => "X", "library_requirement" => "~> 0.1"},
+             {:invalid_module, {:unknown_key, "library_requirement"}}},
+            {%{"name" => 3}, {:invalid_module, {:not_a_string, "name", 3}}},
+            {%{"name" => String.duplicate("a", 201)},
+             {:slug_too_long, String.duplicate("a", 201), 200}},
+            {%{"name" => String.duplicate("é", 101)},
+             {:slug_too_long, String.duplicate("é", 101), 200}}
+          ] do
+        assert {:error, ^error} = RuleSystems.create_system(fields)
+      end
+
+      assert {:ok, []} = FileSystem.list_entries()
+    end
+  end
+
   describe "clone_system/3" do
     test "copies a non-modifiable system into a modifiable, non-canonical one", ctx do
       capture_log(fn ->

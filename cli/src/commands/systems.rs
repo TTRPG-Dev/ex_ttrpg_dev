@@ -1,9 +1,11 @@
 use super::call_or_report;
 use super::table::{self, COMMAND_TABLE};
 use crate::display;
-use crate::engine::Engine;
-use crate::prompts::prompt_yes_no;
-use crate::protocol::{ConceptsList, DeletedSystem, Request, SystemInfo, SystemsList};
+use crate::engine::{Engine, EngineError};
+use crate::prompts::{prompt_loop, prompt_nonempty_string, prompt_yes_no};
+use crate::protocol::{
+    ConceptsList, CreatedSystem, DeletedSystem, Request, SystemInfo, SystemsList,
+};
 
 pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
     if table::dispatch_help(tokens, "systems") {
@@ -13,6 +15,10 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
         ["list"] => handle_systems_list(engine),
         ["show", slug] => handle_systems_show(slug, None, engine),
         ["show", slug, "--concept-type", ct] => handle_systems_show(slug, Some(ct), engine),
+        ["create"] => handle_systems_create(engine),
+        ["create", extra, ..] => {
+            eprintln!("Unexpected argument '{extra}'. Try `systems create --help`.")
+        }
         ["delete", rest @ ..] => match parse_delete_args(rest) {
             Ok(args) => handle_systems_delete(args, engine),
             Err(msg) => eprintln!("{msg} Try `systems delete --help`."),
@@ -66,6 +72,76 @@ fn print_systems_usage() {
         if spec.path.starts_with("systems ") {
             println!("  {}", spec.usage);
         }
+    }
+}
+
+/// What the user typed for `systems create`, blanks already turned into
+/// `None` so they're left out of the request (and so of module.toml).
+struct CreateAnswers {
+    name: String,
+    version: Option<String>,
+    publisher: Option<String>,
+    family: Option<String>,
+    series: Option<String>,
+}
+
+/// Outer `None` on EOF; inner `None` for a blank answer.
+fn prompt_optional(prompt: &str) -> Option<Option<String>> {
+    prompt_loop(prompt, |line| {
+        let answer = line.trim();
+        Ok((!answer.is_empty()).then(|| answer.to_string()))
+    })
+}
+
+/// `None` if input ends (EOF) at any prompt, which cancels the create.
+fn prompt_create_answers() -> Option<CreateAnswers> {
+    Some(CreateAnswers {
+        name: prompt_nonempty_string("System name:")?,
+        version: prompt_optional("Version (optional): ")?,
+        publisher: prompt_optional("Publisher (optional): ")?,
+        family: prompt_optional("Family (optional): ")?,
+        series: prompt_optional("Series (optional): ")?,
+    })
+}
+
+/// The slug is derived from the name, collisions refused, and a blank
+/// version defaulted, by the engine; the CLI doesn't repeat those rules,
+/// and reports the version it stored rather than predicting it.
+///
+/// Every error the engine can return for what this command sends is about
+/// the name (its slug is taken, empty or too long), so on one the user is
+/// asked for another name, keeping their other answers. Transport errors
+/// (the engine died) end the command instead.
+fn handle_systems_create(engine: &mut Engine) {
+    let Some(mut a) = prompt_create_answers() else {
+        println!("Not created.");
+        return;
+    };
+    loop {
+        let req = Request::SystemsCreate {
+            name: &a.name,
+            version: a.version.as_deref(),
+            publisher: a.publisher.as_deref(),
+            family: a.family.as_deref(),
+            series: a.series.as_deref(),
+        };
+        match engine.call::<_, CreatedSystem>(&req) {
+            Ok(r) => return print_created(&r),
+            Err(EngineError::ErrorResponse(msg)) => eprintln!("Error: {msg}"),
+            Err(e) => return eprintln!("Error: {e}"),
+        }
+        match prompt_optional("Try another name (blank to cancel): ") {
+            Some(Some(name)) => a.name = name,
+            _ => return println!("Not created."),
+        }
+    }
+}
+
+fn print_created(r: &CreatedSystem) {
+    println!();
+    match &r.version {
+        Some(v) => println!("Created rule system {} version {v}: {}", r.created, r.path),
+        None => println!("Created rule system {}: {}", r.created, r.path),
     }
 }
 

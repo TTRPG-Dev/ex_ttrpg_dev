@@ -51,6 +51,12 @@ pub(crate) static COMMAND_TABLE: &[CommandSpec] = &[
         completion: Completion::System,
     },
     CommandSpec {
+        path: "systems create",
+        usage: "systems create",
+        summary: "Create a new, empty local rule system (prompts for its details)",
+        completion: Completion::None,
+    },
+    CommandSpec {
         path: "systems delete",
         usage: "systems delete <system> [-y|--yes]",
         summary: "Delete a local rule system (confirms unless --yes)",
@@ -235,6 +241,7 @@ mod tests {
         "roll",
         "systems list",
         "systems show",
+        "systems create",
         "systems delete",
         "characters list",
         "characters gen",

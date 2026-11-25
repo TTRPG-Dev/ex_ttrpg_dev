@@ -7,7 +7,10 @@ use crate::protocol::OptionEntry;
 /// Shared skeleton for a "print a prompt, read one stdin line, retry on bad
 /// input" loop. `parse` turns the raw line into `Some(T)`, or prints its own
 /// error and returns `None` to make the loop print `prompt` again.
-fn prompt_loop<T>(prompt: &str, mut parse: impl FnMut(&str) -> Result<T, String>) -> Option<T> {
+pub(crate) fn prompt_loop<T>(
+    prompt: &str,
+    mut parse: impl FnMut(&str) -> Result<T, String>,
+) -> Option<T> {
     loop {
         print!("{prompt}");
         let _ = std::io::Write::flush(&mut io::stdout());
