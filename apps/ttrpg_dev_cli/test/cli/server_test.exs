@@ -498,6 +498,138 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  describe "characters.copy" do
+    # Copying picks slugs by listing every saved character, so point the
+    # store at an empty temp directory.
+    setup do
+      characters =
+        Path.join(System.tmp_dir!(), "ttrpg_cli_copy_#{System.unique_integer([:positive])}")
+
+      Application.put_env(:ex_ttrpg_dev, :characters_path, characters)
+
+      on_exit(fn ->
+        Application.delete_env(:ex_ttrpg_dev, :characters_path)
+        File.rm_rf!(characters)
+      end)
+
+      character = %Character{
+        name: "Aria Stormwind",
+        generated_values: %{},
+        metadata: %Metadata{slug: "aria", rule_system: "none", rule_system_version: "1.0.0"}
+      }
+
+      :ok = Characters.save_character(character)
+      %{character: character}
+    end
+
+    test "copies to the given slug, renaming only the copy", %{character: character} do
+      response = run(%{"command" => "characters.copy", "character" => "aria", "slug" => "backup"})
+
+      assert response.data == %{
+               copied: "aria",
+               created: "backup",
+               name: "Aria Stormwind (copy)"
+             }
+
+      {:ok, copy} = Characters.load_character("backup")
+
+      assert copy == %{
+               character
+               | name: "Aria Stormwind (copy)",
+                 metadata: %{character.metadata | slug: "backup"}
+             }
+
+      assert Characters.load_character("aria") == {:ok, character}
+    end
+
+    test "carries over everything a generated character has" do
+      {gen, state} =
+        Server.handle_command(
+          %{"command" => "characters.gen", "system" => "dnd_5e_srd"},
+          @initial_state
+        )
+
+      {saved, _} =
+        Server.handle_command(
+          %{"command" => "characters.save", "temp_id" => gen.data.temp_id},
+          state
+        )
+
+      slug = saved.data.slug
+      created = run(%{"command" => "characters.copy", "character" => slug}).data.created
+
+      {:ok, source} = Characters.load_character(slug)
+      {:ok, copy} = Characters.load_character(created)
+      assert Map.drop(copy, [:name, :metadata]) == Map.drop(source, [:name, :metadata])
+      assert run(%{"command" => "characters.show", "character" => created}).status == "ok"
+    end
+
+    test "without a slug, takes the first free <source>_copy_N" do
+      created =
+        for _ <- 1..2 do
+          run(%{"command" => "characters.copy", "character" => "aria"}).data.created
+        end
+
+      assert created == ["aria_copy_1", "aria_copy_2"]
+    end
+
+    test "a null slug means none was given" do
+      response = run(%{"command" => "characters.copy", "character" => "aria", "slug" => nil})
+      assert response.data.created == "aria_copy_1"
+    end
+
+    test "refuses a given slug that is taken" do
+      response = run(%{"command" => "characters.copy", "character" => "aria", "slug" => "aria"})
+      assert response.message == ~s(a character with slug "aria" already exists)
+      assert {:ok, %{name: "Aria Stormwind"}} = Characters.load_character("aria")
+    end
+
+    test "refuses an invalid slug" do
+      response =
+        run(%{"command" => "characters.copy", "character" => "aria", "slug" => "../escape"})
+
+      assert response.message =~ ~s(invalid slug "../escape")
+    end
+
+    test "asks for a slug when the source's can't take a _copy_N suffix", %{
+      character: character
+    } do
+      long = String.duplicate("a", 195)
+      :ok = Characters.save_character(%{character | metadata: %{character.metadata | slug: long}})
+
+      response = run(%{"command" => "characters.copy", "character" => long})
+
+      assert response.message ==
+               ~s(can't derive a slug for the copy from "#{long}"; ) <>
+                 "give one: characters copy #{long} <new_slug>"
+    end
+
+    test "names a nameless character's copy after its slug", %{character: character} do
+      :ok = Characters.save_character(%{character | name: nil}, true)
+      response = run(%{"command" => "characters.copy", "character" => "aria"})
+      assert response.data.name == "aria (copy)"
+    end
+
+    test "refuses an unknown or impossible source" do
+      for source <- ["nobody", "../aria"] do
+        response = run(%{"command" => "characters.copy", "character" => source})
+        assert response.message == "character not found: #{inspect(source)}"
+      end
+    end
+
+    test "refuses a source whose saved data can't be read" do
+      File.write!(Path.join(ExTTRPGDev.Globals.characters_path(), "broken.json"), "nope")
+      response = run(%{"command" => "characters.copy", "character" => "broken"})
+      assert response.message =~ ~s(cannot copy character "broken": its saved data can't be read)
+    end
+
+    test "rejects a slug that isn't a string" do
+      response = run(%{"command" => "characters.copy", "character" => "aria", "slug" => 7})
+      assert response.status == "error"
+      assert Characters.list_characters() == {:ok, ["aria"]}
+    end
+  end
+
   # ── saved character commands ──────────────────────────────────────────────────
 
   describe "saved character commands" do
