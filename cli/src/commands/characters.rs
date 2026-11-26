@@ -28,7 +28,7 @@ pub(crate) fn handle_characters(
     match tokens {
         ["list"] => handle_characters_list(None, engine),
         ["list", "--system", system] => handle_characters_list(Some(system), engine),
-        ["gen", system] => handle_characters_gen(system, engine),
+        ["gen", rest @ ..] => handle_characters_gen(parse_gen_args(rest)?, engine),
         ["build", system] => handle_characters_build(system, engine),
         ["show", slug] => handle_characters_show(slug, display_mode, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
@@ -154,13 +154,49 @@ fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Result<DeleteAllArgs<'a>, F
     Ok(DeleteAllArgs { yes, system })
 }
 
-fn handle_characters_gen(system: &str, engine: &mut Engine) -> CmdResult {
-    let req = Request::CharactersGen { system };
+#[derive(Debug, PartialEq)]
+struct GenArgs<'a> {
+    system: &'a str,
+    save: bool,
+}
+
+/// `<system> [--save]`, flag in any position.
+fn parse_gen_args<'a>(tokens: &[&'a str]) -> Result<GenArgs<'a>, Failed> {
+    let mut save = false;
+    let mut system = None;
+    for &t in tokens {
+        match t {
+            "--save" => save = true,
+            flag if flag.starts_with('-') => {
+                return Err(fail(format!(
+                    "Unknown flag '{flag}'. Try `characters gen --help`."
+                )));
+            }
+            s if system.is_none() => system = Some(s),
+            extra => {
+                return Err(fail(format!(
+                    "Unexpected argument '{extra}'. Try `characters gen --help`."
+                )));
+            }
+        }
+    }
+    let system = system.ok_or_else(|| fail("Missing system. Try `characters gen --help`."))?;
+    Ok(GenArgs { system, save })
+}
+
+/// With `--save` the character is saved without asking, so `gen` can run
+/// where nobody can answer the prompt.
+fn handle_characters_gen(args: GenArgs, engine: &mut Engine) -> CmdResult {
+    let req = Request::CharactersGen {
+        system: args.system,
+    };
     let character = call_or_report::<CharacterData>(engine, &req)?;
     display::print_character(&character);
-    if let Some(temp_id) = &character.temp_id
-        && prompt_yes_no("Save this character?").unwrap_or(false)
-    {
+    let Some(temp_id) = &character.temp_id else {
+        return Ok(());
+    };
+    let save = args.save || prompt_yes_no("Save this character?").unwrap_or(false);
+    if save {
         let save_req = Request::CharactersSave { temp_id };
         let saved = engine
             .call::<_, SaveResult>(&save_req)
@@ -501,7 +537,35 @@ fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) 
 
 #[cfg(test)]
 mod tests {
-    use super::selection_index;
+    use super::{GenArgs, parse_gen_args, selection_index};
+
+    #[test]
+    fn gen_takes_a_system_and_an_optional_save_flag_in_any_position() {
+        assert_eq!(
+            parse_gen_args(&["dnd_5e_srd"]),
+            Ok(GenArgs {
+                system: "dnd_5e_srd",
+                save: false
+            })
+        );
+        for tokens in [&["dnd_5e_srd", "--save"][..], &["--save", "dnd_5e_srd"][..]] {
+            assert_eq!(
+                parse_gen_args(tokens),
+                Ok(GenArgs {
+                    system: "dnd_5e_srd",
+                    save: true
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn gen_rejects_a_missing_system_unknown_flags_and_extra_arguments() {
+        assert!(parse_gen_args(&[]).is_err());
+        assert!(parse_gen_args(&["--save"]).is_err());
+        assert!(parse_gen_args(&["dnd_5e_srd", "--force"]).is_err());
+        assert!(parse_gen_args(&["dnd_5e_srd", "other"]).is_err());
+    }
 
     #[test]
     fn selection_index_accepts_the_full_valid_range() {
