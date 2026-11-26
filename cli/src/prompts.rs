@@ -1,8 +1,35 @@
 //! Interactive sub-prompts for yes/no, integer, and option-list input.
 
 use std::io::{self, BufRead};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::protocol::OptionEntry;
+
+/// Set when nobody can answer a prompt: one-shot mode with no terminal on
+/// stdin. The REPL never sets it, even reading from a pipe, where answers
+/// come from the next lines of input.
+static PROMPTS_REFUSED: AtomicBool = AtomicBool::new(false);
+
+/// From now on, commands must not prompt. Each command checks
+/// [`can_prompt`] before it would ask, and fails with a message naming the
+/// flag that answers the question, or saying it needs a terminal.
+pub(crate) fn refuse_prompts() {
+    PROMPTS_REFUSED.store(true, Ordering::Relaxed);
+}
+
+pub(crate) fn can_prompt() -> bool {
+    !PROMPTS_REFUSED.load(Ordering::Relaxed)
+}
+
+/// Set when a prompt was reached while refused: a command that should
+/// have checked [`can_prompt`] didn't. Its caller sees the prompt end as
+/// if input had, which it treats as the user declining, so this is how one-shot
+/// mode still knows to exit 1.
+static PROMPT_REFUSED_UNCHECKED: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn refused_an_unchecked_prompt() -> bool {
+    PROMPT_REFUSED_UNCHECKED.load(Ordering::Relaxed)
+}
 
 /// Shared skeleton for a "print a prompt, read one stdin line, retry on bad
 /// input" loop. `parse` turns the raw line into `Some(T)`, or prints its own
@@ -11,6 +38,17 @@ pub(crate) fn prompt_loop<T>(
     prompt: &str,
     mut parse: impl FnMut(&str) -> Result<T, String>,
 ) -> Option<T> {
+    // A command should have refused before getting here (see
+    // `refuse_prompts`); the debug assertion makes the integration tests
+    // catch one that doesn't. In a release build, behave as if input ended
+    // rather than read an answer nobody gave, and record it so the exit
+    // status still says the command failed.
+    if !can_prompt() {
+        debug_assert!(false, "prompt {prompt:?} reached with prompts refused");
+        eprintln!("Error: no terminal to answer {:?}", prompt.trim());
+        PROMPT_REFUSED_UNCHECKED.store(true, Ordering::Relaxed);
+        return None;
+    }
     loop {
         print!("{prompt}");
         let _ = std::io::Write::flush(&mut io::stdout());

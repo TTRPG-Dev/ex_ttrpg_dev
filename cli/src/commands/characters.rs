@@ -3,26 +3,33 @@ use serde_json::json;
 use super::build::{ChoiceResolution, handle_characters_build, prompt_choice_value};
 use super::inventory::handle_inventory;
 use super::table::{self, COMMAND_TABLE};
-use super::{CharacterAwardArgs, ConceptRollArgs, DisplayMode, call_or_report};
+use super::{
+    CharacterAwardArgs, CmdResult, ConceptRollArgs, DisplayMode, Failed, call_or_report, fail,
+    require_terminal,
+};
 use crate::display;
 use crate::engine::Engine;
-use crate::prompts::{prompt_integer, prompt_yes_no};
+use crate::prompts::{can_prompt, prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
     CopiedCharacter, InventoryResponse, PendingChoice, PreparationStateResponse,
     RandomResolveResult, Request, SaveResult,
 };
 
-pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
+pub(crate) fn handle_characters(
+    tokens: &[&str],
+    session_mode: DisplayMode,
+    engine: &mut Engine,
+) -> CmdResult {
     let (tokens, display_mode) = strip_display_flags(tokens, session_mode);
     let tokens = tokens.as_slice();
     if table::dispatch_help(tokens, "characters") {
-        return;
+        return Ok(());
     }
     match tokens {
         ["list"] => handle_characters_list(None, engine),
         ["list", "--system", system] => handle_characters_list(Some(system), engine),
-        ["gen", system] => handle_characters_gen(system, engine),
+        ["gen", rest @ ..] => handle_characters_gen(parse_gen_args(rest)?, engine),
         ["build", system] => handle_characters_build(system, engine),
         ["show", slug] => handle_characters_show(slug, display_mode, engine),
         ["roll", slug, type_id, concept_id] => handle_characters_roll(
@@ -47,16 +54,12 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ),
         ["copy", slug] => handle_characters_copy(slug, None, engine),
         ["copy", slug, new_slug] => handle_characters_copy(slug, Some(new_slug), engine),
-        ["copy", ..] => {
-            eprintln!(
-                "Expected a character and an optional new slug. Try `characters copy --help`."
-            )
-        }
+        ["copy", ..] => Err(fail(
+            "Expected a character and an optional new slug. Try `characters copy --help`.",
+        )),
         ["delete", slug] => handle_characters_delete(slug, engine),
         ["delete-all", rest @ ..] => {
-            if let Some(args) = parse_delete_all_flags(rest) {
-                handle_characters_delete_all(engine, args);
-            }
+            handle_characters_delete_all(engine, parse_delete_all_flags(rest)?)
         }
         ["choices", slug] => handle_characters_choices(slug, display_mode, engine),
         ["resolve_choice", rest @ ..] => dispatch_resolve_choice(rest, display_mode, engine),
@@ -65,8 +68,13 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
         ["prepare", slug, items @ ..] if !items.is_empty() => {
             handle_activate("prepare", slug, items, engine)
         }
-        [] | ["--help"] => print_characters_usage(),
-        [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `characters --help`."),
+        [] | ["--help"] => {
+            print_characters_usage();
+            Ok(())
+        }
+        [unknown, ..] => Err(fail(format!(
+            "Unknown subcommand '{unknown}'. Try `characters --help`."
+        ))),
     }
 }
 
@@ -122,7 +130,7 @@ struct DeleteAllArgs<'a> {
     system: Option<&'a str>,
 }
 
-fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
+fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Result<DeleteAllArgs<'a>, Failed> {
     let mut yes = false;
     let mut system = None;
     let mut i = 0;
@@ -133,40 +141,86 @@ fn parse_delete_all_flags<'a>(tokens: &[&'a str]) -> Option<DeleteAllArgs<'a>> {
                 i += 1;
                 match tokens.get(i) {
                     Some(s) => system = Some(*s),
-                    None => {
-                        eprintln!("Error: --system requires a value");
-                        return None;
-                    }
+                    None => return Err(fail("Error: --system requires a value")),
                 }
             }
             unknown => {
-                eprintln!("Unknown flag '{unknown}'. Try `characters delete-all --help`.");
-                return None;
+                return Err(fail(format!(
+                    "Unknown flag '{unknown}'. Try `characters delete-all --help`."
+                )));
             }
         }
         i += 1;
     }
-    Some(DeleteAllArgs { yes, system })
+    Ok(DeleteAllArgs { yes, system })
 }
 
-fn handle_characters_gen(system: &str, engine: &mut Engine) {
-    let req = Request::CharactersGen { system };
-    let Some(character) = call_or_report::<CharacterData>(engine, &req) else {
-        return;
-    };
-    display::print_character(&character);
-    if let Some(temp_id) = &character.temp_id
-        && prompt_yes_no("Save this character?").unwrap_or(false)
-    {
-        let save_req = Request::CharactersSave { temp_id };
-        match engine.call::<_, SaveResult>(&save_req) {
-            Ok(saved) => println!("Saved as '{}'.", saved.slug),
-            Err(e) => eprintln!("Error saving: {e}"),
+#[derive(Debug, PartialEq)]
+struct GenArgs<'a> {
+    system: &'a str,
+    save: bool,
+}
+
+/// `<system> [--save]`, flag in any position.
+fn parse_gen_args<'a>(tokens: &[&'a str]) -> Result<GenArgs<'a>, Failed> {
+    let mut save = false;
+    let mut system = None;
+    for &t in tokens {
+        match t {
+            "--save" => save = true,
+            flag if flag.starts_with('-') => {
+                return Err(fail(format!(
+                    "Unknown flag '{flag}'. Try `characters gen --help`."
+                )));
+            }
+            s if system.is_none() => system = Some(s),
+            extra => {
+                return Err(fail(format!(
+                    "Unexpected argument '{extra}'. Try `characters gen --help`."
+                )));
+            }
         }
     }
+    let system = system.ok_or_else(|| fail("Missing system. Try `characters gen --help`."))?;
+    Ok(GenArgs { system, save })
 }
 
-fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
+/// With `--save` the character is saved without asking, so `gen` can run
+/// where nobody can answer the prompt.
+fn handle_characters_gen(args: GenArgs, engine: &mut Engine) -> CmdResult {
+    let req = Request::CharactersGen {
+        system: args.system,
+    };
+    let character = call_or_report::<CharacterData>(engine, &req)?;
+    display::print_character(&character);
+    // Without a `temp_id` there's nothing to save. That's only a failure
+    // if saving was asked for: otherwise a script would see `--save`
+    // succeed with nothing saved.
+    let Some(temp_id) = &character.temp_id else {
+        if args.save {
+            return Err(fail("Error: the engine returned no character to save"));
+        }
+        return Ok(());
+    };
+    // Checked here, after generating, rather than up front: the character
+    // is still shown, and nothing has been saved.
+    if !args.save && !can_prompt() {
+        return Err(fail(
+            "Error: no terminal to ask \"Save this character?\"; pass --save to save it",
+        ));
+    }
+    let save = args.save || prompt_yes_no("Save this character?").unwrap_or(false);
+    if save {
+        let save_req = Request::CharactersSave { temp_id };
+        let saved = engine
+            .call::<_, SaveResult>(&save_req)
+            .map_err(|e| fail(format!("Error saving: {e}")))?;
+        println!("Saved as '{}'.", saved.slug);
+    }
+    Ok(())
+}
+
+fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersList {
         system: system.copied(),
     };
@@ -176,10 +230,9 @@ fn handle_characters_list(system: Option<&&str>, engine: &mut Engine) {
         ),
         None => "No saved characters found. Run `characters gen <system>` to create one.".into(),
     };
-    let Some(r) = call_or_report::<CharactersList>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<CharactersList>(engine, &req)?;
     display::print_characters_list(&r.characters, &empty_msg);
+    Ok(())
 }
 
 fn confirm_delete_character(character: &CharacterSummary, yes: bool) -> Option<bool> {
@@ -191,68 +244,69 @@ fn confirm_delete_character(character: &CharacterSummary, yes: bool) -> Option<b
     }
 }
 
-fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
+/// A failed delete doesn't stop the rest: each character is its own
+/// delete, and the command fails at the end if any of them did.
+fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) -> CmdResult {
     let req = Request::CharactersList {
         system: args.system,
     };
-    let Some(r) = call_or_report::<CharactersList>(engine, &req) else {
-        return;
-    };
-    let characters = r.characters;
+    let characters = call_or_report::<CharactersList>(engine, &req)?.characters;
     if characters.is_empty() {
         println!("No saved characters found.");
-        return;
+        return Ok(());
     }
+    if !args.yes && !can_prompt() {
+        return Err(fail(
+            "Error: no terminal to confirm the deletes; pass -y to delete without asking",
+        ));
+    }
+    let mut result = Ok(());
     for character in &characters {
         match confirm_delete_character(character, args.yes) {
-            Some(true) => handle_characters_delete(&character.slug, engine),
+            Some(true) => result = result.and(handle_characters_delete(&character.slug, engine)),
             Some(false) => println!("Skipped {}", character.slug),
-            None => return,
+            None => break,
         }
     }
+    result
 }
 
 /// The engine picks the slug when none is given, names the copy, and
 /// refuses a taken or malformed slug; the CLI repeats none of those rules.
-fn handle_characters_copy(slug: &str, new_slug: Option<&str>, engine: &mut Engine) {
+fn handle_characters_copy(slug: &str, new_slug: Option<&str>, engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersCopy {
         character: slug,
         slug: new_slug,
     };
-    let Some(r) = call_or_report::<CopiedCharacter>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<CopiedCharacter>(engine, &req)?;
     println!("Copied {} to {} (\"{}\")", r.copied, r.created, r.name);
+    Ok(())
 }
 
-fn handle_characters_delete(slug: &str, engine: &mut Engine) {
+fn handle_characters_delete(slug: &str, engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersDelete { character: slug };
-    let Some(r) = call_or_report::<crate::protocol::DeletedCharacter>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<crate::protocol::DeletedCharacter>(engine, &req)?;
     println!("Deleted character: {}", r.deleted);
+    Ok(())
 }
 
-fn handle_characters_show(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+fn handle_characters_show(slug: &str, display_mode: DisplayMode, engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersShow {
         character: slug,
         display_mode: display_mode.as_str(),
     };
-    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
-        return;
-    };
+    let c = call_or_report::<CharacterData>(engine, &req)?;
     display::page_output(&display::format_character(&c));
+    Ok(())
 }
 
-fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut Engine) {
+fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersRoll {
         character: slug,
         concept_type: args.concept_type,
         concept: args.concept_id,
     };
-    let Some(result) = call_or_report::<ConceptRollResult>(engine, &req) else {
-        return;
-    };
+    let result = call_or_report::<ConceptRollResult>(engine, &req)?;
     let rolls_str: Vec<String> = result.rolls.iter().map(|n| n.to_string()).collect();
     let bonus_str = if result.bonus >= 0 {
         format!("+{}", result.bonus)
@@ -267,6 +321,7 @@ fn handle_characters_roll(slug: &str, args: ConceptRollArgs<'_>, engine: &mut En
         rolls_str.join(", "),
         bonus_str,
     );
+    Ok(())
 }
 
 fn handle_characters_award(
@@ -274,7 +329,7 @@ fn handle_characters_award(
     args: CharacterAwardArgs<'_>,
     display_mode: DisplayMode,
     engine: &mut Engine,
-) {
+) -> CmdResult {
     // Send value as integer if it parses as one, otherwise as a string.
     // The server uses the award's value_type to validate; string values support
     // future award types (equipment IDs, feat names, etc.).
@@ -290,13 +345,12 @@ fn handle_characters_award(
         value: Some(value),
         display_mode: mode,
     };
-    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
-        return;
-    };
+    let c = call_or_report::<CharacterData>(engine, &req)?;
     display::print_character(&c);
     if !c.pending_choices.is_empty() {
         display::print_pending_choices(&c.pending_choices);
     }
+    Ok(())
 }
 
 fn handle_characters_award_no_value(
@@ -304,7 +358,7 @@ fn handle_characters_award_no_value(
     award_id: &str,
     display_mode: DisplayMode,
     engine: &mut Engine,
-) {
+) -> CmdResult {
     let mode = display_mode.as_str();
     let req = Request::CharactersAward {
         character: slug,
@@ -312,9 +366,7 @@ fn handle_characters_award_no_value(
         value: None,
         display_mode: mode,
     };
-    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
-        return;
-    };
+    let c = call_or_report::<CharacterData>(engine, &req)?;
     display::print_character(&c);
     if let Some(xp) = c.awarded_xp {
         println!("Awarded {award_id}: +{xp} XP");
@@ -322,6 +374,7 @@ fn handle_characters_award_no_value(
     if !c.pending_choices.is_empty() {
         display::print_pending_choices(&c.pending_choices);
     }
+    Ok(())
 }
 
 fn format_resolution_line(r: &crate::protocol::ResolutionEntry) -> String {
@@ -345,14 +398,16 @@ fn format_resolution_line(r: &crate::protocol::ResolutionEntry) -> String {
     }
 }
 
-fn handle_characters_random_resolve(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+fn handle_characters_random_resolve(
+    slug: &str,
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) -> CmdResult {
     let req = Request::CharactersRandomResolve {
         character: slug,
         display_mode: display_mode.as_str(),
     };
-    let Some(result) = call_or_report::<RandomResolveResult>(engine, &req) else {
-        return;
-    };
+    let result = call_or_report::<RandomResolveResult>(engine, &req)?;
     let header = format!("# {}\n\n", result.name);
     let body = display::format_character_lists(&result.character_lists);
     display::page_output(&format!("{header}{body}"));
@@ -364,21 +419,25 @@ fn handle_characters_random_resolve(slug: &str, display_mode: DisplayMode, engin
             println!("{}", format_resolution_line(r));
         }
     }
+    Ok(())
 }
 
-fn handle_characters_choices(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+fn handle_characters_choices(
+    slug: &str,
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) -> CmdResult {
     let req = Request::CharactersChoices {
         character: slug,
         display_mode: display_mode.as_str(),
     };
-    let Some(r) = call_or_report::<ChoicesResponse>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<ChoicesResponse>(engine, &req)?;
     if r.pending_choices.is_empty() {
         println!("No pending choices.");
     } else {
         display::print_pending_choices(&r.pending_choices);
     }
+    Ok(())
 }
 
 pub(crate) fn build_resolve_choice_request<'a>(
@@ -398,63 +457,81 @@ pub(crate) fn build_resolve_choice_request<'a>(
     }
 }
 
-fn dispatch_resolve_choice(rest: &[&str], display_mode: DisplayMode, engine: &mut Engine) {
+fn dispatch_resolve_choice(
+    rest: &[&str],
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) -> CmdResult {
     match rest {
         // A bare `--help` here is already intercepted by
         // `table::dispatch_help` before dispatch reaches this match.
         [slug] => handle_characters_resolve_choice(slug, display_mode, engine),
         [slug, "--random-resolve"] => handle_characters_random_resolve(slug, display_mode, engine),
-        _ => eprintln!("Unknown subcommand. Try `characters resolve_choice --help`."),
+        _ => Err(fail(
+            "Unknown subcommand. Try `characters resolve_choice --help`.",
+        )),
     }
 }
 
-fn handle_characters_resolve_choice(slug: &str, display_mode: DisplayMode, engine: &mut Engine) {
+fn handle_characters_resolve_choice(
+    slug: &str,
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) -> CmdResult {
     let req = Request::CharactersChoices {
         character: slug,
         display_mode: display_mode.as_str(),
     };
-    let Some(r) = call_or_report::<ChoicesResponse>(engine, &req) else {
-        return;
-    };
-    let choices = r.pending_choices;
+    let choices = call_or_report::<ChoicesResponse>(engine, &req)?.pending_choices;
+    // Every pending choice is resolved by asking, so a terminal is needed
+    // exactly when there's at least one. Checked after the (read-only)
+    // fetch, so "nothing to resolve" still succeeds without one.
+    if !choices.is_empty() {
+        require_terminal(
+            "characters resolve_choice",
+            "; pass --random-resolve to resolve its choices randomly",
+        )?;
+    }
 
-    let Some(choice) = select_pending_choice(&choices) else {
-        return;
+    let Some(choice) = select_pending_choice(&choices)? else {
+        return Ok(());
     };
 
-    let Some(resolution) = prompt_choice_value(choice, engine) else {
-        return;
+    let Some(resolution) = prompt_choice_value(choice, engine)? else {
+        return Ok(());
     };
 
     let req = build_resolve_choice_request(slug, choice, &resolution);
-    let Some(c) = call_or_report::<CharacterData>(engine, &req) else {
-        return;
-    };
+    let c = call_or_report::<CharacterData>(engine, &req)?;
     display::print_character(&c);
     if !c.pending_choices.is_empty() {
         display::print_pending_choices(&c.pending_choices);
     }
+    Ok(())
 }
 
-pub(crate) fn select_pending_choice(choices: &[PendingChoice]) -> Option<&PendingChoice> {
+/// `Ok(None)` when there's nothing to choose (no pending choices) or input
+/// ended at the prompt; an out-of-range selection is a failure.
+pub(crate) fn select_pending_choice(
+    choices: &[PendingChoice],
+) -> Result<Option<&PendingChoice>, Failed> {
     if choices.is_empty() {
         println!("No pending choices to resolve.");
-        return None;
+        return Ok(None);
     }
     if choices.len() == 1 {
-        return Some(&choices[0]);
+        return Ok(Some(&choices[0]));
     }
     println!("Pending choices:");
     for (i, c) in choices.iter().enumerate() {
         println!("  {}: {}", i + 1, c.name);
     }
-    let idx = prompt_integer("Select choice (number):")?;
+    let Some(idx) = prompt_integer("Select choice (number):") else {
+        return Ok(None);
+    };
     match selection_index(idx, choices.len()) {
-        Some(i) => Some(&choices[i]),
-        None => {
-            eprintln!("Invalid selection.");
-            None
-        }
+        Some(i) => Ok(Some(&choices[i])),
+        None => Err(fail("Invalid selection.")),
     }
 }
 
@@ -468,29 +545,55 @@ fn selection_index(input: i64, len: usize) -> Option<usize> {
     }
 }
 
-fn handle_characters_spells(slug: &str, engine: &mut Engine) {
+fn handle_characters_spells(slug: &str, engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersSpells { character: slug };
-    let Some(r) = call_or_report::<PreparationStateResponse>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<PreparationStateResponse>(engine, &req)?;
     display::print_spells(&r);
+    Ok(())
 }
 
-fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) {
+fn handle_activate(verb: &str, slug: &str, items: &[&str], engine: &mut Engine) -> CmdResult {
     let req = Request::CharactersActivate {
         character: slug,
         verb,
         items,
     };
-    let Some(r) = call_or_report::<InventoryResponse>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<InventoryResponse>(engine, &req)?;
     display::print_inventory(&r.inventory);
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::selection_index;
+    use super::{GenArgs, parse_gen_args, selection_index};
+
+    #[test]
+    fn gen_takes_a_system_and_an_optional_save_flag_in_any_position() {
+        assert_eq!(
+            parse_gen_args(&["dnd_5e_srd"]),
+            Ok(GenArgs {
+                system: "dnd_5e_srd",
+                save: false
+            })
+        );
+        for tokens in [&["dnd_5e_srd", "--save"][..], &["--save", "dnd_5e_srd"][..]] {
+            assert_eq!(
+                parse_gen_args(tokens),
+                Ok(GenArgs {
+                    system: "dnd_5e_srd",
+                    save: true
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn gen_rejects_a_missing_system_unknown_flags_and_extra_arguments() {
+        assert!(parse_gen_args(&[]).is_err());
+        assert!(parse_gen_args(&["--save"]).is_err());
+        assert!(parse_gen_args(&["dnd_5e_srd", "--force"]).is_err());
+        assert!(parse_gen_args(&["dnd_5e_srd", "other"]).is_err());
+    }
 
     #[test]
     fn selection_index_accepts_the_full_valid_range() {

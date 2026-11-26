@@ -76,8 +76,8 @@ pub(crate) static COMMAND_TABLE: &[CommandSpec] = &[
     },
     CommandSpec {
         path: "characters gen",
-        usage: "characters gen <system>",
-        summary: "Generate a character (random)",
+        usage: "characters gen <system> [--save]",
+        summary: "Generate a character (random; --save saves it without asking)",
         completion: Completion::System,
     },
     CommandSpec {

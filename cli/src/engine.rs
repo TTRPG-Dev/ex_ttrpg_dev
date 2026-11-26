@@ -7,16 +7,22 @@ use std::env;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 pub struct Engine {
-    _child: Child,
-    stdin: ChildStdin,
+    child: Child,
+    /// `Option` only so `Drop` can close it before waiting on the child;
+    /// it's `Some` for the engine's whole working life.
+    stdin: Option<ChildStdin>,
     stdout: BufReader<ChildStdout>,
 }
+
+/// How long `Drop` waits for the engine to exit on its own before killing it.
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 
 #[derive(Debug)]
 pub enum EngineError {
@@ -91,8 +97,8 @@ impl Engine {
         );
 
         Ok(Engine {
-            _child: child,
-            stdin,
+            child,
+            stdin: Some(stdin),
             stdout,
         })
     }
@@ -104,8 +110,9 @@ impl Engine {
         request: &Req,
     ) -> Result<Res, EngineError> {
         let line = serde_json::to_string(request)?;
-        writeln!(self.stdin, "{line}")?;
-        self.stdin.flush()?;
+        let stdin = self.stdin.as_mut().ok_or(EngineError::UnexpectedEof)?;
+        writeln!(stdin, "{line}")?;
+        stdin.flush()?;
 
         let mut response_line = String::new();
         let bytes = self.stdout.read_line(&mut response_line)?;
@@ -131,6 +138,27 @@ impl Engine {
                 "malformed engine response".into(),
             )),
         }
+    }
+}
+
+/// Shuts the engine down: closing its stdin ends its request loop and the
+/// BEAM halts. Waiting for that means the engine has finished (and flushed
+/// anything it writes) before this process exits, rather than being left
+/// to notice the closed pipe after we're gone. If it hasn't exited within
+/// [`SHUTDOWN_GRACE`] it's killed, so a wedged engine can't hang the CLI.
+impl Drop for Engine {
+    fn drop(&mut self) {
+        drop(self.stdin.take());
+        let deadline = Instant::now() + SHUTDOWN_GRACE;
+        loop {
+            match self.child.try_wait() {
+                Ok(Some(_)) | Err(_) => return,
+                Ok(None) if Instant::now() >= deadline => break,
+                Ok(None) => std::thread::sleep(Duration::from_millis(20)),
+            }
+        }
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 

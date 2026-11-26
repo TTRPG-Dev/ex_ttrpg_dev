@@ -22,21 +22,51 @@ pub(crate) use roll::handle_roll;
 pub(crate) use systems::handle_systems;
 pub(crate) use table::{COMMAND_TABLE, Completion};
 
+/// A command failed, and why has already been printed to stderr.
+///
+/// Carries no message on purpose: every failure is reported where it
+/// happens (most of them by [`call_or_report`]), so callers only need to
+/// know *that* the command failed, e.g. to pick an exit status.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Failed;
+
+/// What every command handler returns. Declining a prompt (or ending input
+/// at one) is a choice the user made, not a failure, so it's `Ok`.
+///
+/// The exception is giving up on recovering from an error that has
+/// already been reported: `systems create` asks for another name after
+/// the engine refuses one, and declining that leaves the refusal as the
+/// command's outcome, so it's `Err`.
+pub(crate) type CmdResult = Result<(), Failed>;
+
+/// Prints `msg` to stderr and returns [`Failed`], for the failures that
+/// aren't an engine error (bad arguments, malformed input).
+pub(crate) fn fail(msg: impl std::fmt::Display) -> Failed {
+    eprintln!("{msg}");
+    Failed
+}
+
+/// For a command that prompts throughout (a wizard): fails it up front,
+/// before it changes anything, when there's no terminal to answer.
+pub(crate) fn require_terminal(command: &str, hint: &str) -> CmdResult {
+    if crate::prompts::can_prompt() {
+        Ok(())
+    } else {
+        Err(fail(format!(
+            "Error: `{command}` is interactive and needs a terminal{hint}"
+        )))
+    }
+}
+
 /// Send `req` to the engine and return its parsed response, or print a
-/// uniform `Error: {e}` to stderr and return `None` on failure. Collapses
-/// the call-and-report-error shape that used to be repeated by hand in
-/// every command handler.
+/// uniform `Error: {e}` to stderr and return [`Failed`]. Collapses the
+/// call-and-report-error shape that used to be repeated by hand in every
+/// command handler.
 pub(crate) fn call_or_report<T: DeserializeOwned>(
     engine: &mut Engine,
     req: &Request<'_>,
-) -> Option<T> {
-    match engine.call(req) {
-        Ok(v) => Some(v),
-        Err(e) => {
-            eprintln!("Error: {e}");
-            None
-        }
-    }
+) -> Result<T, Failed> {
+    engine.call(req).map_err(|e| fail(format!("Error: {e}")))
 }
 
 #[derive(Clone, Copy)]
