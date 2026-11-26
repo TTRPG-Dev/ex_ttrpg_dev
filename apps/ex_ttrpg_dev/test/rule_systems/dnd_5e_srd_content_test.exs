@@ -7,6 +7,7 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
 
   alias ExTTRPGDev.Characters
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystems
@@ -78,6 +79,16 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
     values
   end
 
+  defp root(type, id), do: %Decision{scope: nil, choice: type, selection: id}
+
+  defp node(values, type, id, field), do: Map.fetch!(values, {type, id, field})
+
+  defp ac(values), do: node(values, "character_trait", "armor_class", "total")
+
+  defp class_values(system, class, level, opts \\ []) do
+    resolve(system, [decisions: [root("class", class)], level: level] ++ opts)
+  end
+
   describe "armor worn" do
     test "counts equipped body armor, heavy armor and shields", %{system: system} do
       values = resolve(system, equipped: ["plate", "shield"])
@@ -92,6 +103,50 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
 
       assert values[{"character_trait", "armor_worn", "body"}] == 0
       assert values[{"character_trait", "armor_worn", "shield"}] == 0
+    end
+  end
+
+  describe "barbarian" do
+    test "Unarmored Defense adds Con to AC without body armor, shield allowed", %{system: system} do
+      scores = %{"dexterity" => 14, "constitution" => 16}
+
+      assert ac(class_values(system, "barbarian", 1, scores: scores)) == 15
+      assert ac(class_values(system, "barbarian", 1, scores: scores, equipped: ["shield"])) == 17
+
+      assert ac(class_values(system, "barbarian", 1, scores: scores, equipped: ["chain_mail"])) ==
+               16
+    end
+
+    test "rages and rage damage follow the class table", %{system: system} do
+      for {level, rages, damage} <- [{1, 2, 2}, {3, 3, 2}, {9, 4, 3}, {16, 5, 4}, {17, 6, 4}] do
+        values = class_values(system, "barbarian", level)
+        assert node(values, "class", "barbarian", "rages") == rages
+        assert node(values, "class", "barbarian", "rage_damage") == damage
+      end
+
+      assert node(class_values(system, "barbarian", 19), "class", "barbarian", "rages_unlimited") ==
+               false
+
+      assert node(class_values(system, "barbarian", 20), "class", "barbarian", "rages_unlimited")
+    end
+
+    test "Fast Movement adds 10 ft from 5th level unless in heavy armor", %{system: system} do
+      speed = &node(&1, "character_trait", "speed", "amount")
+
+      assert speed.(class_values(system, "barbarian", 4)) == 0
+      assert speed.(class_values(system, "barbarian", 5)) == 10
+      assert speed.(class_values(system, "barbarian", 5, equipped: ["chain_shirt"])) == 10
+      assert speed.(class_values(system, "barbarian", 5, equipped: ["plate"])) == 0
+    end
+
+    test "Primal Champion raises Strength and Constitution by 4 at 20th level", %{system: system} do
+      values = class_values(system, "barbarian", 20)
+
+      assert node(values, "ability", "strength", "total_score") == 14
+      assert node(values, "ability", "constitution", "total_score") == 14
+
+      assert node(class_values(system, "barbarian", 19), "ability", "strength", "total_score") ==
+               10
     end
   end
 end
