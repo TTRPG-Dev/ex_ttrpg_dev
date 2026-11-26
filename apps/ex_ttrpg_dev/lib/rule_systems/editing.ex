@@ -126,9 +126,18 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp stringify({key, value}), do: {Atom.to_string(key), value}
 
   def update_system(slug, update_fun) when is_function(update_fun, 1) do
+    edit_system(slug, &apply_update(update_fun, &1))
+  end
+
+  # update_system/2 for callers inside the library whose edit can refuse:
+  # edit_fun gets the current source and returns {:ok, updated} or
+  # {:error, reason}, which is returned as-is with nothing stored. Checks
+  # that depend on the current content belong in edit_fun, so they see
+  # the same source the update is made from.
+  defp edit_system(slug, edit_fun) do
     with {:ok, entry, source} <- Installed.resolve(slug, nil),
          :ok <- check_modifiable(entry),
-         {:ok, updated} <- apply_update(update_fun, source),
+         {:ok, updated} <- edit_fun.(source),
          :ok <- check_update(source, updated) do
       store_update(entry, updated)
     end
