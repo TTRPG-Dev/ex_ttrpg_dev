@@ -32,6 +32,17 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   @single_ref_pattern Regex.compile!("^" <> Regex.source(@ref_pattern) <> "$")
   @leading_ref_pattern Regex.compile!("^" <> Regex.source(@ref_pattern))
 
+  # A type ID or field name as @ref_pattern matches one: \w without the
+  # u flag, so ASCII letters, digits and underscores only.
+  @identifier_pattern ~r/\A\w+\z/
+
+  @doc false
+  # Whether `string` can stand as a type ID or field name in a node
+  # reference, so content authored with it can be referred to at all.
+  @spec identifier?(term()) :: boolean()
+  def identifier?(string) when is_binary(string), do: Regex.match?(@identifier_pattern, string)
+  def identifier?(_), do: false
+
   @doc """
   Extracts all concept references from a formula string.
 

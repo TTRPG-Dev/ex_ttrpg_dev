@@ -451,6 +451,110 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
     end
   end
 
+  describe "add_concept_type/2" do
+    setup do
+      {:ok, "homebrew"} = RuleSystems.create_system(%{"name" => "Homebrew"})
+      :ok
+    end
+
+    defp concept_types(slug) do
+      {:ok, module} = RuleSystems.fetch_module(slug)
+      Enum.map(module.concept_types, &{&1.id, &1.name, &1.display_template})
+    end
+
+    test "appends a type with an ID derived from the name" do
+      assert {:ok, "feat"} =
+               RuleSystems.add_concept_type("homebrew", %{
+                 "name" => " Feat ",
+                 "display_template" => "{{name}} (Cost: {{cost}})"
+               })
+
+      assert {:ok, "class_feature"} =
+               RuleSystems.add_concept_type("homebrew", %{"name" => "Class Feature"})
+
+      assert concept_types("homebrew") == [
+               {"feat", "Feat", "{{name}} (Cost: {{cost}})"},
+               {"class_feature", "Class Feature", nil}
+             ]
+    end
+
+    test "omits a blank display template from module.toml" do
+      {:ok, "feat"} =
+        RuleSystems.add_concept_type("homebrew", %{"name" => "Feat", "display_template" => " "})
+
+      {:ok, source} = FileSystem.fetch("homebrew", "1.0.0")
+      assert source.module["concept_type"] == [%{"id" => "feat", "name" => "Feat"}]
+    end
+
+    test "concepts of the new type load" do
+      {:ok, "feat"} = RuleSystems.add_concept_type("homebrew", %{"name" => "Feat"})
+
+      :ok =
+        RuleSystems.update_system("homebrew", fn source ->
+          %{
+            source
+            | concepts: [{"concepts/feats.toml", %{"feat" => %{"alert" => %{"name" => "Alert"}}}}]
+          }
+        end)
+
+      assert %{"name" => "Alert"} =
+               RuleSystems.load_system!("homebrew").concept_metadata[{"feat", "alert"}]
+    end
+
+    test "refuses a type whose existing concepts wouldn't load, storing nothing" do
+      :ok =
+        RuleSystems.update_system("homebrew", fn source ->
+          %{source | concepts: [{"concepts/feats.toml", %{"feat" => %{"alert" => 5}}}]}
+        end)
+
+      assert {:error,
+              {:invalid_update, {:concept_not_a_table, "concepts/feats.toml", "feat", "alert"}}} =
+               RuleSystems.add_concept_type("homebrew", %{"name" => "Feat"})
+
+      assert concept_types("homebrew") == []
+    end
+
+    test "refuses an ID the system already declares, storing nothing new" do
+      {:ok, "feat"} = RuleSystems.add_concept_type("homebrew", %{"name" => "Feat"})
+
+      assert {:error, {:concept_type_exists, "feat"}} =
+               RuleSystems.add_concept_type("homebrew", %{"name" => "FEAT!"})
+
+      assert concept_types("homebrew") == [{"feat", "Feat", nil}]
+    end
+
+    test "refuses a name whose ID couldn't be used in a formula" do
+      for {name, id} <- [{"!!", ""}, {"Über", "über"}, {"ドラゴン", "ドラゴン"}] do
+        assert {:error, {:invalid_concept_type_id, ^id}} =
+                 RuleSystems.add_concept_type("homebrew", %{"name" => name})
+      end
+
+      assert concept_types("homebrew") == []
+    end
+
+    test "refuses bad fields" do
+      for {fields, reason} <- [
+            {%{}, {:missing_required_key, "name"}},
+            {%{"name" => "  "}, {:missing_required_key, "name"}},
+            {%{"name" => "Feat", "id" => "x"}, {:unknown_key, "id"}},
+            {%{"name" => 7}, {:not_a_string, "name", 7}}
+          ] do
+        assert {:error, {:invalid_concept_type, ^reason}} =
+                 RuleSystems.add_concept_type("homebrew", fields)
+      end
+    end
+
+    test "refuses unknown and non-modifiable systems" do
+      assert {:error, {:not_configured, "nope"}} =
+               RuleSystems.add_concept_type("nope", %{"name" => "Feat"})
+
+      capture_log(fn ->
+        assert {:error, {:not_modifiable, :clone_required}} =
+                 RuleSystems.add_concept_type(@slug, %{"name" => "Feat"})
+      end)
+    end
+  end
+
   describe "delete_system/1" do
     defmodule HostDependents do
       @behaviour ExTTRPGDev.RuleSystems.Dependents

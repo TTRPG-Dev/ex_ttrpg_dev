@@ -1,7 +1,7 @@
 defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
   @moduledoc """
   Handles the `systems.*` commands: listing, inspecting, creating, copying
-  and deleting rule systems.
+  and deleting rule systems, and declaring concept types in them.
   """
 
   alias ExTTRPGDev.CLI.Serializer
@@ -76,6 +76,24 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
       {:error, reason} ->
         {:error, delete_error_message(slug, reason)}
+    end
+  end
+
+  # As with systems.create, every field but "command" and "system" goes to
+  # the library, which decides what a concept type may have.
+  def handle(%{"command" => "systems.concept_type.add", "system" => slug} = cmd, state)
+      when is_binary(slug) do
+    fields = Map.drop(cmd, ["command", "system"])
+
+    case RuleSystems.add_concept_type(slug, fields) do
+      # The engine always uses the default filesystem store, where a
+      # modifiable (local) system lives flat at {root}/{slug}.
+      {:ok, id} ->
+        path = Path.join([Globals.local_system_configs_path(), slug, "module.toml"])
+        {:ok, %{added: id, system: slug, path: path}, state}
+
+      {:error, reason} ->
+        {:error, add_concept_type_error_message(slug, fields, reason)}
     end
   end
 
@@ -222,6 +240,50 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   defp copy_error_message(source, _new_slug, reason),
     do: "cannot copy rule system #{inspect(source)}: #{inspect(reason)}"
+
+  defp add_concept_type_error_message(slug, _fields, {:concept_type_exists, id}),
+    do: "rule system #{inspect(slug)} already has a concept type #{inspect(id)}"
+
+  defp add_concept_type_error_message(_slug, fields, {:invalid_concept_type_id, ""}),
+    do:
+      "can't derive a concept type ID from name #{derived_from(fields)}: " <>
+        "it needs at least one letter or digit"
+
+  defp add_concept_type_error_message(_slug, fields, {:invalid_concept_type_id, id}),
+    do:
+      "can't use #{inspect(id)} (from name #{derived_from(fields)}) as a concept type ID: " <>
+        "formulas can only refer to IDs made of ASCII letters, digits and underscores"
+
+  defp add_concept_type_error_message(_slug, _fields, {:invalid_concept_type, reason}) do
+    case reason do
+      {:missing_required_key, key} -> "#{key} is required"
+      {:unknown_key, key} -> "unknown concept type field: #{inspect(key)}"
+      {:not_a_string, key, _} -> "concept type field #{inspect(key)} must be a string"
+      other -> "invalid concept type: #{inspect(other)}"
+    end
+  end
+
+  defp add_concept_type_error_message(slug, _fields, {:not_configured, _}),
+    do: "rule system not found: #{inspect(slug)}"
+
+  defp add_concept_type_error_message(slug, _fields, {:not_modifiable, _}),
+    do:
+      "rule system #{inspect(slug)} is not modifiable (bundled systems can't be edited). " <>
+        "Copy it first: systems copy #{slug}"
+
+  # The only way adding a type stops a system loading: concept files
+  # already used the ID, and were ignored until it was declared.
+  defp add_concept_type_error_message(slug, _fields, {:invalid_update, reason}),
+    do:
+      "cannot add the concept type: rule system #{inspect(slug)} wouldn't load with it " <>
+        "(concepts of that type may already exist and be invalid): #{inspect(reason)}"
+
+  defp add_concept_type_error_message(slug, _fields, reason),
+    do: "cannot add a concept type to rule system #{inspect(slug)}: #{inspect(reason)}"
+
+  # The name as the library derived the ID from it: trimmed. Only called
+  # for ID errors, which the library returns only for a string name.
+  defp derived_from(fields), do: inspect(String.trim(fields["name"]))
 
   defp delete_error_message(slug, :not_modifiable),
     do: "rule system #{inspect(slug)} is not modifiable (bundled systems can't be deleted)"

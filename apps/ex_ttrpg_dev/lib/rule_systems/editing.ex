@@ -1,10 +1,10 @@
 defmodule ExTTRPGDev.RuleSystems.Editing do
   @moduledoc false
   # Implementation of RuleSystems.create_system/1, slug_from_name/1,
-  # clone_system/3, update_system/2 and delete_system/1; see the
-  # documentation there.
+  # clone_system/3, update_system/2, add_concept_type/2 and
+  # delete_system/1; see the documentation there.
 
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Source, Store}
+  alias ExTTRPGDev.RuleSystem.{Expression, Graph, Loader, Source, Store}
   alias ExTTRPGDev.RuleSystem.Store.Entry
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.{Dependents, Installed}
@@ -43,8 +43,8 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   # Values are trimmed, and nil or blank values dropped, so an optional
   # field left empty is omitted rather than stored as "".
   defp new_module(fields) do
-    with :ok <- check_known_keys(fields),
-         {:ok, present} <- present_values(fields),
+    with :ok <- check_known_keys(fields, @creatable_keys, :invalid_module),
+         {:ok, present} <- present_values(fields, :invalid_module),
          {:ok, name} <- fetch_name(present),
          {:ok, slug} <- new_slug(present, name) do
       {:ok,
@@ -54,14 +54,16 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
     end
   end
 
-  defp check_known_keys(fields) do
-    case Enum.find(Map.keys(fields), &(&1 not in @creatable_keys)) do
+  # Both take the tag to wrap their errors in ({tag, reason}), so each
+  # caller's errors name what was being validated.
+  defp check_known_keys(fields, known_keys, tag) do
+    case Enum.find(Map.keys(fields), &(&1 not in known_keys)) do
       nil -> :ok
-      key -> {:error, {:invalid_module, {:unknown_key, key}}}
+      key -> {:error, {tag, {:unknown_key, key}}}
     end
   end
 
-  defp present_values(fields) do
+  defp present_values(fields, tag) do
     Enum.reduce_while(fields, {:ok, %{}}, fn
       {_key, nil}, acc ->
         {:cont, acc}
@@ -73,7 +75,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
         end
 
       {key, value}, _acc ->
-        {:halt, {:error, {:invalid_module, {:not_a_string, key, value}}}}
+        {:halt, {:error, {tag, {:not_a_string, key, value}}}}
     end)
   end
 
@@ -113,7 +115,8 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   # the store's generic {:invalid_slug, slug}.
   def clone_system(source_slug, new_slug, opts) do
     with {:ok, new_slug} <- check_slug(new_slug),
-         {:ok, overrides} <- present_values(Map.new(Keyword.take(opts, [:name]), &stringify/1)),
+         {:ok, overrides} <-
+           present_values(Map.new(Keyword.take(opts, [:name]), &stringify/1), :invalid_module),
          :ok <- check_slug_free(new_slug),
          {:ok, _entry, source} <- Installed.resolve(source_slug, opts[:version]) do
       put_new(as_clone(source, new_slug, overrides), new_slug)
@@ -123,11 +126,78 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   defp stringify({key, value}), do: {Atom.to_string(key), value}
 
   def update_system(slug, update_fun) when is_function(update_fun, 1) do
+    edit_system(slug, &apply_update(update_fun, &1))
+  end
+
+  # update_system/2 for callers inside the library whose edit can refuse:
+  # edit_fun gets the current source and returns {:ok, updated} or
+  # {:error, reason}, which is returned as-is with nothing stored. Checks
+  # that depend on the current content belong in edit_fun, so they see
+  # the same source the update is made from.
+  defp edit_system(slug, edit_fun) do
     with {:ok, entry, source} <- Installed.resolve(slug, nil),
          :ok <- check_modifiable(entry),
-         {:ok, updated} <- apply_update(update_fun, source),
+         {:ok, updated} <- edit_fun.(source),
          :ok <- check_update(source, updated) do
       store_update(entry, updated)
+    end
+  end
+
+  # The fields add_concept_type/2 accepts. "display_template" is flattened
+  # from module.toml's display.template, since that's the only display key.
+  @concept_type_keys ~w(name display_template)
+
+  # The fields are checked before the system is resolved, so a bad name is
+  # reported without touching the store. The duplicate check is inside the
+  # edit, against the source the update is made from.
+  def add_concept_type(slug, fields) when is_map(fields) do
+    with :ok <- check_known_keys(fields, @concept_type_keys, :invalid_concept_type),
+         {:ok, present} <- present_values(fields, :invalid_concept_type),
+         {:ok, name} <- fetch_concept_type_name(present),
+         {:ok, id} <- concept_type_id(name),
+         :ok <- edit_system(slug, &put_concept_type(&1, id, present)) do
+      {:ok, id}
+    end
+  end
+
+  defp fetch_concept_type_name(%{"name" => name}), do: {:ok, name}
+
+  defp fetch_concept_type_name(_),
+    do: {:error, {:invalid_concept_type, {:missing_required_key, "name"}}}
+
+  # Derived as a system slug is, but it must also be a formula identifier
+  # (Expression.identifier?/1), since concepts of the type are referred to
+  # as type('concept').field. That rules out non-ASCII letters, which
+  # slug_from_name/1 keeps.
+  defp concept_type_id(name) do
+    id = slug_from_name(name)
+
+    if Expression.identifier?(id),
+      do: {:ok, id},
+      else: {:error, {:invalid_concept_type_id, id}}
+  end
+
+  defp put_concept_type(%Source{module: module_map} = source, id, present) do
+    existing = Map.get(module_map, "concept_type", [])
+
+    if Enum.any?(existing, &(&1["id"] == id)) do
+      {:error, {:concept_type_exists, id}}
+    else
+      {:ok,
+       %{
+         source
+         | module:
+             Map.put(module_map, "concept_type", existing ++ [new_concept_type(id, present)])
+       }}
+    end
+  end
+
+  defp new_concept_type(id, present) do
+    concept_type = %{"id" => id, "name" => present["name"]}
+
+    case present["display_template"] do
+      nil -> concept_type
+      template -> Map.put(concept_type, "display", %{"template" => template})
     end
   end
 

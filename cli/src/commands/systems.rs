@@ -4,7 +4,8 @@ use crate::display;
 use crate::engine::{Engine, EngineError};
 use crate::prompts::{prompt_loop, prompt_nonempty_string, prompt_yes_no};
 use crate::protocol::{
-    ConceptsList, CopiedSystem, CreatedSystem, DeletedSystem, Request, SystemInfo, SystemsList,
+    AddedConceptType, ConceptsList, CopiedSystem, CreatedSystem, DeletedSystem, Request,
+    SystemInfo, SystemsList,
 };
 
 pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
@@ -28,6 +29,13 @@ pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
             Ok(args) => handle_systems_delete(args, engine),
             Err(msg) => eprintln!("{msg} Try `systems delete --help`."),
         },
+        ["concept-type", "add", system] => handle_concept_type_add(system, engine),
+        ["concept-type", "add", ..] => {
+            eprintln!("Expected one system slug. Try `systems concept-type add --help`.")
+        }
+        ["concept-type", ..] => {
+            eprintln!("Expected `systems concept-type add <system>`. Try `systems --help`.")
+        }
         [] | ["--help"] => print_systems_usage(),
         [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `systems --help`."),
     }
@@ -164,6 +172,31 @@ fn handle_systems_copy(system: &str, slug: Option<&str>, engine: &mut Engine) {
         "Copied {} to {} (\"{}\"): {}",
         r.copied, r.created, r.name, r.path
     );
+}
+
+/// The engine derives the ID, refuses a duplicate, an unusable ID, an
+/// unknown system or a bundled one; the CLI repeats none of those rules.
+///
+/// Unlike `systems create`, a refusal ends the command rather than asking
+/// for another name: some refusals (unknown or bundled system) no name can
+/// fix, and the engine's errors don't say which kind they are.
+fn handle_concept_type_add(system: &str, engine: &mut Engine) {
+    let Some(name) = prompt_nonempty_string("Concept type name:") else {
+        return println!("Not added.");
+    };
+    let Some(display_template) = prompt_optional("Display template (optional): ") else {
+        return println!("Not added.");
+    };
+    let req = Request::SystemsConceptTypeAdd {
+        system,
+        name: &name,
+        display_template: display_template.as_deref(),
+    };
+    let Some(r) = call_or_report::<AddedConceptType>(engine, &req) else {
+        return;
+    };
+    println!();
+    println!("Added concept type \"{}\" to {}", r.added, r.path);
 }
 
 #[derive(Debug, PartialEq)]

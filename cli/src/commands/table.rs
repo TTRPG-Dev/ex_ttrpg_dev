@@ -69,6 +69,12 @@ pub(crate) static COMMAND_TABLE: &[CommandSpec] = &[
         completion: Completion::System,
     },
     CommandSpec {
+        path: "systems concept-type add",
+        usage: "systems concept-type add <system>",
+        summary: "Declare a concept type in a local rule system (prompts for its details)",
+        completion: Completion::System,
+    },
+    CommandSpec {
         path: "characters gen",
         usage: "characters gen <system>",
         summary: "Generate a character (random)",
@@ -256,6 +262,7 @@ mod tests {
         "systems create",
         "systems copy",
         "systems delete",
+        "systems concept-type add",
         "characters list",
         "characters gen",
         "characters build",

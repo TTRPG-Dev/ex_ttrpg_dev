@@ -222,16 +222,42 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     type_ids = RuleModule.concept_type_ids(rule_module)
     initial = %{nodes: %{}, rolling_methods: %{}, concept_metadata: %{}, effects: []}
 
-    acc =
-      Enum.reduce(concepts, initial, fn {_name, toml_map}, acc ->
-        process_toml_map(toml_map, acc, type_ids)
-      end)
+    with :ok <- check_concepts_are_tables(concepts, type_ids) do
+      acc =
+        Enum.reduce(concepts, initial, fn {_name, toml_map}, acc ->
+          process_toml_map(toml_map, acc, type_ids)
+        end)
 
-    # process_concept/4 builds `effects` by prepending each concept's effects
-    # (cheap: proportional to that concept's own effect count, not the
-    # accumulator's), so the accumulated list is in reverse encounter order
-    # until this undoes it in one pass.
-    {:ok, %{acc | effects: Enum.reverse(acc.effects)}}
+      # process_concept/4 builds `effects` by prepending each concept's effects
+      # (cheap: proportional to that concept's own effect count, not the
+      # accumulator's), so the accumulated list is in reverse encounter order
+      # until this undoes it in one pass.
+      {:ok, %{acc | effects: Enum.reverse(acc.effects)}}
+    end
+  end
+
+  # Each entry under a declared type must be a table ([type.id]); a value
+  # such as `type.id = 5` can't be a concept, and processing it would
+  # raise. Checked before processing so the error can name the file.
+  # Entries under undeclared types are still skipped unchecked, as they
+  # are when processing.
+  defp check_concepts_are_tables(concepts, type_ids) do
+    Enum.find_value(concepts, :ok, fn {file, toml_map} ->
+      non_table_concept_in_file(file, toml_map, type_ids)
+    end)
+  end
+
+  defp non_table_concept_in_file(file, toml_map, type_ids) do
+    Enum.find_value(toml_map, fn {type_id, entries} ->
+      if MapSet.member?(type_ids, type_id) and is_map(entries),
+        do: non_table_concept(file, type_id, entries)
+    end)
+  end
+
+  defp non_table_concept(file, type_id, entries) do
+    Enum.find_value(entries, fn {concept_id, fields} ->
+      if not is_map(fields), do: {:error, {:concept_not_a_table, file, type_id, concept_id}}
+    end)
   end
 
   defp process_toml_map(toml_map, acc, type_ids) do
