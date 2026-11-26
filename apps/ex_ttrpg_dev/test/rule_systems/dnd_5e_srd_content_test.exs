@@ -197,4 +197,24 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       end
     end
   end
+
+  describe "druid" do
+    test "Wild Shape limits follow the Beast Shapes table", %{system: system} do
+      at4 = class_values(system, "druid", 4)
+      assert node(at4, "class", "druid", "wild_shape_max_cr") == 0.5
+      assert node(at4, "class", "druid", "wild_shape_swim") == 1
+      assert node(at4, "class", "druid", "wild_shape_fly") == 0
+
+      at8 = class_values(system, "druid", 8)
+      assert node(at8, "class", "druid", "wild_shape_max_cr") == 1
+      assert node(at8, "class", "druid", "wild_shape_fly") == 1
+    end
+
+    test "Wild Shape uses start at 2nd level and become unlimited at 20th", %{system: system} do
+      assert node(class_values(system, "druid", 1), "class", "druid", "wild_shape_uses") == 0
+      assert node(class_values(system, "druid", 2), "class", "druid", "wild_shape_uses") == 2
+      refute node(class_values(system, "druid", 19), "class", "druid", "wild_shape_unlimited")
+      assert node(class_values(system, "druid", 20), "class", "druid", "wild_shape_unlimited")
+    end
+  end
 end
