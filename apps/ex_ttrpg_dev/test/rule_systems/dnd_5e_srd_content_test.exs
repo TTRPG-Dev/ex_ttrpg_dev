@@ -388,4 +388,14 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       end
     end
   end
+
+  describe "backgrounds" do
+    test "Acolyte adds proficiency bonus to Insight and Religion", %{system: system} do
+      values = resolve(system, decisions: [root("background", "acolyte")])
+
+      assert node(values, "skill", "insight", "modifier") == 2
+      assert node(values, "skill", "religion", "modifier") == 2
+      assert node(values, "skill", "arcana", "modifier") == 0
+    end
+  end
 end
