@@ -67,6 +67,16 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
            )
   end
 
+  test "build/1 rejects a choice contributes_value that is neither number nor string" do
+    for value <- [true, [1], %{"a" => 1}] do
+      assert {:error, {:invalid_contributes_value, message}} =
+               Graph.build(contributes_choice_data(value))
+
+      assert message =~ "race('half_elf').choices.ability_increase"
+      assert message =~ inspect(value)
+    end
+  end
+
   test "build/1 rejects a formula choice contributes_value with undefined refs" do
     assert {:error, {:undefined_ref, _}} =
              Graph.build(contributes_choice_data("ability('strength').missing"))
