@@ -153,12 +153,17 @@ still writes gating into `value` formulas (`x * (1 - min(1, worn))`) from
 before the fix; moving those to `when` is a content cleanup, not a
 correctness need.
 
-### B2. Numeric `contributes_value` crashes the loader
+### B2. Numeric `contributes_value` crashes the loader — fixed (#209)
 
-The Loader documents a choice's `contributes_value` as *any* value, but an
-integer (`contributes_value = 1`) reaches `Expression.extract_refs/1`, which
-only accepts strings, and the system fails to load with a
-`FunctionClauseError`. Workaround in this system: `contributes_value = "1"`.
+The Loader documented a choice's `contributes_value` as *any* value, but an
+integer (`contributes_value = 1`) reached `Expression.extract_refs/1`, which
+only accepts strings, and the system failed to load with a
+`FunctionClauseError`. This system worked around it with
+`contributes_value = "1"`.
+
+Numbers are now contributed as constants and strings as formulas; any other
+type fails `Graph.build/1` with `:invalid_contributes_value`. The Half-Elf
+choices are back to `contributes_value = 1`.
 
 ## Library gaps
 

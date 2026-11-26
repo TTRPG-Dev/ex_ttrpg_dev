@@ -28,7 +28,7 @@ options = [
 required = true
 type = "ability"
 contributes_field = "total_score"
-contributes_value = "1"
+contributes_value = 1
 options = [
   "strength",
   "dexterity",
@@ -41,7 +41,7 @@ options = [
 required = true
 type = "ability"
 contributes_field = "total_score"
-contributes_value = "1"
+contributes_value = 1
 options = [
   "strength",
   "dexterity",

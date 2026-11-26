@@ -89,7 +89,9 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
 
   defp add_contributes_option_edge(graph, nodes, target_key, value) do
     if Map.has_key?(nodes, target_key) do
-      case validate_and_add_refs(graph, nodes, value, target_key) do
+      # Only a formula string has refs to add; a numeric value is a constant
+      # with no dependencies, same as a numeric `contributes` effect value.
+      case add_formula_effect_edge(graph, nodes, target_key, value) do
         {:ok, g} -> {:cont, {:ok, g}}
         error -> {:halt, error}
       end
@@ -109,12 +111,10 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
         meta
         |> Map.get("choices", %{})
         |> Enum.find_value(fn {choice_id, choice_def} ->
-          check_choice(
-            {type_id, concept_id, choice_id},
-            choice_def,
-            valid_type_ids,
-            concept_metadata
-          )
+          choice_path = {type_id, concept_id, choice_id}
+
+          check_choice(choice_path, choice_def, valid_type_ids, concept_metadata) ||
+            check_contributes_value(choice_path, choice_def)
         end)
       end)
 
@@ -144,6 +144,22 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
         "#{type_id}('#{concept_id}').choices.#{choice_id} references undefined type \"#{choice_type}\""}}
     end
   end
+
+  # A number is contributed as-is and a string is evaluated as a formula;
+  # anything else (a TOML bool, array, table, date) has no meaning as a
+  # contribution and would otherwise crash edge building or evaluation.
+  defp check_contributes_value(_choice_path, %{"contributes_value" => value})
+       when is_number(value) or is_binary(value),
+       do: nil
+
+  defp check_contributes_value({type_id, concept_id, choice_id}, %{"contributes_value" => value}) do
+    {:error,
+     {:invalid_contributes_value,
+      "#{type_id}('#{concept_id}').choices.#{choice_id} contributes_value must be a number " <>
+        "or a formula string, got: #{inspect(value)}"}}
+  end
+
+  defp check_contributes_value(_choice_path, _choice_def), do: nil
 
   defp add_node_edges(graph, nodes) do
     Enum.reduce_while(nodes, {:ok, graph}, fn {node_key, node}, {:ok, g} ->

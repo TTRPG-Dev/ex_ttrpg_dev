@@ -116,8 +116,11 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       back to the choice key.
     - `"contributes_field"` *(string, optional)* — field name on the selected
       concept to contribute a value to.
-    - `"contributes_value"` *(any, optional)* — value contributed to
-      `"contributes_field"`. Required when `"contributes_field"` is present.
+    - `"contributes_value"` *(number or string, optional)* — value contributed
+      to `"contributes_field"`. A number is contributed as-is; a string is a
+      formula evaluated against the resolved nodes. Any other type is rejected
+      by `Graph.build/1` with `{:error, {:invalid_contributes_value, message}}`.
+      Required when `"contributes_field"` is present.
 
   ### Note: CLI-only keys
 
