@@ -18,21 +18,22 @@ so tables are flattened column-by-column and OCR substitutes `I`/`l` and `1`/`l`
 freely (`ld6` for `1d6`); every number encoded from it should be checked
 against the prose, not just the flattened table.
 
-### Spells encoded that are not in this SRD text
+### Spells not in SRD 5.0 were removed
 
-The encoded system has 326 spells; the SRD 5.0 text describes 304. These 22
-encoded spells do not appear anywhere in the text:
+The system used to ship 326 spells; the SRD 5.0 text defines 304. The other
+22 (Animal Friendship, Arcane Gate, Beast Sense, Blade Ward, Branding Smite,
+Compulsion, Counterspell, Druidcraft, Eldritch Blast, Feign Death, Find
+Familiar, Fire Bolt, Friends, Goodberry, Guardian of Faith, Hellish Rebuke,
+Hunter's Mark, Poison Spray, Power Word Heal, Spare the Dying, Tsunami,
+Vicious Mockery) came from SRD 5.1 or the Player's Handbook and were removed
+in system version 2.0.0. The bundled system ships SRD 5.0 Open Game Content
+only.
 
-> Animal Friendship, Arcane Gate, Beast Sense, Blade Ward, Branding Smite,
-> Compulsion, Counterspell, Druidcraft, Eldritch Blast, Feign Death, Find
-> Familiar, Fire Bolt, Friends, Goodberry, Guardian of Faith, Hellish Rebuke,
-> Hunter's Mark, Poison Spray, Power Word Heal, Spare the Dying, Tsunami,
-> Vicious Mockery
-
-Some are SRD **5.1** content and some are Player's Handbook-only (and so not
-Open Game Content). Which SRD version the bundled system targets, and whether
-PHB-only spells should ship at all, is a licensing decision to make before the
-system is described as "the SRD". They are left untouched here.
+Several SRD 5.0 features *name* spells the document never defines: Guardian
+of Faith in the Life Domain and Oath of Devotion spell lists, *hellish
+rebuke* in Tiefling Infernal Legacy, *eldritch blast* in warlock invocation
+prerequisites, *find familiar* in Pact of the Chain. Those references are
+omitted from the encoding rather than filled in from another source.
 
 ## Status legend
 
@@ -67,7 +68,7 @@ system is described as "the SRD". They are left untouched here.
 | Combat | 20471–21881 | Partial / Gap | Initiative and AC encoded. Attack/damage rolls G10; HP/death saves/temp HP G7; conditions G7; cover and two-weapon fighting G5/G10. |
 | Spellcasting rules | 21882–22487 | Encoded | Slots, known/prepared, save DC, attack bonus. Multiclass slot table G2. Per-source spellcasting ability G14. |
 | Spell lists | 22488–24131 | Encoded | `classes` on each spell. |
-| Spell descriptions (304) | 24132–35812 | Partial | Name, level, school, casting time, range, components, duration, concentration, ritual, classes encoded. Description text, material component text, "at higher levels" scaling, damage/save info are Encodable as metadata. Cantrip damage scaling is Encodable as a mapping node. |
+| Spell descriptions (304) | 24132–35812 | Partial | All 304, and only these, are encoded. Name, level, school, casting time, range, components, duration, concentration, ritual, classes encoded. Description text, material component text, "at higher levels" scaling, damage/save info are Encodable as metadata. Cantrip damage scaling is Encodable as a mapping node. |
 | Appendix: Conditions (14 + exhaustion) | 35813–36062 | Encodable / Gap | Encodable as reference concepts; *applying* a condition to a character is G7. |
 | Appendix: Pantheons | 36063–37114 | Reference | |
 | Appendix: Planes of existence | 37115–37399 | Reference | |
@@ -322,7 +323,7 @@ bonus are currently character-wide.
 **Wanted.** Spellcasting ability attached to the *source* of the spell (the
 class, race, or item that granted it), with DC/attack computed per source.
 
-## Encoded in this change (system version 1.1.0)
+## Encoded on this branch (system versions 1.1.0 and 2.0.0)
 
 - An `armor_worn` counter (body, heavy, shield) contributed by equipped
   armor, so formulas can gate on wearing armor (workaround for G9).
@@ -331,6 +332,7 @@ class, race, or item that granted it), with DC/attack computed per source.
   Fast Movement, Unarmored Movement, Primal Champion, Aura of Protection.
 - Racial traits: Keen Senses, Menacing, Dwarven Toughness, Half-Elf ability
   and skill choices, Dragonborn Draconic Ancestry and Breath Weapon.
+- Removed the 22 spells not defined in SRD 5.0 (2.0.0).
 - Fix: the Acolyte's Insight and Religion now get the proficiency bonus
   (they were listed on the sheet but not added to the modifier).
 
