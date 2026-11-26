@@ -372,4 +372,20 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       end
     end
   end
+
+  describe "wizard" do
+    test "Arcane Recovery recovers half wizard level in slot levels, rounded up", %{
+      system: system
+    } do
+      for {level, slots} <- [{1, 1}, {4, 2}, {5, 3}] do
+        assert node(
+                 class_values(system, "wizard", level),
+                 "class",
+                 "wizard",
+                 "arcane_recovery_levels"
+               ) ==
+                 slots
+      end
+    end
+  end
 end

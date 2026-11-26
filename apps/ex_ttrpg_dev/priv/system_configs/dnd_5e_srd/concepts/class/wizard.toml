@@ -8,6 +8,10 @@ preparation_pool = "spellbook"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Arcane Recovery: combined spell slot levels recoverable (no slot of 6th level or higher).
+arcane_recovery_levels.formula = "ceil(character_trait('character_level').level / 2)"
+
 [class.wizard.choices.subclass]
 required = true
 type = "class"
