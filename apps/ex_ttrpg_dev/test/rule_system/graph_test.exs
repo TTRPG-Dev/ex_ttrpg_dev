@@ -108,6 +108,60 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     assert {:error, {:undefined_ref, _}} = Graph.build(data)
   end
 
+  @armor_gated_effect %Effect{
+    source: {"class", "barbarian", nil},
+    target: {"trait", "speed", "amount"},
+    value: 10,
+    when: "trait('armor').heavy == 0"
+  }
+
+  test "build/1 adds edge from a `when` condition's ref to the effect's target" do
+    data =
+      graph_data(
+        %{
+          {"trait", "armor", "heavy"} => %Node{type: :accumulator, base: "0"},
+          {"trait", "speed", "amount"} => %Node{type: :accumulator, base: "30"}
+        },
+        [@armor_gated_effect]
+      )
+
+    assert {:ok, system} = Graph.build(data)
+
+    assert Elixir.Graph.edge(
+             system.graph,
+             {"trait", "armor", "heavy"},
+             {"trait", "speed", "amount"}
+           ) !=
+             nil
+  end
+
+  test "build/1 returns error for undefined ref in an effect's `when` condition" do
+    data =
+      graph_data(
+        %{{"trait", "speed", "amount"} => %Node{type: :accumulator, base: "30"}},
+        [@armor_gated_effect]
+      )
+
+    assert {:error, {:undefined_ref, message}} = Graph.build(data)
+    assert message =~ "trait('armor').heavy"
+  end
+
+  test "build/1 adds no edges for item placeholders in an effect's `when` condition" do
+    effect = %Effect{
+      source: {"item", "ring", nil},
+      target: {"attr", "strength", "total_score"},
+      value: 2,
+      when: "item.equipped"
+    }
+
+    data = Map.put(minimal_loader_data(), :effects, [effect])
+
+    assert {:ok, system} = Graph.build(data)
+
+    assert Elixir.Graph.in_edges(system.graph, {"attr", "strength", "total_score"}) |> length() ==
+             1
+  end
+
   test "build/1 returns error for undefined contribution target" do
     data =
       graph_data(

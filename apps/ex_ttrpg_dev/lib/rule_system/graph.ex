@@ -177,7 +177,11 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   defp add_single_effect_edge(graph, nodes, %Effect{target: target_key} = effect)
        when is_tuple(target_key) do
     if Map.has_key?(nodes, target_key) do
-      add_formula_effect_edge(graph, nodes, target_key, effect.value)
+      # `when` is evaluated alongside `value` while resolving the target, so
+      # the nodes it reads are dependencies of the target just the same.
+      with {:ok, graph} <- add_formula_effect_edge(graph, nodes, target_key, effect.value) do
+        add_formula_effect_edge(graph, nodes, target_key, effect.when)
+      end
     else
       {:error, {:undefined_effect_target, target_key}}
     end
