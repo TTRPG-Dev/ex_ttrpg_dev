@@ -604,10 +604,14 @@ defmodule ExTTRPGDev.CLI.ServerTest do
                  "give one: characters copy #{long} <new_slug>"
     end
 
-    test "names a nameless character's copy after its slug", %{character: character} do
-      :ok = Characters.save_character(%{character | name: nil}, true)
-      response = run(%{"command" => "characters.copy", "character" => "aria"})
-      assert response.data.name == "aria (copy)"
+    test "names a nameless or blank-named character's copy after its slug", %{
+      character: character
+    } do
+      for name <- [nil, "", "  "] do
+        :ok = Characters.save_character(%{character | name: name}, true)
+        response = run(%{"command" => "characters.copy", "character" => "aria"})
+        assert response.data.name == "aria (copy)"
+      end
     end
 
     test "refuses an unknown or impossible source" do

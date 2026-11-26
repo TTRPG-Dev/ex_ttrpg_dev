@@ -278,10 +278,12 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     end
   end
 
-  # A character saved without a name is named after its slug, so the copy
-  # still reads as one in characters list.
-  defp rename_copy(%Character{} = character, source),
-    do: %{character | name: "#{character.name || source} (copy)"}
+  # A character saved without a name, or with a blank one, is named after
+  # its slug, so the copy still reads as one in characters list.
+  defp rename_copy(%Character{name: name} = character, source) do
+    base = if is_binary(name) and String.trim(name) != "", do: name, else: source
+    %{character | name: "#{base} (copy)"}
+  end
 
   defp copy_to(copy, source, nil) do
     with {:ok, slugs} <- Characters.list_characters() do
