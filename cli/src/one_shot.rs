@@ -37,7 +37,7 @@ pub(crate) fn run(args: &[String]) -> i32 {
     // skips destructors.
     drop(engine);
     match result {
-        Ok(()) => 0,
-        Err(_) => 1,
+        Ok(()) if !prompts::refused_an_unchecked_prompt() => 0,
+        _ => 1,
     }
 }
