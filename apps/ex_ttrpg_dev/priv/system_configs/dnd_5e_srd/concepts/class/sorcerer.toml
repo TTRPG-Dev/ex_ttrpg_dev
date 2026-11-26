@@ -7,6 +7,14 @@ preparation_mode = "all"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Sorcery points equal sorcerer level, from 2nd level.
+sorcery_points.formula = "character_trait('character_level').level * min(1, max(0, character_trait('character_level').level - 1))"
+# Metamagic options known.
+metamagic_known.type = "mapping"
+metamagic_known.input = "character_trait('character_level').level"
+metamagic_known.steps = [[1, 0], [3, 2], [10, 3], [17, 4]]
+
 [class.sorcerer.choices.subclass]
 required = true
 type = "class"
@@ -115,3 +123,13 @@ value = "class('sorcerer').asi_slots"
 
 [class.draconic_bloodline]
 name = "Draconic Bloodline"
+
+[[class.draconic_bloodline.contributes]]
+# Draconic Resilience: +1 hit point per sorcerer level.
+target = "character_trait('max_hit_points').points"
+value = "character_trait('character_level').level"
+
+[[class.draconic_bloodline.contributes]]
+# Draconic Resilience: AC = 13 + Dex while wearing no armor.
+target = "character_trait('armor_class').base"
+value = "3 * (1 - min(1, character_trait('armor_worn').body))"

@@ -316,4 +316,43 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       end
     end
   end
+
+  describe "sorcerer" do
+    test "sorcery points and metamagic known follow the class table", %{system: system} do
+      for {level, points, metamagic} <- [
+            {1, 0, 0},
+            {2, 2, 0},
+            {3, 3, 2},
+            {10, 10, 3},
+            {17, 17, 4}
+          ] do
+        values = class_values(system, "sorcerer", level)
+        assert node(values, "class", "sorcerer", "sorcery_points") == points
+        assert node(values, "class", "sorcerer", "metamagic_known") == metamagic
+      end
+    end
+
+    test "Draconic Resilience: AC 13 + Dex unarmored and +1 HP per level", %{system: system} do
+      draconic = [
+        root("class", "sorcerer"),
+        %Decision{
+          scope: {"class", "sorcerer"},
+          choice: "subclass",
+          selection: "draconic_bloodline"
+        }
+      ]
+
+      scores = %{"dexterity" => 14}
+      hp = &node(&1, "character_trait", "max_hit_points", "points")
+
+      assert ac(resolve(system, decisions: draconic, scores: scores)) == 15
+
+      assert ac(resolve(system, decisions: draconic, scores: scores, equipped: ["leather_armor"])) ==
+               13
+
+      plain = class_values(system, "sorcerer", 4)
+      with_bloodline = resolve(system, decisions: draconic, level: 4)
+      assert hp.(with_bloodline) - hp.(plain) == 4
+    end
+  end
 end
