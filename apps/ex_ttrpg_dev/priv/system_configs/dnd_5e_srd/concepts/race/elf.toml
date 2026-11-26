@@ -1,6 +1,8 @@
 [race.elf]
 name = "Elf"
 languages = ["common", "elvish"]
+# Keen Senses
+skill_proficiencies = ["perception"]
 
 [race.elf.choices.subrace]
 required = true
@@ -18,6 +20,11 @@ value = 60
 [[race.elf.contributes]]
 target = "ability('dexterity').total_score"
 value = 2
+
+# Keen Senses: proficiency in Perception.
+[[race.elf.contributes]]
+target = "skill('perception').modifier"
+value = "character_trait('proficiency_bonus').bonus"
 
 [race.high_elf]
 name = "High Elf"

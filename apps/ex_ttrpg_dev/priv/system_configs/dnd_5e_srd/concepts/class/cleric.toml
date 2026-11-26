@@ -9,6 +9,16 @@ preparation_pool = "class_spells"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Channel Divinity uses per short or long rest.
+channel_divinity_uses.type = "mapping"
+channel_divinity_uses.input = "character_trait('character_level').level"
+channel_divinity_uses.steps = [[1, 0], [2, 1], [6, 2], [18, 3]]
+# Destroy Undead: highest challenge rating destroyed.
+destroy_undead_cr.type = "mapping"
+destroy_undead_cr.input = "character_trait('character_level').level"
+destroy_undead_cr.steps = [[1, 0], [5, 0.5], [8, 1], [11, 2], [14, 3], [17, 4]]
+
 [class.cleric.choices.subclass]
 required = true
 type = "class"

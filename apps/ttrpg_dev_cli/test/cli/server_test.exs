@@ -39,7 +39,7 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       data = run(%{"command" => "systems.show", "system" => "dnd_5e_srd"}).data
       assert data.name == "Dungeons and Dragons 5th Edition SRD"
       assert data.slug == "dnd_5e_srd"
-      assert data.version == "1.0.0"
+      assert data.version == "1.1.0"
     end
 
     test "systems.show returns concept list when concept_type given" do

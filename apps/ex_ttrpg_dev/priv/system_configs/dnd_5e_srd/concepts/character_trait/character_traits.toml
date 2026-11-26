@@ -69,6 +69,20 @@ dex_bonus.type = "accumulator"
 dex_bonus.base = "ability('dexterity').modifier"
 total.formula = "character_trait('armor_class').base + character_trait('armor_class').dex_bonus"
 
+# Counts of equipped armor pieces. Formulas can't inspect inventory directly,
+# so each armor item contributes here while equipped; features that apply only
+# when unarmored (Unarmored Defense, Draconic Resilience) or out of heavy armor
+# (Fast Movement) gate on these with `min(1, ...)`.
+[character_trait.armor_worn]
+name = "Armor Worn"
+hidden = true
+body.type = "accumulator"
+body.base = "0"
+heavy.type = "accumulator"
+heavy.base = "0"
+shield.type = "accumulator"
+shield.base = "0"
+
 [character_trait.spellcasting_ability_modifier]
 name = "Spellcasting Ability Modifier"
 value.type = "accumulator"

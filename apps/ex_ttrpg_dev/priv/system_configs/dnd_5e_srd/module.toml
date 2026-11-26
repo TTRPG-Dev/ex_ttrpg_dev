@@ -1,7 +1,7 @@
 [module]
 name = "Dungeons and Dragons 5th Edition SRD"
 slug = "dnd_5e_srd"
-version = "1.0.0"
+version = "1.1.0"
 library_requirement = "~> 0.16.0"
 family = "dungeons_and_dragons"
 series = "dungeons_and_dragons_5e"
@@ -26,6 +26,8 @@ custom_metadata_keys = [
   "range_normal", "range_long", "tool_type",
   # language
   "script",
+  # draconic ancestry
+  "damage_type", "breath_weapon_area", "breath_weapon_save",
   # spell display / rules
   "school", "casting_time", "duration", "range",
   "concentration", "ritual", "verbal", "somatic", "material"
@@ -100,6 +102,10 @@ display.template = "{{name}}: Level {{level}}, {{school}} ({{?verbal:V}}{{?somat
 [[concept_type]]
 id = "feat"
 name = "Feat"
+
+[[concept_type]]
+id = "draconic_ancestry"
+name = "Draconic Ancestry"
 
 [[character_list]]
 label = "Skill Proficiencies"

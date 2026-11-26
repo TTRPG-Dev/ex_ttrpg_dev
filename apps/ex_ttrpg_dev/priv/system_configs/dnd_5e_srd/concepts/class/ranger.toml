@@ -8,6 +8,20 @@ preparation_mode = "all"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Favored Enemy: number of favored enemy types.
+favored_enemies.type = "mapping"
+favored_enemies.input = "character_trait('character_level').level"
+favored_enemies.steps = [[1, 1], [6, 2], [14, 3]]
+# Natural Explorer: number of favored terrains.
+favored_terrains.type = "mapping"
+favored_terrains.input = "character_trait('character_level').level"
+favored_terrains.steps = [[1, 1], [6, 2], [10, 3]]
+# Extra Attack: attacks per Attack action.
+attacks_per_action.type = "mapping"
+attacks_per_action.input = "character_trait('character_level').level"
+attacks_per_action.steps = [[1, 1], [5, 2]]
+
 [class.ranger.choices.subclass]
 required = true
 type = "class"

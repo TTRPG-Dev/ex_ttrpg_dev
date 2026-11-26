@@ -8,6 +8,22 @@ weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [6, 2], [8, 3], [12, 4], [14, 5], [16, 6], [19, 7]]
+
+# Action Surge uses per short or long rest.
+action_surge_uses.type = "mapping"
+action_surge_uses.input = "character_trait('character_level').level"
+action_surge_uses.steps = [[1, 0], [2, 1], [17, 2]]
+# Indomitable uses per long rest.
+indomitable_uses.type = "mapping"
+indomitable_uses.input = "character_trait('character_level').level"
+indomitable_uses.steps = [[1, 0], [9, 1], [13, 2], [17, 3]]
+# Extra Attack: attacks per Attack action.
+attacks_per_action.type = "mapping"
+attacks_per_action.input = "character_trait('character_level').level"
+attacks_per_action.steps = [[1, 1], [5, 2], [11, 3], [20, 4]]
+# Second Wind heals 1d10 + this value.
+second_wind_bonus.formula = "character_trait('character_level').level"
+
 [class.fighter.choices.starting_armor]
 required = true
 type = "equipment"
@@ -87,3 +103,8 @@ value = "class('fighter').asi_slots"
 
 [class.champion]
 name = "Champion"
+
+# Improved / Superior Critical: lowest d20 roll that scores a critical hit.
+critical_range.type = "mapping"
+critical_range.input = "character_trait('character_level').level"
+critical_range.steps = [[1, 20], [3, 19], [15, 18]]

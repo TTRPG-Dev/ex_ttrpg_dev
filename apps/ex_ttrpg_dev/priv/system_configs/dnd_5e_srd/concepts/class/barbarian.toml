@@ -7,6 +7,30 @@ weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Class table: Rages per long rest.
+rages.type = "mapping"
+rages.input = "character_trait('character_level').level"
+rages.steps = [[1, 2], [3, 3], [6, 4], [12, 5], [17, 6]]
+# Primal Champion table entry: rages become unlimited at 20th level.
+rages_unlimited.formula = "character_trait('character_level').level >= 20"
+# Class table: Rage Damage bonus.
+rage_damage.type = "mapping"
+rage_damage.input = "character_trait('character_level').level"
+rage_damage.steps = [[1, 2], [9, 3], [16, 4]]
+# Brutal Critical: extra weapon damage dice on a critical hit.
+brutal_critical_dice.type = "mapping"
+brutal_critical_dice.input = "character_trait('character_level').level"
+brutal_critical_dice.steps = [[1, 0], [9, 1], [13, 2], [17, 3]]
+# Fast Movement: +10 ft speed from 5th level while not in heavy armor.
+fast_movement.type = "mapping"
+fast_movement.input = "character_trait('character_level').level"
+fast_movement.steps = [[1, 0], [5, 10]]
+# Primal Champion: +4 Strength and Constitution at 20th level.
+primal_champion.type = "mapping"
+primal_champion.input = "character_trait('character_level').level"
+primal_champion.steps = [[1, 0], [20, 4]]
+
 [class.barbarian.choices.subclass]
 required = true
 type = "class"
@@ -59,6 +83,23 @@ value = "ability('constitution').modifier * (character_trait('character_level').
 [[class.barbarian.contributes]]
 target = "character_trait('asi_count').count"
 value = "class('barbarian').asi_slots"
+
+# Unarmored Defense: AC = 10 + Dex + Con while wearing no armor (a shield is allowed).
+[[class.barbarian.contributes]]
+target = "character_trait('armor_class').base"
+value = "ability('constitution').modifier * (1 - min(1, character_trait('armor_worn').body))"
+
+[[class.barbarian.contributes]]
+target = "character_trait('speed').amount"
+value = "class('barbarian').fast_movement * (1 - min(1, character_trait('armor_worn').heavy))"
+
+[[class.barbarian.contributes]]
+target = "ability('strength').total_score"
+value = "class('barbarian').primal_champion"
+
+[[class.barbarian.contributes]]
+target = "ability('constitution').total_score"
+value = "class('barbarian').primal_champion"
 
 [class.berserker]
 name = "Berserker"

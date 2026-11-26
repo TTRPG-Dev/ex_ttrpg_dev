@@ -9,6 +9,26 @@ preparation_pool = "class_spells"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Lay on Hands: healing pool equal to paladin level x 5.
+lay_on_hands_pool.formula = "5 * character_trait('character_level').level"
+# Divine Sense uses per long rest.
+divine_sense_uses.formula = "1 + ability('charisma').modifier"
+# Channel Divinity uses per short or long rest.
+channel_divinity_uses.type = "mapping"
+channel_divinity_uses.input = "character_trait('character_level').level"
+channel_divinity_uses.steps = [[1, 0], [3, 1]]
+# Extra Attack: attacks per Attack action.
+attacks_per_action.type = "mapping"
+attacks_per_action.input = "character_trait('character_level').level"
+attacks_per_action.steps = [[1, 1], [5, 2]]
+# Aura of Protection / Courage range (feet).
+aura_range.type = "mapping"
+aura_range.input = "character_trait('character_level').level"
+aura_range.steps = [[1, 0], [6, 10], [18, 30]]
+# Aura of Protection: saving throw bonus (Cha modifier, minimum +1) from 6th level.
+aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, character_trait('character_level').level - 5))"
+
 [class.paladin.choices.subclass]
 required = true
 type = "class"
@@ -89,6 +109,31 @@ steps = [[1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16,
 [class.paladin.preparation_cap]
 type = "formula"
 formula = "ability('charisma').modifier + class('paladin').half_level"
+
+# Aura of Protection applies to the paladin's own saving throws.
+[[class.paladin.contributes]]
+target = "saving_throw('strength').modifier"
+value = "class('paladin').aura_of_protection"
+
+[[class.paladin.contributes]]
+target = "saving_throw('dexterity').modifier"
+value = "class('paladin').aura_of_protection"
+
+[[class.paladin.contributes]]
+target = "saving_throw('constitution').modifier"
+value = "class('paladin').aura_of_protection"
+
+[[class.paladin.contributes]]
+target = "saving_throw('intelligence').modifier"
+value = "class('paladin').aura_of_protection"
+
+[[class.paladin.contributes]]
+target = "saving_throw('wisdom').modifier"
+value = "class('paladin').aura_of_protection"
+
+[[class.paladin.contributes]]
+target = "saving_throw('charisma').modifier"
+value = "class('paladin').aura_of_protection"
 
 [class.oath_of_devotion]
 name = "Oath of Devotion"

@@ -10,6 +10,26 @@ preparation_pool = "class_spells"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Wild Shape uses per short or long rest.
+wild_shape_uses.type = "mapping"
+wild_shape_uses.input = "character_trait('character_level').level"
+wild_shape_uses.steps = [[1, 0], [2, 2]]
+# Archdruid: unlimited Wild Shape at 20th level.
+wild_shape_unlimited.formula = "character_trait('character_level').level >= 20"
+# Beast Shapes table: highest challenge rating.
+wild_shape_max_cr.type = "mapping"
+wild_shape_max_cr.input = "character_trait('character_level').level"
+wild_shape_max_cr.steps = [[1, 0], [2, 0.25], [4, 0.5], [8, 1]]
+# Beast Shapes table: swimming speed allowed (1) from 4th level.
+wild_shape_swim.type = "mapping"
+wild_shape_swim.input = "character_trait('character_level').level"
+wild_shape_swim.steps = [[1, 0], [4, 1]]
+# Beast Shapes table: flying speed allowed (1) from 8th level.
+wild_shape_fly.type = "mapping"
+wild_shape_fly.input = "character_trait('character_level').level"
+wild_shape_fly.steps = [[1, 0], [8, 1]]
+
 [class.druid.choices.subclass]
 required = true
 type = "class"

@@ -6,6 +6,24 @@ weapon_proficiencies = ["Simple Weapons", "Shortsword"]
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Class table: Martial Arts die size.
+martial_arts_die.type = "mapping"
+martial_arts_die.input = "character_trait('character_level').level"
+martial_arts_die.steps = [[1, 4], [5, 6], [11, 8], [17, 10]]
+# Ki points equal monk level, from 2nd level.
+ki_points.formula = "character_trait('character_level').level * min(1, max(0, character_trait('character_level').level - 1))"
+# Ki save DC.
+ki_save_dc.formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+# Class table: Unarmored Movement bonus (feet).
+unarmored_movement.type = "mapping"
+unarmored_movement.input = "character_trait('character_level').level"
+unarmored_movement.steps = [[1, 0], [2, 10], [6, 15], [10, 20], [14, 25], [18, 30]]
+# Extra Attack: attacks per Attack action.
+attacks_per_action.type = "mapping"
+attacks_per_action.input = "character_trait('character_level').level"
+attacks_per_action.steps = [[1, 1], [5, 2]]
+
 [class.monk.choices.subclass]
 required = true
 type = "class"
@@ -77,6 +95,16 @@ value = "ability('constitution').modifier * (character_trait('character_level').
 [[class.monk.contributes]]
 target = "character_trait('asi_count').count"
 value = "class('monk').asi_slots"
+
+# Unarmored Defense: AC = 10 + Dex + Wis while wearing no armor and wielding no shield.
+[[class.monk.contributes]]
+target = "character_trait('armor_class').base"
+value = "ability('wisdom').modifier * (1 - min(1, character_trait('armor_worn').body + character_trait('armor_worn').shield))"
+
+# Unarmored Movement: applies only without armor or a shield.
+[[class.monk.contributes]]
+target = "character_trait('speed').amount"
+value = "class('monk').unarmored_movement * (1 - min(1, character_trait('armor_worn').body + character_trait('armor_worn').shield))"
 
 [class.way_of_the_open_hand]
 name = "Way of the Open Hand"
