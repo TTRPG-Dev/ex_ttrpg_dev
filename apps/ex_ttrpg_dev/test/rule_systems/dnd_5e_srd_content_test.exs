@@ -149,4 +149,35 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
                10
     end
   end
+
+  describe "bard" do
+    test "Bardic Inspiration die and uses follow the class table", %{system: system} do
+      for {level, die} <- [{1, 6}, {5, 8}, {10, 10}, {15, 12}] do
+        assert node(
+                 class_values(system, "bard", level),
+                 "class",
+                 "bard",
+                 "bardic_inspiration_die"
+               ) ==
+                 die
+      end
+
+      uses =
+        &node(
+          class_values(system, "bard", 1, scores: %{"charisma" => &1}),
+          "class",
+          "bard",
+          "bardic_inspiration_uses"
+        )
+
+      assert uses.(16) == 3
+      assert uses.(8) == 1
+    end
+
+    test "Song of Rest starts at 2nd level", %{system: system} do
+      assert node(class_values(system, "bard", 1), "class", "bard", "song_of_rest_die") == 0
+      assert node(class_values(system, "bard", 2), "class", "bard", "song_of_rest_die") == 6
+      assert node(class_values(system, "bard", 17), "class", "bard", "song_of_rest_die") == 12
+    end
+  end
 end

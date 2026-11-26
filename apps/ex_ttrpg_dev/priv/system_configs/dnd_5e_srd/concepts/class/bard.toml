@@ -8,6 +8,18 @@ preparation_mode = "all"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Bardic Inspiration die size (d6 at 1st, d8 at 5th, d10 at 10th, d12 at 15th).
+bardic_inspiration_die.type = "mapping"
+bardic_inspiration_die.input = "character_trait('character_level').level"
+bardic_inspiration_die.steps = [[1, 6], [5, 8], [10, 10], [15, 12]]
+# Bardic Inspiration uses per long rest (short rest from 5th, Font of Inspiration).
+bardic_inspiration_uses.formula = "max(1, ability('charisma').modifier)"
+# Song of Rest extra healing die size.
+song_of_rest_die.type = "mapping"
+song_of_rest_die.input = "character_trait('character_level').level"
+song_of_rest_die.steps = [[1, 0], [2, 6], [9, 8], [13, 10], [17, 12]]
+
 [class.bard.choices.subclass]
 required = true
 type = "class"
