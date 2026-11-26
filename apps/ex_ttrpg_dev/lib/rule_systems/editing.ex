@@ -43,8 +43,8 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   # Values are trimmed, and nil or blank values dropped, so an optional
   # field left empty is omitted rather than stored as "".
   defp new_module(fields) do
-    with :ok <- check_known_keys(fields),
-         {:ok, present} <- present_values(fields),
+    with :ok <- check_known_keys(fields, @creatable_keys, :invalid_module),
+         {:ok, present} <- present_values(fields, :invalid_module),
          {:ok, name} <- fetch_name(present),
          {:ok, slug} <- new_slug(present, name) do
       {:ok,
@@ -54,14 +54,16 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
     end
   end
 
-  defp check_known_keys(fields) do
-    case Enum.find(Map.keys(fields), &(&1 not in @creatable_keys)) do
+  # Both take the tag to wrap their errors in ({tag, reason}), so each
+  # caller's errors name what was being validated.
+  defp check_known_keys(fields, known_keys, tag) do
+    case Enum.find(Map.keys(fields), &(&1 not in known_keys)) do
       nil -> :ok
-      key -> {:error, {:invalid_module, {:unknown_key, key}}}
+      key -> {:error, {tag, {:unknown_key, key}}}
     end
   end
 
-  defp present_values(fields) do
+  defp present_values(fields, tag) do
     Enum.reduce_while(fields, {:ok, %{}}, fn
       {_key, nil}, acc ->
         {:cont, acc}
@@ -73,7 +75,7 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
         end
 
       {key, value}, _acc ->
-        {:halt, {:error, {:invalid_module, {:not_a_string, key, value}}}}
+        {:halt, {:error, {tag, {:not_a_string, key, value}}}}
     end)
   end
 
@@ -113,7 +115,8 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
   # the store's generic {:invalid_slug, slug}.
   def clone_system(source_slug, new_slug, opts) do
     with {:ok, new_slug} <- check_slug(new_slug),
-         {:ok, overrides} <- present_values(Map.new(Keyword.take(opts, [:name]), &stringify/1)),
+         {:ok, overrides} <-
+           present_values(Map.new(Keyword.take(opts, [:name]), &stringify/1), :invalid_module),
          :ok <- check_slug_free(new_slug),
          {:ok, _entry, source} <- Installed.resolve(source_slug, opts[:version]) do
       put_new(as_clone(source, new_slug, overrides), new_slug)
