@@ -73,7 +73,9 @@ Download `ttrpg_dev_cli_windows.zip` from the [releases page](https://github.com
 
 ## Usage
 
-`ttrpg-dev` can be used as a one-shot command or as an interactive shell (run with no arguments):
+`ttrpg-dev` runs as an interactive shell or as a one-shot command. Every command works the same way in both.
+
+Run with no arguments, it starts the interactive shell, which has tab completion and history:
 
 ```
 ttrpg-dev
@@ -84,15 +86,50 @@ Type `help` for available commands, `exit` to quit.
 ttrpg-dev> _
 ```
 
+Run with a command, it runs that one command and exits, so it can be used from scripts:
+
+```
+$ ttrpg-dev roll 3d6
+3d6: [2, 4, 5] = 11
+$ echo $?
+0
+
+$ ttrpg-dev characters show nobody
+Error: Failed to load character nobody: :not_found
+$ echo $?
+1
+```
+
+In one-shot mode:
+- the exit status is `0` on success and `1` on any failure (an error from the engine, an unknown command, bad arguments, or a prompt that can't be answered);
+- errors go to stderr and everything else to stdout;
+- `ttrpg-dev help` and `ttrpg-dev <command> --help` print the same help as the shell.
+
+Commands that ask a question work as usual in a terminal. Without one (piped, in CI, run from a script), they fail instead of waiting for an answer. The error names the flag that answers the question, or says the command needs a terminal:
+
+```
+$ ttrpg-dev characters gen dnd_5e_srd < /dev/null
+...character sheet...
+Error: no terminal to ask "Save this character?"; pass --save to save it
+
+$ ttrpg-dev systems delete my_homebrew < /dev/null
+Error: no terminal to confirm the delete; pass -y to delete without asking
+
+$ ttrpg-dev characters build dnd_5e_srd < /dev/null
+Error: `characters build` is interactive and needs a terminal
+```
+
+`characters build`, `characters resolve_choice` (unless given `--random-resolve`), `systems create` and `systems concept-type add` are interactive throughout and need a terminal.
+
 ### Rolling dice
 
 ```
 ttrpg-dev roll 3d6
-# 3d6: [2, 4, 5]
+# 3d6: [2, 4, 5] = 11
 
 ttrpg-dev roll 2d6,1d10
-# 2d6: [3, 6]
-# 1d10: [7]
+# 2d6: [3, 6] = 9
+# 1d10: [7] = 7
 ```
 
 ### Rule systems
@@ -118,8 +155,10 @@ ttrpg-dev systems copy dnd_5e_srd my_homebrew
 ttrpg-dev systems copy dnd_5e_srd
 
 # Delete a local (user-made or copied) system; bundled systems can't be
-# deleted, nor can a system that saved characters still use
+# deleted, nor can a system that saved characters still use. Asks first;
+# -y skips the question
 ttrpg-dev systems delete my_homebrew
+ttrpg-dev systems delete my_homebrew -y
 ```
 
 ### Characters
