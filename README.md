@@ -106,6 +106,11 @@ ttrpg-dev systems show dnd_5e_srd --concept-type skill
 # family and series), then add concept types and concepts by hand
 ttrpg-dev systems create
 
+# Declare a concept type in a local system (prompts for its name and an
+# optional display template, e.g. "{{name}} (Cost: {{cost}})"); its ID is
+# derived from the name, e.g. "Class Feature" -> class_feature
+ttrpg-dev systems concept-type add my_fantasy_system
+
 # Copy a system (bundled or local) into a new, editable local one, named
 # "<source name> (copy)". Without a slug, its slug is <system>_copy_1,
 # then _copy_2, ...

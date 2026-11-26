@@ -71,6 +71,12 @@ pub(crate) struct CopiedSystem {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct AddedConceptType {
+    pub(crate) added: String,
+    pub(crate) path: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct DeletedSystem {
     pub(crate) deleted: String,
     pub(crate) path: String,
@@ -360,6 +366,15 @@ pub(crate) enum Request<'a> {
     #[serde(rename = "systems.delete")]
     SystemsDelete { system: &'a str },
 
+    /// The engine derives the type's ID from `name`.
+    #[serde(rename = "systems.concept_type.add")]
+    SystemsConceptTypeAdd {
+        system: &'a str,
+        name: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        display_template: Option<&'a str>,
+    },
+
     #[serde(rename = "characters.gen")]
     CharactersGen { system: &'a str },
 
@@ -628,6 +643,31 @@ mod tests {
                 system: "my_homebrew"
             }),
             serde_json::json!({"command": "systems.delete", "system": "my_homebrew"})
+        );
+    }
+
+    #[test]
+    fn serializes_systems_concept_type_add_request() {
+        assert_eq!(
+            to_value(&Request::SystemsConceptTypeAdd {
+                system: "homebrew",
+                name: "Feat",
+                display_template: Some("{{name}}")
+            }),
+            serde_json::json!({
+                "command": "systems.concept_type.add",
+                "system": "homebrew",
+                "name": "Feat",
+                "display_template": "{{name}}"
+            })
+        );
+        assert_eq!(
+            to_value(&Request::SystemsConceptTypeAdd {
+                system: "homebrew",
+                name: "Feat",
+                display_template: None
+            }),
+            serde_json::json!({"command": "systems.concept_type.add", "system": "homebrew", "name": "Feat"})
         );
     }
 
@@ -982,6 +1022,13 @@ mod tests {
                 "/x/dnd_5e_srd_copy_1"
             )
         );
+    }
+
+    #[test]
+    fn deserialize_added_concept_type() {
+        let json = r#"{"added":"feat","system":"homebrew","path":"/x/homebrew/module.toml"}"#;
+        let a: AddedConceptType = serde_json::from_str(json).unwrap();
+        assert_eq!((&*a.added, &*a.path), ("feat", "/x/homebrew/module.toml"));
     }
 
     #[test]
