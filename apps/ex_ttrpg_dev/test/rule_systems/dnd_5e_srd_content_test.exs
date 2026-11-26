@@ -217,4 +217,35 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(class_values(system, "druid", 20), "class", "druid", "wild_shape_unlimited")
     end
   end
+
+  describe "fighter" do
+    test "Action Surge, Indomitable and Extra Attack follow the class table", %{system: system} do
+      for {level, surge, indomitable, attacks} <- [
+            {1, 0, 0, 1},
+            {2, 1, 0, 1},
+            {5, 1, 0, 2},
+            {9, 1, 1, 2},
+            {11, 1, 1, 3},
+            {17, 2, 3, 3},
+            {20, 2, 3, 4}
+          ] do
+        values = class_values(system, "fighter", level)
+        assert node(values, "class", "fighter", "action_surge_uses") == surge
+        assert node(values, "class", "fighter", "indomitable_uses") == indomitable
+        assert node(values, "class", "fighter", "attacks_per_action") == attacks
+      end
+    end
+
+    test "Second Wind heals 1d10 + fighter level", %{system: system} do
+      assert node(class_values(system, "fighter", 7), "class", "fighter", "second_wind_bonus") ==
+               7
+    end
+
+    test "Champion critical range widens at 3rd and 15th level", %{system: system} do
+      for {level, range} <- [{2, 20}, {3, 19}, {15, 18}] do
+        assert node(class_values(system, "fighter", level), "class", "champion", "critical_range") ==
+                 range
+      end
+    end
+  end
 end
