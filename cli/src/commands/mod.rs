@@ -32,6 +32,11 @@ pub(crate) struct Failed;
 
 /// What every command handler returns. Declining a prompt (or ending input
 /// at one) is a choice the user made, not a failure, so it's `Ok`.
+///
+/// The exception is giving up on recovering from an error that has
+/// already been reported: `systems create` asks for another name after
+/// the engine refuses one, and declining that leaves the refusal as the
+/// command's outcome, so it's `Err`.
 pub(crate) type CmdResult = Result<(), Failed>;
 
 /// Prints `msg` to stderr and returns [`Failed`], for the failures that
