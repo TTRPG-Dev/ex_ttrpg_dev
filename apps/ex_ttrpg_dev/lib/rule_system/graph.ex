@@ -89,7 +89,9 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
 
   defp add_contributes_option_edge(graph, nodes, target_key, value) do
     if Map.has_key?(nodes, target_key) do
-      case validate_and_add_refs(graph, nodes, value, target_key) do
+      # Only a formula string has refs to add; a numeric value is a constant
+      # with no dependencies, same as a numeric `contributes` effect value.
+      case add_formula_effect_edge(graph, nodes, target_key, value) do
         {:ok, g} -> {:cont, {:ok, g}}
         error -> {:halt, error}
       end

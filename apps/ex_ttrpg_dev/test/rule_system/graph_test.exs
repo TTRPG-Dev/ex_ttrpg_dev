@@ -28,6 +28,50 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
   end
 
+  defp contributes_choice_data(value) do
+    %{
+      nodes: %{
+        {"ability", "strength", "base"} => %Node{type: :generated, method: "standard"},
+        {"ability", "strength", "total_score"} => %Node{type: :accumulator, base: "0"}
+      },
+      rolling_methods: %{},
+      effects: [],
+      concept_metadata: %{
+        {"race", "half_elf"} => %{
+          "choices" => %{
+            "ability_increase" => %{
+              "type" => "ability",
+              "options" => ["strength"],
+              "contributes_field" => "total_score",
+              "contributes_value" => value
+            }
+          }
+        },
+        {"ability", "strength"} => %{"name" => "Strength"}
+      }
+    }
+  end
+
+  test "build/1 accepts a numeric choice contributes_value" do
+    assert {:ok, _system} = Graph.build(contributes_choice_data(1))
+    assert {:ok, _system} = Graph.build(contributes_choice_data(1.5))
+  end
+
+  test "build/1 adds edges for a formula choice contributes_value" do
+    assert {:ok, system} = Graph.build(contributes_choice_data("ability('strength').base"))
+
+    assert Elixir.Graph.edge(
+             system.graph,
+             {"ability", "strength", "base"},
+             {"ability", "strength", "total_score"}
+           )
+  end
+
+  test "build/1 rejects a formula choice contributes_value with undefined refs" do
+    assert {:error, {:undefined_ref, _}} =
+             Graph.build(contributes_choice_data("ability('strength').missing"))
+  end
+
   test "build/1 succeeds on valid minimal data" do
     assert {:ok, system} = Graph.build(minimal_loader_data())
     assert is_map(system.graph)
