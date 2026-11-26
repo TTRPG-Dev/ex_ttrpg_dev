@@ -82,20 +82,6 @@ concentration = true
 ritual = false
 classes = ["druid", "ranger"]
 
-[spell.beast_sense]
-name = "Beast Sense"
-level = 2
-school = "divination"
-casting_time = "1 action"
-range = "Touch"
-duration = "Concentration, up to 1 hour"
-verbal = false
-somatic = true
-material = false
-concentration = true
-ritual = true
-classes = ["druid", "ranger"]
-
 [spell.blindness_deafness]
 name = "Blindness/Deafness"
 level = 2
@@ -123,20 +109,6 @@ material = false
 concentration = true
 ritual = false
 classes = ["sorcerer", "wizard"]
-
-[spell.branding_smite]
-name = "Branding Smite"
-level = 2
-school = "evocation"
-casting_time = "1 bonus action"
-range = "Self"
-duration = "Concentration, up to 1 minute"
-verbal = true
-somatic = false
-material = false
-concentration = true
-ritual = false
-classes = ["paladin"]
 
 [spell.calm_emotions]
 name = "Calm Emotions"

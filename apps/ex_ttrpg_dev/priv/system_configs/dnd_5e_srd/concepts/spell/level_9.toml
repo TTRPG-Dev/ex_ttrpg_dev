@@ -82,20 +82,6 @@ concentration = false
 ritual = false
 classes = ["sorcerer", "wizard"]
 
-[spell.power_word_heal]
-name = "Power Word Heal"
-level = 9
-school = "evocation"
-casting_time = "1 action"
-range = "Touch"
-duration = "Instantaneous"
-verbal = true
-somatic = true
-material = false
-concentration = false
-ritual = false
-classes = ["bard", "cleric"]
-
 [spell.power_word_kill]
 name = "Power Word Kill"
 level = 9

@@ -141,6 +141,6 @@ always_prepared = [
   "protection_from_evil_and_good", "sanctuary",
   "lesser_restoration", "zone_of_truth",
   "beacon_of_hope", "dispel_magic",
-  "freedom_of_movement", "guardian_of_faith",
+  "freedom_of_movement",
   "commune", "flame_strike",
 ]

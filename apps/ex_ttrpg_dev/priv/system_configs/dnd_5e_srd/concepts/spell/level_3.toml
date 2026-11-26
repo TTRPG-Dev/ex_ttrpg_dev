@@ -96,20 +96,6 @@ concentration = true
 ritual = false
 classes = ["druid", "ranger"]
 
-[spell.counterspell]
-name = "Counterspell"
-level = 3
-school = "abjuration"
-casting_time = "1 reaction"
-range = "60 feet"
-duration = "Instantaneous"
-verbal = false
-somatic = true
-material = false
-concentration = false
-ritual = false
-classes = ["sorcerer", "warlock", "wizard"]
-
 [spell.create_food_and_water]
 name = "Create Food and Water"
 level = 3
@@ -165,20 +151,6 @@ material = true
 concentration = true
 ritual = false
 classes = ["bard", "sorcerer", "warlock", "wizard"]
-
-[spell.feign_death]
-name = "Feign Death"
-level = 3
-school = "necromancy"
-casting_time = "1 action"
-range = "Touch"
-duration = "1 hour"
-verbal = true
-somatic = true
-material = true
-concentration = false
-ritual = true
-classes = ["bard", "cleric", "druid", "wizard"]
 
 [spell.fireball]
 name = "Fireball"

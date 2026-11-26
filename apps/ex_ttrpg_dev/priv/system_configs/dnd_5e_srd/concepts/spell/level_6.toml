@@ -1,17 +1,3 @@
-[spell.arcane_gate]
-name = "Arcane Gate"
-level = 6
-school = "conjuration"
-casting_time = "1 action"
-range = "500 feet"
-duration = "Concentration, up to 10 minutes"
-verbal = true
-somatic = true
-material = false
-concentration = true
-ritual = false
-classes = ["sorcerer", "warlock", "wizard"]
-
 [spell.blade_barrier]
 name = "Blade Barrier"
 level = 6
