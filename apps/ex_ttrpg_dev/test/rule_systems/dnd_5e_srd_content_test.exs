@@ -307,4 +307,13 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       end
     end
   end
+
+  describe "rogue" do
+    test "Sneak Attack dice are half rogue level, rounded up", %{system: system} do
+      for {level, dice} <- [{1, 1}, {2, 1}, {3, 2}, {19, 10}, {20, 10}] do
+        assert node(class_values(system, "rogue", level), "class", "rogue", "sneak_attack_dice") ==
+                 dice
+      end
+    end
+  end
 end

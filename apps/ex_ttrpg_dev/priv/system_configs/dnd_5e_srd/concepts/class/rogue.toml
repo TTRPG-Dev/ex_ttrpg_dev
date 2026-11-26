@@ -8,6 +8,10 @@ tool_proficiencies = ["Thieves' Tools"]
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [10, 3], [12, 4], [16, 5], [19, 6]]
+
+# Class table: Sneak Attack d6s.
+sneak_attack_dice.formula = "ceil(character_trait('character_level').level / 2)"
+
 [class.rogue.choices.subclass]
 required = true
 type = "class"
