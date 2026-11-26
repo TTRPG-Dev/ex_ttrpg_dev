@@ -1,0 +1,72 @@
+# Draconic Ancestry table (Dragonborn). The chosen ancestry sets the breath
+# weapon's damage type, area and saving throw, and the damage resistance.
+
+[draconic_ancestry.black]
+name = "Black Dragon"
+damage_type = "acid"
+damage_resistances = ["acid"]
+breath_weapon_area = "5 by 30 ft. line"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.blue]
+name = "Blue Dragon"
+damage_type = "lightning"
+damage_resistances = ["lightning"]
+breath_weapon_area = "5 by 30 ft. line"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.brass]
+name = "Brass Dragon"
+damage_type = "fire"
+damage_resistances = ["fire"]
+breath_weapon_area = "5 by 30 ft. line"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.bronze]
+name = "Bronze Dragon"
+damage_type = "lightning"
+damage_resistances = ["lightning"]
+breath_weapon_area = "5 by 30 ft. line"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.copper]
+name = "Copper Dragon"
+damage_type = "acid"
+damage_resistances = ["acid"]
+breath_weapon_area = "5 by 30 ft. line"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.gold]
+name = "Gold Dragon"
+damage_type = "fire"
+damage_resistances = ["fire"]
+breath_weapon_area = "15 ft. cone"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.green]
+name = "Green Dragon"
+damage_type = "poison"
+damage_resistances = ["poison"]
+breath_weapon_area = "15 ft. cone"
+breath_weapon_save = "constitution"
+
+[draconic_ancestry.red]
+name = "Red Dragon"
+damage_type = "fire"
+damage_resistances = ["fire"]
+breath_weapon_area = "15 ft. cone"
+breath_weapon_save = "dexterity"
+
+[draconic_ancestry.silver]
+name = "Silver Dragon"
+damage_type = "cold"
+damage_resistances = ["cold"]
+breath_weapon_area = "15 ft. cone"
+breath_weapon_save = "constitution"
+
+[draconic_ancestry.white]
+name = "White Dragon"
+damage_type = "cold"
+damage_resistances = ["cold"]
+breath_weapon_area = "15 ft. cone"
+breath_weapon_save = "constitution"

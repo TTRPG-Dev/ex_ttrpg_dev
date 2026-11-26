@@ -2,6 +2,17 @@
 name = "Dragonborn"
 languages = ["common", "draconic"]
 
+# Breath Weapon: save DC and damage dice (d6s) by character level.
+breath_weapon_dc.formula = "8 + ability('constitution').modifier + character_trait('proficiency_bonus').bonus"
+breath_weapon_dice.type = "mapping"
+breath_weapon_dice.input = "character_trait('character_level').level"
+breath_weapon_dice.steps = [[1, 2], [6, 3], [11, 4], [16, 5]]
+
+[race.dragonborn.choices.draconic_ancestry]
+required = true
+type = "draconic_ancestry"
+options = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"]
+
 [[race.dragonborn.contributes]]
 target = "character_trait('speed').amount"
 value = 30

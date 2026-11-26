@@ -441,5 +441,27 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "skill", "stealth", "modifier") == 2
       assert node(values, "skill", "arcana", "modifier") == 2
     end
+
+    test "Dragonborn breath weapon DC and dice, and ancestry resistance", %{system: system} do
+      decisions = [
+        root("race", "dragonborn"),
+        %Decision{scope: {"race", "dragonborn"}, choice: "draconic_ancestry", selection: "red"}
+      ]
+
+      values = resolve(system, decisions: decisions, scores: %{"constitution" => 14})
+      assert node(values, "race", "dragonborn", "breath_weapon_dc") == 12
+      assert node(values, "race", "dragonborn", "breath_weapon_dice") == 2
+
+      for {level, dice} <- [{6, 3}, {11, 4}, {16, 5}] do
+        values = resolve(system, decisions: decisions, level: level)
+        assert node(values, "race", "dragonborn", "breath_weapon_dice") == dice
+      end
+
+      active = Characters.active_concepts(decisions, system.concept_metadata)
+      assert MapSet.member?(active, {"draconic_ancestry", "red"})
+
+      assert system.concept_metadata[{"draconic_ancestry", "red"}]["damage_resistances"] ==
+               ["fire"]
+    end
   end
 end
