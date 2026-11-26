@@ -248,4 +248,33 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       end
     end
   end
+
+  describe "monk" do
+    test "Unarmored Defense adds Wis to AC without armor or shield", %{system: system} do
+      scores = %{"dexterity" => 14, "wisdom" => 16}
+
+      assert ac(class_values(system, "monk", 1, scores: scores)) == 15
+      assert ac(class_values(system, "monk", 1, scores: scores, equipped: ["shield"])) == 14
+    end
+
+    test "Unarmored Movement applies only without armor or shield", %{system: system} do
+      speed = &node(&1, "character_trait", "speed", "amount")
+
+      assert speed.(class_values(system, "monk", 1)) == 0
+      assert speed.(class_values(system, "monk", 6)) == 15
+      assert speed.(class_values(system, "monk", 18)) == 30
+      assert speed.(class_values(system, "monk", 6, equipped: ["shield"])) == 0
+    end
+
+    test "Martial Arts die, ki points and ki save DC", %{system: system} do
+      for {level, die, ki} <- [{1, 4, 0}, {2, 4, 2}, {5, 6, 5}, {11, 8, 11}, {17, 10, 17}] do
+        values = class_values(system, "monk", level)
+        assert node(values, "class", "monk", "martial_arts_die") == die
+        assert node(values, "class", "monk", "ki_points") == ki
+      end
+
+      values = class_values(system, "monk", 1, scores: %{"wisdom" => 16})
+      assert node(values, "class", "monk", "ki_save_dc") == 13
+    end
+  end
 end
