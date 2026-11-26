@@ -149,6 +149,25 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     end)
   end
 
+  test "load/1 refuses a declared type's concept that isn't a table" do
+    with_tmp_system(fn dir ->
+      File.mkdir_p!(Path.join(dir, "concepts"))
+      File.write!(Path.join([dir, "concepts", "feats.toml"]), "[feat]\nalert = 5\n")
+
+      assert {:error, {:concept_not_a_table, "concepts/feats.toml", "feat", "alert"}} =
+               Loader.load(dir)
+    end)
+  end
+
+  test "load/1 still skips non-table entries under an undeclared type" do
+    with_tmp_system(fn dir ->
+      File.mkdir_p!(Path.join(dir, "concepts"))
+      File.write!(Path.join([dir, "concepts", "spells.toml"]), "[spell]\nfireball = 5\n")
+
+      assert {:ok, _} = Loader.load(dir)
+    end)
+  end
+
   test "load/1 preserves contributes list in concept_metadata" do
     {:ok, data} = Loader.load(dnd_path())
     meta = data.concept_metadata[{"race", "half_elf"}]

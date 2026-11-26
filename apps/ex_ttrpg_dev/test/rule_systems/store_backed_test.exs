@@ -501,6 +501,19 @@ defmodule ExTTRPGDev.RuleSystems.StoreBackedTest do
                RuleSystems.load_system!("homebrew").concept_metadata[{"feat", "alert"}]
     end
 
+    test "refuses a type whose existing concepts wouldn't load, storing nothing" do
+      :ok =
+        RuleSystems.update_system("homebrew", fn source ->
+          %{source | concepts: [{"concepts/feats.toml", %{"feat" => %{"alert" => 5}}}]}
+        end)
+
+      assert {:error,
+              {:invalid_update, {:concept_not_a_table, "concepts/feats.toml", "feat", "alert"}}} =
+               RuleSystems.add_concept_type("homebrew", %{"name" => "Feat"})
+
+      assert concept_types("homebrew") == []
+    end
+
     test "refuses an ID the system already declares, storing nothing new" do
       {:ok, "feat"} = RuleSystems.add_concept_type("homebrew", %{"name" => "Feat"})
 
