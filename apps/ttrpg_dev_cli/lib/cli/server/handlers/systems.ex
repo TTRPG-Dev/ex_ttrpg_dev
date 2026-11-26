@@ -259,6 +259,7 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
       {:missing_required_key, key} -> "#{key} is required"
       {:unknown_key, key} -> "unknown concept type field: #{inspect(key)}"
       {:not_a_string, key, _} -> "concept type field #{inspect(key)} must be a string"
+      other -> "invalid concept type: #{inspect(other)}"
     end
   end
 
