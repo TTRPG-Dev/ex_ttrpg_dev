@@ -277,4 +277,24 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "class", "monk", "ki_save_dc") == 13
     end
   end
+
+  describe "paladin" do
+    test "Lay on Hands pool and Divine Sense uses", %{system: system} do
+      values = class_values(system, "paladin", 3, scores: %{"charisma" => 14})
+
+      assert node(values, "class", "paladin", "lay_on_hands_pool") == 15
+      assert node(values, "class", "paladin", "divine_sense_uses") == 3
+    end
+
+    test "Aura of Protection adds Cha (min +1) to saves from 6th level", %{system: system} do
+      dex_save = &node(&1, "saving_throw", "dexterity", "modifier")
+
+      assert dex_save.(class_values(system, "paladin", 5, scores: %{"charisma" => 14})) == 0
+      assert dex_save.(class_values(system, "paladin", 6, scores: %{"charisma" => 14})) == 2
+      assert dex_save.(class_values(system, "paladin", 6, scores: %{"charisma" => 8})) == 1
+
+      at18 = class_values(system, "paladin", 18)
+      assert node(at18, "class", "paladin", "aura_range") == 30
+    end
+  end
 end
