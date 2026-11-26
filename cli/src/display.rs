@@ -261,8 +261,16 @@ pub(crate) fn format_concept_detail(detail: &ConceptDetail) -> String {
 }
 
 pub(crate) fn page_output(content: &str) {
-    use std::io::Write;
+    use std::io::{IsTerminal, Write};
     use std::process::{Command, Stdio};
+
+    // Paging is for a person reading a terminal. Piped or redirected (a
+    // one-shot command in a script), the output is printed as is: a pager
+    // there would at best pass it through, and at worst wait for input.
+    if !std::io::stdout().is_terminal() {
+        print!("{content}");
+        return;
+    }
 
     let terminal_height = crossterm::terminal::size()
         .map(|(_, h)| h as usize)
