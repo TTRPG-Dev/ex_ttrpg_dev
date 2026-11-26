@@ -20,7 +20,12 @@ pub(crate) fn run(args: &[String]) -> i32 {
     // Unlike the REPL's pipe mode, piped stdin here isn't a stream of
     // answers someone prepared: one-shot mode is for scripts, and a script
     // should pass the flag that answers a prompt, or be told which one.
-    if !std::io::stdin().is_terminal() {
+    //
+    // stdout matters too: prompts are printed there, so with it redirected
+    // (`ttrpg-dev characters gen x > sheet.txt`) the question would go into
+    // the file and the command would wait for an answer to a question the
+    // user never sees.
+    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
         prompts::refuse_prompts();
     }
     let Some(mut engine) = repl::start_engine() else {

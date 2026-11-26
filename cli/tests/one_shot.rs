@@ -268,3 +268,25 @@ fn with_a_terminal_prompts_work_as_in_the_repl() {
         "declining to save should still exit 0, got {status:?}"
     );
 }
+
+#[test]
+fn with_stdout_redirected_prompts_are_refused_even_with_a_terminal() {
+    use rexpect::session::spawn_command;
+
+    // stdin and stderr are the PTY; only stdout is redirected, as in
+    // `ttrpg-dev characters gen dnd_5e_srd > sheet.txt` from a shell.
+    let _guard = ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cmd = Command::new("sh");
+    cmd.arg("-c").arg(format!(
+        "'{}' characters gen dnd_5e_srd > /dev/null",
+        env!("CARGO_BIN_EXE_ttrpg-dev")
+    ));
+    let mut s = spawn_command(cmd, Some(30_000)).expect("failed to spawn ttrpg-dev");
+    s.exp_string("pass --save to save it").unwrap();
+    s.exp_eof().unwrap();
+    let status = s.process().wait().unwrap();
+    assert!(
+        matches!(status, rexpect::process::WaitStatus::Exited(_, 1)),
+        "a refused prompt should exit 1, got {status:?}"
+    );
+}

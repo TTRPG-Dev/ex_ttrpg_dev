@@ -105,7 +105,7 @@ In one-shot mode:
 - errors go to stderr and everything else to stdout;
 - `ttrpg-dev help` and `ttrpg-dev <command> --help` print the same help as the shell.
 
-Commands that ask a question work as usual in a terminal. Without one (piped, in CI, run from a script), they fail instead of waiting for an answer. The error names the flag that answers the question, or says the command needs a terminal:
+Commands that ask a question work as usual in a terminal. When stdin or stdout isn't a terminal (input or output piped or redirected, in CI, run from a script), they fail instead of waiting for an answer. The error names the flag that answers the question, or says the command needs a terminal:
 
 ```
 $ ttrpg-dev characters gen dnd_5e_srd < /dev/null
