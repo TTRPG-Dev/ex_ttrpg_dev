@@ -133,6 +133,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   require Logger
 
   alias ExTTRPGDev.RuleSystem.{
+    Dice,
     Effect,
     Expression,
     InventoryRules,
@@ -346,7 +347,11 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp parse_node(%{"type" => "mapping"} = map) do
-    %Node{type: :mapping, input: Map.get(map, "input"), steps: Map.get(map, "steps")}
+    %Node{
+      type: :mapping,
+      input: Map.get(map, "input"),
+      steps: parse_mapping_steps(Map.get(map, "steps"))
+    }
   end
 
   defp parse_node(%{"formula" => formula}) do
@@ -357,6 +362,22 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   # "formula" key). The caller warns and skips the node instead of this
   # clause head raising FunctionClauseError.
   defp parse_node(_), do: nil
+
+  # A step's output may be dice notation (`[[1, "1d4"], [5, "1d6"]]`), parsed
+  # here so the node resolves to a Dice value like a dice() formula would.
+  # Strings that aren't dice notation are left as-is and warned about by
+  # warn_missing_node_fields/2, which knows the node key.
+  defp parse_mapping_steps(steps) when is_list(steps), do: Enum.map(steps, &parse_mapping_step/1)
+  defp parse_mapping_steps(steps), do: steps
+
+  defp parse_mapping_step([threshold, output]) when is_binary(output) do
+    case Dice.parse(output) do
+      {:ok, dice} -> [threshold, dice]
+      {:error, _} -> [threshold, output]
+    end
+  end
+
+  defp parse_mapping_step(step), do: step
 
   defp warn_unknown_node_type(value, {type_id, concept_id, field}) do
     Logger.warning(
@@ -372,6 +393,14 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       Logger.warning(
         "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
           "has type :mapping but is missing required field #{inspect(label)}."
+      )
+    end
+
+    for [_threshold, output] <- List.wrap(node.steps), is_binary(output) do
+      Logger.warning(
+        "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+          "has mapping step output #{inspect(output)}, which is not a number or " <>
+          "dice notation (e.g. \"1d6\")."
       )
     end
   end

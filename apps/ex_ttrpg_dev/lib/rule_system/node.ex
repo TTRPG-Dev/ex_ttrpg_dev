@@ -10,7 +10,9 @@ defmodule ExTTRPGDev.RuleSystem.Node do
   - `:formula` — `:formula` expression evaluated against resolved nodes.
   - `:mapping` — `:input` expression looked up in `:steps`
     (`[[threshold, value], ...]`, thresholds ascending; the value of the last
-    step whose threshold is <= the input wins).
+    step whose threshold is <= the input wins). A step's value may be a
+    `ExTTRPGDev.RuleSystem.Dice` value, authored as dice notation
+    (`[[1, "1d4"], [5, "1d6"]]`).
   """
 
   @type node_type :: :generated | :accumulator | :formula | :mapping
@@ -21,7 +23,7 @@ defmodule ExTTRPGDev.RuleSystem.Node do
           base: String.t() | nil,
           formula: String.t() | nil,
           input: String.t() | nil,
-          steps: [[number()]] | nil
+          steps: [[number() | ExTTRPGDev.RuleSystem.Dice.t()]] | nil
         }
 
   defstruct [:type, :method, :base, :formula, :input, :steps]
