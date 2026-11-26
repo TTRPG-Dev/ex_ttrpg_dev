@@ -127,6 +127,6 @@ always_prepared = [
   "bless", "cure_wounds",
   "lesser_restoration", "spiritual_weapon",
   "beacon_of_hope", "revivify",
-  "death_ward", "guardian_of_faith",
+  "death_ward",
   "mass_cure_wounds", "raise_dead",
 ]

@@ -54,20 +54,6 @@ concentration = false
 ritual = false
 classes = ["druid", "sorcerer", "warlock", "wizard"]
 
-[spell.compulsion]
-name = "Compulsion"
-level = 4
-school = "enchantment"
-casting_time = "1 action"
-range = "30 feet"
-duration = "Concentration, up to 1 minute"
-verbal = true
-somatic = true
-material = false
-concentration = true
-ritual = false
-classes = ["bard"]
-
 [spell.confusion]
 name = "Confusion"
 level = 4
@@ -249,20 +235,6 @@ material = false
 concentration = true
 ritual = false
 classes = ["bard", "sorcerer", "wizard"]
-
-[spell.guardian_of_faith]
-name = "Guardian of Faith"
-level = 4
-school = "conjuration"
-casting_time = "1 action"
-range = "30 feet"
-duration = "8 hours"
-verbal = true
-somatic = false
-material = false
-concentration = false
-ritual = false
-classes = ["cleric"]
 
 [spell.hallucinatory_terrain]
 name = "Hallucinatory Terrain"

@@ -221,17 +221,3 @@ material = true
 concentration = false
 ritual = false
 classes = ["druid", "sorcerer", "wizard"]
-
-[spell.tsunami]
-name = "Tsunami"
-level = 8
-school = "conjuration"
-casting_time = "1 minute"
-range = "Sight"
-duration = "Concentration, up to 6 rounds"
-verbal = true
-somatic = true
-material = false
-concentration = true
-ritual = false
-classes = ["druid"]
