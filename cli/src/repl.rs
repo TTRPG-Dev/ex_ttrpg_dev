@@ -13,7 +13,7 @@ use reedline::{
     default_emacs_keybindings,
 };
 
-use crate::commands::{self, COMMAND_TABLE, Completion, DisplayMode};
+use crate::commands::{self, COMMAND_TABLE, CmdResult, Completion, DisplayMode, fail};
 use crate::engine::Engine;
 use crate::protocol::{CharactersList, Request, SystemsList};
 
@@ -180,27 +180,50 @@ fn handle_line(line: &str, engine: &mut Engine, display_mode: &mut DisplayMode) 
     if tokens.is_empty() {
         return true;
     }
-    match tokens.as_slice() {
-        ["exit" | "quit" | "exit()"] => return false,
-        ["help"] => commands::print_help(),
-        ["set", "display", mode] => match *mode {
-            "succinct" => *display_mode = DisplayMode::Succinct,
-            "default" => *display_mode = DisplayMode::Default,
-            "verbose" => *display_mode = DisplayMode::Verbose,
-            other => eprintln!("Unknown display mode '{other}'. Use: succinct, default, verbose"),
-        },
-        ["set", ..] => eprintln!("Unknown set command. Try: set display succinct|default|verbose"),
+    if let ["exit" | "quit" | "exit()"] = tokens.as_slice() {
+        return false;
+    }
+    // The REPL reports a failure and carries on; the result only matters
+    // to a caller that turns it into an exit status.
+    let _ = dispatch(&tokens, engine, display_mode);
+    true
+}
+
+/// Runs one command. Shared by the REPL and anything else that runs
+/// commands, so a command behaves the same wherever it's typed.
+fn dispatch(tokens: &[&str], engine: &mut Engine, display_mode: &mut DisplayMode) -> CmdResult {
+    match tokens {
+        ["help"] => {
+            commands::print_help();
+            Ok(())
+        }
+        ["set", "display", mode] => {
+            *display_mode = match *mode {
+                "succinct" => DisplayMode::Succinct,
+                "default" => DisplayMode::Default,
+                "verbose" => DisplayMode::Verbose,
+                other => {
+                    return Err(fail(format!(
+                        "Unknown display mode '{other}'. Use: succinct, default, verbose"
+                    )));
+                }
+            };
+            Ok(())
+        }
+        ["set", ..] => Err(fail(
+            "Unknown set command. Try: set display succinct|default|verbose",
+        )),
         ["roll"] | ["roll", "--help"] => {
-            println!("Usage: roll <dice>  e.g. roll 3d6, roll 1d20, roll 2d8+3d6")
+            println!("Usage: roll <dice>  e.g. roll 3d6, roll 1d20, roll 2d8+3d6");
+            Ok(())
         }
         ["roll", rest @ ..] => commands::handle_roll(&rest.join(" "), engine),
         ["systems" | "system", rest @ ..] => commands::handle_systems(rest, engine),
         ["characters" | "character", rest @ ..] => {
             commands::handle_characters(rest, *display_mode, engine)
         }
-        _ => eprintln!("Unknown command. Type `help` for available commands."),
+        _ => Err(fail("Unknown command. Type `help` for available commands.")),
     }
-    true
 }
 
 // ── Entry point ────────────────────────────────────────────────────────────────

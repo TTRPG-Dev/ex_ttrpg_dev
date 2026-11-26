@@ -1,5 +1,5 @@
-use super::call_or_report;
 use super::table::{self, COMMAND_TABLE};
+use super::{CmdResult, Failed, call_or_report, fail};
 use crate::display;
 use crate::engine::{Engine, EngineError};
 use crate::prompts::{prompt_loop, prompt_nonempty_string, prompt_yes_no};
@@ -8,43 +8,46 @@ use crate::protocol::{
     SystemInfo, SystemsList,
 };
 
-pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) {
+pub(crate) fn handle_systems(tokens: &[&str], engine: &mut Engine) -> CmdResult {
     if table::dispatch_help(tokens, "systems") {
-        return;
+        return Ok(());
     }
     match tokens {
         ["list"] => handle_systems_list(engine),
         ["show", slug] => handle_systems_show(slug, None, engine),
         ["show", slug, "--concept-type", ct] => handle_systems_show(slug, Some(ct), engine),
         ["create"] => handle_systems_create(engine),
-        ["create", extra, ..] => {
-            eprintln!("Unexpected argument '{extra}'. Try `systems create --help`.")
-        }
+        ["create", extra, ..] => Err(fail(format!(
+            "Unexpected argument '{extra}'. Try `systems create --help`."
+        ))),
         ["copy", system] => handle_systems_copy(system, None, engine),
         ["copy", system, slug] => handle_systems_copy(system, Some(slug), engine),
-        ["copy", ..] => {
-            eprintln!("Expected a system and an optional new slug. Try `systems copy --help`.")
-        }
+        ["copy", ..] => Err(fail(
+            "Expected a system and an optional new slug. Try `systems copy --help`.",
+        )),
         ["delete", rest @ ..] => match parse_delete_args(rest) {
             Ok(args) => handle_systems_delete(args, engine),
-            Err(msg) => eprintln!("{msg} Try `systems delete --help`."),
+            Err(msg) => Err(fail(format!("{msg} Try `systems delete --help`."))),
         },
         ["concept-type", "add", system] => handle_concept_type_add(system, engine),
-        ["concept-type", "add", ..] => {
-            eprintln!("Expected one system slug. Try `systems concept-type add --help`.")
+        ["concept-type", "add", ..] => Err(fail(
+            "Expected one system slug. Try `systems concept-type add --help`.",
+        )),
+        ["concept-type", ..] => Err(fail(
+            "Expected `systems concept-type add <system>`. Try `systems --help`.",
+        )),
+        [] | ["--help"] => {
+            print_systems_usage();
+            Ok(())
         }
-        ["concept-type", ..] => {
-            eprintln!("Expected `systems concept-type add <system>`. Try `systems --help`.")
-        }
-        [] | ["--help"] => print_systems_usage(),
-        [unknown, ..] => eprintln!("Unknown subcommand '{unknown}'. Try `systems --help`."),
+        [unknown, ..] => Err(fail(format!(
+            "Unknown subcommand '{unknown}'. Try `systems --help`."
+        ))),
     }
 }
 
-fn handle_systems_list(engine: &mut Engine) {
-    let Some(result) = call_or_report::<SystemsList>(engine, &Request::SystemsList) else {
-        return;
-    };
+fn handle_systems_list(engine: &mut Engine) -> CmdResult {
+    let result = call_or_report::<SystemsList>(engine, &Request::SystemsList)?;
     if result.systems.is_empty() {
         println!("No configured systems found.");
     } else {
@@ -53,28 +56,22 @@ fn handle_systems_list(engine: &mut Engine) {
             println!("  - {s}");
         }
     }
+    Ok(())
 }
 
 /// Without a concept type, shows the system itself; with one, lists that
 /// type's concepts. The two responses have different shapes.
-fn handle_systems_show(slug: &str, concept_type: Option<&str>, engine: &mut Engine) {
+fn handle_systems_show(slug: &str, concept_type: Option<&str>, engine: &mut Engine) -> CmdResult {
     let req = Request::SystemsShow {
         system: slug,
         concept_type,
         concept_id: None,
     };
     match concept_type {
-        None => {
-            if let Some(info) = call_or_report::<SystemInfo>(engine, &req) {
-                display::print_system_info(info);
-            }
-        }
-        Some(_) => {
-            if let Some(cl) = call_or_report::<ConceptsList>(engine, &req) {
-                display::print_concepts_list(&cl);
-            }
-        }
+        None => display::print_system_info(call_or_report::<SystemInfo>(engine, &req)?),
+        Some(_) => display::print_concepts_list(&call_or_report::<ConceptsList>(engine, &req)?),
     }
+    Ok(())
 }
 
 /// Lists every `systems` subcommand's usage from `COMMAND_TABLE`, so it
@@ -127,11 +124,13 @@ fn prompt_create_answers() -> Option<CreateAnswers> {
 /// user is asked for another name, keeping their other answers. The
 /// occupied case can also be fixed by removing that directory and entering
 /// the *same* name again, so the retry must not refuse an unchanged name.
-/// Transport errors (the engine died) end the command instead.
-fn handle_systems_create(engine: &mut Engine) {
+/// Transport errors (the engine died) end the command instead, as does
+/// declining to retry: the system asked for wasn't created, so the command
+/// failed.
+fn handle_systems_create(engine: &mut Engine) -> CmdResult {
     let Some(mut a) = prompt_create_answers() else {
         println!("Not created.");
-        return;
+        return Ok(());
     };
     loop {
         let req = Request::SystemsCreate {
@@ -142,13 +141,19 @@ fn handle_systems_create(engine: &mut Engine) {
             series: a.series.as_deref(),
         };
         match engine.call::<_, CreatedSystem>(&req) {
-            Ok(r) => return print_created(&r),
+            Ok(r) => {
+                print_created(&r);
+                return Ok(());
+            }
             Err(EngineError::ErrorResponse(msg)) => eprintln!("Error: {msg}"),
-            Err(e) => return eprintln!("Error: {e}"),
+            Err(e) => return Err(fail(format!("Error: {e}"))),
         }
         match prompt_optional("Try another name (blank to cancel): ") {
             Some(Some(name)) => a.name = name,
-            _ => return println!("Not created."),
+            _ => {
+                println!("Not created.");
+                return Err(Failed);
+            }
         }
     }
 }
@@ -163,15 +168,14 @@ fn print_created(r: &CreatedSystem) {
 
 /// The engine picks the slug when none is given, names the copy, and
 /// refuses a taken or malformed slug; the CLI repeats none of those rules.
-fn handle_systems_copy(system: &str, slug: Option<&str>, engine: &mut Engine) {
+fn handle_systems_copy(system: &str, slug: Option<&str>, engine: &mut Engine) -> CmdResult {
     let req = Request::SystemsCopy { system, slug };
-    let Some(r) = call_or_report::<CopiedSystem>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<CopiedSystem>(engine, &req)?;
     println!(
         "Copied {} to {} (\"{}\"): {}",
         r.copied, r.created, r.name, r.path
     );
+    Ok(())
 }
 
 /// The engine derives the ID, refuses a duplicate, an unusable ID, an
@@ -180,23 +184,24 @@ fn handle_systems_copy(system: &str, slug: Option<&str>, engine: &mut Engine) {
 /// Unlike `systems create`, a refusal ends the command rather than asking
 /// for another name: some refusals (unknown or bundled system) no name can
 /// fix, and the engine's errors don't say which kind they are.
-fn handle_concept_type_add(system: &str, engine: &mut Engine) {
+fn handle_concept_type_add(system: &str, engine: &mut Engine) -> CmdResult {
     let Some(name) = prompt_nonempty_string("Concept type name:") else {
-        return println!("Not added.");
+        println!("Not added.");
+        return Ok(());
     };
     let Some(display_template) = prompt_optional("Display template (optional): ") else {
-        return println!("Not added.");
+        println!("Not added.");
+        return Ok(());
     };
     let req = Request::SystemsConceptTypeAdd {
         system,
         name: &name,
         display_template: display_template.as_deref(),
     };
-    let Some(r) = call_or_report::<AddedConceptType>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<AddedConceptType>(engine, &req)?;
     println!();
     println!("Added concept type \"{}\" to {}", r.added, r.path);
+    Ok(())
 }
 
 #[derive(Debug, PartialEq)]
@@ -227,7 +232,7 @@ fn parse_delete_args<'a>(tokens: &[&'a str]) -> Result<DeleteArgs<'a>, String> {
 /// The engine refuses bundled systems and systems still in use, so those
 /// errors surface after confirming; checking first would need a second
 /// round trip that could disagree with the delete anyway.
-fn handle_systems_delete(args: DeleteArgs, engine: &mut Engine) {
+fn handle_systems_delete(args: DeleteArgs, engine: &mut Engine) -> CmdResult {
     if !args.yes {
         let question = format!(
             "Delete rule system \"{}\"? This cannot be undone.",
@@ -235,16 +240,15 @@ fn handle_systems_delete(args: DeleteArgs, engine: &mut Engine) {
         );
         if prompt_yes_no(&question) != Some(true) {
             println!("Not deleted.");
-            return;
+            return Ok(());
         }
     }
     let req = Request::SystemsDelete {
         system: args.system,
     };
-    let Some(r) = call_or_report::<DeletedSystem>(engine, &req) else {
-        return;
-    };
+    let r = call_or_report::<DeletedSystem>(engine, &req)?;
     println!("Deleted rule system: {} ({})", r.deleted, r.path);
+    Ok(())
 }
 
 #[cfg(test)]

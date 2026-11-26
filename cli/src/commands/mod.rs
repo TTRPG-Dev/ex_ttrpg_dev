@@ -22,21 +22,34 @@ pub(crate) use roll::handle_roll;
 pub(crate) use systems::handle_systems;
 pub(crate) use table::{COMMAND_TABLE, Completion};
 
+/// A command failed, and why has already been printed to stderr.
+///
+/// Carries no message on purpose: every failure is reported where it
+/// happens (most of them by [`call_or_report`]), so callers only need to
+/// know *that* the command failed, e.g. to pick an exit status.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Failed;
+
+/// What every command handler returns. Declining a prompt (or ending input
+/// at one) is a choice the user made, not a failure, so it's `Ok`.
+pub(crate) type CmdResult = Result<(), Failed>;
+
+/// Prints `msg` to stderr and returns [`Failed`], for the failures that
+/// aren't an engine error (bad arguments, malformed input).
+pub(crate) fn fail(msg: impl std::fmt::Display) -> Failed {
+    eprintln!("{msg}");
+    Failed
+}
+
 /// Send `req` to the engine and return its parsed response, or print a
-/// uniform `Error: {e}` to stderr and return `None` on failure. Collapses
-/// the call-and-report-error shape that used to be repeated by hand in
-/// every command handler.
+/// uniform `Error: {e}` to stderr and return [`Failed`]. Collapses the
+/// call-and-report-error shape that used to be repeated by hand in every
+/// command handler.
 pub(crate) fn call_or_report<T: DeserializeOwned>(
     engine: &mut Engine,
     req: &Request<'_>,
-) -> Option<T> {
-    match engine.call(req) {
-        Ok(v) => Some(v),
-        Err(e) => {
-            eprintln!("Error: {e}");
-            None
-        }
-    }
+) -> Result<T, Failed> {
+    engine.call(req).map_err(|e| fail(format!("Error: {e}")))
 }
 
 #[derive(Clone, Copy)]
