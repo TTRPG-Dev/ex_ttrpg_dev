@@ -130,6 +130,11 @@ ttrpg-dev characters gen dnd_5e_srd --save
 ttrpg-dev characters list
 ttrpg-dev characters show misu_park
 
+# Copy a saved character, e.g. to try out a different build. Without a
+# slug, the copy is saved as <slug>_copy_1, _copy_2, ...
+ttrpg-dev characters copy misu_park misu_park_alt
+ttrpg-dev characters copy misu_park
+
 # Roll a skill or attribute check for a character
 ttrpg-dev characters roll misu_park skill acrobatics
 # Acrobatics check: 18 (1d20: 14, bonus: +4)

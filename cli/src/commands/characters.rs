@@ -9,8 +9,8 @@ use crate::engine::Engine;
 use crate::prompts::{prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
-    InventoryResponse, PendingChoice, PreparationStateResponse, RandomResolveResult, Request,
-    SaveResult,
+    CopiedCharacter, InventoryResponse, PendingChoice, PreparationStateResponse,
+    RandomResolveResult, Request, SaveResult,
 };
 
 pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engine: &mut Engine) {
@@ -45,6 +45,13 @@ pub(crate) fn handle_characters(tokens: &[&str], session_mode: DisplayMode, engi
             display_mode,
             engine,
         ),
+        ["copy", slug] => handle_characters_copy(slug, None, engine),
+        ["copy", slug, new_slug] => handle_characters_copy(slug, Some(new_slug), engine),
+        ["copy", ..] => {
+            eprintln!(
+                "Expected a character and an optional new slug. Try `characters copy --help`."
+            )
+        }
         ["delete", slug] => handle_characters_delete(slug, engine),
         ["delete-all", rest @ ..] => {
             if let Some(args) = parse_delete_all_flags(rest) {
@@ -203,6 +210,19 @@ fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) {
             None => return,
         }
     }
+}
+
+/// The engine picks the slug when none is given, names the copy, and
+/// refuses a taken or malformed slug; the CLI repeats none of those rules.
+fn handle_characters_copy(slug: &str, new_slug: Option<&str>, engine: &mut Engine) {
+    let req = Request::CharactersCopy {
+        character: slug,
+        slug: new_slug,
+    };
+    let Some(r) = call_or_report::<CopiedCharacter>(engine, &req) else {
+        return;
+    };
+    println!("Copied {} to {} (\"{}\")", r.copied, r.created, r.name);
 }
 
 fn handle_characters_delete(slug: &str, engine: &mut Engine) {

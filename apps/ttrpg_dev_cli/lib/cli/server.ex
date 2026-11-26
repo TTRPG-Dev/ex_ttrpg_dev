@@ -41,6 +41,8 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.list"}
       {"command": "characters.list", "system": "dnd_5e_srd"}
       {"command": "characters.show", "character": "thorin-stoneback"}
+      {"command": "characters.copy", "character": "thorin-stoneback"}
+      {"command": "characters.copy", "character": "thorin-stoneback", "slug": "thorin-backup"}
       {"command": "characters.delete", "character": "thorin-stoneback"}
       {"command": "characters.roll", "character": "thorin-stoneback", "type": "skill", "concept": "acrobatics"}
       {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
@@ -102,6 +104,7 @@ defmodule ExTTRPGDev.CLI.Server do
     "characters.save" => Handlers.Characters,
     "characters.list" => Handlers.Characters,
     "characters.show" => Handlers.Characters,
+    "characters.copy" => Handlers.Characters,
     "characters.delete" => Handlers.Characters,
     "characters.roll" => Handlers.Characters,
     "characters.award" => Handlers.Characters,

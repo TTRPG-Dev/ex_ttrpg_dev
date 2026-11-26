@@ -15,6 +15,8 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
   alias ExTTRPGDev.CLI.Server.Errors
   alias ExTTRPGDev.RuleSystems
 
+  defguardp is_optional_string(value) when is_binary(value) or is_nil(value)
+
   def handle(%{"command" => "characters.gen", "system" => slug} = msg, state) do
     system = RuleSystems.load_system!(slug)
     decisions = Characters.random_decisions(system)
@@ -202,6 +204,17 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     end
   end
 
+  # Without a "slug" (or with null), the copy takes the first free
+  # <source>_copy_N. Any other non-string "slug" matches neither clause, so
+  # it's refused as invalid arguments rather than reaching the library.
+  def handle(%{"command" => "characters.copy", "character" => source, "slug" => slug}, state)
+      when is_binary(source) and is_optional_string(slug),
+      do: copy(source, slug, state)
+
+  def handle(%{"command" => "characters.copy", "character" => source} = cmd, state)
+      when is_binary(source) and not is_map_key(cmd, "slug"),
+      do: copy(source, nil, state)
+
   def handle(%{"command" => "characters.show", "character" => slug} = msg, state) do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system_for!(character)
@@ -240,4 +253,93 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
 
   def handle(%{"command" => cmd}, _state),
     do: {:error, "invalid arguments for command: #{inspect(cmd)}"}
+
+  # The copy is the source as saved, renamed and re-keyed: everything else
+  # (rolls, decisions, effects, inventory, pending slots) carries over, so
+  # it's usable at once. Saving without overwrite means a slug taken
+  # between choosing it and writing is refused, never clobbered.
+  defp copy(source, new_slug, state) do
+    with {:ok, character} <- load_copy_source(source),
+         copy = rename_copy(character, source),
+         {:ok, slug} <- copy_to(copy, source, new_slug) do
+      {:ok, %{copied: source, created: slug, name: copy.name}, state}
+    else
+      {:error, reason} -> {:error, copy_error_message(source, new_slug, reason)}
+    end
+  end
+
+  # A source slug that isn't valid can't name a saved character, so it's
+  # reported as not found rather than as a bad slug the user didn't type
+  # for the copy.
+  defp load_copy_source(source) do
+    case Characters.load_character(source) do
+      {:error, {:invalid_slug, _}} -> {:error, :not_found}
+      result -> result
+    end
+  end
+
+  # A character saved without a name, or with a blank one, is named after
+  # its slug, so the copy still reads as one in characters list.
+  defp rename_copy(%Character{name: name} = character, source) do
+    base = if is_binary(name) and String.trim(name) != "", do: name, else: source
+    %{character | name: "#{base} (copy)"}
+  end
+
+  defp copy_to(copy, source, nil) do
+    with {:ok, slugs} <- Characters.list_characters() do
+      copy_to_next_free(copy, source, 1, MapSet.new(slugs))
+    end
+  end
+
+  defp copy_to(copy, _source, slug) do
+    with :ok <- save_as(copy, slug), do: {:ok, slug}
+  end
+
+  # Each refused candidate is a saved character, so this ends after at
+  # most that many tries.
+  defp copy_to_next_free(copy, source, n, listed) do
+    slug = "#{source}_copy_#{n}"
+
+    if MapSet.member?(listed, slug),
+      do: copy_to_next_free(copy, source, n + 1, listed),
+      else: try_copy_to(copy, source, n, listed)
+  end
+
+  defp try_copy_to(copy, source, n, listed) do
+    slug = "#{source}_copy_#{n}"
+
+    case save_as(copy, slug) do
+      :ok -> {:ok, slug}
+      {:error, :already_exists} -> copy_to_next_free(copy, source, n + 1, listed)
+      {:error, {:invalid_slug, _}} -> {:error, :no_derivable_slug}
+      error -> error
+    end
+  end
+
+  defp save_as(copy, slug),
+    do: Characters.save_character(%{copy | metadata: %{copy.metadata | slug: slug}})
+
+  defp copy_error_message(source, _new_slug, :not_found),
+    do: "character not found: #{inspect(source)}"
+
+  defp copy_error_message(_source, slug, :already_exists),
+    do: "a character with slug #{inspect(slug)} already exists"
+
+  defp copy_error_message(_source, slug, {:invalid_slug, _}),
+    do: "invalid slug #{inspect(slug)}: use letters, digits, _ and - (and keep it short)"
+
+  # Only reachable without a given slug, when the next free <source>_copy_N
+  # is too long to be a slug: from the first try if the source's own slug
+  # is near the limit, or later if only the growing N pushes it over (e.g.
+  # _copy_9 fits but _copy_10 doesn't).
+  defp copy_error_message(source, nil, :no_derivable_slug) do
+    "can't derive a slug for the copy from #{inspect(source)}; " <>
+      "give one: characters copy #{source} <new_slug>"
+  end
+
+  defp copy_error_message(source, _new_slug, {:invalid_character_data, message}),
+    do: "cannot copy character #{inspect(source)}: its saved data can't be read: #{message}"
+
+  defp copy_error_message(source, _new_slug, reason),
+    do: "cannot copy character #{inspect(source)}: #{inspect(reason)}"
 end
