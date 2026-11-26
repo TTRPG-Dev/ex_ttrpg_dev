@@ -355,4 +355,21 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert hp.(with_bloodline) - hp.(plain) == 4
     end
   end
+
+  describe "warlock" do
+    test "invocations known and Mystic Arcanum follow the class table", %{system: system} do
+      for {level, invocations, arcanum} <- [
+            {1, 0, 0},
+            {2, 2, 0},
+            {5, 3, 0},
+            {11, 5, 6},
+            {13, 6, 7},
+            {18, 8, 9}
+          ] do
+        values = class_values(system, "warlock", level)
+        assert node(values, "class", "warlock", "invocations_known") == invocations
+        assert node(values, "class", "warlock", "mystic_arcanum_level") == arcanum
+      end
+    end
+  end
 end

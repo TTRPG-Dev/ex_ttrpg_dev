@@ -8,6 +8,16 @@ preparation_mode = "all"
 asi_slots.type = "mapping"
 asi_slots.input = "character_trait('character_level').level"
 asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+
+# Class table: Invocations Known.
+invocations_known.type = "mapping"
+invocations_known.input = "character_trait('character_level').level"
+invocations_known.steps = [[1, 0], [2, 2], [5, 3], [7, 4], [9, 5], [12, 6], [15, 7], [18, 8]]
+# Mystic Arcanum: highest arcanum spell level.
+mystic_arcanum_level.type = "mapping"
+mystic_arcanum_level.input = "character_trait('character_level').level"
+mystic_arcanum_level.steps = [[1, 0], [11, 6], [13, 7], [15, 8], [17, 9]]
+
 [class.warlock.choices.subclass]
 required = true
 type = "class"
