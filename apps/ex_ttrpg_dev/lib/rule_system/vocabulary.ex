@@ -25,7 +25,7 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
   # MapSet literal violates its opaque type under dialyzer.
   @structural_metadata_keys ~w(
     name type required_count available_when effect_target roll_reference roll
-    filter choices level requires starting_equipment target_type dice bonus_field
+    filter choices level requires starting_equipment target_type dice dice_field bonus_field
     contributes hidden value_type
   )
 

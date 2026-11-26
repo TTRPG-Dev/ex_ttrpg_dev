@@ -26,7 +26,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   Four concept type IDs have structural meaning to the library:
 
   - `"roll"` — concepts of this type define die rolling methods. Each must have
-    `target_type`, `dice`, and `bonus_field` (see below).
+    `target_type` and exactly one of `dice` / `dice_field` (see below).
   - `"character_progression"` — concepts of this type define character advancement
     tables. The library uses this type ID to locate progression decisions.
   - `"award"` — concepts of this type define grantable awards applied via
@@ -85,9 +85,13 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   - `"target_type"` *(string: concept type ID)* — the concept type this roll
     definition targets.
-  - `"dice"` *(string)* — dice expression (e.g. `"d8"`, `"2d6"`).
-  - `"bonus_field"` *(string: node field name)* — the field on the target concept
-    that holds the roll bonus.
+  - `"dice"` *(string)* — fixed dice notation (e.g. `"d8"`, `"2d6+1"`); see
+    `ExTTRPGDev.RuleSystem.Dice`. Exclusive with `"dice_field"`.
+  - `"dice_field"` *(string: node field name)* — the field on the target concept
+    whose resolved value is the dice to roll: a dice value (from `dice(...)` or a
+    dice-valued mapping) or dice notation. Exclusive with `"dice"`.
+  - `"bonus_field"` *(string: node field name, optional)* — the field on the target
+    concept that holds an integer roll bonus. Without it the bonus is 0.
 
   ### Keys on selectable concepts (any type eligible for selection)
 

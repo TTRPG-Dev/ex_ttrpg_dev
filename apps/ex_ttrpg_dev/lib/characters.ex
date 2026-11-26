@@ -368,14 +368,17 @@ defmodule ExTTRPGDev.Characters do
   Rolls for a concept using the roll definition attached to its type in the system config.
 
   Looks up a roll definition (from the system's `roll` concept type) whose `target_type`
-  matches `type_id`, then rolls the specified dice and adds the resolved value of
-  `bonus_field` for the given concept.
+  matches `type_id`, then rolls its dice and adds the resolved value of `bonus_field`
+  (if declared) for the given concept. The dice are either the definition's fixed
+  `dice` notation or, with `dice_field`, the resolved dice value of that field on the
+  concept (e.g. a `dice(...)` formula or a dice-valued mapping).
 
-  Returns a map with `:type_id`, `:concept_id`, `:dice` (spec string), `:rolls` (list of
-  individual die results), `:bonus`, and `:total`.
+  Returns a map with `:type_id`, `:concept_id`, `:dice` (notation of the dice rolled,
+  e.g. `"2d6+3"`), `:rolls` (list of individual die results), `:bonus`, and `:total`
+  (the dice total, including any modifier or multiplier they carry, plus `:bonus`).
 
-  Raises if no roll is defined for the given concept type, or if the bonus field cannot
-  be resolved for the concept.
+  Raises if no roll is defined for the given concept type, if the concept is unknown,
+  or if the roll definition's dice or bonus field cannot be resolved for the concept.
   """
   defdelegate concept_roll!(system, character, type_id, concept_id), to: Rolls
 
