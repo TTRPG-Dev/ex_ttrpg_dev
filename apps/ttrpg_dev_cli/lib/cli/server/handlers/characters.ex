@@ -328,8 +328,10 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
   defp copy_error_message(_source, slug, {:invalid_slug, _}),
     do: "invalid slug #{inspect(slug)}: use letters, digits, _ and - (and keep it short)"
 
-  # Only reachable without a given slug, when the source's own slug is too
-  # long to take a _copy_N suffix.
+  # Only reachable without a given slug, when the next free <source>_copy_N
+  # is too long to be a slug: from the first try if the source's own slug
+  # is near the limit, or later if only the growing N pushes it over (e.g.
+  # _copy_9 fits but _copy_10 doesn't).
   defp copy_error_message(source, nil, :no_derivable_slug) do
     "can't derive a slug for the copy from #{inspect(source)}; " <>
       "give one: characters copy #{source} <new_slug>"
