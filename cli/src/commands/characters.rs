@@ -193,7 +193,13 @@ fn handle_characters_gen(args: GenArgs, engine: &mut Engine) -> CmdResult {
     };
     let character = call_or_report::<CharacterData>(engine, &req)?;
     display::print_character(&character);
+    // Without a `temp_id` there's nothing to save. That's only a failure
+    // if saving was asked for: otherwise a script would see `--save`
+    // succeed with nothing saved.
     let Some(temp_id) = &character.temp_id else {
+        if args.save {
+            return Err(fail("Error: the engine returned no character to save"));
+        }
         return Ok(());
     };
     // Checked here, after generating, rather than up front: the character
