@@ -478,15 +478,20 @@ fn handle_characters_resolve_choice(
     display_mode: DisplayMode,
     engine: &mut Engine,
 ) -> CmdResult {
-    require_terminal(
-        "characters resolve_choice",
-        "; pass --random-resolve to resolve its choices randomly",
-    )?;
     let req = Request::CharactersChoices {
         character: slug,
         display_mode: display_mode.as_str(),
     };
     let choices = call_or_report::<ChoicesResponse>(engine, &req)?.pending_choices;
+    // Every pending choice is resolved by asking, so a terminal is needed
+    // exactly when there's at least one. Checked after the (read-only)
+    // fetch, so "nothing to resolve" still succeeds without one.
+    if !choices.is_empty() {
+        require_terminal(
+            "characters resolve_choice",
+            "; pass --random-resolve to resolve its choices randomly",
+        )?;
+    }
 
     let Some(choice) = select_pending_choice(&choices)? else {
         return Ok(());

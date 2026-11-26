@@ -119,7 +119,7 @@ $ ttrpg-dev characters build dnd_5e_srd < /dev/null
 Error: `characters build` is interactive and needs a terminal
 ```
 
-`characters build`, `characters resolve_choice` (unless given `--random-resolve`), `systems create` and `systems concept-type add` are interactive throughout and need a terminal.
+`characters build`, `systems create` and `systems concept-type add` are interactive throughout and need a terminal, as does `characters resolve_choice` when the character has a choice pending (unless given `--random-resolve`).
 
 ### Rolling dice
 

@@ -239,16 +239,42 @@ fn without_a_terminal_interactive_commands_say_they_need_one() {
             &["systems", "concept-type", "add", "some_homebrew"][..],
             "systems concept-type add",
         ),
-        (
-            &["characters", "resolve_choice", "some_character"][..],
-            "characters resolve_choice",
-        ),
     ] {
         assert_refused(
             &run(args),
             &format!("Error: `{command}` is interactive and needs a terminal"),
         );
     }
+}
+
+#[test]
+fn without_a_terminal_resolve_choice_refuses_only_when_there_is_a_choice() {
+    let saved = run(&["characters", "gen", "dnd_5e_srd", "--save"]);
+    let slug = saved_slug(&stdout(&saved));
+
+    let nothing_pending = run(&["characters", "resolve_choice", &slug]);
+    let level_up = run(&["characters", "award", &slug, "level_up"]);
+    let pending = run(&["characters", "resolve_choice", &slug]);
+    cleanup_character(&slug);
+
+    assert_eq!(
+        nothing_pending.status.code(),
+        Some(0),
+        "stderr: {}",
+        stderr(&nothing_pending)
+    );
+    assert!(stdout(&nothing_pending).contains("No pending choices to resolve."));
+    assert_eq!(
+        level_up.status.code(),
+        Some(0),
+        "stderr: {}",
+        stderr(&level_up)
+    );
+    assert_refused(
+        &pending,
+        "Error: `characters resolve_choice` is interactive and needs a terminal; \
+         pass --random-resolve",
+    );
 }
 
 #[test]
