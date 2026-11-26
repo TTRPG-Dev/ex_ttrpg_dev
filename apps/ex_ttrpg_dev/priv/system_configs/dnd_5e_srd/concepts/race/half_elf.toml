@@ -22,6 +22,87 @@ options = [
   "undercommon",
 ]
 
+# Ability Score Increase: +1 to two abilities other than Charisma. The SRD
+# requires the two to differ; choices can't express that constraint yet.
+[race.half_elf.choices.ability_increase_1]
+required = true
+type = "ability"
+contributes_field = "total_score"
+contributes_value = "1"
+options = [
+  "strength",
+  "dexterity",
+  "constitution",
+  "intelligence",
+  "wisdom",
+]
+
+[race.half_elf.choices.ability_increase_2]
+required = true
+type = "ability"
+contributes_field = "total_score"
+contributes_value = "1"
+options = [
+  "strength",
+  "dexterity",
+  "constitution",
+  "intelligence",
+  "wisdom",
+]
+
+# Skill Versatility: proficiency in two skills of your choice.
+[race.half_elf.choices.skill_versatility_1]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "arcana",
+  "athletics",
+  "deception",
+  "history",
+  "insight",
+  "intimidation",
+  "investigation",
+  "medicine",
+  "nature",
+  "perception",
+  "performance",
+  "persuasion",
+  "religion",
+  "sleight_of_hand",
+  "stealth",
+  "survival",
+]
+
+[race.half_elf.choices.skill_versatility_2]
+required = true
+type = "skill"
+contributes_field = "modifier"
+contributes_value = "character_trait('proficiency_bonus').bonus"
+options = [
+  "acrobatics",
+  "animal_handling",
+  "arcana",
+  "athletics",
+  "deception",
+  "history",
+  "insight",
+  "intimidation",
+  "investigation",
+  "medicine",
+  "nature",
+  "perception",
+  "performance",
+  "persuasion",
+  "religion",
+  "sleight_of_hand",
+  "stealth",
+  "survival",
+]
+
 [[race.half_elf.contributes]]
 target = "character_trait('speed').amount"
 value = 30

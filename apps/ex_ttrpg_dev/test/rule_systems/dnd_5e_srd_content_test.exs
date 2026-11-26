@@ -420,5 +420,26 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert hp.(resolve(system, decisions: hill, level: 5)) -
                hp.(resolve(system, decisions: dwarf, level: 5)) == 5
     end
+
+    test "Half-Elf ability increases and Skill Versatility apply the chosen options",
+         %{system: system} do
+      scope = {"race", "half_elf"}
+
+      decisions = [
+        root("race", "half_elf"),
+        %Decision{scope: scope, choice: "ability_increase_1", selection: "strength"},
+        %Decision{scope: scope, choice: "ability_increase_2", selection: "wisdom"},
+        %Decision{scope: scope, choice: "skill_versatility_1", selection: "stealth"},
+        %Decision{scope: scope, choice: "skill_versatility_2", selection: "arcana"}
+      ]
+
+      values = resolve(system, decisions: decisions)
+
+      assert node(values, "ability", "strength", "total_score") == 11
+      assert node(values, "ability", "wisdom", "total_score") == 11
+      assert node(values, "ability", "charisma", "total_score") == 12
+      assert node(values, "skill", "stealth", "modifier") == 2
+      assert node(values, "skill", "arcana", "modifier") == 2
+    end
   end
 end
