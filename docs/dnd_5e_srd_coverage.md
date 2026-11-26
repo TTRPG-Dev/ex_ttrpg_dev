@@ -77,7 +77,7 @@ omitted from the encoding rather than filled in from another source.
 | Madness | 38190–38557 | Reference / Gap | Random tables G13; applied effects G7. |
 | Objects | 38558–38723 | Reference | Object AC/HP tables. |
 | Poisons | 38724–39040 | Encodable / Gap | Purchasable as equipment (Encodable); effects G7. |
-| Magic items A–Z (~240) | 39041–46959 | Encodable / Gap | Name, type, rarity, attunement Encodable as equipment metadata. Flat bonuses (`+1` armor, Ring/Cloak of Protection) Encodable via `when = "item.equipped"`. "Set a score to N" items (Gauntlets of Ogre Power, Belt of Giant Strength, Amulet of Health) Encodable with `max(0, N - score)`. Attunement limit is G9. Charges are G7. |
+| Magic items A–Z (~240) | 39041–46959 | Encodable / Gap | Name, type, rarity, attunement Encodable as equipment metadata. Flat bonuses (`+1` armor, Ring/Cloak of Protection) Encodable via `when = "item.equipped"`. "Set a score to N" items (Gauntlets of Ogre Power, Belt of Giant Strength, Amulet of Health) Encodable via an intermediate node: `total_score = max(score_before_items, set_score)`, with items contributing N to `set_score`. Contributing `max(0, N - total_score)` to `total_score` directly would be a cycle. Exact for one set-score item per ability; two would sum, which needs a max-combining accumulator. Attunement limit is G9. Charges are G7. |
 | Sentient items, artifacts | 46960–47362 | Reference | |
 | Monsters (rules + ~210 stat blocks) | 47363–61763 | Gap | G11. |
 | Appendix: Misc. creatures (~97) | 61764–65798 | Gap | G11. |
