@@ -297,4 +297,14 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(at18, "class", "paladin", "aura_range") == 30
     end
   end
+
+  describe "ranger" do
+    test "favored enemies and terrains grow at the class-table levels", %{system: system} do
+      for {level, enemies, terrains} <- [{1, 1, 1}, {6, 2, 2}, {10, 2, 3}, {14, 3, 3}] do
+        values = class_values(system, "ranger", level)
+        assert node(values, "class", "ranger", "favored_enemies") == enemies
+        assert node(values, "class", "ranger", "favored_terrains") == terrains
+      end
+    end
+  end
 end
