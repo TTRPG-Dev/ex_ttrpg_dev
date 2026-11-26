@@ -180,4 +180,21 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(class_values(system, "bard", 17), "class", "bard", "song_of_rest_die") == 12
     end
   end
+
+  describe "cleric" do
+    test "Channel Divinity uses and Destroy Undead CR follow the class table", %{system: system} do
+      for {level, uses, cr} <- [
+            {1, 0, 0},
+            {2, 1, 0},
+            {5, 1, 0.5},
+            {6, 2, 0.5},
+            {17, 2, 4},
+            {18, 3, 4}
+          ] do
+        values = class_values(system, "cleric", level)
+        assert node(values, "class", "cleric", "channel_divinity_uses") == uses
+        assert node(values, "class", "cleric", "destroy_undead_cr") == cr
+      end
+    end
+  end
 end
