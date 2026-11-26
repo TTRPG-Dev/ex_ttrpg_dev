@@ -140,15 +140,18 @@ change.
 These are defects in existing behaviour, not missing features. Each should be
 filed as a bug.
 
-### B1. Effect `when` formulas don't add DAG edges
+### B1. Effect `when` formulas don't add DAG edges — fixed (#208)
 
-`Graph.add_effect_edges/3` adds edges for the node references in an effect's
+`Graph.add_effect_edges/3` added edges for the node references in an effect's
 `value`, but not for those in its `when`. An effect gated on another node
-(`when = "character_trait('armor_worn').body == 0"`) can therefore be
-evaluated before that node is resolved. It works today only because every
+(`when = "character_trait('armor_worn').body == 0"`) could therefore be
+evaluated before that node was resolved. It worked only because every
 `when` in the bundled system is `item.equipped`, which references no nodes.
-This system writes gating into `value` formulas instead
-(`x * (1 - min(1, worn))`) to stay clear of the bug.
+
+`when` references now add edges like `value` references do. This system
+still writes gating into `value` formulas (`x * (1 - min(1, worn))`) from
+before the fix; moving those to `when` is a content cleanup, not a
+correctness need.
 
 ### B2. Numeric `contributes_value` crashes the loader
 
