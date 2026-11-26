@@ -191,7 +191,11 @@ fn handle_line(line: &str, engine: &mut Engine, display_mode: &mut DisplayMode) 
 
 /// Runs one command. Shared by the REPL and anything else that runs
 /// commands, so a command behaves the same wherever it's typed.
-fn dispatch(tokens: &[&str], engine: &mut Engine, display_mode: &mut DisplayMode) -> CmdResult {
+pub(crate) fn dispatch(
+    tokens: &[&str],
+    engine: &mut Engine,
+    display_mode: &mut DisplayMode,
+) -> CmdResult {
     match tokens {
         ["help"] => {
             commands::print_help();
@@ -228,15 +232,23 @@ fn dispatch(tokens: &[&str], engine: &mut Engine, display_mode: &mut DisplayMode
 
 // ── Entry point ────────────────────────────────────────────────────────────────
 
-pub fn run() {
-    let engine = match Engine::spawn() {
-        Ok(e) => Arc::new(Mutex::new(e)),
+/// Starts the engine, or reports why it couldn't and returns `None`.
+pub(crate) fn start_engine() -> Option<Engine> {
+    match Engine::spawn() {
+        Ok(e) => Some(e),
         Err(e) => {
             eprintln!("Failed to start engine: {e}");
             eprintln!("Make sure `ttrpg-dev-engine` is in your PATH or next to this binary.");
-            std::process::exit(1);
+            None
         }
+    }
+}
+
+pub fn run() {
+    let Some(engine) = start_engine() else {
+        std::process::exit(1);
     };
+    let engine = Arc::new(Mutex::new(engine));
 
     println!("TTRPG Dev — interactive shell");
     println!("Type `help` for available commands, `exit` to quit.\n");
