@@ -33,6 +33,7 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "systems.create", "name": "My Homebrew", "version": "1.0.0", "publisher": "Acme Games"}
       {"command": "systems.copy", "system": "dnd_5e_srd", "slug": "my_homebrew"}
       {"command": "systems.delete", "system": "my_homebrew"}
+      {"command": "systems.concept_type.add", "system": "my_homebrew", "name": "Feat", "display_template": "{{name}} (Cost: {{cost}})"}
 
   ### Characters
 
@@ -100,6 +101,7 @@ defmodule ExTTRPGDev.CLI.Server do
     "systems.create" => Handlers.Systems,
     "systems.copy" => Handlers.Systems,
     "systems.delete" => Handlers.Systems,
+    "systems.concept_type.add" => Handlers.Systems,
     "characters.gen" => Handlers.Characters,
     "characters.save" => Handlers.Characters,
     "characters.list" => Handlers.Characters,

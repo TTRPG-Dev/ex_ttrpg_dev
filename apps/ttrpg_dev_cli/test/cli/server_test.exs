@@ -260,6 +260,82 @@ defmodule ExTTRPGDev.CLI.ServerTest do
     end
   end
 
+  describe "systems.concept_type.add" do
+    setup do
+      {:ok, "concept_type_test"} = RuleSystems.create_system(%{"name" => "Concept Type Test"})
+      on_exit(fn -> RuleSystems.delete_system("concept_type_test") end)
+    end
+
+    defp add(fields),
+      do: run(Map.merge(%{"command" => "systems.concept_type.add"}, fields))
+
+    test "appends the type and reports its ID and module.toml" do
+      data =
+        add(%{
+          "system" => "concept_type_test",
+          "name" => "Feat",
+          "display_template" => "{{name}} (Cost: {{cost}})"
+        }).data
+
+      path =
+        Path.join([
+          ExTTRPGDev.Globals.local_system_configs_path(),
+          "concept_type_test",
+          "module.toml"
+        ])
+
+      assert data == %{added: "feat", system: "concept_type_test", path: path}
+
+      assert {:ok, %{"concept_type" => [concept_type]}} =
+               path |> File.read!() |> TomlElixir.decode()
+
+      assert concept_type == %{
+               "id" => "feat",
+               "name" => "Feat",
+               "display" => %{"template" => "{{name}} (Cost: {{cost}})"}
+             }
+    end
+
+    test "explains each refusal" do
+      add(%{"system" => "concept_type_test", "name" => "Feat"})
+
+      for {fields, message} <- [
+            {%{"name" => "FEAT"},
+             ~s(rule system "concept_type_test" already has a concept type "feat")},
+            {%{"name" => "!!"},
+             ~s(can't derive a concept type ID from name "!!": it needs at least one letter or digit)},
+            {%{"name" => "Über"},
+             ~s{can't use "über" (from name "Über") as a concept type ID: } <>
+               "formulas can only refer to IDs made of ASCII letters, digits and underscores"},
+            {%{}, "name is required"},
+            {%{"name" => "X", "id" => "x"}, ~s(unknown concept type field: "id")},
+            {%{"name" => 7}, ~s(concept type field "name" must be a string)}
+          ] do
+        assert add(Map.put(fields, "system", "concept_type_test")).message == message
+      end
+    end
+
+    test "refuses unknown and bundled systems" do
+      assert add(%{"system" => "nope", "name" => "Feat"}).message ==
+               ~s(rule system not found: "nope")
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        send(self(), {:added, add(%{"system" => "dnd_5e_srd", "name" => "Feat"})})
+      end)
+
+      assert_received {:added, response}
+
+      assert response.message ==
+               ~s{rule system "dnd_5e_srd" is not modifiable (bundled systems can't be edited). } <>
+                 "Copy it first: systems copy dnd_5e_srd"
+    end
+
+    test "refuses a missing or non-string system" do
+      assert add(%{"name" => "Feat"}).message =~ "invalid arguments"
+      assert add(%{"system" => 7, "name" => "Feat"}).message =~ "invalid arguments"
+    end
+  end
+
   describe "systems.delete" do
     # Delete checks every saved character, so point the characters store at
     # an empty temp directory rather than whatever the working tree holds.
