@@ -94,7 +94,7 @@ fn an_unknown_command_exits_1() {
     let o = run(&["frobnicate"]);
     assert_eq!(o.status.code(), Some(1));
     assert!(
-        stderr(&o).contains("Unknown command"),
+        stderr(&o).contains("Unknown command 'frobnicate'. Try `help`."),
         "stderr: {}",
         stderr(&o)
     );

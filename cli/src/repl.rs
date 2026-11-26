@@ -226,7 +226,8 @@ pub(crate) fn dispatch(
         ["characters" | "character", rest @ ..] => {
             commands::handle_characters(rest, *display_mode, engine)
         }
-        _ => Err(fail("Unknown command. Type `help` for available commands.")),
+        [unknown, ..] => Err(fail(format!("Unknown command '{unknown}'. Try `help`."))),
+        [] => Ok(()),
     }
 }
 
