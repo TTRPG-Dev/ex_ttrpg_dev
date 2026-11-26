@@ -5,10 +5,11 @@ use super::inventory::handle_inventory;
 use super::table::{self, COMMAND_TABLE};
 use super::{
     CharacterAwardArgs, CmdResult, ConceptRollArgs, DisplayMode, Failed, call_or_report, fail,
+    require_terminal,
 };
 use crate::display;
 use crate::engine::Engine;
-use crate::prompts::{prompt_integer, prompt_yes_no};
+use crate::prompts::{can_prompt, prompt_integer, prompt_yes_no};
 use crate::protocol::{
     CharacterData, CharacterSummary, CharactersList, ChoicesResponse, ConceptRollResult,
     CopiedCharacter, InventoryResponse, PendingChoice, PreparationStateResponse,
@@ -195,6 +196,13 @@ fn handle_characters_gen(args: GenArgs, engine: &mut Engine) -> CmdResult {
     let Some(temp_id) = &character.temp_id else {
         return Ok(());
     };
+    // Checked here, after generating, rather than up front: the character
+    // is still shown, and nothing has been saved.
+    if !args.save && !can_prompt() {
+        return Err(fail(
+            "Error: no terminal to ask \"Save this character?\"; pass --save to save it",
+        ));
+    }
     let save = args.save || prompt_yes_no("Save this character?").unwrap_or(false);
     if save {
         let save_req = Request::CharactersSave { temp_id };
@@ -240,6 +248,11 @@ fn handle_characters_delete_all(engine: &mut Engine, args: DeleteAllArgs) -> Cmd
     if characters.is_empty() {
         println!("No saved characters found.");
         return Ok(());
+    }
+    if !args.yes && !can_prompt() {
+        return Err(fail(
+            "Error: no terminal to confirm the deletes; pass -y to delete without asking",
+        ));
     }
     let mut result = Ok(());
     for character in &characters {
@@ -459,6 +472,10 @@ fn handle_characters_resolve_choice(
     display_mode: DisplayMode,
     engine: &mut Engine,
 ) -> CmdResult {
+    require_terminal(
+        "characters resolve_choice",
+        "; pass --random-resolve to resolve its choices randomly",
+    )?;
     let req = Request::CharactersChoices {
         character: slug,
         display_mode: display_mode.as_str(),

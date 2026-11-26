@@ -183,3 +183,88 @@ fn an_engine_that_fails_to_start_exits_1() {
     );
     assert_eq!(stdout(&o), "");
 }
+
+// ── prompts ──────────────────────────────────────────────────────────────────
+
+fn assert_refused(o: &Output, message: &str) {
+    assert_eq!(o.status.code(), Some(1), "stdout: {}", stdout(o));
+    assert!(
+        stderr(o).contains(message),
+        "expected {message:?} in stderr: {}",
+        stderr(o)
+    );
+}
+
+#[test]
+fn without_a_terminal_gen_refuses_the_save_prompt_and_names_save() {
+    let o = run(&["characters", "gen", "dnd_5e_srd"]);
+    assert_refused(
+        &o,
+        "Error: no terminal to ask \"Save this character?\"; pass --save to save it",
+    );
+    // The character is still shown, but not saved.
+    assert!(stdout(&o).contains("System: dnd_5e_srd"));
+    assert!(!stdout(&o).contains("Saved as"));
+}
+
+#[test]
+fn without_a_terminal_deletes_refuse_to_confirm_and_name_yes() {
+    assert_refused(
+        &run(&["systems", "delete", "some_homebrew"]),
+        "no terminal to confirm the delete; pass -y",
+    );
+
+    let saved = run(&["characters", "gen", "dnd_5e_srd", "--save"]);
+    let slug = saved_slug(&stdout(&saved));
+    let o = run(&["characters", "delete-all", "--system", "dnd_5e_srd"]);
+    let still_there = repo_root()
+        .join("local_characters")
+        .join(format!("{slug}.json"))
+        .exists();
+    cleanup_character(&slug);
+
+    assert_refused(&o, "no terminal to confirm the deletes; pass -y");
+    assert!(still_there, "a refused delete-all must not delete anything");
+}
+
+#[test]
+fn without_a_terminal_interactive_commands_say_they_need_one() {
+    for (args, command) in [
+        (
+            &["characters", "build", "dnd_5e_srd"][..],
+            "characters build",
+        ),
+        (&["systems", "create"][..], "systems create"),
+        (
+            &["systems", "concept-type", "add", "some_homebrew"][..],
+            "systems concept-type add",
+        ),
+        (
+            &["characters", "resolve_choice", "some_character"][..],
+            "characters resolve_choice",
+        ),
+    ] {
+        assert_refused(
+            &run(args),
+            &format!("Error: `{command}` is interactive and needs a terminal"),
+        );
+    }
+}
+
+#[test]
+fn with_a_terminal_prompts_work_as_in_the_repl() {
+    use rexpect::session::spawn_command;
+
+    let _guard = ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_ttrpg-dev"));
+    cmd.args(["characters", "gen", "dnd_5e_srd"]);
+    let mut s = spawn_command(cmd, Some(30_000)).expect("failed to spawn ttrpg-dev");
+    s.exp_string("(y/n) Save this character?").unwrap();
+    s.send_line("n").unwrap();
+    s.exp_eof().unwrap();
+    let status = s.process().wait().unwrap();
+    assert!(
+        matches!(status, rexpect::process::WaitStatus::Exited(_, 0)),
+        "declining to save should still exit 0, got {status:?}"
+    );
+}

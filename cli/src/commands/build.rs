@@ -3,7 +3,7 @@
 //! choices (e.g. rolling or averaging hit points) that follow.
 
 use super::characters::{build_resolve_choice_request, select_pending_choice};
-use super::{CmdResult, Failed, call_or_report, fail};
+use super::{CmdResult, Failed, call_or_report, fail, require_terminal};
 use crate::display;
 use crate::engine::Engine;
 use crate::prompts::{
@@ -26,6 +26,7 @@ pub(crate) enum ChoiceResolution {
 /// Ending input at any prompt cancels the build without it being a
 /// failure, as declining a prompt is elsewhere; an engine error fails it.
 pub(crate) fn handle_characters_build(system: &str, engine: &mut Engine) -> CmdResult {
+    require_terminal("characters build", "")?;
     let Some(name) = prompt_nonempty_string("Character name:") else {
         return Ok(());
     };

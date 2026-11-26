@@ -1,8 +1,8 @@
 use super::table::{self, COMMAND_TABLE};
-use super::{CmdResult, Failed, call_or_report, fail};
+use super::{CmdResult, Failed, call_or_report, fail, require_terminal};
 use crate::display;
 use crate::engine::{Engine, EngineError};
-use crate::prompts::{prompt_loop, prompt_nonempty_string, prompt_yes_no};
+use crate::prompts::{can_prompt, prompt_loop, prompt_nonempty_string, prompt_yes_no};
 use crate::protocol::{
     AddedConceptType, ConceptsList, CopiedSystem, CreatedSystem, DeletedSystem, Request,
     SystemInfo, SystemsList,
@@ -128,6 +128,7 @@ fn prompt_create_answers() -> Option<CreateAnswers> {
 /// declining to retry: the system asked for wasn't created, so the command
 /// failed.
 fn handle_systems_create(engine: &mut Engine) -> CmdResult {
+    require_terminal("systems create", "")?;
     let Some(mut a) = prompt_create_answers() else {
         println!("Not created.");
         return Ok(());
@@ -185,6 +186,7 @@ fn handle_systems_copy(system: &str, slug: Option<&str>, engine: &mut Engine) ->
 /// for another name: some refusals (unknown or bundled system) no name can
 /// fix, and the engine's errors don't say which kind they are.
 fn handle_concept_type_add(system: &str, engine: &mut Engine) -> CmdResult {
+    require_terminal("systems concept-type add", "")?;
     let Some(name) = prompt_nonempty_string("Concept type name:") else {
         println!("Not added.");
         return Ok(());
@@ -233,6 +235,11 @@ fn parse_delete_args<'a>(tokens: &[&'a str]) -> Result<DeleteArgs<'a>, String> {
 /// errors surface after confirming; checking first would need a second
 /// round trip that could disagree with the delete anyway.
 fn handle_systems_delete(args: DeleteArgs, engine: &mut Engine) -> CmdResult {
+    if !args.yes && !can_prompt() {
+        return Err(fail(
+            "Error: no terminal to confirm the delete; pass -y to delete without asking",
+        ));
+    }
     if !args.yes {
         let question = format!(
             "Delete rule system \"{}\"? This cannot be undone.",

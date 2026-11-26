@@ -41,6 +41,18 @@ pub(crate) fn fail(msg: impl std::fmt::Display) -> Failed {
     Failed
 }
 
+/// For a command that prompts throughout (a wizard): fails it up front,
+/// before it changes anything, when there's no terminal to answer.
+pub(crate) fn require_terminal(command: &str, hint: &str) -> CmdResult {
+    if crate::prompts::can_prompt() {
+        Ok(())
+    } else {
+        Err(fail(format!(
+            "Error: `{command}` is interactive and needs a terminal{hint}"
+        )))
+    }
+}
+
 /// Send `req` to the engine and return its parsed response, or print a
 /// uniform `Error: {e}` to stderr and return [`Failed`]. Collapses the
 /// call-and-report-error shape that used to be repeated by hand in every
