@@ -232,6 +232,66 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
   end
 
+  describe "when conditions reading other accumulators" do
+    # Fast Movement shape: speed gains 10 only while no heavy armor is worn,
+    # and `heavy` is itself an accumulator fed by an equipped item. `heavy`
+    # must resolve before `speed` even though nothing in a `value` or `base`
+    # formula links them; only the `when` condition does.
+    defp gated_speed_system do
+      loader_data = %{
+        nodes: %{
+          {"armor", "plate", "heavy"} => %Node{type: :accumulator, base: "1"},
+          {"trait", "armor_worn", "heavy"} => %Node{type: :accumulator, base: "0"},
+          {"trait", "speed", "amount"} => %Node{type: :accumulator, base: "30"}
+        },
+        rolling_methods: %{},
+        concept_metadata: %{},
+        effects: [
+          %Effect{
+            source: {"armor", "plate"},
+            target: {"trait", "armor_worn", "heavy"},
+            value: "armor('plate').heavy"
+          },
+          %Effect{
+            source: {"class", "barbarian"},
+            target: {"trait", "speed", "amount"},
+            value: 10,
+            when: "trait('armor_worn').heavy == 0"
+          }
+        ]
+      }
+
+      {:ok, system} = Graph.build(loader_data)
+      system
+    end
+
+    test "resolves the condition's node before the effect's target" do
+      system = gated_speed_system()
+      order = Graph.topological_order(system)
+
+      worn_idx = Enum.find_index(order, &(&1 == {"trait", "armor_worn", "heavy"}))
+      speed_idx = Enum.find_index(order, &(&1 == {"trait", "speed", "amount"}))
+      assert worn_idx < speed_idx
+    end
+
+    test "skips the gated effect when the condition's accumulator rules it out" do
+      system = gated_speed_system()
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, %{}, system.effects)
+      assert resolved[{"trait", "armor_worn", "heavy"}] == 1
+      assert resolved[{"trait", "speed", "amount"}] == 30
+    end
+
+    test "applies the gated effect when the condition holds" do
+      system = gated_speed_system()
+      [_armor | rest] = system.effects
+
+      assert {:ok, resolved} = Evaluator.evaluate(system, %{}, rest)
+      assert resolved[{"trait", "armor_worn", "heavy"}] == 0
+      assert resolved[{"trait", "speed", "amount"}] == 40
+    end
+  end
+
   describe "item_fields bindings" do
     test "applies effect when item.field resolves to true in when condition" do
       system = minimal_system()
