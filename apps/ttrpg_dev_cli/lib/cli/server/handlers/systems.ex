@@ -246,12 +246,12 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   defp add_concept_type_error_message(_slug, fields, {:invalid_concept_type_id, ""}),
     do:
-      "can't derive a concept type ID from name #{inspect(fields["name"])}: " <>
+      "can't derive a concept type ID from name #{derived_from(fields)}: " <>
         "it needs at least one letter or digit"
 
   defp add_concept_type_error_message(_slug, fields, {:invalid_concept_type_id, id}),
     do:
-      "can't use #{inspect(id)} (from name #{inspect(fields["name"])}) as a concept type ID: " <>
+      "can't use #{inspect(id)} (from name #{derived_from(fields)}) as a concept type ID: " <>
         "formulas can only refer to IDs made of ASCII letters, digits and underscores"
 
   defp add_concept_type_error_message(_slug, _fields, {:invalid_concept_type, reason}) do
@@ -280,6 +280,10 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Systems do
 
   defp add_concept_type_error_message(slug, _fields, reason),
     do: "cannot add a concept type to rule system #{inspect(slug)}: #{inspect(reason)}"
+
+  # The name as the library derived the ID from it: trimmed. Only called
+  # for ID errors, which the library returns only for a string name.
+  defp derived_from(fields), do: inspect(String.trim(fields["name"]))
 
   defp delete_error_message(slug, :not_modifiable),
     do: "rule system #{inspect(slug)} is not modifiable (bundled systems can't be deleted)"

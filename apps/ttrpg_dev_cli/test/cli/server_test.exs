@@ -302,9 +302,9 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       for {fields, message} <- [
             {%{"name" => "FEAT"},
              ~s(rule system "concept_type_test" already has a concept type "feat")},
-            {%{"name" => "!!"},
+            {%{"name" => " !! "},
              ~s(can't derive a concept type ID from name "!!": it needs at least one letter or digit)},
-            {%{"name" => "Über"},
+            {%{"name" => "  Über "},
              ~s{can't use "über" (from name "Über") as a concept type ID: } <>
                "formulas can only refer to IDs made of ASCII letters, digits and underscores"},
             {%{}, "name is required"},
