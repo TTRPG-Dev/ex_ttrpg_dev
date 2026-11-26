@@ -1,0 +1,97 @@
+defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
+  @moduledoc """
+  Checks that the bundled `dnd_5e_srd` content computes the values the SRD
+  states. These tests exercise system *content*, not library mechanics.
+  """
+  use ExUnit.Case, async: true
+
+  alias ExTTRPGDev.Characters
+  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.InventoryItem
+  alias ExTTRPGDev.RuleSystem.Effect
+  alias ExTTRPGDev.RuleSystems
+
+  @abilities ~w(strength dexterity constitution intelligence wisdom charisma)
+
+  # XP threshold for each level, from the SRD's Character Advancement table.
+  @level_xp %{
+    1 => 0,
+    2 => 300,
+    3 => 900,
+    4 => 2_700,
+    5 => 6_500,
+    6 => 14_000,
+    7 => 23_000,
+    8 => 34_000,
+    9 => 48_000,
+    10 => 64_000,
+    11 => 85_000,
+    12 => 100_000,
+    13 => 120_000,
+    14 => 140_000,
+    15 => 165_000,
+    16 => 195_000,
+    17 => 225_000,
+    18 => 255_000,
+    19 => 285_000,
+    20 => 305_000
+  }
+
+  setup_all do
+    {:ok, system: RuleSystems.load_system!("dnd_5e_srd")}
+  end
+
+  # Builds a character with every ability base score set to `scores[ability]`
+  # (default 10), the given root/scoped decisions, level and equipped items.
+  defp character(system, opts) do
+    scores = Keyword.get(opts, :scores, %{})
+    level = Keyword.get(opts, :level, 1)
+
+    generated =
+      Map.new(@abilities, fn a -> {{"ability", a, "base_score"}, Map.get(scores, a, 10)} end)
+
+    inventory =
+      opts
+      |> Keyword.get(:equipped, [])
+      |> Enum.map(fn id ->
+        %InventoryItem{concept_type: "equipment", concept_id: id, fields: %{"equipped" => true}}
+      end)
+
+    xp = %Effect{
+      target: {"character_trait", "experience_points", "total"},
+      value: Map.fetch!(@level_xp, level)
+    }
+
+    base = Character.gen_character!(system)
+
+    %{
+      base
+      | generated_values: Map.merge(base.generated_values, generated),
+        decisions: Keyword.get(opts, :decisions, []),
+        inventory: inventory,
+        effects: [xp]
+    }
+  end
+
+  defp resolve(system, opts) do
+    {_effects, values} = Characters.resolved_state(system, character(system, opts))
+    values
+  end
+
+  describe "armor worn" do
+    test "counts equipped body armor, heavy armor and shields", %{system: system} do
+      values = resolve(system, equipped: ["plate", "shield"])
+
+      assert values[{"character_trait", "armor_worn", "body"}] == 1
+      assert values[{"character_trait", "armor_worn", "heavy"}] == 1
+      assert values[{"character_trait", "armor_worn", "shield"}] == 1
+    end
+
+    test "is zero with nothing equipped", %{system: system} do
+      values = resolve(system, [])
+
+      assert values[{"character_trait", "armor_worn", "body"}] == 0
+      assert values[{"character_trait", "armor_worn", "shield"}] == 0
+    end
+  end
+end
