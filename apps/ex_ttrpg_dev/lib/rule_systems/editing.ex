@@ -1,10 +1,10 @@
 defmodule ExTTRPGDev.RuleSystems.Editing do
   @moduledoc false
   # Implementation of RuleSystems.create_system/1, slug_from_name/1,
-  # clone_system/3, update_system/2 and delete_system/1; see the
-  # documentation there.
+  # clone_system/3, update_system/2, add_concept_type/2 and
+  # delete_system/1; see the documentation there.
 
-  alias ExTTRPGDev.RuleSystem.{Graph, Loader, Source, Store}
+  alias ExTTRPGDev.RuleSystem.{Expression, Graph, Loader, Source, Store}
   alias ExTTRPGDev.RuleSystem.Store.Entry
   alias ExTTRPGDev.RuleSystems
   alias ExTTRPGDev.RuleSystems.{Dependents, Installed}
@@ -140,6 +140,64 @@ defmodule ExTTRPGDev.RuleSystems.Editing do
          {:ok, updated} <- edit_fun.(source),
          :ok <- check_update(source, updated) do
       store_update(entry, updated)
+    end
+  end
+
+  # The fields add_concept_type/2 accepts. "display_template" is flattened
+  # from module.toml's display.template, since that's the only display key.
+  @concept_type_keys ~w(name display_template)
+
+  # The fields are checked before the system is resolved, so a bad name is
+  # reported without touching the store. The duplicate check is inside the
+  # edit, against the source the update is made from.
+  def add_concept_type(slug, fields) when is_map(fields) do
+    with :ok <- check_known_keys(fields, @concept_type_keys, :invalid_concept_type),
+         {:ok, present} <- present_values(fields, :invalid_concept_type),
+         {:ok, name} <- fetch_concept_type_name(present),
+         {:ok, id} <- concept_type_id(name),
+         :ok <- edit_system(slug, &put_concept_type(&1, id, present)) do
+      {:ok, id}
+    end
+  end
+
+  defp fetch_concept_type_name(%{"name" => name}), do: {:ok, name}
+
+  defp fetch_concept_type_name(_),
+    do: {:error, {:invalid_concept_type, {:missing_required_key, "name"}}}
+
+  # Derived as a system slug is, but it must also be a formula identifier
+  # (Expression.identifier?/1), since concepts of the type are referred to
+  # as type('concept').field. That rules out non-ASCII letters, which
+  # slug_from_name/1 keeps.
+  defp concept_type_id(name) do
+    id = slug_from_name(name)
+
+    if Expression.identifier?(id),
+      do: {:ok, id},
+      else: {:error, {:invalid_concept_type_id, id}}
+  end
+
+  defp put_concept_type(%Source{module: module_map} = source, id, present) do
+    existing = Map.get(module_map, "concept_type", [])
+
+    if Enum.any?(existing, &(&1["id"] == id)) do
+      {:error, {:concept_type_exists, id}}
+    else
+      {:ok,
+       %{
+         source
+         | module:
+             Map.put(module_map, "concept_type", existing ++ [new_concept_type(id, present)])
+       }}
+    end
+  end
+
+  defp new_concept_type(id, present) do
+    concept_type = %{"id" => id, "name" => present["name"]}
+
+    case present["display_template"] do
+      nil -> concept_type
+      template -> Map.put(concept_type, "display", %{"template" => template})
     end
   end
 

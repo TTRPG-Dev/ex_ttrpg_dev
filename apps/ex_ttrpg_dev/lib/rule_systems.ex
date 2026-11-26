@@ -464,6 +464,44 @@ defmodule ExTTRPGDev.RuleSystems do
   defdelegate update_system(slug, update_fun), to: ExTTRPGDev.RuleSystems.Editing
 
   @doc """
+  Declares a new concept type in a modifiable system's `module.toml`, so
+  concepts of that type can be authored.
+
+  `fields` is a map with string keys:
+
+  - `"name"` *(required)* — display name. The type's ID is derived from
+    it by `slug_from_name/1`.
+  - `"display_template"` *(optional)* — stored as the type's
+    `display.template`, e.g. `"{{name}} (Cost: {{cost}})"`.
+
+  Values are trimmed; a `nil` or blank display template is omitted rather
+  than stored empty. The new type is appended after the system's existing
+  ones. This is an `update_system/2`, so the same rules apply: the system
+  must be modifiable and must still load afterwards.
+
+  Returns `{:ok, id}`, or `{:error, reason}`:
+
+  - `{:concept_type_exists, id}` if the system already declares a type
+    with the derived ID.
+  - `{:invalid_concept_type_id, id}` if the derived ID can't be used in a
+    formula (`type('concept').field`): it's empty (the name has no letters
+    or digits) or has letters outside ASCII.
+  - `{:invalid_concept_type, reason}` for a missing name, an unknown key,
+    or a non-string value.
+  - `{:not_configured, slug}`, `{:not_modifiable, :clone_required}` or
+    `{:invalid_update, reason}`, as for `update_system/2`.
+
+  ## Examples
+      iex> ExTTRPGDev.RuleSystems.add_concept_type("dnd_5e_srd", %{"name" => "Feat"})
+      {:error, {:not_modifiable, :clone_required}}
+
+      iex> ExTTRPGDev.RuleSystems.add_concept_type("dnd_5e_srd", %{"display_template" => "{{name}}"})
+      {:error, {:invalid_concept_type, {:missing_required_key, "name"}}}
+
+  """
+  defdelegate add_concept_type(slug, fields), to: ExTTRPGDev.RuleSystems.Editing
+
+  @doc """
   Removes a system from the store: every installed version of `slug`.
 
   Only modifiable systems can be deleted. A non-modifiable system (every
