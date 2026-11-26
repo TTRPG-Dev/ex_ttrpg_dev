@@ -398,4 +398,27 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "skill", "arcana", "modifier") == 0
     end
   end
+
+  describe "races" do
+    test "Elf Keen Senses grants Perception proficiency", %{system: system} do
+      values = resolve(system, decisions: [root("race", "elf")])
+      assert node(values, "skill", "perception", "modifier") == 2
+    end
+
+    test "Half-Orc Menacing grants Intimidation proficiency", %{system: system} do
+      values = resolve(system, decisions: [root("race", "half_orc")])
+      assert node(values, "skill", "intimidation", "modifier") == 2
+    end
+
+    test "Hill Dwarf Dwarven Toughness adds 1 HP per level", %{system: system} do
+      hp = &node(&1, "character_trait", "max_hit_points", "points")
+      dwarf = [root("race", "dwarf")]
+
+      hill =
+        dwarf ++ [%Decision{scope: {"race", "dwarf"}, choice: "subrace", selection: "hill_dwarf"}]
+
+      assert hp.(resolve(system, decisions: hill, level: 5)) -
+               hp.(resolve(system, decisions: dwarf, level: 5)) == 5
+    end
+  end
 end

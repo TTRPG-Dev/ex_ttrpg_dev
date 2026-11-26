@@ -1,6 +1,8 @@
 [race.half_orc]
 name = "Half-Orc"
 languages = ["common", "orc"]
+# Menacing
+skill_proficiencies = ["intimidation"]
 
 [[race.half_orc.contributes]]
 target = "character_trait('speed').amount"
@@ -17,3 +19,8 @@ value = 2
 [[race.half_orc.contributes]]
 target = "ability('constitution').total_score"
 value = 1
+
+# Menacing: proficiency in Intimidation.
+[[race.half_orc.contributes]]
+target = "skill('intimidation').modifier"
+value = "character_trait('proficiency_bonus').bonus"
