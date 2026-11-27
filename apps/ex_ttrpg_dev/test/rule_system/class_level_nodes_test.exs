@@ -6,20 +6,7 @@ defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
 
   @level_node {"character_trait", "character_level", "level"}
 
-  # Copies the fixture to a temp dir, lets `fun` modify it, and loads it.
-  defp load_modified_fixture(fun) do
-    dir =
-      Path.join(System.tmp_dir!(), "ex_ttrpg_class_levels_#{System.unique_integer([:positive])}")
-
-    File.cp_r!(ClassLevelsFixture.path(), dir)
-
-    try do
-      fun.(dir)
-      Loader.load(dir)
-    after
-      File.rm_rf!(dir)
-    end
-  end
+  defp load_modified_fixture(modify), do: ClassLevelsFixture.load_modified(modify)
 
   test "every concept of the class concept type gets a level accumulator with base 0" do
     {:ok, data} = Loader.load(ClassLevelsFixture.path())
@@ -52,18 +39,13 @@ defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
   test "no level nodes are added without a class_concept_type" do
     {:ok, data} =
       load_modified_fixture(fn dir ->
-        module = Path.join(dir, "module.toml")
+        ClassLevelsFixture.replace_in(dir, "module.toml", ~s(class_concept_type = "class"), "")
 
-        File.write!(
-          module,
-          String.replace(File.read!(module), ~s(class_concept_type = "class"), "")
-        )
-
-        classes = Path.join(dir, "concepts/classes.toml")
-
-        File.write!(
-          classes,
-          String.replace(File.read!(classes), ~s{"class('fighter').level"}, ~s{"1"})
+        ClassLevelsFixture.replace_in(
+          dir,
+          "concepts/classes.toml",
+          ~s{"class('fighter').level"},
+          ~s{"1"}
         )
       end)
 
@@ -85,15 +67,11 @@ defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
     defp build_with_multiclass(table_toml) do
       with {:ok, data} <-
              load_modified_fixture(fn dir ->
-               classes = Path.join(dir, "concepts/classes.toml")
-
-               File.write!(
-                 classes,
-                 String.replace(
-                   File.read!(classes),
-                   ~s|[class.wizard.multiclass]\nprerequisite = "ability('intelligence').score >= 13"|,
-                   "[class.wizard.multiclass]\n" <> table_toml
-                 )
+               ClassLevelsFixture.replace_in(
+                 dir,
+                 "concepts/classes.toml",
+                 ~s|[class.wizard.multiclass]\nprerequisite = "ability('intelligence').score >= 13"|,
+                 "[class.wizard.multiclass]\n" <> table_toml
                )
              end) do
         Graph.build(data)

@@ -9,8 +9,36 @@ defmodule ExTTRPGDevTest.ClassLevelsFixture do
 
   def path, do: Path.expand("../fixtures/class_levels", __DIR__)
 
-  def system! do
-    data = Loader.load!(path())
+  def system!, do: build_system!(Loader.load!(path()))
+
+  # Copies the fixture to a temp dir, lets `modify` change its files, and
+  # loads that copy. Returns what Loader.load/1 does.
+  def load_modified(modify) do
+    dir =
+      Path.join(System.tmp_dir!(), "ex_ttrpg_class_levels_#{System.unique_integer([:positive])}")
+
+    File.cp_r!(path(), dir)
+
+    try do
+      modify.(dir)
+      Loader.load(dir)
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
+  # Replaces `from` with `to` in the fixture file at `relative_path`.
+  def replace_in(dir, relative_path, from, to) do
+    file = Path.join(dir, relative_path)
+    content = File.read!(file)
+
+    unless String.contains?(content, from),
+      do: raise("#{relative_path} doesn't contain #{inspect(from)}")
+
+    File.write!(file, String.replace(content, from, to))
+  end
+
+  def build_system!(data) do
     {:ok, built} = Graph.build(data)
 
     %LoadedSystem{
