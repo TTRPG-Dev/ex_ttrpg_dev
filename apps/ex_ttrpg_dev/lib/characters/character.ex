@@ -21,6 +21,11 @@ defmodule ExTTRPGDev.Characters.Character do
   - `pending_choice_slots` — list of `%{progression_id: string, earned_at_level: integer, max_level_cap: integer}`
     tracking unresolved selection slots with the max concept level available when they were earned
     (defaults to [])
+  - `level_classes` — the class concept IDs that gained each level after the first, in order
+    (`["fighter", "wizard"]` means level 2 went to fighter and level 3 to wizard). Level 1 is
+    the class chosen at creation. Levels the character has but this list doesn't reach went to
+    that first class. Only meaningful in systems that declare a `class_concept_type`
+    (defaults to [])
   """
   @type pending_choice_slot :: %{
           progression_id: String.t(),
@@ -41,7 +46,8 @@ defmodule ExTTRPGDev.Characters.Character do
               fields: %{optional(String.t()) => term()} | nil
             }
           ],
-          pending_choice_slots: [pending_choice_slot()]
+          pending_choice_slots: [pending_choice_slot()],
+          level_classes: [String.t()]
         }
 
   defstruct [
@@ -51,7 +57,8 @@ defmodule ExTTRPGDev.Characters.Character do
     effects: [],
     decisions: [],
     inventory: [],
-    pending_choice_slots: []
+    pending_choice_slots: [],
+    level_classes: []
   ]
 
   @doc """
@@ -131,6 +138,7 @@ defmodule ExTTRPGDev.Characters.Character do
                                                } ->
           %{"progression_id" => pid, "earned_at_level" => level, "max_level_cap" => cap}
         end),
+      "level_classes" => char.level_classes,
       "metadata" => %{
         "slug" => char.metadata.slug,
         "rule_system" => char.metadata.rule_system,
@@ -206,6 +214,7 @@ defmodule ExTTRPGDev.Characters.Character do
       inventory: inventory,
       decisions: decisions,
       pending_choice_slots: pending_choice_slots,
+      level_classes: map["level_classes"] || [],
       metadata: %Metadata{
         slug: map["metadata"]["slug"],
         rule_system: map["metadata"]["rule_system"],
