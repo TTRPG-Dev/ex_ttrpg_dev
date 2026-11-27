@@ -374,8 +374,10 @@ defmodule ExTTRPGDev.Characters do
   concept (e.g. a `dice(...)` formula or a dice-valued mapping).
 
   Returns a map with `:type_id`, `:concept_id`, `:dice` (notation of the dice rolled,
-  e.g. `"2d6+3"`), `:rolls` (list of individual die results), `:bonus`, and `:total`
-  (the dice total, including any modifier or multiplier they carry, plus `:bonus`).
+  e.g. `"2d6+1d8+3"`), `:rolls` (list of individual die results), `:rolls_by_term` (the
+  same results grouped by die size, as `%{dice: "2d6", rolls: [...]}` maps), `:bonus`,
+  and `:total` (the dice total, including any modifier or multiplier they carry, plus
+  `:bonus`).
 
   Raises if no roll is defined for the given concept type, if the concept is unknown,
   or if the roll definition's dice or bonus field cannot be resolved for the concept.

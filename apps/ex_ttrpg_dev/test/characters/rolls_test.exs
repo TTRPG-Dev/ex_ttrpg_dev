@@ -167,6 +167,20 @@ defmodule ExTTRPGDevTest.Characters.Rolls do
       assert result.total == 3.5
     end
 
+    test "rolls a mixed pool and groups its rolls by term", %{
+      system: system,
+      character: character
+    } do
+      system = put_roll(system, %{"target_type" => "feature", "dice" => "2d1+1d4+3"})
+
+      result = Characters.concept_roll!(system, character, "feature", "sneak_attack")
+
+      assert result.dice == "2d1+1d4+3"
+      assert [%{dice: "2d1", rolls: [1, 1]}, %{dice: "1d4", rolls: [d4]}] = result.rolls_by_term
+      assert result.rolls == [1, 1, d4]
+      assert result.total == 5 + d4
+    end
+
     test "static dice accept full notation", %{system: system, character: character} do
       system = put_roll(system, %{"target_type" => "feature", "dice" => "2d1+3"})
 

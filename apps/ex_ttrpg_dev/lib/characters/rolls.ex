@@ -45,13 +45,14 @@ defmodule ExTTRPGDev.Characters.Rolls do
 
     dice = roll_dice!(roll_meta, roll_id, node)
     bonus = roll_bonus!(roll_meta, roll_id, node)
-    %{rolls: rolls, total: total} = Dice.roll(dice)
+    %{rolls: rolls, rolls_by_term: rolls_by_term, total: total} = Dice.roll(dice)
 
     %{
       type_id: type_id,
       concept_id: concept_id,
       dice: to_string(dice),
       rolls: rolls,
+      rolls_by_term: rolls_by_term,
       bonus: bonus,
       total: total + bonus
     }
