@@ -17,6 +17,7 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
   @progression_type "character_progression"
   @roll_type "roll"
   @rolling_method_type "rolling_method"
+  @class_level_field "level"
 
   # All concept metadata keys read by the library at runtime. Keys not in
   # this set and not otherwise declared trigger a Logger.warning at load
@@ -40,6 +41,12 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
 
   @doc "Reserved type ID for rolling-method concepts."
   def rolling_method_type, do: @rolling_method_type
+
+  @doc """
+  The field name of the level node the library synthesizes on each concept
+  of a system's `class_concept_type` (e.g. `class('fighter').level`).
+  """
+  def class_level_field, do: @class_level_field
 
   @doc "The set of concept metadata keys the library reads at runtime."
   def structural_metadata_keys, do: MapSet.new(@structural_metadata_keys)

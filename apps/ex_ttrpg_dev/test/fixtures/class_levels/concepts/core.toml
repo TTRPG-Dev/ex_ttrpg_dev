@@ -1,0 +1,32 @@
+[rolling_method.flat]
+dice = "3d6"
+default = true
+
+[ability.strength]
+name = "Strength"
+score.type = "generated"
+
+[ability.intelligence]
+name = "Intelligence"
+score.type = "generated"
+
+[character_trait.experience_points]
+name = "Experience Points"
+total.type = "accumulator"
+total.base = "0"
+
+[character_trait.character_level]
+name = "Character Level"
+level.type = "mapping"
+level.input = "character_trait('experience_points').total"
+level.steps = [[0, 1], [100, 2], [200, 3], [300, 4], [400, 5]]
+
+[award.experience_points]
+name = "Experience Points"
+value_type = "integer"
+effect_target = "character_trait('experience_points').total"
+
+[award.level_up]
+name = "Level Up"
+value_type = "next_level_xp"
+effect_target = "character_trait('experience_points').total"

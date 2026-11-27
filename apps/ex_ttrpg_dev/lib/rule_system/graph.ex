@@ -9,6 +9,8 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   alias ExTTRPGDev.RuleSystem.Effect
   alias ExTTRPGDev.RuleSystem.Expression
   alias ExTTRPGDev.RuleSystem.Node
+  alias ExTTRPGDev.RuleSystem.RuleModule
+  alias ExTTRPGDev.RuleSystem.Vocabulary
 
   @doc """
   Builds a validated DAG from loader output.
@@ -32,7 +34,8 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
     with :ok <- validate_choice_options(concept_metadata),
          {:ok, graph} <- add_node_edges(graph, nodes),
          {:ok, graph} <- add_effect_edges(graph, nodes, effects),
-         {:ok, graph} <- add_choice_contributes_edges(graph, nodes, concept_metadata) do
+         {:ok, graph} <- add_choice_contributes_edges(graph, nodes, concept_metadata),
+         {:ok, graph} <- add_class_level_edges(graph, nodes, Map.get(loader_data, :module)) do
       if Graph.is_acyclic?(graph) do
         {:ok,
          %{
@@ -52,6 +55,27 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   def topological_order(%{graph: graph}) do
     Graph.topsort(graph)
   end
+
+  # A class's level is contributed by the character's level record, through
+  # effects conditioned on the total level (see Characters.Effects). Those
+  # effects aren't known at load time, so the dependency on the level node
+  # is added here for every class level node.
+  defp add_class_level_edges(graph, nodes, %RuleModule{class_concept_type: class_type} = module)
+       when is_binary(class_type) do
+    level_field = Vocabulary.class_level_field()
+
+    nodes
+    |> Map.keys()
+    |> Enum.filter(&match?({^class_type, _id, ^level_field}, &1))
+    |> Enum.reduce_while({:ok, graph}, fn level_key, {:ok, g} ->
+      case validate_and_add_refs(g, nodes, module.level_node, level_key) do
+        {:ok, g} -> {:cont, {:ok, g}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp add_class_level_edges(graph, _nodes, _module), do: {:ok, graph}
 
   defp add_choice_contributes_edges(graph, nodes, concept_metadata) do
     choices =

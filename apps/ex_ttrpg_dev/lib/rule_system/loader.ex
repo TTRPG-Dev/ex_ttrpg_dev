@@ -126,6 +126,17 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       by `Graph.build/1` with `{:error, {:invalid_contributes_value, message}}`.
       Required when `"contributes_field"` is present.
 
+  ### Class levels
+
+  When `module.toml` declares a `class_concept_type` (see
+  `ExTTRPGDev.RuleSystem.RuleModule`), the loader adds a `level` accumulator
+  node, base `0`, to every concept of that type, e.g.
+  `class('fighter').level`. Formulas reference a class's level through it.
+  A character's level record (`ExTTRPGDev.Characters.Character`'s
+  `level_classes`) contributes to it, so a class the character doesn't have
+  resolves to `0`. `level` is reserved on those concepts: authoring a
+  `level` node there fails the load with `{:reserved_class_level_field, ref}`.
+
   ### Note: CLI-only keys
 
   The following keys are consumed by `ttrpg_dev_cli`, not by this library:
@@ -181,6 +192,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   def load_source(%Source{} = source) do
     with {:ok, rule_module} <- build_module(source),
          {:ok, data} <- build_concepts(source.concepts, rule_module),
+         {:ok, data} <- add_class_level_nodes(data, rule_module),
          {:ok, inventory_rules} <- build_inventory_rules(source.inventory_rules) do
       data = expand_metadata_contributions(data, rule_module)
       warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
@@ -201,6 +213,27 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
       {:error, reason} ->
         {:error, {:module_parse_error, reason}}
+    end
+  end
+
+  # Each class gets a level accumulator, base 0. A character's level record
+  # contributes to it (see Characters.Effects), so a class the character
+  # doesn't have resolves to 0. Graph.build/1 adds the edges from the level
+  # node those contributions read.
+  defp add_class_level_nodes(data, %RuleModule{class_concept_type: nil}), do: {:ok, data}
+
+  defp add_class_level_nodes(data, %RuleModule{class_concept_type: class_type}) do
+    level_keys =
+      for {{^class_type, id}, _meta} <- data.concept_metadata,
+          do: {class_type, id, Vocabulary.class_level_field()}
+
+    case Enum.find(level_keys, &Map.has_key?(data.nodes, &1)) do
+      nil ->
+        nodes = Map.new(level_keys, &{&1, %Node{type: :accumulator, base: "0"}})
+        {:ok, %{data | nodes: Map.merge(data.nodes, nodes)}}
+
+      {type_id, concept_id, field} ->
+        {:error, {:reserved_class_level_field, "#{type_id}('#{concept_id}').#{field}"}}
     end
   end
 

@@ -14,6 +14,7 @@ defmodule ExTTRPGDev.MixProject do
       source_url: "https://github.com/TTRPG-Dev/ex_ttrpg_dev",
       docs: docs(),
       test_coverage: [tool: ExCoveralls],
+      test_ignore_filters: [~r{^test/support/}],
       dialyzer: [plt_file: {:no_warn, "priv/plts/dialyzer.plt"}]
     ]
   end

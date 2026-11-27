@@ -1,0 +1,28 @@
+# A minimal system with class levels enabled, for tests of multiclassing.
+[module]
+name = "Class Levels Test System"
+slug = "class_levels_test"
+version = "0.0.1"
+level_node = "character_trait('character_level').level"
+class_concept_type = "class"
+custom_metadata_keys = ["hit_die"]
+
+[[concept_type]]
+id = "rolling_method"
+name = "Rolling Method"
+
+[[concept_type]]
+id = "ability"
+name = "Ability"
+
+[[concept_type]]
+id = "character_trait"
+name = "Character Trait"
+
+[[concept_type]]
+id = "class"
+name = "Class"
+
+[[concept_type]]
+id = "award"
+name = "Award"

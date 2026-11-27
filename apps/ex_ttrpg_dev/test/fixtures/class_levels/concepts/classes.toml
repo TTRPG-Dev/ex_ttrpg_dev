@@ -1,0 +1,17 @@
+[class.fighter]
+name = "Fighter"
+hit_die = "d10"
+second_wind_bonus.formula = "class('fighter').level"
+
+[class.fighter.choices.subclass]
+type = "class"
+options = ["champion"]
+
+[class.wizard]
+name = "Wizard"
+hit_die = "d6"
+
+# A subclass: a concept of the class type, chosen through a sub-choice
+# rather than levelled in directly.
+[class.champion]
+name = "Champion"

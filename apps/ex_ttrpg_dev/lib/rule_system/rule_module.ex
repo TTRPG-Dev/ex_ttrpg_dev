@@ -22,9 +22,8 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
   - `"class_concept_type"` *(string, optional)* — the concept type whose
     concepts are classes a character levels in. Setting it enables class
     levels: each concept of the type gets a `level` node (e.g.
-    `class('fighter').level`), a character's total level is split among its
-    classes, and `ExTTRPGDev.Characters.level_up/3` records which class
-    gained each level. Must name a declared concept type, and requires
+    `class('fighter').level`), and a character's total level is split among
+    its classes. Must name a declared concept type, and requires
     `"level_node"`, which stays the character's total level.
   """
 
