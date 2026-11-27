@@ -48,6 +48,8 @@ defmodule ExTTRPGDev.CLI.Server do
       {"command": "characters.roll", "character": "thorin-stoneback", "type": "skill", "concept": "acrobatics"}
       {"command": "characters.award", "character": "thorin-stoneback", "award": "experience_points", "value": 300}
       {"command": "characters.award", "character": "thorin-stoneback", "award": "level_up"}
+      {"command": "characters.level_up", "character": "thorin-stoneback"}
+      {"command": "characters.level_up", "character": "thorin-stoneback", "class": "wizard"}
       {"command": "characters.choices", "character": "thorin-stoneback"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "hp_per_level", "value": 7, "selection": "rolled"}
       {"command": "characters.resolve_choice", "character": "thorin-stoneback", "progression": "cantrips", "selection": "fire_bolt"}
@@ -110,6 +112,7 @@ defmodule ExTTRPGDev.CLI.Server do
     "characters.delete" => Handlers.Characters,
     "characters.roll" => Handlers.Characters,
     "characters.award" => Handlers.Characters,
+    "characters.level_up" => Handlers.Characters,
     "characters.choices" => Handlers.Characters,
     "characters.resolve_choice" => Handlers.Characters,
     "characters.random_resolve" => Handlers.Characters,

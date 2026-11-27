@@ -1225,6 +1225,53 @@ defmodule ExTTRPGDev.CLI.ServerTest do
              ]
     end
 
+    test "characters.level_up levels the first class by default, or a named class" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      wizard = %Decision{scope: nil, choice: "class", selection: "wizard"}
+      base = Character.gen_character!(system, [wizard])
+
+      scores =
+        Map.merge(base.generated_values, %{
+          {"ability", "intelligence", "base_score"} => 13,
+          {"ability", "dexterity", "base_score"} => 13
+        })
+
+      character = %{base | generated_values: scores}
+      Characters.save_character!(character, true)
+      slug = character.metadata.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      data = run(%{"command" => "characters.level_up", "character" => slug}).data
+      assert data.class_levels == [%{id: "wizard", name: "Wizard", level: 2}]
+
+      data =
+        run(%{"command" => "characters.level_up", "character" => slug, "class" => "rogue"}).data
+
+      assert data.class_levels == [
+               %{id: "wizard", name: "Wizard", level: 2},
+               %{id: "rogue", name: "Rogue", level: 1}
+             ]
+
+      assert Enum.any?(data.pending_choices, &(Map.get(&1, :scope_id) == "rogue"))
+    end
+
+    test "characters.level_up reports why a class can't be taken" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      wizard = %Decision{scope: nil, choice: "class", selection: "wizard"}
+      base = Character.gen_character!(system, [wizard])
+      low = Map.new(base.generated_values, fn {k, _} -> {k, 8} end)
+      character = %{base | generated_values: low}
+      Characters.save_character!(character, true)
+      slug = character.metadata.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      response =
+        run(%{"command" => "characters.level_up", "character" => slug, "class" => "rogue"})
+
+      assert response.status == "error"
+      assert response.message =~ "multiclass prerequisite"
+    end
+
     test "the sheet shows a multiclassed class's values" do
       system = RuleSystems.load_system!("dnd_5e_srd")
       data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)

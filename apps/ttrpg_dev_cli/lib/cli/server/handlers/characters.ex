@@ -104,6 +104,26 @@ defmodule ExTTRPGDev.CLI.Server.Handlers.Characters do
     end
   end
 
+  def handle(%{"command" => "characters.level_up", "character" => slug} = msg, state) do
+    character = Characters.load_character!(slug)
+    system = RuleSystems.load_system_for!(character)
+
+    opts =
+      case msg do
+        %{"class" => class_id} when is_binary(class_id) -> [class: class_id]
+        _ -> []
+      end
+
+    case Characters.level_up(system, character, opts) do
+      {:ok, updated} ->
+        Characters.save_character!(updated, true)
+        {:ok, Common.character_with_choices_response(system, updated, slug, msg), state}
+
+      {:error, reason} ->
+        {:error, Errors.message(reason)}
+    end
+  end
+
   def handle(%{"command" => "characters.choices", "character" => slug} = msg, state) do
     character = Characters.load_character!(slug)
     system = RuleSystems.load_system_for!(character)
