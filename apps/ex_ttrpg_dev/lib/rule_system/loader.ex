@@ -26,7 +26,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   Four concept type IDs have structural meaning to the library:
 
   - `"roll"` — concepts of this type define die rolling methods. Each must have
-    `target_type`, `dice`, and `bonus_field` (see below).
+    `target_type` and exactly one of `dice` / `dice_field` (see below).
   - `"character_progression"` — concepts of this type define character advancement
     tables. The library uses this type ID to locate progression decisions.
   - `"award"` — concepts of this type define grantable awards applied via
@@ -85,9 +85,13 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
 
   - `"target_type"` *(string: concept type ID)* — the concept type this roll
     definition targets.
-  - `"dice"` *(string)* — dice expression (e.g. `"d8"`, `"2d6"`).
-  - `"bonus_field"` *(string: node field name)* — the field on the target concept
-    that holds the roll bonus.
+  - `"dice"` *(string)* — fixed dice notation (e.g. `"d8"`, `"2d6+1"`); see
+    `ExTTRPGDev.RuleSystem.Dice`. Exclusive with `"dice_field"`.
+  - `"dice_field"` *(string: node field name)* — the field on the target concept
+    whose resolved value is the dice to roll: a dice value (from `dice(...)` or a
+    dice-valued mapping) or dice notation. Exclusive with `"dice"`.
+  - `"bonus_field"` *(string: node field name, optional)* — the field on the target
+    concept that holds a numeric roll bonus. Without it the bonus is 0.
 
   ### Keys on selectable concepts (any type eligible for selection)
 
@@ -133,6 +137,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   require Logger
 
   alias ExTTRPGDev.RuleSystem.{
+    Dice,
     Effect,
     Expression,
     InventoryRules,
@@ -147,6 +152,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   # fetched per-call because dialyzer loses MapSet's opaqueness across the
   # module boundary and rejects the cross-module value in MapSet.union/2.
   @rolling_method_type Vocabulary.rolling_method_type()
+  @roll_type Vocabulary.roll_type()
   @structural_metadata_keys MapSet.new(Vocabulary.structural_metadata_keys())
 
   @doc """
@@ -179,6 +185,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       data = expand_metadata_contributions(data, rule_module)
       warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
       warn_rolling_method_issues(data)
+      warn_roll_definition_issues(data.concept_metadata)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
     end
   end
@@ -346,7 +353,11 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp parse_node(%{"type" => "mapping"} = map) do
-    %Node{type: :mapping, input: Map.get(map, "input"), steps: Map.get(map, "steps")}
+    %Node{
+      type: :mapping,
+      input: Map.get(map, "input"),
+      steps: parse_mapping_steps(Map.get(map, "steps"))
+    }
   end
 
   defp parse_node(%{"formula" => formula}) do
@@ -357,6 +368,22 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   # "formula" key). The caller warns and skips the node instead of this
   # clause head raising FunctionClauseError.
   defp parse_node(_), do: nil
+
+  # A step's output may be dice notation (`[[1, "1d4"], [5, "1d6"]]`), parsed
+  # here so the node resolves to a Dice value like a dice() formula would.
+  # Strings that aren't dice notation are left as-is and warned about by
+  # warn_missing_node_fields/2, which knows the node key.
+  defp parse_mapping_steps(steps) when is_list(steps), do: Enum.map(steps, &parse_mapping_step/1)
+  defp parse_mapping_steps(steps), do: steps
+
+  defp parse_mapping_step([threshold, output]) when is_binary(output) do
+    case Dice.parse(output) do
+      {:ok, dice} -> [threshold, dice]
+      {:error, _} -> [threshold, output]
+    end
+  end
+
+  defp parse_mapping_step(step), do: step
 
   defp warn_unknown_node_type(value, {type_id, concept_id, field}) do
     Logger.warning(
@@ -372,6 +399,14 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       Logger.warning(
         "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
           "has type :mapping but is missing required field #{inspect(label)}."
+      )
+    end
+
+    for [_threshold, output] <- List.wrap(node.steps), is_binary(output) do
+      Logger.warning(
+        "Node #{inspect(field)} on #{inspect(type_id)} concept #{inspect(concept_id)} " <>
+          "has mapping step output #{inspect(output)}, which is not a number or " <>
+          "dice notation (e.g. \"1d6\")."
       )
     end
   end
@@ -423,6 +458,40 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   end
 
   defp warn_generated_method_issue(_node_key, _method_id, _methods, _defaults), do: :ok
+
+  # A roll definition takes its dice from exactly one of `dice` (fixed
+  # notation) or `dice_field` (a node on the target concept). Rolling
+  # raises on either mistake; warning here surfaces it before anyone rolls.
+  defp warn_roll_definition_issues(concept_metadata) do
+    for {{@roll_type, id}, meta} <- concept_metadata do
+      warn_roll_dice_issue(id, meta)
+    end
+
+    :ok
+  end
+
+  defp warn_roll_dice_issue(id, %{"dice" => _, "dice_field" => _}) do
+    Logger.warning(
+      "Roll #{inspect(id)} declares both \"dice\" and \"dice_field\"; " <>
+        "it must declare exactly one."
+    )
+  end
+
+  defp warn_roll_dice_issue(id, %{"dice" => notation}) do
+    case Dice.parse(notation) do
+      {:ok, _} -> :ok
+      {:error, message} -> Logger.warning("Roll #{inspect(id)} has #{message}.")
+    end
+  end
+
+  defp warn_roll_dice_issue(_id, %{"dice_field" => _}), do: :ok
+
+  defp warn_roll_dice_issue(id, _meta) do
+    Logger.warning(
+      "Roll #{inspect(id)} declares neither \"dice\" nor \"dice_field\"; " <>
+        "it must declare exactly one."
+    )
+  end
 
   defp parse_rolling_method(fields) do
     %{

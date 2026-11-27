@@ -229,15 +229,21 @@ conditional bonuses (Stonecunning applies only to stonework).
 modifier kind (advantage, disadvantage, reroll-below, minimum, crit-range)
 and an optional situational tag so callers can show them as "applies when…".
 
-### G6. Dice-valued nodes
+### G6. Dice-valued nodes — fixed (#214)
 
-**Problem.** Nodes evaluate to numbers or booleans. Martial Arts die, Bardic
+**Problem.** Nodes evaluated to numbers or booleans. Martial Arts die, Bardic
 Inspiration die, Sneak Attack dice, Brutal Critical, breath weapon damage are
-all dice. Today they can only be encoded as two numbers (count and size) and
+all dice, and could only be encoded as two numbers (count and size) and
 re-assembled by the reader.
 
-**Wanted.** A dice value type (`3d6`) that formulas can build
-(`dice(ceil(level / 2), 6)`) and roll definitions can roll.
+**Now.** `ExTTRPGDev.RuleSystem.Dice` is a node value: formulas build it with
+`dice(count, sides)` and combine it with `+`/`-` (integers, or dice of any
+size, pooled as e.g. `2d6+1d8`) and `*` (positive integers); mapping steps
+may output dice notation
+(`[[1, "1d4"], [5, "1d6"]]`); accumulators accept dice bases; and a roll
+definition rolls a dice-valued field with `dice_field`. Dice show as notation
+(`2d6+3`) on the sheet and in JSON. This system's content still encodes these
+features numerically; moving it onto dice values is content work.
 
 ### G7. Play state and resources
 

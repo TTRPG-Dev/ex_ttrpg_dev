@@ -7,7 +7,7 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   and produces a fully-resolved map of all node values.
   """
 
-  alias ExTTRPGDev.RuleSystem.{Effect, Expression, Graph, Node}
+  alias ExTTRPGDev.RuleSystem.{Dice, Effect, Expression, Graph, Node}
 
   @doc """
   Evaluates all nodes in the DAG in topological order.
@@ -79,14 +79,26 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
     end
   end
 
+  # An accumulator's base may be dice (e.g. `base = "dice(1, 6)"`), in
+  # which case contributions follow the same rules as `+` in a formula.
+  defp accumulate(acc, n, _target) when is_number(acc) and is_number(n), do: {:ok, acc + n}
+
+  defp accumulate(acc, n, target) do
+    case Dice.add(acc, n) do
+      {:ok, _} = ok -> ok
+      {:error, message} -> {:error, {:invalid_contribution, message, target}}
+    end
+  end
+
   defp apply_effect(
          %Effect{when: condition, item_fields: item_fields} = effect,
          {:ok, acc},
          resolved
        ) do
     with {:ok, true} <- evaluate_condition(condition, resolved, item_fields),
-         {:ok, n} <- resolve_effect_value(effect.value, resolved, item_fields) do
-      {:cont, {:ok, acc + n}}
+         {:ok, n} <- resolve_effect_value(effect.value, resolved, item_fields),
+         {:ok, acc} <- accumulate(acc, n, effect.target) do
+      {:cont, {:ok, acc}}
     else
       {:ok, false} -> {:cont, {:ok, acc}}
       error -> {:halt, error}
@@ -97,15 +109,20 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp evaluate_condition(formula, resolved, item_fields) when is_binary(formula) do
     case formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved) do
-      {:ok, result} -> {:ok, truthy?(result)}
+      {:ok, result} -> truthy(result, formula)
       error -> error
     end
   end
 
-  defp truthy?(true), do: true
-  defp truthy?(false), do: false
-  defp truthy?(n) when is_number(n), do: n != 0
-  defp truthy?(_), do: false
+  defp truthy(b, _formula) when is_boolean(b), do: {:ok, b}
+  defp truthy(n, _formula) when is_number(n), do: {:ok, n != 0}
+
+  # Dice (or any future non-scalar value) have no truth value; treating them
+  # as false would silently drop the effect.
+  defp truthy(value, formula) do
+    {:error,
+     {:eval_error, "condition must be a boolean or number, got: #{inspect(value)}", formula}}
+  end
 
   defp resolve_effect_value(value, _resolved, _item_fields) when is_number(value),
     do: {:ok, value}
@@ -141,8 +158,14 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   computing a character's current level from accumulated XP) can reuse this
   instead of re-implementing the same threshold-matching rule.
 
-  Returns `{:ok, value}` or `{:error, {:mapping_no_match, input_value}}`.
+  Returns `{:ok, value}`, `{:error, {:mapping_no_match, input_value}}`, or
+  `{:error, {:mapping_non_numeric_input, input_value}}` when the input isn't a
+  number (e.g. dice) — Erlang orders every struct above every number, so
+  comparing one against thresholds would silently pick the last step.
   """
+  def resolve_mapping_step(_steps, input_value) when not is_number(input_value),
+    do: {:error, {:mapping_non_numeric_input, input_value}}
+
   def resolve_mapping_step(steps, input_value) do
     steps
     |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)

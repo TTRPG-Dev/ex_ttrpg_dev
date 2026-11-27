@@ -70,6 +70,8 @@ contributes = [{target = "type('id').field", value = 2}]
 Mapping steps example: `[[1, 0], [9, 1], [10, 2], [18, 3]]` with input 15 returns `2`
 (last matching threshold is 10). Steps must be ordered by threshold ascending; output
 values may decrease (e.g. warlock pact slot count drops at level 11).
+Step values may also be dice notation (`[[1, "1d4"], [5, "1d6"]]`), resolving to a
+dice value like `dice(count, sides)` does in a formula.
 
 `hidden = true` is useful for intermediate DAG nodes that exist only to support other
 calculations (e.g. `full_caster_slots`, `half_caster_slots`) and should not appear on

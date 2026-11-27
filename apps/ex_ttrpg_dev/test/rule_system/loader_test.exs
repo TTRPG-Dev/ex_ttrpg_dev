@@ -1,7 +1,7 @@
 defmodule ExTTRPGDev.RuleSystem.LoaderTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
-  alias ExTTRPGDev.RuleSystem.{InventoryRules, Loader, Node, RuleModule}
+  alias ExTTRPGDev.RuleSystem.{Dice, InventoryRules, Loader, Node, RuleModule}
 
   defp dnd_path do
     Application.app_dir(:ex_ttrpg_dev, "priv/system_configs/dnd_5e_srd")
@@ -833,6 +833,68 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert log =~ ~s(has type :mapping but is missing required field "input")
     assert log =~ ~s(has type :mapping but is missing required field "steps")
+  end
+
+  test "mapping steps parse dice notation outputs" do
+    {log, data} =
+      load_and_capture("class", "monk", """
+      [class.monk]
+      name = "Monk"
+      martial_arts.type = "mapping"
+      martial_arts.input = "5"
+      martial_arts.steps = [[1, "1d4"], [5, "d6"], [11, 8]]
+      """)
+
+    assert log == ""
+
+    assert %Node{steps: [[1, %Dice{terms: [{1, 4}]}], [5, %Dice{terms: [{1, 6}]}], [11, 8]]} =
+             data.nodes[{"class", "monk", "martial_arts"}]
+  end
+
+  test "mapping steps warn on string outputs that aren't dice notation" do
+    {log, data} =
+      load_and_capture("class", "monk", """
+      [class.monk]
+      name = "Monk"
+      martial_arts.type = "mapping"
+      martial_arts.input = "5"
+      martial_arts.steps = [[1, "one d four"]]
+      """)
+
+    assert log =~ ~s(mapping step output "one d four", which is not a number or dice notation)
+    assert %Node{steps: [[1, "one d four"]]} = data.nodes[{"class", "monk", "martial_arts"}]
+  end
+
+  test "roll definitions warn unless they declare exactly one valid dice source" do
+    cases = [
+      {~s(dice = "1d20"\ndice_field = "damage"), ~s(declares both "dice" and "dice_field")},
+      {"", ~s(declares neither "dice" nor "dice_field")},
+      {~s(dice = "lots"), ~s(has invalid dice notation: "lots")}
+    ]
+
+    for {dice_keys, expected_warning} <- cases do
+      {log, _data} =
+        load_and_capture("roll", "attack", """
+        [roll.attack]
+        target_type = "skill"
+        #{dice_keys}
+        """)
+
+      assert log =~ expected_warning
+    end
+  end
+
+  test "well-formed roll definitions load without warnings" do
+    for dice_keys <- [~s(dice = "1d20+1"), ~s(dice_field = "damage")] do
+      {log, _data} =
+        load_and_capture("roll", "attack", """
+        [roll.attack]
+        target_type = "skill"
+        #{dice_keys}
+        """)
+
+      assert log == ""
+    end
   end
 
   test "rolling method missing dice produces a warning" do

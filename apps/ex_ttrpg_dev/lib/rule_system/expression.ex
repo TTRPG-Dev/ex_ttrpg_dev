@@ -21,12 +21,27 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
     * comparison — `>`, `<`, `>=`, `<=`, `==`, `!=` (numbers only)
     * boolean logic — `and`, `or`, `not` (booleans only)
     * grouping — `( ... )`
-    * functions — `floor/1`, `ceil/1`, `trunc/1`, `abs/1`, `min/2`, `max/2`
+    * functions — `floor/1`, `ceil/1`, `trunc/1`, `abs/1`, `min/2`, `max/2`,
+      `dice/2`
+
+  ## Dice
+
+  `dice(count, sides)` produces a dice value (`ExTTRPGDev.RuleSystem.Dice`)
+  for dice that are computed, e.g.
+  `dice(ceil(class('rogue').level / 2), 6)`. Both arguments must be
+  integers. Dice combine with `+` and `-` (an integer offset, or more dice
+  of any size, pooled: `2d6 + 1d8` is `2d6+1d8`) and `*` (a positive
+  integer, scaling the rolled total); see `ExTTRPGDev.RuleSystem.Dice` for
+  the exact rules. Any other use of a dice value — division, negation,
+  comparison, numeric functions, pooling dice with different multipliers —
+  is an eval error.
 
   Anything outside this grammar returns `{:error, {:parse_error, message,
   formula}}`; calling an unknown function returns `{:error, {:eval_error,
   message, formula}}`.
   """
+
+  alias ExTTRPGDev.RuleSystem.Dice
 
   @ref_pattern ~r/(\w+)\('([^']+)'\)\.(\w+)/
   @single_ref_pattern Regex.compile!("^" <> Regex.source(@ref_pattern) <> "$")
@@ -105,7 +120,7 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   `{type_id, concept_id, field_name}`), and the expression is evaluated
   against the whitelisted grammar documented in the moduledoc.
 
-  Returns `{:ok, number | boolean}` or `{:error, reason}`.
+  Returns `{:ok, number | boolean | Dice.t()}` or `{:error, reason}`.
 
   ## Examples
 
@@ -417,10 +432,31 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
     end
   end
 
+  defp apply_arithmetic(op, %Dice{} = l, r), do: apply_dice_arithmetic(op, l, r)
+  defp apply_arithmetic(op, l, %Dice{} = r), do: apply_dice_arithmetic(op, l, r)
+
   defp apply_arithmetic(op, l, r) do
     {:error,
      {:eval_error, "#{inspect(op)} requires numbers, got: #{inspect(l)} and #{inspect(r)}"}}
   end
+
+  defp apply_dice_arithmetic("+", l, r), do: dice_result(Dice.add(l, r))
+  defp apply_dice_arithmetic("*", l, r), do: dice_result(Dice.multiply(l, r))
+
+  defp apply_dice_arithmetic("-", %Dice{} = l, r) when is_integer(r),
+    do: dice_result(Dice.add(l, -r))
+
+  defp apply_dice_arithmetic(op, l, r) do
+    {:error,
+     {:eval_error,
+      "#{inspect(op)} is not defined for #{describe_value(l)} and #{describe_value(r)}"}}
+  end
+
+  defp dice_result({:ok, %Dice{}} = ok), do: ok
+  defp dice_result({:error, message}), do: {:error, {:eval_error, message}}
+
+  defp describe_value(%Dice{} = dice), do: to_string(dice)
+  defp describe_value(value), do: inspect(value)
 
   defp apply_comparison(op, l, r) when is_number(l) and is_number(r) do
     case op do
@@ -444,6 +480,12 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   defp apply_function("abs", [n]) when is_number(n), do: {:ok, abs(n)}
   defp apply_function("min", [a, b]) when is_number(a) and is_number(b), do: {:ok, min(a, b)}
   defp apply_function("max", [a, b]) when is_number(a) and is_number(b), do: {:ok, max(a, b)}
+
+  defp apply_function("dice", [count, sides]), do: dice_result(Dice.new(count, sides))
+
+  defp apply_function("dice", args) do
+    {:error, {:eval_error, "dice/#{length(args)} is not defined; use dice(count, sides)"}}
+  end
 
   defp apply_function(name, args) when name in ~w[floor ceil trunc abs min max] do
     {:error,

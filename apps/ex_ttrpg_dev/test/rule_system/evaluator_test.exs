@@ -1,6 +1,6 @@
 defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   use ExUnit.Case, async: true
-  alias ExTTRPGDev.RuleSystem.{Effect, Evaluator, Graph, Loader, Node}
+  alias ExTTRPGDev.RuleSystem.{Dice, Effect, Evaluator, Graph, Loader, Node}
 
   defp minimal_system do
     loader_data = %{
@@ -62,6 +62,17 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     # total_score = 16 + 2 = 18, modifier = floor((18-10)/2) = 4
     assert resolved[{"attr", "strength", "total_score"}] == 18
     assert resolved[{"attr", "strength", "modifier"}] == 4
+  end
+
+  test "a dice-valued when condition is an eval error, not false" do
+    generated = %{{"attr", "strength", "base_score"} => 16}
+    effect = %Effect{target: {"attr", "strength", "total_score"}, value: 2}
+    effect = Map.put(effect, :when, "dice(1, 6)")
+
+    assert {:error, {:eval_error, message, "dice(1, 6)"}} =
+             Evaluator.evaluate(minimal_system(), generated, [effect])
+
+    assert message =~ "boolean or number"
   end
 
   test "evaluate/3 resolves mapping node from input value" do
@@ -707,6 +718,50 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
   end
 
+  describe "dice-valued accumulators" do
+    defp dice_accumulator_system do
+      {:ok, system} =
+        Graph.build(%{
+          nodes: %{
+            {"feature", "sneak_attack", "damage"} => %Node{type: :accumulator, base: "dice(2, 6)"}
+          },
+          rolling_methods: %{},
+          concept_metadata: %{},
+          effects: []
+        })
+
+      system
+    end
+
+    @target {"feature", "sneak_attack", "damage"}
+
+    test "add numeric and same-sized dice contributions" do
+      effects = [
+        %Effect{target: @target, value: 1},
+        %Effect{target: @target, value: "dice(1, 6) + 2"}
+      ]
+
+      assert {:ok, resolved} = Evaluator.evaluate(dice_accumulator_system(), %{}, effects)
+      assert resolved[@target] == %Dice{terms: [{3, 6}], modifier: 3}
+    end
+
+    test "pool contributions of a different die size" do
+      effects = [%Effect{target: @target, value: "dice(1, 8)"}]
+
+      assert {:ok, resolved} = Evaluator.evaluate(dice_accumulator_system(), %{}, effects)
+      assert to_string(resolved[@target]) == "2d6+1d8"
+    end
+
+    test "reject an incompatible contribution instead of raising" do
+      effects = [%Effect{target: @target, value: "dice(1, 8) * 10"}]
+
+      assert {:error, {:invalid_contribution, message, @target}} =
+               Evaluator.evaluate(dice_accumulator_system(), %{}, effects)
+
+      assert message =~ "2d6"
+    end
+  end
+
   test "when condition edge cases: numeric truthy/falsy and formula errors" do
     system = minimal_system()
     generated = %{{"attr", "strength", "base_score"} => 16}
@@ -736,5 +791,25 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
                  when: "nonexistent('x').y"
                }
              ])
+  end
+
+  test "a mapping whose input resolves to dice is an error, not the last step" do
+    {:ok, system} =
+      Graph.build(%{
+        nodes: %{
+          {"feature", "sneak_attack", "damage"} => %Node{type: :formula, formula: "dice(1, 6)"},
+          {"feature", "sneak_attack", "tier"} => %Node{
+            type: :mapping,
+            input: "feature('sneak_attack').damage",
+            steps: [[0, 1], [10, 2], [20, 3]]
+          }
+        },
+        rolling_methods: %{},
+        concept_metadata: %{},
+        effects: []
+      })
+
+    assert {:error, {:mapping_non_numeric_input, %Dice{terms: [{1, 6}]}}} =
+             Evaluator.evaluate(system, %{})
   end
 end
