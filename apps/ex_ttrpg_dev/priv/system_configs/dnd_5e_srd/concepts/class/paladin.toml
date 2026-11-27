@@ -29,6 +29,14 @@ aura_range.steps = [[0, 0], [1, 0], [6, 10], [18, 30]]
 # Aura of Protection: saving throw bonus (Cha modifier, minimum +1) from 6th level.
 aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, class('paladin').level - 5))"
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.paladin.multiclass]
+prerequisite = "ability('strength').total_score >= 13 and ability('charisma').total_score >= 13"
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+choices = ["subclass"]
+
 [class.paladin.choices.subclass]
 required = true
 type = "class"

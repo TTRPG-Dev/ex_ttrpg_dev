@@ -30,6 +30,13 @@ wild_shape_fly.type = "mapping"
 wild_shape_fly.input = "class('druid').level"
 wild_shape_fly.steps = [[0, 0], [1, 0], [8, 1]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.druid.multiclass]
+prerequisite = "ability('wisdom').total_score >= 13"
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+choices = ["subclass"]
+
 [class.druid.choices.subclass]
 required = true
 type = "class"

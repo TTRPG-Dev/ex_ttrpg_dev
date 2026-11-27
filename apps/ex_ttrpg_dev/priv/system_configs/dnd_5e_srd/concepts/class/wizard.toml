@@ -12,6 +12,12 @@ asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 # Arcane Recovery: combined spell slot levels recoverable (no slot of 6th level or higher).
 arcane_recovery_levels.formula = "ceil(class('wizard').level / 2)"
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.wizard.multiclass]
+prerequisite = "ability('intelligence').total_score >= 13"
+choices = ["subclass"]
+
 [class.wizard.choices.subclass]
 required = true
 type = "class"

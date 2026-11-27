@@ -18,6 +18,14 @@ mystic_arcanum_level.type = "mapping"
 mystic_arcanum_level.input = "class('warlock').level"
 mystic_arcanum_level.steps = [[0, 0], [1, 0], [11, 6], [13, 7], [15, 8], [17, 9]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.warlock.multiclass]
+prerequisite = "ability('charisma').total_score >= 13"
+armor_proficiencies = ["Light Armor"]
+weapon_proficiencies = ["Simple Weapons"]
+choices = ["subclass"]
+
 [class.warlock.choices.subclass]
 required = true
 type = "class"

@@ -31,6 +31,14 @@ primal_champion.type = "mapping"
 primal_champion.input = "class('barbarian').level"
 primal_champion.steps = [[0, 0], [1, 0], [20, 4]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.barbarian.multiclass]
+prerequisite = "ability('strength').total_score >= 13"
+armor_proficiencies = ["Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+choices = ["subclass"]
+
 [class.barbarian.choices.subclass]
 required = true
 type = "class"

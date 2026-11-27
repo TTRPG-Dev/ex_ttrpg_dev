@@ -456,6 +456,59 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "character_trait", "max_hit_points", "points") == 20
     end
 
+    test "taking a class needs its prerequisite and the current class's", %{system: system} do
+      wizard = fn scores ->
+        character(system, decisions: [root("class", "wizard")], scores: scores)
+      end
+
+      # fighter needs Str 13 or Dex 13; wizard (the current class) needs Int 13
+      assert {:error, {:multiclass_prerequisite_not_met, "fighter"}} =
+               Characters.level_up(system, wizard.(%{"intelligence" => 13}), class: "fighter")
+
+      assert {:error, {:multiclass_prerequisite_not_met, "wizard"}} =
+               Characters.level_up(system, wizard.(%{"dexterity" => 13}), class: "fighter")
+
+      assert {:ok, _} =
+               Characters.level_up(system, wizard.(%{"dexterity" => 13, "intelligence" => 13}),
+                 class: "fighter"
+               )
+    end
+
+    test "a multiclassed rogue grants light armor, thieves' tools and one skill",
+         %{system: system} do
+      character =
+        character(system,
+          decisions: [root("class", "wizard")],
+          level: 2,
+          level_classes: ["rogue"]
+        )
+
+      meta = Characters.concept_metadata(system, character, {"class", "rogue"})
+      assert meta["armor_proficiencies"] == ["Light Armor"]
+      assert meta["tool_proficiencies"] == ["Thieves' Tools"]
+      refute Map.has_key?(meta, "weapon_proficiencies")
+
+      {_effects, resolved} = Characters.resolved_state(system, character)
+      {:ok, %{choices: choices}} = Characters.pending_choices(system, character, resolved)
+
+      rogue_choices =
+        for %{scope_id: "rogue", id: id} <- choices, do: id
+
+      assert Enum.sort(rogue_choices) == ["skill_proficiency_1", "subclass"]
+    end
+
+    test "a multiclassed rogue grants no weapon proficiencies", %{system: system} do
+      values =
+        resolve(system,
+          decisions: [root("class", "wizard")],
+          level: 2,
+          level_classes: ["rogue"]
+        )
+
+      # rapier: a rogue weapon, but not a wizard's or a multiclassed rogue's
+      assert node(values, "equipment", "rapier", "is_proficient") == 0
+    end
+
     test "a class the character doesn't have resolves its table at level 0", %{system: system} do
       values = fighter_barbarian(system)
 

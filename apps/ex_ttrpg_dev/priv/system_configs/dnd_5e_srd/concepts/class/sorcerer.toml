@@ -15,6 +15,12 @@ metamagic_known.type = "mapping"
 metamagic_known.input = "class('sorcerer').level"
 metamagic_known.steps = [[0, 0], [1, 0], [3, 2], [10, 3], [17, 4]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.sorcerer.multiclass]
+prerequisite = "ability('charisma').total_score >= 13"
+choices = ["subclass"]
+
 [class.sorcerer.choices.subclass]
 required = true
 type = "class"

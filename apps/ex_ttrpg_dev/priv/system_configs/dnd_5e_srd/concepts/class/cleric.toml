@@ -19,6 +19,13 @@ destroy_undead_cr.type = "mapping"
 destroy_undead_cr.input = "class('cleric').level"
 destroy_undead_cr.steps = [[0, 0], [1, 0], [5, 0.5], [8, 1], [11, 2], [14, 3], [17, 4]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.cleric.multiclass]
+prerequisite = "ability('wisdom').total_score >= 13"
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+choices = ["subclass"]
+
 [class.cleric.choices.subclass]
 required = true
 type = "class"

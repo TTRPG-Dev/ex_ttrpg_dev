@@ -44,6 +44,14 @@ options = [
   "warhammer",
 ]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.fighter.multiclass]
+prerequisite = "ability('strength').total_score >= 13 or ability('dexterity').total_score >= 13"
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+choices = ["subclass"]
+
 [class.fighter.choices.subclass]
 required = true
 type = "class"

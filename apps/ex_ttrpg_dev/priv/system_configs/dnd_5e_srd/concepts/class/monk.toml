@@ -24,6 +24,13 @@ attacks_per_action.type = "mapping"
 attacks_per_action.input = "class('monk').level"
 attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.monk.multiclass]
+prerequisite = "ability('dexterity').total_score >= 13 and ability('wisdom').total_score >= 13"
+weapon_proficiencies = ["Simple Weapons", "Shortsword"]
+choices = ["subclass"]
+
 [class.monk.choices.subclass]
 required = true
 type = "class"

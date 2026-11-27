@@ -20,6 +20,13 @@ song_of_rest_die.type = "mapping"
 song_of_rest_die.input = "class('bard').level"
 song_of_rest_die.steps = [[0, 0], [1, 0], [2, 6], [9, 8], [13, 10], [17, 12]]
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.bard.multiclass]
+prerequisite = "ability('charisma').total_score >= 13"
+armor_proficiencies = ["Light Armor"]
+choices = ["subclass", "skill_proficiency_1", "musical_instrument_1"]
+
 [class.bard.choices.subclass]
 required = true
 type = "class"

@@ -12,6 +12,14 @@ asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [10, 3], [12, 4], [16, 5], [1
 # Class table: Sneak Attack d6s.
 sneak_attack_dice.formula = "ceil(class('rogue').level / 2)"
 
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.rogue.multiclass]
+prerequisite = "ability('dexterity').total_score >= 13"
+armor_proficiencies = ["Light Armor"]
+tool_proficiencies = ["Thieves' Tools"]
+choices = ["subclass", "skill_proficiency_1"]
+
 [class.rogue.choices.subclass]
 required = true
 type = "class"
