@@ -5,15 +5,41 @@ weapon_proficiencies = ["Dagger", "Dart", "Sling", "Quarterstaff", "Light Crossb
 preparation_mode = "all"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('sorcerer').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Sorcery points equal sorcerer level, from 2nd level.
-sorcery_points.formula = "character_trait('character_level').level * min(1, max(0, character_trait('character_level').level - 1))"
+sorcery_points.formula = "class('sorcerer').level * min(1, max(0, class('sorcerer').level - 1))"
 # Metamagic options known.
 metamagic_known.type = "mapping"
-metamagic_known.input = "character_trait('character_level').level"
-metamagic_known.steps = [[1, 0], [3, 2], [10, 3], [17, 4]]
+metamagic_known.input = "class('sorcerer').level"
+metamagic_known.steps = [[0, 0], [1, 0], [3, 2], [10, 3], [17, 4]]
+
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.sorcerer.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[class.sorcerer.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[[class.sorcerer.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "1"
+
+[[class.sorcerer.contributes]]
+target = "character_trait('spellcasting_classes').full"
+value = 1
+
+[[class.sorcerer.contributes]]
+target = "character_trait('caster_level').level"
+value = "class('sorcerer').level"
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.sorcerer.multiclass]
+prerequisite = "ability('charisma').total_score >= 13"
+choices = ["subclass"]
 
 [class.sorcerer.choices.subclass]
 required = true
@@ -37,58 +63,29 @@ options = ["arcana", "deception", "insight", "intimidation", "persuasion", "reli
 [[class.sorcerer.contributes]]
 target = "saving_throw('constitution').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.sorcerer.contributes]]
 target = "saving_throw('charisma').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.sorcerer.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 6"
+first_class_only = true
 
 [[class.sorcerer.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.sorcerer.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('charisma').modifier"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('full_caster_slots').level_1"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('full_caster_slots').level_2"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('full_caster_slots').level_3"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('full_caster_slots').level_4"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('full_caster_slots').level_5"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_6"
-value = "character_trait('full_caster_slots').level_6"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_7"
-value = "character_trait('full_caster_slots').level_7"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_8"
-value = "character_trait('full_caster_slots').level_8"
-
-[[class.sorcerer.contributes]]
-target = "character_trait('spell_slots').level_9"
-value = "character_trait('full_caster_slots').level_9"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.sorcerer.contributes]]
 target = "character_trait('cantrips_known').count"
@@ -98,24 +95,20 @@ value = "class('sorcerer').cantrips_known_count"
 target = "character_trait('spells_known').count"
 value = "class('sorcerer').spells_known_count"
 
-[[class.sorcerer.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('sorcerer').max_spell_level"
-
 [class.sorcerer.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 4], [4, 5], [10, 6]]
+input = "class('sorcerer').level"
+steps = [[0, 0], [1, 4], [4, 5], [10, 6]]
 
 [class.sorcerer.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [13, 13], [15, 14], [17, 15]]
+input = "class('sorcerer').level"
+steps = [[0, 0], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [13, 13], [15, 14], [17, 15]]
 
 [class.sorcerer.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+input = "class('sorcerer').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [[class.sorcerer.contributes]]
 target = "character_trait('asi_count').count"
@@ -127,7 +120,7 @@ name = "Draconic Bloodline"
 [[class.draconic_bloodline.contributes]]
 # Draconic Resilience: +1 hit point per sorcerer level.
 target = "character_trait('max_hit_points').points"
-value = "character_trait('character_level').level"
+value = "class('sorcerer').level"
 
 [[class.draconic_bloodline.contributes]]
 # Draconic Resilience: AC = 13 + Dex while wearing no armor.

@@ -113,6 +113,8 @@ pub(crate) struct CharacterData {
     pub(crate) name: String,
     pub(crate) rule_system: String,
     #[serde(default)]
+    pub(crate) class_levels: Vec<ClassLevelEntry>,
+    #[serde(default)]
     pub(crate) choices: Vec<ChoiceEntry>,
     #[serde(default)]
     pub(crate) character_lists: Vec<CharacterListCategory>,
@@ -124,6 +126,15 @@ pub(crate) struct CharacterData {
     pub(crate) pending_choices: Vec<PendingChoice>,
     #[serde(default)]
     pub(crate) awarded_xp: Option<i64>,
+}
+
+/// One class a character has levels in; the engine lists the first class first.
+#[derive(Deserialize)]
+pub(crate) struct ClassLevelEntry {
+    #[allow(dead_code)]
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) level: i64,
 }
 
 #[derive(Deserialize)]
@@ -418,6 +429,14 @@ pub(crate) enum Request<'a> {
         award: &'a str,
         #[serde(skip_serializing_if = "Option::is_none")]
         value: Option<serde_json::Value>,
+        display_mode: &'a str,
+    },
+
+    #[serde(rename = "characters.level_up")]
+    CharactersLevelUp {
+        character: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        class: Option<&'a str>,
         display_mode: &'a str,
     },
 
@@ -747,6 +766,35 @@ mod tests {
                 "character": "thorin-stoneback",
                 "type": "skill",
                 "concept": "acrobatics"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_characters_level_up_requests() {
+        assert_eq!(
+            to_value(&Request::CharactersLevelUp {
+                character: "aria",
+                class: None,
+                display_mode: "default",
+            }),
+            serde_json::json!({
+                "command": "characters.level_up",
+                "character": "aria",
+                "display_mode": "default",
+            })
+        );
+        assert_eq!(
+            to_value(&Request::CharactersLevelUp {
+                character: "aria",
+                class: Some("wizard"),
+                display_mode: "default",
+            }),
+            serde_json::json!({
+                "command": "characters.level_up",
+                "character": "aria",
+                "class": "wizard",
+                "display_mode": "default",
             })
         );
     }

@@ -6,11 +6,19 @@ weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier"
 tool_proficiencies = ["Thieves' Tools"]
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [10, 3], [12, 4], [16, 5], [19, 6]]
+asi_slots.input = "class('rogue').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [10, 3], [12, 4], [16, 5], [19, 6]]
 
 # Class table: Sneak Attack d6s.
-sneak_attack_dice.formula = "ceil(character_trait('character_level').level / 2)"
+sneak_attack_dice.formula = "ceil(class('rogue').level / 2)"
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.rogue.multiclass]
+prerequisite = "ability('dexterity').total_score >= 13"
+armor_proficiencies = ["Light Armor"]
+tool_proficiencies = ["Thieves' Tools"]
+choices = ["subclass", "skill_proficiency_1"]
 
 [class.rogue.choices.subclass]
 required = true
@@ -96,18 +104,22 @@ options = [
 [[class.rogue.contributes]]
 target = "saving_throw('dexterity').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.rogue.contributes]]
 target = "saving_throw('intelligence').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.rogue.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
+first_class_only = true
 
 [[class.rogue.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.rogue.contributes]]
 target = "character_trait('asi_count').count"

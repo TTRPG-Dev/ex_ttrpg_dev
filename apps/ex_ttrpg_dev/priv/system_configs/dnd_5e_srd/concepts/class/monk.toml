@@ -4,25 +4,32 @@ hit_die = "d8"
 weapon_proficiencies = ["Simple Weapons", "Shortsword"]
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('monk').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Class table: Martial Arts die size.
 martial_arts_die.type = "mapping"
-martial_arts_die.input = "character_trait('character_level').level"
-martial_arts_die.steps = [[1, 4], [5, 6], [11, 8], [17, 10]]
+martial_arts_die.input = "class('monk').level"
+martial_arts_die.steps = [[0, 0], [1, 4], [5, 6], [11, 8], [17, 10]]
 # Ki points equal monk level, from 2nd level.
-ki_points.formula = "character_trait('character_level').level * min(1, max(0, character_trait('character_level').level - 1))"
+ki_points.formula = "class('monk').level * min(1, max(0, class('monk').level - 1))"
 # Ki save DC.
 ki_save_dc.formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
 # Class table: Unarmored Movement bonus (feet).
 unarmored_movement.type = "mapping"
-unarmored_movement.input = "character_trait('character_level').level"
-unarmored_movement.steps = [[1, 0], [2, 10], [6, 15], [10, 20], [14, 25], [18, 30]]
+unarmored_movement.input = "class('monk').level"
+unarmored_movement.steps = [[0, 0], [1, 0], [2, 10], [6, 15], [10, 20], [14, 25], [18, 30]]
 # Extra Attack: attacks per Attack action.
 attacks_per_action.type = "mapping"
-attacks_per_action.input = "character_trait('character_level').level"
-attacks_per_action.steps = [[1, 1], [5, 2]]
+attacks_per_action.input = "class('monk').level"
+attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.monk.multiclass]
+prerequisite = "ability('dexterity').total_score >= 13 and ability('wisdom').total_score >= 13"
+weapon_proficiencies = ["Simple Weapons", "Shortsword"]
+choices = ["subclass"]
 
 [class.monk.choices.subclass]
 required = true
@@ -79,18 +86,22 @@ options = ["acrobatics", "athletics", "history", "insight", "religion", "stealth
 [[class.monk.contributes]]
 target = "saving_throw('strength').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "saving_throw('dexterity').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "character_trait('asi_count').count"
@@ -100,6 +111,10 @@ value = "class('monk').asi_slots"
 [[class.monk.contributes]]
 target = "character_trait('armor_class').base"
 value = "ability('wisdom').modifier * (1 - min(1, character_trait('armor_worn').body + character_trait('armor_worn').shield))"
+# A character can't gain Unarmored Defense twice (SRD 5.0 Multiclassing).
+# A barbarian/monk keeps the barbarian's; content can't see which class came
+# first, so a monk who later takes barbarian also ends up with the barbarian's.
+when = "class('barbarian').level == 0"
 
 # Unarmored Movement: applies only without armor or a shield.
 [[class.monk.contributes]]

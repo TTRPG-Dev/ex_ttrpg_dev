@@ -112,6 +112,12 @@ pub(crate) static COMMAND_TABLE: &[CommandSpec] = &[
         completion: Completion::Slug,
     },
     CommandSpec {
+        path: "characters level-up",
+        usage: "characters level-up <slug> [class]",
+        summary: "Advance a level, in the first class or the named one (multiclassing)",
+        completion: Completion::Slug,
+    },
+    CommandSpec {
         path: "characters copy",
         usage: "characters copy <slug> [new_slug]",
         summary: "Copy a saved character (default slug <slug>_copy_N)",
@@ -269,6 +275,7 @@ mod tests {
         "characters show",
         "characters roll",
         "characters award",
+        "characters level-up",
         "characters copy",
         "characters delete",
         "characters delete-all",

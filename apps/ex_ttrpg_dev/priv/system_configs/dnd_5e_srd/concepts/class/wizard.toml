@@ -6,11 +6,37 @@ preparation_mode = "prepared"
 preparation_pool = "spellbook"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('wizard').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Arcane Recovery: combined spell slot levels recoverable (no slot of 6th level or higher).
-arcane_recovery_levels.formula = "ceil(character_trait('character_level').level / 2)"
+arcane_recovery_levels.formula = "ceil(class('wizard').level / 2)"
+
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.wizard.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('intelligence').modifier"
+
+[class.wizard.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('intelligence').modifier"
+
+[[class.wizard.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "1"
+
+[[class.wizard.contributes]]
+target = "character_trait('spellcasting_classes').full"
+value = 1
+
+[[class.wizard.contributes]]
+target = "character_trait('caster_level').level"
+value = "class('wizard').level"
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.wizard.multiclass]
+prerequisite = "ability('intelligence').total_score >= 13"
+choices = ["subclass"]
 
 [class.wizard.choices.subclass]
 required = true
@@ -34,58 +60,29 @@ options = ["arcana", "history", "insight", "investigation", "medicine", "religio
 [[class.wizard.contributes]]
 target = "saving_throw('intelligence').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.wizard.contributes]]
 target = "saving_throw('wisdom').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.wizard.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 6"
+first_class_only = true
 
 [[class.wizard.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.wizard.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('intelligence').modifier"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('full_caster_slots').level_1"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('full_caster_slots').level_2"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('full_caster_slots').level_3"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('full_caster_slots').level_4"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('full_caster_slots').level_5"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_6"
-value = "character_trait('full_caster_slots').level_6"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_7"
-value = "character_trait('full_caster_slots').level_7"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_8"
-value = "character_trait('full_caster_slots').level_8"
-
-[[class.wizard.contributes]]
-target = "character_trait('spell_slots').level_9"
-value = "character_trait('full_caster_slots').level_9"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.wizard.contributes]]
 target = "character_trait('spells_known').count"
@@ -95,24 +92,20 @@ value = "class('wizard').spells_known_count"
 target = "character_trait('cantrips_known').count"
 value = "class('wizard').cantrips_known_count"
 
-[[class.wizard.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('wizard').max_spell_level"
-
 [class.wizard.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 6], [2, 8], [3, 10], [4, 12], [5, 14], [6, 16], [7, 18], [8, 20], [9, 22], [10, 24], [11, 26], [12, 28], [13, 30], [14, 32], [15, 34], [16, 36], [17, 38], [18, 40], [19, 42], [20, 44]]
+input = "class('wizard').level"
+steps = [[0, 0], [1, 6], [2, 8], [3, 10], [4, 12], [5, 14], [6, 16], [7, 18], [8, 20], [9, 22], [10, 24], [11, 26], [12, 28], [13, 30], [14, 32], [15, 34], [16, 36], [17, 38], [18, 40], [19, 42], [20, 44]]
 
 [class.wizard.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 3], [4, 4], [10, 5]]
+input = "class('wizard').level"
+steps = [[0, 0], [1, 3], [4, 4], [10, 5]]
 
 [class.wizard.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+input = "class('wizard').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [[class.wizard.contributes]]
 target = "character_trait('asi_count').count"
@@ -120,7 +113,7 @@ value = "class('wizard').asi_slots"
 
 [class.wizard.preparation_cap]
 type = "formula"
-formula = "ability('intelligence').modifier + character_trait('character_level').level"
+formula = "ability('intelligence').modifier + class('wizard').level"
 
 [class.school_of_evocation]
 name = "School of Evocation"

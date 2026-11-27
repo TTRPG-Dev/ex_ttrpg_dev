@@ -7,27 +7,60 @@ preparation_mode = "prepared"
 preparation_pool = "class_spells"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('paladin').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Lay on Hands: healing pool equal to paladin level x 5.
-lay_on_hands_pool.formula = "5 * character_trait('character_level').level"
+lay_on_hands_pool.formula = "5 * class('paladin').level"
 # Divine Sense uses per long rest.
 divine_sense_uses.formula = "1 + ability('charisma').modifier"
 # Channel Divinity uses per short or long rest.
 channel_divinity_uses.type = "mapping"
-channel_divinity_uses.input = "character_trait('character_level').level"
-channel_divinity_uses.steps = [[1, 0], [3, 1]]
+channel_divinity_uses.input = "class('paladin').level"
+channel_divinity_uses.steps = [[0, 0], [1, 0], [3, 1]]
 # Extra Attack: attacks per Attack action.
 attacks_per_action.type = "mapping"
-attacks_per_action.input = "character_trait('character_level').level"
-attacks_per_action.steps = [[1, 1], [5, 2]]
+attacks_per_action.input = "class('paladin').level"
+attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
 # Aura of Protection / Courage range (feet).
 aura_range.type = "mapping"
-aura_range.input = "character_trait('character_level').level"
-aura_range.steps = [[1, 0], [6, 10], [18, 30]]
+aura_range.input = "class('paladin').level"
+aura_range.steps = [[0, 0], [1, 0], [6, 10], [18, 30]]
 # Aura of Protection: saving throw bonus (Cha modifier, minimum +1) from 6th level.
-aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, character_trait('character_level').level - 5))"
+aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, class('paladin').level - 5))"
+
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.paladin.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[class.paladin.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[[class.paladin.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "min(1, floor(class('paladin').level / 2))"
+
+# Half casters gain the Spellcasting feature at 2nd level.
+[[class.paladin.contributes]]
+target = "character_trait('spellcasting_classes').half"
+value = "min(1, floor(class('paladin').level / 2))"
+
+[[class.paladin.contributes]]
+target = "character_trait('caster_level').level"
+value = "floor(class('paladin').level / 2)"
+
+[[class.paladin.contributes]]
+target = "character_trait('half_caster_level').level"
+value = "class('paladin').level * min(1, floor(class('paladin').level / 2))"
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.paladin.multiclass]
+prerequisite = "ability('strength').total_score >= 13 and ability('charisma').total_score >= 13"
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+choices = ["subclass"]
 
 [class.paladin.choices.subclass]
 required = true
@@ -51,51 +84,34 @@ options = ["athletics", "insight", "intimidation", "medicine", "persuasion", "re
 [[class.paladin.contributes]]
 target = "saving_throw('wisdom').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.paladin.contributes]]
 target = "saving_throw('charisma').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.paladin.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 10"
+first_class_only = true
 
 [[class.paladin.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.paladin.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('charisma').modifier"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('half_caster_slots').level_1"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('half_caster_slots').level_2"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('half_caster_slots').level_3"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('half_caster_slots').level_4"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('half_caster_slots').level_5"
-
-[[class.paladin.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('paladin').max_spell_level"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [class.paladin.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+input = "class('paladin').level"
+steps = [[0, 0], [1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
 
 [[class.paladin.contributes]]
 target = "character_trait('asi_count').count"
@@ -103,8 +119,8 @@ value = "class('paladin').asi_slots"
 
 [class.paladin.half_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
+input = "class('paladin').level"
+steps = [[0, 0], [1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
 
 [class.paladin.preparation_cap]
 type = "formula"

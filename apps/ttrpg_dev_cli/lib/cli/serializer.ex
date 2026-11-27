@@ -44,7 +44,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
         display_mode,
         resolved \\ nil
       ) do
-    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+    active = Characters.active_concepts(system, character)
     resolved = resolved || elem(Characters.resolved_state(system, character), 1)
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
     inventory_ids = MapSet.new(character.inventory, &{&1.concept_type, &1.concept_id})
@@ -53,12 +53,40 @@ defmodule ExTTRPGDev.CLI.Serializer do
       name: character.name,
       rule_system: character.metadata.rule_system,
       slug: slug,
+      class_levels: serialize_class_levels(system, character),
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active, display_mode),
       concept_types:
         serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
       selected_concepts: serialize_selected_concepts(system, character, display_mode)
     }
+  end
+
+  # Each class the character has levels in, first class (its creation
+  # choice) first, then in the order they were taken. Empty for a system
+  # without class levels.
+  defp serialize_class_levels(%LoadedSystem{} = system, %Character{} = character) do
+    case Characters.class_levels(system, character) do
+      {:ok, levels} ->
+        class_type = system.module.class_concept_type
+
+        first =
+          Enum.find_value(character.decisions, fn
+            %Decision{scope: nil, choice: ^class_type, selection: id} -> id
+            _ -> nil
+          end)
+
+        [first | character.level_classes]
+        |> Enum.uniq()
+        |> Enum.filter(&Map.has_key?(levels, &1))
+        |> Enum.map(fn id ->
+          name = get_in(system.concept_metadata, [{class_type, id}, "name"]) || id
+          %{id: id, name: name, level: levels[id]}
+        end)
+
+      {:error, :class_levels_not_enabled} ->
+        []
+    end
   end
 
   def serialize_choices_list(choices, system, display_mode) do
@@ -273,7 +301,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
 
   defp serialize_character_list_category(cat, {system, display_mode}, character, active) do
     template = find_display_template(system, cat.concept_type)
-    ids = collect_from_active(active, system.concept_metadata, cat.metadata_key)
+    ids = collect_from_active(active, {system, character}, cat.metadata_key)
 
     items =
       case cat.concept_type do
@@ -306,10 +334,12 @@ defmodule ExTTRPGDev.CLI.Serializer do
     %{label: cat.label, items: (items ++ choice_items) |> Enum.uniq() |> Enum.sort()}
   end
 
-  defp collect_from_active(active, concept_metadata, key) do
+  # Read through Characters.concept_metadata/3 so a multiclassed class
+  # contributes the reduced lists of its multiclass table, not its own.
+  defp collect_from_active(active, {system, character}, key) do
     active
-    |> Enum.flat_map(fn {type, id} ->
-      Map.get(concept_metadata[{type, id}] || %{}, key, [])
+    |> Enum.flat_map(fn concept_key ->
+      system |> Characters.concept_metadata(character, concept_key) |> Map.get(key, [])
     end)
     |> Enum.uniq()
     |> Enum.sort()

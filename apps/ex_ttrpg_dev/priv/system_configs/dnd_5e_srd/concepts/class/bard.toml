@@ -6,19 +6,46 @@ weapon_proficiencies = ["Simple Weapons", "Hand Crossbow", "Longsword", "Rapier"
 preparation_mode = "all"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('bard').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Bardic Inspiration die size (d6 at 1st, d8 at 5th, d10 at 10th, d12 at 15th).
 bardic_inspiration_die.type = "mapping"
-bardic_inspiration_die.input = "character_trait('character_level').level"
-bardic_inspiration_die.steps = [[1, 6], [5, 8], [10, 10], [15, 12]]
+bardic_inspiration_die.input = "class('bard').level"
+bardic_inspiration_die.steps = [[0, 0], [1, 6], [5, 8], [10, 10], [15, 12]]
 # Bardic Inspiration uses per long rest (short rest from 5th, Font of Inspiration).
 bardic_inspiration_uses.formula = "max(1, ability('charisma').modifier)"
 # Song of Rest extra healing die size.
 song_of_rest_die.type = "mapping"
-song_of_rest_die.input = "character_trait('character_level').level"
-song_of_rest_die.steps = [[1, 0], [2, 6], [9, 8], [13, 10], [17, 12]]
+song_of_rest_die.input = "class('bard').level"
+song_of_rest_die.steps = [[0, 0], [1, 0], [2, 6], [9, 8], [13, 10], [17, 12]]
+
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.bard.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[class.bard.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[[class.bard.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "1"
+
+[[class.bard.contributes]]
+target = "character_trait('spellcasting_classes').full"
+value = 1
+
+[[class.bard.contributes]]
+target = "character_trait('caster_level').level"
+value = "class('bard').level"
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.bard.multiclass]
+prerequisite = "ability('charisma').total_score >= 13"
+armor_proficiencies = ["Light Armor"]
+choices = ["subclass", "skill_proficiency_1", "musical_instrument_1"]
 
 [class.bard.choices.subclass]
 required = true
@@ -121,58 +148,29 @@ options = [
 [[class.bard.contributes]]
 target = "saving_throw('dexterity').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.bard.contributes]]
 target = "saving_throw('charisma').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.bard.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
+first_class_only = true
 
 [[class.bard.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.bard.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('charisma').modifier"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('full_caster_slots').level_1"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('full_caster_slots').level_2"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('full_caster_slots').level_3"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('full_caster_slots').level_4"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('full_caster_slots').level_5"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_6"
-value = "character_trait('full_caster_slots').level_6"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_7"
-value = "character_trait('full_caster_slots').level_7"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_8"
-value = "character_trait('full_caster_slots').level_8"
-
-[[class.bard.contributes]]
-target = "character_trait('spell_slots').level_9"
-value = "character_trait('full_caster_slots').level_9"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.bard.contributes]]
 target = "character_trait('cantrips_known').count"
@@ -182,24 +180,20 @@ value = "class('bard').cantrips_known_count"
 target = "character_trait('spells_known').count"
 value = "class('bard').spells_known_count"
 
-[[class.bard.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('bard').max_spell_level"
-
 [class.bard.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 2], [4, 3], [10, 4]]
+input = "class('bard').level"
+steps = [[0, 0], [1, 2], [4, 3], [10, 4]]
 
 [class.bard.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 4], [2, 5], [3, 6], [4, 7], [5, 8], [6, 9], [7, 10], [8, 11], [9, 12], [10, 14], [11, 15], [13, 16], [14, 18], [15, 19], [17, 20], [18, 22]]
+input = "class('bard').level"
+steps = [[0, 0], [1, 4], [2, 5], [3, 6], [4, 7], [5, 8], [6, 9], [7, 10], [8, 11], [9, 12], [10, 14], [11, 15], [13, 16], [14, 18], [15, 19], [17, 20], [18, 22]]
 
 [class.bard.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+input = "class('bard').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [[class.bard.contributes]]
 target = "character_trait('asi_count').count"

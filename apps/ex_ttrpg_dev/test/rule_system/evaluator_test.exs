@@ -637,41 +637,53 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     test "full caster (wizard) level 1: 2 first-level slots only",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "wizard")
+      effects = class_effects(system, "wizard") ++ [class_level_effect("wizard", 1)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [2, 0, 0, 0, 0, 0, 0, 0, 0]
     end
 
     test "full caster (wizard) level 5: 4/3/2 slots for levels 1-3",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "wizard") ++ [xp_effect(6500)]
+      effects =
+        class_effects(system, "wizard") ++ [xp_effect(6500), class_level_effect("wizard", 5)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [4, 3, 2, 0, 0, 0, 0, 0, 0]
     end
 
     test "full caster (wizard) level 11: gains 6th-level slots",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "wizard") ++ [xp_effect(85_000)]
+      effects =
+        class_effects(system, "wizard") ++
+          [xp_effect(85_000), class_level_effect("wizard", 11)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [4, 3, 3, 3, 2, 1, 0, 0, 0]
     end
 
     test "half caster (paladin) level 1: no spell slots",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "paladin")
+      effects = class_effects(system, "paladin") ++ [class_level_effect("paladin", 1)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [0, 0, 0, 0, 0, 0, 0, 0, 0]
     end
 
     test "half caster (paladin) level 5: 4/2 slots for levels 1-2",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "paladin") ++ [xp_effect(6500)]
+      effects =
+        class_effects(system, "paladin") ++ [xp_effect(6500), class_level_effect("paladin", 5)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [4, 2, 0, 0, 0, 0, 0, 0, 0]
     end
   end
 
   describe "pact magic integration" do
+    # Class features key off the class's own level, which a character's
+    # level record contributes; these tests contribute it directly.
+    defp class_level_effect(class_id, level),
+      do: %Effect{target: {"class", class_id, "level"}, value: level}
+
     setup do
       {:ok, loader_data} = Loader.load(dnd_path())
       {:ok, system} = Graph.build(loader_data)
@@ -689,14 +701,16 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
 
     test "warlock level 1: 1 slot at spell level 1", %{system: system, generated: generated} do
-      effects = class_effects(system, "warlock")
+      effects = class_effects(system, "warlock") ++ [class_level_effect("warlock", 1)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 1
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 1
     end
 
     test "warlock level 5: 2 slots at spell level 3", %{system: system, generated: generated} do
-      effects = class_effects(system, "warlock") ++ [xp_effect(6500)]
+      effects =
+        class_effects(system, "warlock") ++ [xp_effect(6500), class_level_effect("warlock", 5)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 2
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 3
@@ -704,7 +718,10 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     test "warlock level 11: slot count drops to 3, slot level stays 5",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "warlock") ++ [xp_effect(85_000)]
+      effects =
+        class_effects(system, "warlock") ++
+          [xp_effect(85_000), class_level_effect("warlock", 11)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 3
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 5

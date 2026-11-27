@@ -52,7 +52,7 @@ omitted from the encoding rather than filled in from another source.
 | Legal / OGL | 1–244 | n/a | |
 | Races (9 races, 7 subraces) | 245–1055 | Partial | Ability increases, speed, darkvision, languages, weapon/tool proficiencies, resistances encoded. See [Races](#races). |
 | Classes (12 classes, 1 subclass each) | 1056–12649 | Partial | Hit points, proficiencies, saves, skills, starting equipment, ASI slots, spellcasting encoded. Class *features* largely absent. See [Classes](#classes). |
-| Multiclassing | 12650–13615 | Gap | G2. |
+| Multiclassing | 12650–13615 | Encoded | Class levels, prerequisites, reduced proficiencies and choices, hit dice per class, multiclass spell slots, per-class DC/attack, Unarmored Defense not stacking. Per-class spell lists G14 (#222). |
 | Alignment | 13616–13727 | Encodable | Concept type + character choice. Nothing in the SRD keys mechanics off it for PCs. |
 | Languages | 13728–13921 | Encoded | |
 | Inspiration | 13922–13975 | Gap | G7 (play state: a boolean the GM awards and the player spends). |
@@ -66,7 +66,7 @@ omitted from the encoding rather than filled in from another source.
 | Resting | 20211–20278 | Gap | G7 (spending hit dice, recovering resources). |
 | Between adventures (downtime) | 20279–20470 | Reference | |
 | Combat | 20471–21881 | Partial / Gap | Initiative and AC encoded. Attack/damage rolls G10; HP/death saves/temp HP G7; conditions G7; cover and two-weapon fighting G5/G10. |
-| Spellcasting rules | 21882–22487 | Encoded | Slots, known/prepared, save DC, attack bonus. Multiclass slot table G2. Per-source spellcasting ability G14. |
+| Spellcasting rules | 21882–22487 | Encoded | Slots, known/prepared, save DC, attack bonus, multiclass slot table, per-class DC and attack bonus. Per-class spell lists and per-source ability for non-class sources G14. |
 | Spell lists | 22488–24131 | Encoded | `classes` on each spell. |
 | Spell descriptions (304) | 24132–35812 | Partial | All 304, and only these, are encoded. Name, level, school, casting time, range, components, duration, concentration, ritual, classes encoded. Description text, material component text, "at higher levels" scaling, damage/save info are Encodable as metadata. Cantrip damage scaling is Encodable as a mapping node. |
 | Appendix: Conditions (14 + exhaustion) | 35813–36062 | Encodable / Gap | Encodable as reference concepts; *applying* a condition to a character is G7. |
@@ -106,9 +106,9 @@ omitted from the encoding rather than filled in from another source.
 Every class-table column that is a number derived from level is now encoded
 as a `mapping` or `formula` node on the class concept. Class concepts are
 only displayed while active, so these appear only for characters of that class.
-All of them key off *character* level, which is correct for a single-class
-character and wrong for a multiclassed one (G2) — the same limitation the
-existing HP and ASI encodings already have.
+All of them key off the class's own level (`class('fighter').level`), so a
+multiclassed character gets each class's features at its own level. Proficiency
+bonus and XP stay on the total level.
 
 | Class | Encoded | Still open |
 | --- | --- | --- |
@@ -185,7 +185,7 @@ holds.
 
 **Unblocks.** Every class's feature list; subclass features; Infernal Legacy.
 
-### G2. Per-class levels (multiclassing)
+### G2. Per-class levels (multiclassing) — fixed (#211)
 
 **Problem.** The system has one `character_level`. Multiclassing needs a level
 per class: hit dice, class features, and class-table columns key off class
@@ -197,6 +197,17 @@ primary ability of both classes) gate the choice.
 **Wanted.** A notion of class levels (a level-up decision records *which*
 class gained the level) and an expression to reference them, with total level
 derived from their sum.
+
+**Now.** `class_concept_type` in `module.toml` gives every class a
+`class('x').level` node. `Characters.level_up/3` records which class gained a
+level, and levels without a record go to the first class. A
+`[class.x.multiclass]` table declares the prerequisite, the reduced
+proficiency lists and the choices of a non-first class, and
+`first_class_only` contributes cover saving throws and first-level hit
+points. Content encodes the weighted spell slot sum (third casters aren't
+in the SRD). Spell lists per class remain G14 (#222). Remaining limits:
+#239 (a multiclass choice can repeat another class's pick) and #240 (hit
+die rolls assume one decision per level).
 
 ### G3. Choice constraints that depend on character state
 

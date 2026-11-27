@@ -39,7 +39,7 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       data = run(%{"command" => "systems.show", "system" => "dnd_5e_srd"}).data
       assert data.name == "Dungeons and Dragons 5th Edition SRD"
       assert data.slug == "dnd_5e_srd"
-      assert data.version == "2.0.0"
+      assert data.version == "2.1.0"
     end
 
     test "systems.show returns concept list when concept_type given" do
@@ -1189,6 +1189,102 @@ defmodule ExTTRPGDev.CLI.ServerTest do
   end
 
   # ── error handling ────────────────────────────────────────────────────────────
+
+  describe "multiclassed characters" do
+    alias ExTTRPGDev.Characters.{Character, Decision}
+    alias ExTTRPGDev.CLI.Serializer
+    alias ExTTRPGDev.RuleSystem.Effect
+
+    # wizard 1 / rogue 1
+    defp wizard_rogue(system) do
+      wizard = %Decision{scope: nil, choice: "class", selection: "wizard"}
+      xp = %Effect{target: {"character_trait", "experience_points", "total"}, value: 300}
+
+      %{Character.gen_character!(system, [wizard]) | effects: [xp], level_classes: ["rogue"]}
+    end
+
+    defp list_items(data, label),
+      do: Enum.find_value(data.character_lists, [], &(&1.label == label && &1.items))
+
+    test "the sheet shows a multiclassed class's reduced proficiencies" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
+
+      assert "Light Armor" in list_items(data, "Armor Proficiencies")
+      assert "Thieves' Tools" in list_items(data, "Tool Proficiencies")
+      refute "Rapier" in list_items(data, "Weapon Proficiencies")
+    end
+
+    test "the sheet lists class levels, first class first" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
+
+      assert data.class_levels == [
+               %{id: "wizard", name: "Wizard", level: 1},
+               %{id: "rogue", name: "Rogue", level: 1}
+             ]
+    end
+
+    test "characters.level_up levels the first class by default, or a named class" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      wizard = %Decision{scope: nil, choice: "class", selection: "wizard"}
+      base = Character.gen_character!(system, [wizard])
+
+      scores =
+        Map.merge(base.generated_values, %{
+          {"ability", "intelligence", "base_score"} => 13,
+          {"ability", "dexterity", "base_score"} => 13
+        })
+
+      character = %{base | generated_values: scores}
+      Characters.save_character!(character, true)
+      slug = character.metadata.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      data = run(%{"command" => "characters.level_up", "character" => slug}).data
+      assert data.class_levels == [%{id: "wizard", name: "Wizard", level: 2}]
+
+      data =
+        run(%{"command" => "characters.level_up", "character" => slug, "class" => "rogue"}).data
+
+      assert data.class_levels == [
+               %{id: "wizard", name: "Wizard", level: 2},
+               %{id: "rogue", name: "Rogue", level: 1}
+             ]
+
+      assert Enum.any?(data.pending_choices, &(Map.get(&1, :scope_id) == "rogue"))
+    end
+
+    test "characters.level_up reports why a class can't be taken" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      wizard = %Decision{scope: nil, choice: "class", selection: "wizard"}
+      base = Character.gen_character!(system, [wizard])
+      low = Map.new(base.generated_values, fn {k, _} -> {k, 8} end)
+      character = %{base | generated_values: low}
+      Characters.save_character!(character, true)
+      slug = character.metadata.slug
+      on_exit(fn -> Characters.delete_character(slug) end)
+
+      response =
+        run(%{"command" => "characters.level_up", "character" => slug, "class" => "rogue"})
+
+      assert response.status == "error"
+      assert response.message =~ "multiclass prerequisite"
+    end
+
+    test "the sheet shows a multiclassed class's values" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
+
+      class_concepts =
+        data.concept_types
+        |> Enum.filter(&(&1.id == "class"))
+        |> Enum.flat_map(& &1.concepts)
+        |> Enum.map(& &1.id)
+
+      assert "rogue" in class_concepts
+    end
+  end
 
   describe "error handling" do
     test "unknown command returns error" do

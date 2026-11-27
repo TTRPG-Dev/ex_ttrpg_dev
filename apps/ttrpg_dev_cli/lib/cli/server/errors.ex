@@ -23,6 +23,26 @@ defmodule ExTTRPGDev.CLI.Server.Errors do
   def message(:max_level), do: "character is already at max level"
   def message(:no_level_thresholds), do: "system does not define level XP thresholds"
 
+  # --- level up / class levels ---
+
+  def message(:class_levels_not_enabled),
+    do: "this system has no class levels; level up without naming a class"
+
+  def message(:no_class), do: "character has no class to level up"
+  def message({:unknown_class, id}), do: "unknown class: #{inspect(id)}"
+
+  def message({:not_multiclassable, id}),
+    do: "#{inspect(id)} can't be taken as an additional class"
+
+  def message({:multiclass_prerequisite_not_met, id}),
+    do: "multiclass prerequisite for #{inspect(id)} isn't met"
+
+  def message({:invalid_multiclass_prerequisite, id, reason}),
+    do: "multiclass prerequisite for #{inspect(id)} failed to evaluate: #{inspect(reason)}"
+
+  def message({:first_level_is_first_class, id}),
+    do: "level 1 belongs to the character's first class, not #{inspect(id)}"
+
   # --- progression choices ---
 
   def message({:unknown_progression, id}), do: "unknown progression: #{inspect(id)}"

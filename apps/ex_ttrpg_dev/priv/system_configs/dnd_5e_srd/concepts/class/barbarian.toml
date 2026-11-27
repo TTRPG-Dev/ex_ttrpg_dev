@@ -5,31 +5,39 @@ armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
 weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('barbarian').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Class table: Rages per long rest.
 rages.type = "mapping"
-rages.input = "character_trait('character_level').level"
-rages.steps = [[1, 2], [3, 3], [6, 4], [12, 5], [17, 6]]
+rages.input = "class('barbarian').level"
+rages.steps = [[0, 0], [1, 2], [3, 3], [6, 4], [12, 5], [17, 6]]
 # Primal Champion table entry: rages become unlimited at 20th level.
-rages_unlimited.formula = "character_trait('character_level').level >= 20"
+rages_unlimited.formula = "class('barbarian').level >= 20"
 # Class table: Rage Damage bonus.
 rage_damage.type = "mapping"
-rage_damage.input = "character_trait('character_level').level"
-rage_damage.steps = [[1, 2], [9, 3], [16, 4]]
+rage_damage.input = "class('barbarian').level"
+rage_damage.steps = [[0, 0], [1, 2], [9, 3], [16, 4]]
 # Brutal Critical: extra weapon damage dice on a critical hit.
 brutal_critical_dice.type = "mapping"
-brutal_critical_dice.input = "character_trait('character_level').level"
-brutal_critical_dice.steps = [[1, 0], [9, 1], [13, 2], [17, 3]]
+brutal_critical_dice.input = "class('barbarian').level"
+brutal_critical_dice.steps = [[0, 0], [1, 0], [9, 1], [13, 2], [17, 3]]
 # Fast Movement: +10 ft speed from 5th level while not in heavy armor.
 fast_movement.type = "mapping"
-fast_movement.input = "character_trait('character_level').level"
-fast_movement.steps = [[1, 0], [5, 10]]
+fast_movement.input = "class('barbarian').level"
+fast_movement.steps = [[0, 0], [1, 0], [5, 10]]
 # Primal Champion: +4 Strength and Constitution at 20th level.
 primal_champion.type = "mapping"
-primal_champion.input = "character_trait('character_level').level"
-primal_champion.steps = [[1, 0], [20, 4]]
+primal_champion.input = "class('barbarian').level"
+primal_champion.steps = [[0, 0], [1, 0], [20, 4]]
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.barbarian.multiclass]
+prerequisite = "ability('strength').total_score >= 13"
+armor_proficiencies = ["Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+choices = ["subclass"]
 
 [class.barbarian.choices.subclass]
 required = true
@@ -67,18 +75,22 @@ options = [
 [[class.barbarian.contributes]]
 target = "saving_throw('strength').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.barbarian.contributes]]
 target = "saving_throw('constitution').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.barbarian.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 12"
+first_class_only = true
 
 [[class.barbarian.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.barbarian.contributes]]
 target = "character_trait('asi_count').count"

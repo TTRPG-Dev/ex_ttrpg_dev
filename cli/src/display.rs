@@ -3,9 +3,9 @@
 //! Also provides `page_output` for piping long content through the system pager.
 
 use crate::protocol::{
-    CharacterData, CharacterListCategory, CharacterSummary, ConceptDetail, ConceptFields,
-    ConceptsList, ContributeEntry, InventoryItemData, PendingChoice, PreparationStateResponse,
-    RequiredChoice, SelectedConcept, SystemInfo,
+    CharacterData, CharacterListCategory, CharacterSummary, ClassLevelEntry, ConceptDetail,
+    ConceptFields, ConceptsList, ContributeEntry, InventoryItemData, PendingChoice,
+    PreparationStateResponse, RequiredChoice, SelectedConcept, SystemInfo,
 };
 
 pub(crate) fn format_character(c: &CharacterData) -> String {
@@ -17,6 +17,9 @@ pub(crate) fn format_character(c: &CharacterData) -> String {
     };
     writeln!(out, "\n{header}").unwrap();
     writeln!(out, "System: {}", c.rule_system).unwrap();
+    if !c.class_levels.is_empty() {
+        writeln!(out, "Levels: {}", format_class_levels(&c.class_levels)).unwrap();
+    }
     for choice in &c.choices {
         writeln!(out, "{}: {}", choice.type_name, choice.value).unwrap();
     }
@@ -35,6 +38,15 @@ pub(crate) fn format_character(c: &CharacterData) -> String {
     }
     writeln!(out).unwrap();
     out
+}
+
+/// "Wizard 2 / Rogue 1": each class with its level, in the engine's order.
+fn format_class_levels(levels: &[ClassLevelEntry]) -> String {
+    levels
+        .iter()
+        .map(|l| format!("{} {}", l.name, l.level))
+        .collect::<Vec<_>>()
+        .join(" / ")
 }
 
 pub(crate) fn print_character(c: &CharacterData) {
@@ -312,6 +324,7 @@ mod tests {
             slug: None,
             name: name.to_string(),
             rule_system: "test_system".to_string(),
+            class_levels: vec![],
             choices: vec![],
             character_lists: vec![],
             concept_types: vec![],
@@ -363,6 +376,25 @@ mod tests {
         let out = format_character(&minimal_character("Aria"));
         assert!(out.contains("── Aria ──"));
         assert!(out.contains("System: test_system"));
+    }
+
+    #[test]
+    fn format_character_shows_class_levels() {
+        let level = |name: &str, level| ClassLevelEntry {
+            id: name.to_lowercase(),
+            name: name.to_string(),
+            level,
+        };
+        let c = CharacterData {
+            class_levels: vec![level("Wizard", 2), level("Rogue", 1)],
+            ..minimal_character("Aria")
+        };
+        assert!(format_character(&c).contains("Levels: Wizard 2 / Rogue 1"));
+    }
+
+    #[test]
+    fn format_character_omits_levels_without_class_levels() {
+        assert!(!format_character(&minimal_character("Aria")).contains("Levels:"));
     }
 
     #[test]

@@ -6,21 +6,54 @@ weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 preparation_mode = "all"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('ranger').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Favored Enemy: number of favored enemy types.
 favored_enemies.type = "mapping"
-favored_enemies.input = "character_trait('character_level').level"
-favored_enemies.steps = [[1, 1], [6, 2], [14, 3]]
+favored_enemies.input = "class('ranger').level"
+favored_enemies.steps = [[0, 0], [1, 1], [6, 2], [14, 3]]
 # Natural Explorer: number of favored terrains.
 favored_terrains.type = "mapping"
-favored_terrains.input = "character_trait('character_level').level"
-favored_terrains.steps = [[1, 1], [6, 2], [10, 3]]
+favored_terrains.input = "class('ranger').level"
+favored_terrains.steps = [[0, 0], [1, 1], [6, 2], [10, 3]]
 # Extra Attack: attacks per Attack action.
 attacks_per_action.type = "mapping"
-attacks_per_action.input = "character_trait('character_level').level"
-attacks_per_action.steps = [[1, 1], [5, 2]]
+attacks_per_action.input = "class('ranger').level"
+attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
+
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.ranger.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[class.ranger.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[[class.ranger.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "min(1, floor(class('ranger').level / 2))"
+
+# Half casters gain the Spellcasting feature at 2nd level.
+[[class.ranger.contributes]]
+target = "character_trait('spellcasting_classes').half"
+value = "min(1, floor(class('ranger').level / 2))"
+
+[[class.ranger.contributes]]
+target = "character_trait('caster_level').level"
+value = "floor(class('ranger').level / 2)"
+
+[[class.ranger.contributes]]
+target = "character_trait('half_caster_level').level"
+value = "class('ranger').level * min(1, floor(class('ranger').level / 2))"
+
+# Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
+# reduced proficiencies and choices it grants as a second or later class.
+[class.ranger.multiclass]
+prerequisite = "ability('dexterity').total_score >= 13 and ability('wisdom').total_score >= 13"
+armor_proficiencies = ["Light Armor", "Medium Armor", "Shield"]
+weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
+choices = ["subclass", "skill_proficiency_1"]
 
 [class.ranger.choices.subclass]
 required = true
@@ -78,60 +111,43 @@ options = [
 [[class.ranger.contributes]]
 target = "saving_throw('strength').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.ranger.contributes]]
 target = "saving_throw('dexterity').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.ranger.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 10"
+first_class_only = true
 
 [[class.ranger.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.ranger.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('wisdom').modifier"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('half_caster_slots').level_1"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('half_caster_slots').level_2"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('half_caster_slots').level_3"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('half_caster_slots').level_4"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('half_caster_slots').level_5"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.ranger.contributes]]
 target = "character_trait('spells_known').count"
 value = "class('ranger').spells_known_count"
 
-[[class.ranger.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('ranger').max_spell_level"
-
 [class.ranger.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 2], [3, 3], [5, 4], [7, 5], [9, 6], [11, 7], [13, 8], [15, 9], [17, 10], [19, 11]]
+input = "class('ranger').level"
+steps = [[0, 0], [1, 0], [2, 2], [3, 3], [5, 4], [7, 5], [9, 6], [11, 7], [13, 8], [15, 9], [17, 10], [19, 11]]
 
 [class.ranger.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+input = "class('ranger').level"
+steps = [[0, 0], [1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
 
 [[class.ranger.contributes]]
 target = "character_trait('asi_count').count"

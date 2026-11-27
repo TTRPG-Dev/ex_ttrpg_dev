@@ -70,7 +70,8 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       | generated_values: Map.merge(base.generated_values, generated),
         decisions: Keyword.get(opts, :decisions, []),
         inventory: inventory,
-        effects: [xp]
+        effects: [xp],
+        level_classes: Keyword.get(opts, :level_classes, [])
     }
   end
 
@@ -396,6 +397,201 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "skill", "insight", "modifier") == 2
       assert node(values, "skill", "religion", "modifier") == 2
       assert node(values, "skill", "arcana", "modifier") == 0
+    end
+  end
+
+  describe "multiclassing" do
+    # fighter 1, barbarian 2, fighter 3: fighter 3 / barbarian 2
+    defp fighter_barbarian(system) do
+      resolve(system,
+        decisions: [root("class", "fighter")],
+        level: 5,
+        level_classes: ["barbarian", "barbarian", "fighter", "fighter"]
+      )
+    end
+
+    test "class features follow each class's own level", %{system: system} do
+      values = fighter_barbarian(system)
+
+      assert node(values, "class", "fighter", "level") == 3
+      assert node(values, "class", "barbarian", "level") == 2
+      assert node(values, "class", "fighter", "second_wind_bonus") == 3
+      assert node(values, "class", "fighter", "attacks_per_action") == 1
+      assert node(values, "class", "barbarian", "rages") == 2
+    end
+
+    test "proficiency bonus follows the total level", %{system: system} do
+      assert node(fighter_barbarian(system), "character_trait", "proficiency_bonus", "bonus") == 3
+    end
+
+    test "only the first class grants saving throw proficiencies", %{system: system} do
+      values =
+        resolve(system,
+          decisions: [root("class", "fighter")],
+          level: 5,
+          level_classes: ["wizard", "wizard", "fighter", "fighter"]
+        )
+
+      saves =
+        Map.new(~w(strength constitution intelligence wisdom), fn ability ->
+          {ability, node(values, "saving_throw", ability, "modifier")}
+        end)
+
+      # proficiency bonus +3 at level 5; every ability modifier is 0
+      assert saves == %{"strength" => 3, "constitution" => 3, "intelligence" => 0, "wisdom" => 0}
+    end
+
+    test "only the first class grants first-level hit points; Con counts every level",
+         %{system: system} do
+      values =
+        resolve(system,
+          decisions: [root("class", "fighter")],
+          scores: %{"constitution" => 14},
+          level: 5,
+          level_classes: ["wizard", "wizard", "fighter", "fighter"]
+        )
+
+      # fighter 1st level: 10 + 2; Con +2 for each of the 4 later levels.
+      # Hit dice rolled for later levels are progression decisions (none here).
+      assert node(values, "character_trait", "max_hit_points", "points") == 20
+    end
+
+    test "taking a class needs its prerequisite and the current class's", %{system: system} do
+      wizard = fn scores ->
+        character(system, decisions: [root("class", "wizard")], scores: scores)
+      end
+
+      # fighter needs Str 13 or Dex 13; wizard (the current class) needs Int 13
+      assert {:error, {:multiclass_prerequisite_not_met, "fighter"}} =
+               Characters.level_up(system, wizard.(%{"intelligence" => 13}), class: "fighter")
+
+      assert {:error, {:multiclass_prerequisite_not_met, "wizard"}} =
+               Characters.level_up(system, wizard.(%{"dexterity" => 13}), class: "fighter")
+
+      assert {:ok, _} =
+               Characters.level_up(system, wizard.(%{"dexterity" => 13, "intelligence" => 13}),
+                 class: "fighter"
+               )
+    end
+
+    test "a multiclassed rogue grants light armor, thieves' tools and one skill",
+         %{system: system} do
+      character =
+        character(system,
+          decisions: [root("class", "wizard")],
+          level: 2,
+          level_classes: ["rogue"]
+        )
+
+      meta = Characters.concept_metadata(system, character, {"class", "rogue"})
+      assert meta["armor_proficiencies"] == ["Light Armor"]
+      assert meta["tool_proficiencies"] == ["Thieves' Tools"]
+      refute Map.has_key?(meta, "weapon_proficiencies")
+
+      {_effects, resolved} = Characters.resolved_state(system, character)
+      {:ok, %{choices: choices}} = Characters.pending_choices(system, character, resolved)
+
+      rogue_choices =
+        for %{scope_id: "rogue", id: id} <- choices, do: id
+
+      assert Enum.sort(rogue_choices) == ["skill_proficiency_1", "subclass"]
+    end
+
+    test "a multiclassed rogue grants no weapon proficiencies", %{system: system} do
+      values =
+        resolve(system,
+          decisions: [root("class", "wizard")],
+          level: 2,
+          level_classes: ["rogue"]
+        )
+
+      # rapier: a rogue weapon, but not a wizard's or a multiclassed rogue's
+      assert node(values, "equipment", "rapier", "is_proficient") == 0
+    end
+
+    test "Unarmored Defense isn't gained twice", %{system: system} do
+      # barbarian 1 / monk 1, Dex +0, Con +2, Wis +3: 10 + Dex + Con only
+      values =
+        resolve(system,
+          decisions: [root("class", "barbarian")],
+          scores: %{"constitution" => 14, "wisdom" => 16},
+          level: 2,
+          level_classes: ["monk"]
+        )
+
+      assert ac(values) == 12
+    end
+
+    test "a class the character doesn't have resolves its table at level 0", %{system: system} do
+      values = fighter_barbarian(system)
+
+      assert node(values, "class", "wizard", "level") == 0
+      assert node(values, "class", "wizard", "asi_slots") == 0
+    end
+  end
+
+  describe "multiclass spellcasting" do
+    defp slots(values),
+      do: for(n <- 1..9, do: node(values, "character_trait", "spell_slots", "level_#{n}"))
+
+    # `first` holds level 1; `record` the classes that gained levels 2 and up.
+    defp multiclass(system, first, record, opts \\ []) do
+      resolve(
+        system,
+        [decisions: [root("class", first)], level: length(record) + 1, level_classes: record] ++
+          opts
+      )
+    end
+
+    test "slots come from the combined caster level (SRD example: ranger 4 / wizard 3)",
+         %{system: system} do
+      values = multiclass(system, "ranger", ~w(ranger ranger ranger wizard wizard wizard))
+      assert slots(values) == [4, 3, 2, 0, 0, 0, 0, 0, 0]
+    end
+
+    test "a lone half caster uses its own table", %{system: system} do
+      assert slots(multiclass(system, "paladin", List.duplicate("paladin", 4))) ==
+               [4, 2, 0, 0, 0, 0, 0, 0, 0]
+    end
+
+    test "a half caster without Spellcasting yet doesn't make a multiclass caster",
+         %{system: system} do
+      # paladin 1 / wizard 3: only the wizard casts, so the wizard table at 3
+      values = multiclass(system, "paladin", ~w(wizard wizard wizard))
+      assert slots(values) == [4, 2, 0, 0, 0, 0, 0, 0, 0]
+    end
+
+    test "Pact Magic stays separate from spell slots", %{system: system} do
+      values = multiclass(system, "warlock", ~w(warlock wizard))
+
+      assert slots(values) == [2, 0, 0, 0, 0, 0, 0, 0, 0]
+      assert node(values, "character_trait", "pact_magic", "slot_count") == 2
+    end
+
+    test "each class casts with its own ability", %{system: system} do
+      # cleric 1 / wizard 1, Wis +3, Int +2, proficiency bonus +2
+      values =
+        multiclass(system, "cleric", ~w(wizard), scores: %{"wisdom" => 16, "intelligence" => 14})
+
+      dcs =
+        for c <- ~w(cleric wizard), into: %{}, do: {c, node(values, "class", c, "spell_save_dc")}
+
+      assert dcs == %{"cleric" => 13, "wizard" => 12}
+    end
+
+    test "the character-wide spellcasting modifier is set only for a single caster",
+         %{system: system} do
+      scores = %{"wisdom" => 16, "intelligence" => 14}
+      modifier = &node(&1, "character_trait", "spellcasting_ability_modifier", "value")
+
+      assert modifier.(multiclass(system, "wizard", [], scores: scores)) == 2
+      assert modifier.(multiclass(system, "cleric", ~w(wizard), scores: scores)) == 0
+      assert modifier.(multiclass(system, "fighter", ~w(wizard), scores: scores)) == 2
+    end
+
+    test "max spell level is the highest any class allows", %{system: system} do
+      values = multiclass(system, "cleric", ~w(wizard wizard wizard))
+      assert node(values, "character_trait", "max_spell_level", "level") == 2
     end
   end
 
