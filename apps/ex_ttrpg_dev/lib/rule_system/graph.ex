@@ -32,6 +32,7 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
       |> Enum.reduce(Graph.new(type: :directed), &Graph.add_vertex(&2, &1))
 
     with :ok <- validate_choice_options(concept_metadata),
+         :ok <- validate_multiclass_tables(nodes, concept_metadata, Map.get(loader_data, :module)),
          {:ok, graph} <- add_node_edges(graph, nodes),
          {:ok, graph} <- add_effect_edges(graph, nodes, effects),
          {:ok, graph} <- add_choice_contributes_edges(graph, nodes, concept_metadata),
@@ -54,6 +55,77 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
   @doc "Returns nodes in topological evaluation order."
   def topological_order(%{graph: graph}) do
     Graph.topsort(graph)
+  end
+
+  # A class's multiclass table is only read at level-up and on pending
+  # choices, so mistakes in it would otherwise surface long after loading.
+  defp validate_multiclass_tables(nodes, concept_metadata, %RuleModule{class_concept_type: type})
+       when is_binary(type) do
+    multiclass_key = Vocabulary.multiclass_key()
+
+    Enum.find_value(concept_metadata, :ok, fn
+      {{^type, id}, %{^multiclass_key => table} = meta} ->
+        check_multiclass_table("#{type}('#{id}').#{multiclass_key}", table, meta, nodes)
+
+      _ ->
+        nil
+    end)
+  end
+
+  defp validate_multiclass_tables(_nodes, _concept_metadata, _module), do: :ok
+
+  defp check_multiclass_table(path, table, meta, nodes) when is_map(table) do
+    check_multiclass_prerequisite(path, table["prerequisite"], nodes) ||
+      check_multiclass_choices(path, table["choices"], Map.get(meta, "choices", %{}))
+  end
+
+  defp check_multiclass_table(path, table, _meta, _nodes),
+    do: {:error, {:invalid_multiclass_table, "#{path} must be a table, got: #{inspect(table)}"}}
+
+  defp check_multiclass_prerequisite(_path, nil, _nodes), do: nil
+
+  defp check_multiclass_prerequisite(path, expr, nodes) when is_binary(expr) do
+    missing = Enum.find(Expression.extract_refs(expr), &(not Map.has_key?(nodes, &1)))
+
+    case {Expression.parse(expr), missing} do
+      {{:error, {:parse_error, message}}, _} ->
+        {:error, {:invalid_multiclass_table, "#{path}.prerequisite: #{message}"}}
+
+      {_, {type_id, concept_id, field}} ->
+        {:error,
+         {:undefined_ref,
+          "#{type_id}('#{concept_id}').#{field} referenced but not defined " <>
+            "(in #{path}.prerequisite)"}}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp check_multiclass_prerequisite(path, expr, _nodes) do
+    {:error,
+     {:invalid_multiclass_table,
+      "#{path}.prerequisite must be a formula string, got: #{inspect(expr)}"}}
+  end
+
+  defp check_multiclass_choices(_path, nil, _choices), do: nil
+
+  defp check_multiclass_choices(path, ids, choices) when is_list(ids) do
+    case Enum.find(ids, &(not Map.has_key?(choices, &1))) do
+      nil ->
+        nil
+
+      missing ->
+        {:error,
+         {:invalid_multiclass_table,
+          "#{path}.choices names #{inspect(missing)}, which isn't one of the class's choices"}}
+    end
+  end
+
+  defp check_multiclass_choices(path, ids, _choices) do
+    {:error,
+     {:invalid_multiclass_table,
+      "#{path}.choices must be a list of choice IDs, got: #{inspect(ids)}"}}
   end
 
   # A class's level is contributed by the character's level record, through

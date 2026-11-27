@@ -80,4 +80,49 @@ defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
                )
              end)
   end
+
+  describe "multiclass table validation" do
+    defp build_with_multiclass(table_toml) do
+      with {:ok, data} <-
+             load_modified_fixture(fn dir ->
+               classes = Path.join(dir, "concepts/classes.toml")
+
+               File.write!(
+                 classes,
+                 String.replace(
+                   File.read!(classes),
+                   ~s|[class.wizard.multiclass]\nprerequisite = "ability('intelligence').score >= 13"|,
+                   "[class.wizard.multiclass]\n" <> table_toml
+                 )
+               )
+             end) do
+        Graph.build(data)
+      end
+    end
+
+    test "accepts the fixture's tables" do
+      assert {:ok, _} = build_with_multiclass(~s(prerequisite = "true"))
+    end
+
+    test "rejects a prerequisite that doesn't parse" do
+      assert {:error, {:invalid_multiclass_table, message}} =
+               build_with_multiclass(~s|prerequisite = "ability('intelligence').score >="|)
+
+      assert message =~ "class('wizard').multiclass.prerequisite"
+    end
+
+    test "rejects a prerequisite referencing an undefined node" do
+      assert {:error, {:undefined_ref, message}} =
+               build_with_multiclass(~s|prerequisite = "ability('wisdom').score >= 13"|)
+
+      assert message =~ "ability('wisdom').score"
+    end
+
+    test "rejects choices the class doesn't declare" do
+      assert {:error, {:invalid_multiclass_table, message}} =
+               build_with_multiclass(~s(choices = ["skill_1"]))
+
+      assert message =~ ~s("skill_1")
+    end
+  end
 end
