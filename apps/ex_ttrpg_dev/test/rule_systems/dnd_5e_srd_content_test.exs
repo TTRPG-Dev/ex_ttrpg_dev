@@ -509,6 +509,19 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "equipment", "rapier", "is_proficient") == 0
     end
 
+    test "Unarmored Defense isn't gained twice", %{system: system} do
+      # barbarian 1 / monk 1, Dex +0, Con +2, Wis +3: 10 + Dex + Con only
+      values =
+        resolve(system,
+          decisions: [root("class", "barbarian")],
+          scores: %{"constitution" => 14, "wisdom" => 16},
+          level: 2,
+          level_classes: ["monk"]
+        )
+
+      assert ac(values) == 12
+    end
+
     test "a class the character doesn't have resolves its table at level 0", %{system: system} do
       values = fighter_barbarian(system)
 

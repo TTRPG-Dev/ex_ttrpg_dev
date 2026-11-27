@@ -111,6 +111,10 @@ value = "class('monk').asi_slots"
 [[class.monk.contributes]]
 target = "character_trait('armor_class').base"
 value = "ability('wisdom').modifier * (1 - min(1, character_trait('armor_worn').body + character_trait('armor_worn').shield))"
+# A character can't gain Unarmored Defense twice (SRD 5.0 Multiclassing).
+# A barbarian/monk keeps the barbarian's; content can't see which class came
+# first, so a monk who later takes barbarian also ends up with the barbarian's.
+when = "class('barbarian').level == 0"
 
 # Unarmored Movement: applies only without armor or a shield.
 [[class.monk.contributes]]
