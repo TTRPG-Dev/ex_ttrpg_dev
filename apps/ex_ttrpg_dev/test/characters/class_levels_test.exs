@@ -299,4 +299,46 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
       assert hp_roll(system, character) == "d10"
     end
   end
+
+  describe "a system whose levels start at 0" do
+    setup do
+      {:ok, data} =
+        Fixture.load_modified(fn dir ->
+          Fixture.replace_in(
+            dir,
+            "concepts/core.toml",
+            "level.steps = [[0, 1], [100, 2], [200, 3], [300, 4], [400, 5]]",
+            "level.steps = [[0, 0], [100, 1], [200, 2], [300, 3]]"
+          )
+        end)
+
+      {:ok, system: Fixture.build_system!(data)}
+    end
+
+    test "a level-0 character has no class levels", %{system: system} do
+      assert {:ok, %{}} == Characters.class_levels(system, Fixture.character("fighter"))
+    end
+
+    test "levelling to 1 gives the first class its first level", %{system: system} do
+      assert {:ok, leveled} = Characters.level_up(system, Fixture.character("fighter"))
+      assert leveled.level_classes == []
+      assert {:ok, %{"fighter" => 1}} == Characters.class_levels(system, leveled)
+    end
+
+    test "level 1 can't go to another class", %{system: system} do
+      character = Fixture.character("fighter", scores: %{"strength" => 13, "intelligence" => 13})
+
+      assert {:error, {:first_level_is_first_class, "wizard"}} =
+               Characters.level_up(system, character, class: "wizard")
+    end
+
+    test "level 2 is recorded as usual", %{system: system} do
+      character =
+        Fixture.character("fighter", xp: 100, scores: %{"strength" => 13, "intelligence" => 13})
+
+      assert {:ok, leveled} = Characters.level_up(system, character, class: "wizard")
+      assert leveled.level_classes == ["wizard"]
+      assert {:ok, %{"fighter" => 1, "wizard" => 1}} == Characters.class_levels(system, leveled)
+    end
+  end
 end

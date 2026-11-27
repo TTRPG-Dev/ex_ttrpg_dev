@@ -263,6 +263,8 @@ defmodule ExTTRPGDev.Characters do
   - `:class_levels_not_enabled` — `:class` given in a system without class levels
   - `:no_class` — the character has no class to level
   - `{:unknown_class, id}` — no concept of the class type has that ID
+  - `{:first_level_is_first_class, id}` — reaching level 1 (in a system whose
+    levels start at 0) with a class other than the one chosen at creation
   - `{:not_multiclassable, id}` — a new class without a `multiclass` table
   - `{:multiclass_prerequisite_not_met, id}` — `id`'s prerequisite isn't met
   - `{:invalid_multiclass_prerequisite, id, reason}` — `id`'s prerequisite

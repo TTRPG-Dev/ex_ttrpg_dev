@@ -73,20 +73,36 @@ defmodule ExTTRPGDev.Characters.ClassLevels do
     with first when not is_nil(first) <- first_class(system, character),
          class_id = class_id || first,
          :ok <- check_class_exists(system, class_id),
+         :ok <- check_first_level(class_id, first, next_level),
          held = held_classes(character, first, next_level - 1),
          :ok <- check_can_take(system, character, class_id, held) do
-      # Levels reached without a record (e.g. through XP awards) went to
-      # the first class; writing that down keeps the new entry at the
-      # level it's for.
-      reached = next_level - 2
-      recorded = Enum.take(character.level_classes, reached)
-      padding = List.duplicate(first, reached - length(recorded))
-
-      {:ok, recorded ++ padding ++ [class_id]}
+      {:ok, append_level(character.level_classes, first, next_level, class_id)}
     else
       nil -> {:error, :no_class}
       {:error, _} = error -> error
     end
+  end
+
+  # Level 1 belongs to the class chosen at creation. It's reached by
+  # level-up only in a system whose levels start at 0.
+  defp check_first_level(class_id, first, next_level) when next_level <= 1 and class_id != first,
+    do: {:error, {:first_level_is_first_class, class_id}}
+
+  defp check_first_level(_class_id, _first, _next_level), do: :ok
+
+  # Level 1 isn't recorded, so reaching it leaves the record as it is.
+  defp append_level(level_classes, _first, next_level, _class_id) when next_level <= 1,
+    do: level_classes
+
+  # Levels reached without a record (e.g. through XP awards) went to the
+  # first class; writing that down keeps the new entry at the level it's
+  # for.
+  defp append_level(level_classes, first, next_level, class_id) do
+    reached = next_level - 2
+    recorded = Enum.take(level_classes, reached)
+    padding = List.duplicate(first, reached - length(recorded))
+
+    recorded ++ padding ++ [class_id]
   end
 
   defp check_class_exists(system, class_id) do
@@ -283,6 +299,10 @@ defmodule ExTTRPGDev.Characters.ClassLevels do
       when: "#{total} > #{recorded + 1}"
     }
 
-    [%Effect{target: target.(first), value: 1} | recorded_effects] ++ [unrecorded]
+    # Conditioned too: in a system whose levels start at 0, a level-0
+    # character has no class levels yet.
+    first_level = %Effect{target: target.(first), value: 1, when: "#{total} >= 1"}
+
+    [first_level | recorded_effects] ++ [unrecorded]
   end
 end
