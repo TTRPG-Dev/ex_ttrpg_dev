@@ -18,6 +18,18 @@ mystic_arcanum_level.type = "mapping"
 mystic_arcanum_level.input = "class('warlock').level"
 mystic_arcanum_level.steps = [[0, 0], [1, 0], [11, 6], [13, 7], [15, 8], [17, 9]]
 
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.warlock.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[class.warlock.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[[class.warlock.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "1"
+
 # Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
 # reduced proficiencies and choices it grants as a second or later class.
 [class.warlock.multiclass]
@@ -84,6 +96,9 @@ first_class_only = true
 [[class.warlock.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('charisma').modifier"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.warlock.contributes]]
 target = "character_trait('pact_magic').slot_count"
@@ -100,10 +115,6 @@ value = "class('warlock').cantrips_known_count"
 [[class.warlock.contributes]]
 target = "character_trait('spells_known').count"
 value = "class('warlock').spells_known_count"
-
-[[class.warlock.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('warlock').pact_slot_level"
 
 [class.warlock.pact_slot_count]
 type = "mapping"

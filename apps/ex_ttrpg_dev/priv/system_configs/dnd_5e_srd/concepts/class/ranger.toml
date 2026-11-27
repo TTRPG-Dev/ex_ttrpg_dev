@@ -22,6 +22,31 @@ attacks_per_action.type = "mapping"
 attacks_per_action.input = "class('ranger').level"
 attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
 
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.ranger.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[class.ranger.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[[class.ranger.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "min(1, floor(class('ranger').level / 2))"
+
+# Half casters gain the Spellcasting feature at 2nd level.
+[[class.ranger.contributes]]
+target = "character_trait('spellcasting_classes').half"
+value = "min(1, floor(class('ranger').level / 2))"
+
+[[class.ranger.contributes]]
+target = "character_trait('caster_level').level"
+value = "floor(class('ranger').level / 2)"
+
+[[class.ranger.contributes]]
+target = "character_trait('half_caster_level').level"
+value = "class('ranger').level * min(1, floor(class('ranger').level / 2))"
+
 # Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
 # reduced proficiencies and choices it grants as a second or later class.
 [class.ranger.multiclass]
@@ -106,34 +131,13 @@ first_class_only = true
 [[class.ranger.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('wisdom').modifier"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('half_caster_slots').level_1"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('half_caster_slots').level_2"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('half_caster_slots').level_3"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('half_caster_slots').level_4"
-
-[[class.ranger.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('half_caster_slots').level_5"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.ranger.contributes]]
 target = "character_trait('spells_known').count"
 value = "class('ranger').spells_known_count"
-
-[[class.ranger.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('ranger').max_spell_level"
 
 [class.ranger.spells_known_count]
 type = "mapping"

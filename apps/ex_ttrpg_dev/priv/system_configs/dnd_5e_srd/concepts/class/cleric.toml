@@ -19,6 +19,26 @@ destroy_undead_cr.type = "mapping"
 destroy_undead_cr.input = "class('cleric').level"
 destroy_undead_cr.steps = [[0, 0], [1, 0], [5, 0.5], [8, 1], [11, 2], [14, 3], [17, 4]]
 
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.cleric.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[class.cleric.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[[class.cleric.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "1"
+
+[[class.cleric.contributes]]
+target = "character_trait('spellcasting_classes').full"
+value = 1
+
+[[class.cleric.contributes]]
+target = "character_trait('caster_level').level"
+value = "class('cleric').level"
+
 # Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
 # reduced proficiencies and choices it grants as a second or later class.
 [class.cleric.multiclass]
@@ -68,50 +88,13 @@ first_class_only = true
 [[class.cleric.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('wisdom').modifier"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('full_caster_slots').level_1"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('full_caster_slots').level_2"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('full_caster_slots').level_3"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('full_caster_slots').level_4"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('full_caster_slots').level_5"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_6"
-value = "character_trait('full_caster_slots').level_6"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_7"
-value = "character_trait('full_caster_slots').level_7"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_8"
-value = "character_trait('full_caster_slots').level_8"
-
-[[class.cleric.contributes]]
-target = "character_trait('spell_slots').level_9"
-value = "character_trait('full_caster_slots').level_9"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.cleric.contributes]]
 target = "character_trait('cantrips_known').count"
 value = "class('cleric').cantrips_known_count"
-
-[[class.cleric.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('cleric').max_spell_level"
 
 [class.cleric.cantrips_known_count]
 type = "mapping"

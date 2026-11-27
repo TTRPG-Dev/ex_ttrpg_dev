@@ -29,6 +29,31 @@ aura_range.steps = [[0, 0], [1, 0], [6, 10], [18, 30]]
 # Aura of Protection: saving throw bonus (Cha modifier, minimum +1) from 6th level.
 aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, class('paladin').level - 5))"
 
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.paladin.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[class.paladin.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('charisma').modifier"
+
+[[class.paladin.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "min(1, floor(class('paladin').level / 2))"
+
+# Half casters gain the Spellcasting feature at 2nd level.
+[[class.paladin.contributes]]
+target = "character_trait('spellcasting_classes').half"
+value = "min(1, floor(class('paladin').level / 2))"
+
+[[class.paladin.contributes]]
+target = "character_trait('caster_level').level"
+value = "floor(class('paladin').level / 2)"
+
+[[class.paladin.contributes]]
+target = "character_trait('half_caster_level').level"
+value = "class('paladin').level * min(1, floor(class('paladin').level / 2))"
+
 # Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
 # reduced proficiencies and choices it grants as a second or later class.
 [class.paladin.multiclass]
@@ -79,30 +104,9 @@ first_class_only = true
 [[class.paladin.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('charisma').modifier"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('half_caster_slots').level_1"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('half_caster_slots').level_2"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('half_caster_slots').level_3"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('half_caster_slots').level_4"
-
-[[class.paladin.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('half_caster_slots').level_5"
-
-[[class.paladin.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('paladin').max_spell_level"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [class.paladin.max_spell_level]
 type = "mapping"

@@ -637,35 +637,42 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     test "full caster (wizard) level 1: 2 first-level slots only",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "wizard")
+      effects = class_effects(system, "wizard") ++ [class_level_effect("wizard", 1)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [2, 0, 0, 0, 0, 0, 0, 0, 0]
     end
 
     test "full caster (wizard) level 5: 4/3/2 slots for levels 1-3",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "wizard") ++ [xp_effect(6500)]
+      effects =
+        class_effects(system, "wizard") ++ [xp_effect(6500), class_level_effect("wizard", 5)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [4, 3, 2, 0, 0, 0, 0, 0, 0]
     end
 
     test "full caster (wizard) level 11: gains 6th-level slots",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "wizard") ++ [xp_effect(85_000)]
+      effects =
+        class_effects(system, "wizard") ++
+          [xp_effect(85_000), class_level_effect("wizard", 11)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [4, 3, 3, 3, 2, 1, 0, 0, 0]
     end
 
     test "half caster (paladin) level 1: no spell slots",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "paladin")
+      effects = class_effects(system, "paladin") ++ [class_level_effect("paladin", 1)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [0, 0, 0, 0, 0, 0, 0, 0, 0]
     end
 
     test "half caster (paladin) level 5: 4/2 slots for levels 1-2",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "paladin") ++ [xp_effect(6500)]
+      effects =
+        class_effects(system, "paladin") ++ [xp_effect(6500), class_level_effect("paladin", 5)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert spell_slots(resolved) == [4, 2, 0, 0, 0, 0, 0, 0, 0]
     end

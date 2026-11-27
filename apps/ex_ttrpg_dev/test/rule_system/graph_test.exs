@@ -310,7 +310,9 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     # + 4 preparation_cap formula nodes (cleric, druid, paladin, wizard) + 1 paladin half_level mapping = 5 nodes (total: 196)
     # (later class-table additions bring the authored total to 242)
     # + 24 synthesized class level nodes (12 classes + 12 subclasses) = 266
-    assert map_size(system.nodes) == 266
+    # + caster_level, half_caster_level, 4 spellcasting_classes nodes
+    #   + spell_save_dc / spell_attack_bonus for 8 caster classes = 22 (total: 288)
+    assert map_size(system.nodes) == 288
     # topological_order returns false if cyclic, a list if acyclic
     assert is_list(Graph.topological_order(system))
   end

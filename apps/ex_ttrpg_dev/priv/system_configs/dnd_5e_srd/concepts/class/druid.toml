@@ -30,6 +30,26 @@ wild_shape_fly.type = "mapping"
 wild_shape_fly.input = "class('druid').level"
 wild_shape_fly.steps = [[0, 0], [1, 0], [8, 1]]
 
+# Spellcasting for this class: its own ability, DC and attack bonus. A
+# multiclassed caster has one of each per class (SRD 5.0 Multiclassing).
+[class.druid.spell_save_dc]
+formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[class.druid.spell_attack_bonus]
+formula = "character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
+
+[[class.druid.contributes]]
+target = "character_trait('spellcasting_classes').sources"
+value = "1"
+
+[[class.druid.contributes]]
+target = "character_trait('spellcasting_classes').full"
+value = 1
+
+[[class.druid.contributes]]
+target = "character_trait('caster_level').level"
+value = "class('druid').level"
+
 # Multiclassing (SRD 5.0): the prerequisite to take or leave this class, and the
 # reduced proficiencies and choices it grants as a second or later class.
 [class.druid.multiclass]
@@ -97,50 +117,13 @@ first_class_only = true
 [[class.druid.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
 value = "ability('wisdom').modifier"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_1"
-value = "character_trait('full_caster_slots').level_1"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_2"
-value = "character_trait('full_caster_slots').level_2"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_3"
-value = "character_trait('full_caster_slots').level_3"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_4"
-value = "character_trait('full_caster_slots').level_4"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_5"
-value = "character_trait('full_caster_slots').level_5"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_6"
-value = "character_trait('full_caster_slots').level_6"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_7"
-value = "character_trait('full_caster_slots').level_7"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_8"
-value = "character_trait('full_caster_slots').level_8"
-
-[[class.druid.contributes]]
-target = "character_trait('spell_slots').level_9"
-value = "character_trait('full_caster_slots').level_9"
+# Character-wide only for a single spellcasting class; multiclassed
+# casters use each class's spell_save_dc / spell_attack_bonus.
+when = "character_trait('spellcasting_classes').sources == 1"
 
 [[class.druid.contributes]]
 target = "character_trait('cantrips_known').count"
 value = "class('druid').cantrips_known_count"
-
-[[class.druid.contributes]]
-target = "character_trait('max_spell_level').level"
-value = "class('druid').max_spell_level"
 
 [class.druid.cantrips_known_count]
 type = "mapping"

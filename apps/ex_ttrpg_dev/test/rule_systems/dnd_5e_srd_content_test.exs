@@ -517,6 +517,71 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
     end
   end
 
+  describe "multiclass spellcasting" do
+    defp slots(values),
+      do: for(n <- 1..9, do: node(values, "character_trait", "spell_slots", "level_#{n}"))
+
+    # `first` holds level 1; `record` the classes that gained levels 2 and up.
+    defp multiclass(system, first, record, opts \\ []) do
+      resolve(
+        system,
+        [decisions: [root("class", first)], level: length(record) + 1, level_classes: record] ++
+          opts
+      )
+    end
+
+    test "slots come from the combined caster level (SRD example: ranger 4 / wizard 3)",
+         %{system: system} do
+      values = multiclass(system, "ranger", ~w(ranger ranger ranger wizard wizard wizard))
+      assert slots(values) == [4, 3, 2, 0, 0, 0, 0, 0, 0]
+    end
+
+    test "a lone half caster uses its own table", %{system: system} do
+      assert slots(multiclass(system, "paladin", List.duplicate("paladin", 4))) ==
+               [4, 2, 0, 0, 0, 0, 0, 0, 0]
+    end
+
+    test "a half caster without Spellcasting yet doesn't make a multiclass caster",
+         %{system: system} do
+      # paladin 1 / wizard 3: only the wizard casts, so the wizard table at 3
+      values = multiclass(system, "paladin", ~w(wizard wizard wizard))
+      assert slots(values) == [4, 2, 0, 0, 0, 0, 0, 0, 0]
+    end
+
+    test "Pact Magic stays separate from spell slots", %{system: system} do
+      values = multiclass(system, "warlock", ~w(warlock wizard))
+
+      assert slots(values) == [2, 0, 0, 0, 0, 0, 0, 0, 0]
+      assert node(values, "character_trait", "pact_magic", "slot_count") == 2
+    end
+
+    test "each class casts with its own ability", %{system: system} do
+      # cleric 1 / wizard 1, Wis +3, Int +2, proficiency bonus +2
+      values =
+        multiclass(system, "cleric", ~w(wizard), scores: %{"wisdom" => 16, "intelligence" => 14})
+
+      dcs =
+        for c <- ~w(cleric wizard), into: %{}, do: {c, node(values, "class", c, "spell_save_dc")}
+
+      assert dcs == %{"cleric" => 13, "wizard" => 12}
+    end
+
+    test "the character-wide spellcasting modifier is set only for a single caster",
+         %{system: system} do
+      scores = %{"wisdom" => 16, "intelligence" => 14}
+      modifier = &node(&1, "character_trait", "spellcasting_ability_modifier", "value")
+
+      assert modifier.(multiclass(system, "wizard", [], scores: scores)) == 2
+      assert modifier.(multiclass(system, "cleric", ~w(wizard), scores: scores)) == 0
+      assert modifier.(multiclass(system, "fighter", ~w(wizard), scores: scores)) == 2
+    end
+
+    test "max spell level is the highest any class allows", %{system: system} do
+      values = multiclass(system, "cleric", ~w(wizard wizard wizard))
+      assert node(values, "character_trait", "max_spell_level", "level") == 2
+    end
+  end
+
   describe "races" do
     test "Elf Keen Senses grants Perception proficiency", %{system: system} do
       values = resolve(system, decisions: [root("race", "elf")])
