@@ -98,6 +98,35 @@ defmodule ExTTRPGDev.RuleSystem.RuleModuleTest do
     assert pkg.level_node == nil
   end
 
+  test "from_map/1 defaults class_concept_type to nil when absent" do
+    assert {:ok, %RuleModule{class_concept_type: nil}} = RuleModule.from_map(@valid_map)
+  end
+
+  test "from_map/1 parses class_concept_type naming a declared type" do
+    map =
+      @valid_map
+      |> put_in(["module", "level_node"], "attr('level').value")
+      |> put_in(["module", "class_concept_type"], "skill")
+
+    assert {:ok, %RuleModule{class_concept_type: "skill"}} = RuleModule.from_map(map)
+  end
+
+  test "from_map/1 rejects a class_concept_type that isn't a declared type" do
+    map =
+      @valid_map
+      |> put_in(["module", "level_node"], "attr('level').value")
+      |> put_in(["module", "class_concept_type"], "class")
+
+    assert {:error, {:unknown_class_concept_type, "class"}} = RuleModule.from_map(map)
+  end
+
+  test "from_map/1 rejects a class_concept_type without a level_node" do
+    map = put_in(@valid_map, ["module", "class_concept_type"], "skill")
+
+    assert {:error, {:class_concept_type_requires_level_node, "skill"}} =
+             RuleModule.from_map(map)
+  end
+
   test "from_map/1 parses metadata_contributions with label_filters" do
     map =
       Map.put(@valid_map, "metadata_contributions", [
