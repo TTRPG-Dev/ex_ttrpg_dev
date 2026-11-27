@@ -239,6 +239,42 @@ defmodule ExTTRPGDev.Characters do
   defdelegate class_levels(system, character), to: ClassLevels
 
   @doc """
+  Raises a character to its next level: adds the XP that level needs and,
+  in a system with a `class_concept_type`, records which class gained it.
+
+  Options:
+
+  - `:class` — the class concept ID gaining the level. Defaults to the class
+    chosen at creation. Must be given only in a system with class levels.
+
+  A class the character already has can always gain a level. Taking a new
+  class (multiclassing) needs the class to declare a `multiclass` table, and
+  the `prerequisite` in the multiclass tables of the new class and of every
+  class the character already has to be met.
+
+  Levels the character reached without a record (e.g. through XP awards)
+  are written down as the first class's, so the new entry lands at the level
+  it's for. Record entries for levels above the current one are dropped.
+
+  Returns `{:ok, updated_character}`, with freshly recomputed
+  `pending_choice_slots`, or `{:error, reason}`:
+
+  - `:max_level` / `:no_level_thresholds` — from `xp_to_next_level/2`
+  - `:class_levels_not_enabled` — `:class` given in a system without class levels
+  - `:no_class` — the character has no class to level
+  - `{:unknown_class, id}` — no concept of the class type has that ID
+  - `{:not_multiclassable, id}` — a new class without a `multiclass` table
+  - `{:multiclass_prerequisite_not_met, id}` — `id`'s prerequisite isn't met
+  - `{:invalid_multiclass_prerequisite, id, reason}` — `id`'s prerequisite
+    failed to evaluate
+
+  ```elixir
+  {:ok, character} = Characters.level_up(system, character, class: "fighter")
+  ```
+  """
+  def level_up(system, character, opts \\ []), do: ClassLevels.level_up(system, character, opts)
+
+  @doc """
   Applies an award concept to a character.
 
   Awards are concepts of the reserved `award` type whose metadata declares a

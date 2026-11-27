@@ -76,4 +76,93 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
                Characters.class_levels(system, %Character{effects: []})
     end
   end
+
+  describe "level_up/3" do
+    @strong %{"strength" => 13}
+    @strong_and_smart %{"strength" => 13, "intelligence" => 13}
+
+    test "gains a level in the first class by default", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(2))
+
+      assert {:ok, leveled} = Characters.level_up(system, character)
+      assert leveled.level_classes == ["fighter", "fighter"]
+      assert {:ok, %{"fighter" => 3}} == Characters.class_levels(system, leveled)
+    end
+
+    test "records the named class", %{system: system} do
+      character = Fixture.character("fighter", scores: @strong_and_smart)
+
+      assert {:ok, leveled} = Characters.level_up(system, character, class: "wizard")
+      assert leveled.level_classes == ["wizard"]
+      assert {:ok, %{"fighter" => 1, "wizard" => 1}} == Characters.class_levels(system, leveled)
+    end
+
+    test "writes down unrecorded levels as the first class's", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(3), scores: @strong_and_smart)
+
+      assert {:ok, leveled} = Characters.level_up(system, character, class: "wizard")
+      assert leveled.level_classes == ["fighter", "fighter", "wizard"]
+    end
+
+    test "can level a class the character already has", %{system: system} do
+      character =
+        Fixture.character("fighter", xp: xp_for(2), level_classes: ["wizard"], scores: @strong)
+
+      assert {:ok, leveled} = Characters.level_up(system, character, class: "wizard")
+      assert {:ok, %{"fighter" => 1, "wizard" => 2}} == Characters.class_levels(system, leveled)
+    end
+
+    test "rejects a new class whose prerequisite isn't met", %{system: system} do
+      character = Fixture.character("fighter", scores: @strong)
+
+      assert {:error, {:multiclass_prerequisite_not_met, "wizard"}} =
+               Characters.level_up(system, character, class: "wizard")
+    end
+
+    test "rejects a new class when a held class's prerequisite isn't met", %{system: system} do
+      character = Fixture.character("fighter", scores: %{"intelligence" => 13})
+
+      assert {:error, {:multiclass_prerequisite_not_met, "fighter"}} =
+               Characters.level_up(system, character, class: "wizard")
+    end
+
+    test "rejects a class without a multiclass table", %{system: system} do
+      character = Fixture.character("fighter", scores: @strong_and_smart)
+
+      assert {:error, {:not_multiclassable, "champion"}} =
+               Characters.level_up(system, character, class: "champion")
+    end
+
+    test "rejects an unknown class", %{system: system} do
+      assert {:error, {:unknown_class, "bard"}} =
+               Characters.level_up(system, Fixture.character("fighter"), class: "bard")
+    end
+
+    test "rejects a character without a class", %{system: system} do
+      character = %{Fixture.character("fighter") | decisions: []}
+      assert {:error, :no_class} = Characters.level_up(system, character)
+    end
+
+    test "reports :max_level at the highest level", %{system: system} do
+      assert {:error, :max_level} =
+               Characters.level_up(system, Fixture.character("fighter", xp: xp_for(5)))
+    end
+
+    test "levels a character in a system without class levels" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      character = Character.gen_character!(system)
+
+      assert {:ok, leveled} = Characters.level_up(system, character)
+      assert {:ok, 600, 3} = Characters.xp_to_next_level(system, leveled)
+      assert leveled.level_classes == []
+    end
+
+    test "rejects :class in a system without class levels" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      character = %Character{effects: [], decisions: [], generated_values: %{}}
+
+      assert {:error, :class_levels_not_enabled} =
+               Characters.level_up(system, character, class: "fighter")
+    end
+  end
 end

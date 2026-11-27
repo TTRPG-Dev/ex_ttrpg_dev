@@ -137,6 +137,14 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   resolves to `0`. `level` is reserved on those concepts: authoring a
   `level` node there fails the load with `{:reserved_class_level_field, ref}`.
 
+  A class concept may declare a `"multiclass"` table governing taking it as
+  a character's second or later class (see `ExTTRPGDev.Characters.level_up/3`).
+  A class without one can only be a character's first class. Keys:
+
+  - `"prerequisite"` *(formula string, optional)* — must evaluate truthy
+    for a character to take the class as an additional class, and for a
+    character who has the class to take any other.
+
   ### Note: CLI-only keys
 
   The following keys are consumed by `ttrpg_dev_cli`, not by this library:
