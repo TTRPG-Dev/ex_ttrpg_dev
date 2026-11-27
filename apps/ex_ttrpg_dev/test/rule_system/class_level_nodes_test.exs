@@ -1,5 +1,6 @@
 defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
 
   alias ExTTRPGDev.RuleSystem.{Graph, Loader, Node}
   alias ExTTRPGDevTest.ClassLevelsFixture
@@ -62,6 +63,24 @@ defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
                  ~s(concept_type = "skill")
                )
              end)
+  end
+
+  test "a multiclass table outside the class concept type is warned about" do
+    log =
+      capture_log(fn ->
+        {:ok, _data} =
+          load_modified_fixture(fn dir ->
+            ClassLevelsFixture.replace_in(
+              dir,
+              "concepts/core.toml",
+              ~s([skill.arcana]\nname = "Arcana"),
+              ~s([skill.arcana]\nname = "Arcana"\n\n[skill.arcana.multiclass]\nprerequisite = "true")
+            )
+          end)
+      end)
+
+    assert log =~ ~s|"multiclass" table on "skill" concept(s)|
+    assert log =~ "arcana"
   end
 
   test "a class that authors its own level field is rejected" do

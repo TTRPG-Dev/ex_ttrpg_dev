@@ -228,6 +228,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
          {:ok, inventory_rules} <- build_inventory_rules(source.inventory_rules) do
       data = expand_metadata_contributions(data, rule_module)
       warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
+      warn_misplaced_multiclass_tables(data.concept_metadata, rule_module)
       warn_rolling_method_issues(data)
       warn_roll_definition_issues(data.concept_metadata)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
@@ -674,6 +675,33 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
           "in system #{inspect(rule_module.slug)}: #{id_str}. " <>
           "If intentional, add #{inspect(key)} to custom_metadata_keys in module.toml. " <>
           "See ExTTRPGDev.RuleSystem.Loader for the structural vocabulary."
+      )
+    end)
+  end
+
+  # `multiclass` is structural vocabulary, so the unknown-key warning lets
+  # it through anywhere. It only means something on the class concept type,
+  # though, and on any other concept it's silently ignored.
+  defp warn_misplaced_multiclass_tables(concept_metadata, rule_module) do
+    key = Vocabulary.multiclass_key()
+    class_type = rule_module.class_concept_type
+
+    concept_metadata
+    |> Enum.filter(fn {{type_id, _id}, meta} ->
+      type_id != class_type and Map.has_key?(meta, key)
+    end)
+    |> Enum.group_by(fn {{type_id, _id}, _meta} -> type_id end, fn {{_, id}, _} -> id end)
+    |> Enum.sort()
+    |> Enum.each(fn {type_id, ids} ->
+      reason =
+        if class_type,
+          do: "only concepts of the class_concept_type #{inspect(class_type)} take one",
+          else: "the system declares no class_concept_type"
+
+      Logger.warning(
+        "#{inspect(key)} table on #{inspect(type_id)} concept(s) in system " <>
+          "#{inspect(rule_module.slug)}: #{ids |> Enum.sort() |> Enum.join(", ")}. " <>
+          "It's ignored: #{reason}."
       )
     end)
   end
