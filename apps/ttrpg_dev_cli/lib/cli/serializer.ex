@@ -53,12 +53,40 @@ defmodule ExTTRPGDev.CLI.Serializer do
       name: character.name,
       rule_system: character.metadata.rule_system,
       slug: slug,
+      class_levels: serialize_class_levels(system, character),
       choices: serialize_choices(system, character),
       character_lists: serialize_character_lists(system, character, active, display_mode),
       concept_types:
         serialize_concept_type_values(system, resolved_by_concept, inventory_ids, active),
       selected_concepts: serialize_selected_concepts(system, character, display_mode)
     }
+  end
+
+  # Each class the character has levels in, first class (its creation
+  # choice) first, then in the order they were taken. Empty for a system
+  # without class levels.
+  defp serialize_class_levels(%LoadedSystem{} = system, %Character{} = character) do
+    case Characters.class_levels(system, character) do
+      {:ok, levels} ->
+        class_type = system.module.class_concept_type
+
+        first =
+          Enum.find_value(character.decisions, fn
+            %Decision{scope: nil, choice: ^class_type, selection: id} -> id
+            _ -> nil
+          end)
+
+        [first | character.level_classes]
+        |> Enum.uniq()
+        |> Enum.filter(&Map.has_key?(levels, &1))
+        |> Enum.map(fn id ->
+          name = get_in(system.concept_metadata, [{class_type, id}, "name"]) || id
+          %{id: id, name: name, level: levels[id]}
+        end)
+
+      {:error, :class_levels_not_enabled} ->
+        []
+    end
   end
 
   def serialize_choices_list(choices, system, display_mode) do

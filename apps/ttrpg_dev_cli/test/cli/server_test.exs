@@ -1215,6 +1215,16 @@ defmodule ExTTRPGDev.CLI.ServerTest do
       refute "Rapier" in list_items(data, "Weapon Proficiencies")
     end
 
+    test "the sheet lists class levels, first class first" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
+
+      assert data.class_levels == [
+               %{id: "wizard", name: "Wizard", level: 1},
+               %{id: "rogue", name: "Rogue", level: 1}
+             ]
+    end
+
     test "the sheet shows a multiclassed class's values" do
       system = RuleSystems.load_system!("dnd_5e_srd")
       data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
