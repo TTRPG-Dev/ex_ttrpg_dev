@@ -174,11 +174,11 @@ defmodule ExTTRPGDev.RuleSystem.ExpressionTest do
     test "dice/2 builds a dice value from computed arguments" do
       formula = "dice(ceil(character_trait('character_level').level / 2), 6)"
 
-      assert {:ok, %Dice{count: 3, sides: 6}} = Expression.evaluate(formula, %{@level => 5})
+      assert {:ok, %Dice{terms: [{3, 6}]}} = Expression.evaluate(formula, %{@level => 5})
     end
 
     test "dice/2 accepts a zero count" do
-      assert {:ok, %Dice{count: 0, sides: 6}} = Expression.evaluate("dice(0, 6)", %{})
+      assert {:ok, %Dice{terms: [{0, 6}]}} = Expression.evaluate("dice(0, 6)", %{})
     end
 
     test "dice with the wrong arity names the expected call" do
@@ -193,30 +193,37 @@ defmodule ExTTRPGDev.RuleSystem.ExpressionTest do
     end
 
     test "offsets, sums and scales dice" do
-      assert {:ok, %Dice{count: 2, sides: 6, modifier: 3}} =
+      assert {:ok, %Dice{terms: [{2, 6}], modifier: 3}} =
                Expression.evaluate("dice(2, 6) + 3", %{})
 
       assert {:ok, %Dice{modifier: -1}} = Expression.evaluate("dice(1, 8) - 1", %{})
 
-      assert {:ok, %Dice{count: 3, sides: 6}} =
+      assert {:ok, %Dice{terms: [{3, 6}]}} =
                Expression.evaluate("dice(1, 6) + dice(2, 6)", %{})
 
-      assert {:ok, %Dice{count: 5, sides: 4, multiplier: 10}} =
+      assert {:ok, %Dice{terms: [{5, 4}], multiplier: 10}} =
                Expression.evaluate("dice(5, 4) * 10", %{})
 
       assert {:ok, %Dice{modifier: 2}} = Expression.evaluate("2 + dice(1, 6)", %{})
     end
 
+    test "pools dice of different sizes" do
+      bindings = %{{"equipment", "greatsword", "damage"} => Dice.parse!("2d6+3")}
+
+      assert {:ok, %Dice{terms: [{2, 6}, {1, 8}], modifier: 3}} =
+               Expression.evaluate("equipment('greatsword').damage + dice(1, 8)", bindings)
+    end
+
     test "dice flow through references" do
       bindings = %{{"class", "monk", "martial_arts"} => Dice.parse!("1d6")}
 
-      assert {:ok, %Dice{count: 1, sides: 6, modifier: 2}} =
+      assert {:ok, %Dice{terms: [{1, 6}], modifier: 2}} =
                Expression.evaluate("class('monk').martial_arts + 2", bindings)
     end
 
     test "mixing incompatible values is an eval error" do
       for formula <- [
-            "dice(1, 6) + dice(1, 8)",
+            "dice(1, 6) * 10 + dice(1, 8)",
             "dice(1, 6) / 2",
             "dice(1, 6) - dice(1, 6)",
             "10 - dice(1, 6)",

@@ -742,11 +742,18 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
       ]
 
       assert {:ok, resolved} = Evaluator.evaluate(dice_accumulator_system(), %{}, effects)
-      assert resolved[@target] == %Dice{count: 3, sides: 6, modifier: 3}
+      assert resolved[@target] == %Dice{terms: [{3, 6}], modifier: 3}
+    end
+
+    test "pool contributions of a different die size" do
+      effects = [%Effect{target: @target, value: "dice(1, 8)"}]
+
+      assert {:ok, resolved} = Evaluator.evaluate(dice_accumulator_system(), %{}, effects)
+      assert to_string(resolved[@target]) == "2d6+1d8"
     end
 
     test "reject an incompatible contribution instead of raising" do
-      effects = [%Effect{target: @target, value: "dice(1, 8)"}]
+      effects = [%Effect{target: @target, value: "dice(1, 8) * 10"}]
 
       assert {:error, {:invalid_contribution, message, @target}} =
                Evaluator.evaluate(dice_accumulator_system(), %{}, effects)
@@ -802,7 +809,7 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
         effects: []
       })
 
-    assert {:error, {:mapping_non_numeric_input, %Dice{count: 1, sides: 6}}} =
+    assert {:error, {:mapping_non_numeric_input, %Dice{terms: [{1, 6}]}}} =
              Evaluator.evaluate(system, %{})
   end
 end

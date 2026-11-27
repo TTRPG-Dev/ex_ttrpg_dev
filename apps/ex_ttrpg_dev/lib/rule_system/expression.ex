@@ -29,11 +29,12 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
   `dice(count, sides)` produces a dice value (`ExTTRPGDev.RuleSystem.Dice`)
   for dice that are computed, e.g.
   `dice(ceil(class('rogue').level / 2), 6)`. Both arguments must be
-  integers. Dice combine with `+` and `-` (an integer offset, or dice of
-  the same size) and `*` (a positive integer, scaling the rolled total);
-  see `ExTTRPGDev.RuleSystem.Dice` for the exact rules. Any other use of a
-  dice value — division, negation, comparison, numeric functions, mixing
-  die sizes — is an eval error.
+  integers. Dice combine with `+` and `-` (an integer offset, or more dice
+  of any size, pooled: `2d6 + 1d8` is `2d6+1d8`) and `*` (a positive
+  integer, scaling the rolled total); see `ExTTRPGDev.RuleSystem.Dice` for
+  the exact rules. Any other use of a dice value — division, negation,
+  comparison, numeric functions, pooling dice with different multipliers —
+  is an eval error.
 
   Anything outside this grammar returns `{:error, {:parse_error, message,
   formula}}`; calling an unknown function returns `{:error, {:eval_error,

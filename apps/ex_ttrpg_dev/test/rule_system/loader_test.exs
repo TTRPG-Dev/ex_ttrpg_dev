@@ -847,7 +847,7 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
 
     assert log == ""
 
-    assert %Node{steps: [[1, %Dice{count: 1, sides: 4}], [5, %Dice{count: 1, sides: 6}], [11, 8]]} =
+    assert %Node{steps: [[1, %Dice{terms: [{1, 4}]}], [5, %Dice{terms: [{1, 6}]}], [11, 8]]} =
              data.nodes[{"class", "monk", "martial_arts"}]
   end
 
