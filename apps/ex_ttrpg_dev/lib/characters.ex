@@ -9,6 +9,7 @@ defmodule ExTTRPGDev.Characters do
   - `ExTTRPGDev.Characters.Generation` — random character-building decisions
   - `ExTTRPGDev.Characters.Effects` — active concepts, effect aggregation, resolved state
   - `ExTTRPGDev.Characters.Leveling` — XP and level math
+  - `ExTTRPGDev.Characters.ClassLevels` — splitting the total level among classes
   - `ExTTRPGDev.Characters.Advancement` — awards and progression-choice resolution
   - `ExTTRPGDev.Characters.Progression` — pending-choice computation and slots
   - `ExTTRPGDev.Characters.Resolution` — random resolution of pending choices
@@ -16,6 +17,7 @@ defmodule ExTTRPGDev.Characters do
   - `ExTTRPGDev.Characters.Rolls` — concept rolls
   """
   alias ExTTRPGDev.Characters.Advancement
+  alias ExTTRPGDev.Characters.ClassLevels
   alias ExTTRPGDev.Characters.Effects
   alias ExTTRPGDev.Characters.Generation
   alias ExTTRPGDev.Characters.Leveling
@@ -219,6 +221,24 @@ defmodule ExTTRPGDev.Characters do
   defdelegate xp_to_next_level(system, character), to: Leveling
 
   @doc """
+  Returns each class the character has levels in, with its level, in a
+  system that declares a `class_concept_type`.
+
+  The character's first level belongs to the class chosen at creation.
+  Each later level belongs to the class its `level_classes` entry names,
+  and levels beyond that record belong to the first class. Formulas see the
+  same split through each class's `level` node (`class('fighter').level`).
+
+  Returns `{:ok, %{class_id => level}}` (classes without levels are left
+  out), or `{:error, :class_levels_not_enabled}` for a system without a
+  `class_concept_type`.
+
+      Characters.class_levels(system, character)
+      #=> {:ok, %{"barbarian" => 3, "fighter" => 1}}
+  """
+  defdelegate class_levels(system, character), to: ClassLevels
+
+  @doc """
   Applies an award concept to a character.
 
   Awards are concepts of the reserved `award` type whose metadata declares a
@@ -350,7 +370,8 @@ defmodule ExTTRPGDev.Characters do
   Returns the combined effects list for a character against a system.
 
   Filters system-defined effects to only those whose source concept is active
-  (per the character's decisions), then appends the character's own effects.
+  (per the character's decisions), then appends the effects of the character's
+  decisions, inventory and class levels, and the character's own effects.
   """
   defdelegate active_effects(system, character), to: Effects
 

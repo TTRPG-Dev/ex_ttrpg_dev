@@ -11,6 +11,7 @@ defmodule ExTTRPGDev.Characters.Effects do
   """
 
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.ClassLevels
   alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.RuleSystem.Effect
@@ -47,6 +48,7 @@ defmodule ExTTRPGDev.Characters.Effects do
     end)
     |> Kernel.++(decision_effects)
     |> Kernel.++(inventory_effects(system, character.inventory))
+    |> Kernel.++(ClassLevels.level_effects(system, character))
     |> Kernel.++(character.effects)
   end
 
