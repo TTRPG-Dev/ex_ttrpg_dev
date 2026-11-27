@@ -203,18 +203,43 @@ defmodule ExTTRPGDev.RuleSystem.Graph do
       |> MapSet.new(fn {type_id, _} -> type_id end)
 
     error =
-      Enum.find_value(concept_metadata, fn {{type_id, concept_id}, meta} ->
-        meta
-        |> Map.get("choices", %{})
-        |> Enum.find_value(fn {choice_id, choice_def} ->
-          choice_path = {type_id, concept_id, choice_id}
-
-          check_choice(choice_path, choice_def, valid_type_ids, concept_metadata) ||
-            check_contributes_value(choice_path, choice_def)
-        end)
+      Enum.find_value(concept_metadata, fn {concept_key, meta} ->
+        check_concept_choices(
+          concept_key,
+          Map.get(meta, "choices", %{}),
+          valid_type_ids,
+          concept_metadata
+        )
       end)
 
     if error, do: error, else: :ok
+  end
+
+  # `choices` must be a table of choice tables. Anything else (e.g.
+  # `choices = ["a"]`) has no choice definitions to read and would crash
+  # every later reader of it.
+  defp check_concept_choices({type_id, concept_id}, choices, _valid_type_ids, _concept_metadata)
+       when not is_map(choices) do
+    {:error,
+     {:invalid_choices,
+      "#{type_id}('#{concept_id}').choices must be a table of choice definitions, got: " <>
+        inspect(choices)}}
+  end
+
+  defp check_concept_choices({type_id, concept_id}, choices, valid_type_ids, concept_metadata) do
+    Enum.find_value(choices, fn {choice_id, choice_def} ->
+      choice_path = {type_id, concept_id, choice_id}
+
+      if is_map(choice_def) do
+        check_choice(choice_path, choice_def, valid_type_ids, concept_metadata) ||
+          check_contributes_value(choice_path, choice_def)
+      else
+        {:error,
+         {:invalid_choices,
+          "#{type_id}('#{concept_id}').choices.#{choice_id} must be a table, got: " <>
+            inspect(choice_def)}}
+      end
+    end)
   end
 
   defp check_choice(

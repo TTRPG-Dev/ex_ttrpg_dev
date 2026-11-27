@@ -52,6 +52,28 @@ defmodule ExTTRPGDev.RuleSystem.GraphTest do
     }
   end
 
+  test "build/1 rejects choices that aren't a table" do
+    data =
+      put_in(contributes_choice_data(1), [:concept_metadata, {"race", "half_elf"}], %{
+        "choices" => ["a"]
+      })
+
+    assert {:error, {:invalid_choices, message}} = Graph.build(data)
+    assert message =~ "race('half_elf').choices"
+  end
+
+  test "build/1 rejects a choice that isn't a table" do
+    data =
+      put_in(
+        contributes_choice_data(1),
+        [:concept_metadata, {"race", "half_elf"}],
+        %{"choices" => %{"ability_increase" => 1}}
+      )
+
+    assert {:error, {:invalid_choices, message}} = Graph.build(data)
+    assert message =~ "race('half_elf').choices.ability_increase"
+  end
+
   test "build/1 accepts a numeric choice contributes_value" do
     assert {:ok, _system} = Graph.build(contributes_choice_data(1))
     assert {:ok, _system} = Graph.build(contributes_choice_data(1.5))
