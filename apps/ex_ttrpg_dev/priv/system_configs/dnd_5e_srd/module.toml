@@ -1,7 +1,7 @@
 [module]
 name = "Dungeons and Dragons 5th Edition SRD"
 slug = "dnd_5e_srd"
-version = "2.0.0"
+version = "2.1.0"
 library_requirement = "~> 0.16.0"
 family = "dungeons_and_dragons"
 series = "dungeons_and_dragons_5e"
