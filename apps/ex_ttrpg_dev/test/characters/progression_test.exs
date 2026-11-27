@@ -662,6 +662,33 @@ defmodule ExTTRPGDevTest.Characters.Progression do
       assert Enum.sort(c.options) == ["dexterity", "strength"]
     end
 
+    test "sub-choice options are limited to the choice's options list" do
+      system = asi_system()
+
+      system = %{
+        system
+        | concept_metadata:
+            put_in(
+              system.concept_metadata,
+              [{"feat", "ability_score_improvement"}, "choices", "asi_point_1", "options"],
+              ["strength"]
+            )
+      }
+
+      decisions = [
+        %Decision{
+          scope: {"character_progression", "asi_or_feat"},
+          choice: "choice_1",
+          selection: "ability_score_improvement"
+        }
+      ]
+
+      choices = pending_choices!(system, asi_character(decisions), %{})
+      point_1 = Enum.find(choices, &(&1.id == "asi_point_1"))
+
+      assert point_1.options == ["strength"]
+    end
+
     test "sub-choice count decreases as decisions are resolved" do
       decisions = [
         %Decision{

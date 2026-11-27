@@ -275,11 +275,7 @@ defmodule ExTTRPGDev.Characters.Progression do
     pending_count = max(0, selected_count - resolved_count)
 
     if pending_count > 0 do
-      options =
-        concept_metadata
-        |> Enum.filter(fn {{t, _cid}, _} -> t == choice_def["type"] end)
-        |> Enum.map(fn {{_t, cid}, _} -> cid end)
-        |> Enum.sort()
+      options = sub_choice_options(choice_def, concept_metadata)
 
       [
         %{
@@ -296,6 +292,19 @@ defmodule ExTTRPGDev.Characters.Progression do
     else
       []
     end
+  end
+
+  # A choice's explicit `options` list wins; without one, every concept of
+  # the choice's type is eligible. Mirrors Advancement.sub_choice_options/2,
+  # which resolving the choice validates against.
+  defp sub_choice_options(%{"options" => options}, _concept_metadata) when is_list(options),
+    do: options
+
+  defp sub_choice_options(choice_def, concept_metadata) do
+    concept_metadata
+    |> Enum.filter(fn {{t, _cid}, _} -> t == choice_def["type"] end)
+    |> Enum.map(fn {{_t, cid}, _} -> cid end)
+    |> Enum.sort()
   end
 
   defp selection_progression_choices(
