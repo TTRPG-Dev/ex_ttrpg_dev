@@ -865,6 +865,38 @@ defmodule ExTTRPGDev.RuleSystem.LoaderTest do
     assert %Node{steps: [[1, "one d four"]]} = data.nodes[{"class", "monk", "martial_arts"}]
   end
 
+  test "roll definitions warn unless they declare exactly one valid dice source" do
+    cases = [
+      {~s(dice = "1d20"\ndice_field = "damage"), ~s(declares both "dice" and "dice_field")},
+      {"", ~s(declares neither "dice" nor "dice_field")},
+      {~s(dice = "lots"), ~s(has invalid dice notation: "lots")}
+    ]
+
+    for {dice_keys, expected_warning} <- cases do
+      {log, _data} =
+        load_and_capture("roll", "attack", """
+        [roll.attack]
+        target_type = "skill"
+        #{dice_keys}
+        """)
+
+      assert log =~ expected_warning
+    end
+  end
+
+  test "well-formed roll definitions load without warnings" do
+    for dice_keys <- [~s(dice = "1d20+1"), ~s(dice_field = "damage")] do
+      {log, _data} =
+        load_and_capture("roll", "attack", """
+        [roll.attack]
+        target_type = "skill"
+        #{dice_keys}
+        """)
+
+      assert log == ""
+    end
+  end
+
   test "rolling method missing dice produces a warning" do
     log =
       capture_load_with_concept("rolling_method", "broken", """
