@@ -409,6 +409,21 @@ defmodule ExTTRPGDev.Characters do
   defdelegate active_concepts(system_or_decisions, character_or_concept_metadata), to: Effects
 
   @doc """
+  Returns a concept's metadata as it applies to a character.
+
+  For most concepts this is the concept's metadata unchanged. For a class
+  the character took after its first (see `level_up/3`), the lists the class
+  grants (every metadata key a `character_list` collects, or a
+  `metadata_contributions` entry expands from the class type) are those of
+  its `multiclass` table, and are absent when the table leaves them out.
+  Frontends displaying what a character's concepts grant should read
+  metadata through this.
+
+  `key` is `{type_id, concept_id}`; an unknown key yields `%{}`.
+  """
+  defdelegate concept_metadata(system, character, key), to: ClassLevels
+
+  @doc """
   Returns the combined effects list for a character against a system.
 
   Filters system-defined effects to only those whose source concept is active

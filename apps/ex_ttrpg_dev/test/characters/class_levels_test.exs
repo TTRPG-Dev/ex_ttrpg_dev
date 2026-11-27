@@ -192,4 +192,36 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
       assert max_hp(system, Fixture.character("wizard")) == 6
     end
   end
+
+  describe "granted lists of additional classes" do
+    defp proficient?(system, character, weapon),
+      do: resolved(system, character)[{"equipment", weapon, "is_proficient"}] == 1
+
+    test "come from the multiclass table", %{system: system} do
+      character = Fixture.character("wizard", xp: xp_for(2), level_classes: ["fighter"])
+
+      assert proficient?(system, character, "longsword")
+      refute proficient?(system, character, "dagger")
+
+      assert %{"armor_proficiencies" => ["Shield"], "weapon_proficiencies" => ["Longsword"]} =
+               Characters.concept_metadata(system, character, {"class", "fighter"})
+    end
+
+    test "are empty when the multiclass table leaves them out", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(2), level_classes: ["wizard"])
+      meta = Characters.concept_metadata(system, character, {"class", "wizard"})
+
+      refute Map.has_key?(meta, "armor_proficiencies")
+      assert meta["hit_die"] == "d6"
+    end
+
+    test "are the class's own for a first class", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(2), level_classes: ["wizard"])
+
+      assert proficient?(system, character, "dagger")
+
+      assert %{"armor_proficiencies" => ["Heavy Armor", "Shield"]} =
+               Characters.concept_metadata(system, character, {"class", "fighter"})
+    end
+  end
 end

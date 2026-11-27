@@ -1,10 +1,14 @@
 [class.fighter]
 name = "Fighter"
 hit_die = "d10"
+armor_proficiencies = ["Heavy Armor", "Shield"]
+weapon_proficiencies = ["Longsword", "Dagger"]
 second_wind_bonus.formula = "class('fighter').level"
 
 [class.fighter.multiclass]
 prerequisite = "ability('strength').score >= 13"
+armor_proficiencies = ["Shield"]
+weapon_proficiencies = ["Longsword"]
 
 [class.fighter.choices.subclass]
 type = "class"
@@ -22,6 +26,7 @@ value = 1
 [class.wizard]
 name = "Wizard"
 hit_die = "d6"
+armor_proficiencies = ["Robes"]
 
 [[class.wizard.contributes]]
 target = "character_trait('max_hit_points').points"

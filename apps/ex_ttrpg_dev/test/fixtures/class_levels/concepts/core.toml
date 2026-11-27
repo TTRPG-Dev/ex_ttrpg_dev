@@ -35,3 +35,13 @@ effect_target = "character_trait('experience_points').total"
 name = "Level Up"
 value_type = "next_level_xp"
 effect_target = "character_trait('experience_points').total"
+
+[equipment.longsword]
+name = "Longsword"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+
+[equipment.dagger]
+name = "Dagger"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"

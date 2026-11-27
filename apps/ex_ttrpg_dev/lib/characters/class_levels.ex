@@ -158,6 +158,37 @@ defmodule ExTTRPGDev.Characters.ClassLevels do
     end
   end
 
+  @doc """
+  Returns a concept's metadata as it applies to a character.
+
+  See `ExTTRPGDev.Characters.concept_metadata/3` for documentation.
+  """
+  def concept_metadata(%LoadedSystem{} = system, %Character{} = character, {type, _id} = key) do
+    meta = Map.get(system.concept_metadata, key, %{})
+
+    if key in additional_classes(system, character) do
+      granted = granted_keys(system.module, type)
+      multiclass = Map.get(meta, Vocabulary.multiclass_key(), %{})
+
+      meta
+      |> Map.drop(granted)
+      |> Map.merge(Map.take(multiclass, granted))
+    else
+      meta
+    end
+  end
+
+  # The metadata keys a concept of `type` grants a character: those a
+  # character list collects, or a metadata contribution expands from it.
+  defp granted_keys(module, type) do
+    list_keys = Enum.map(module.character_lists, & &1.metadata_key)
+
+    contribution_keys =
+      for %{from_type: ^type, from_field: field} <- module.metadata_contributions, do: field
+
+    Enum.uniq(list_keys ++ contribution_keys)
+  end
+
   @doc false
   # A predicate for whether an effect's `class_role` lets it apply. A
   # `:first` effect applies only when its source is the first class; an

@@ -145,6 +145,14 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     for a character to take the class as an additional class, and for a
     character who has the class to take any other.
 
+  - granted lists *(optional)* — a class taken as an additional class grants
+    a reduced set of what it grants as a first class. Every metadata key a
+    `character_list` collects, or a `metadata_contributions` entry expands
+    from this type, is read from the multiclass table instead of the class
+    for an additional class, and is empty when the table leaves it out
+    (e.g. `armor_proficiencies = ["Light Armor"]`). See
+    `ExTTRPGDev.Characters.concept_metadata/3`.
+
   A class taken as an additional class is active like the first: its
   `contributes` apply and its decided sub-choices are followed. An entry in
   a class's `contributes` may set `first_class_only = true` to apply only
@@ -552,21 +560,35 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp expand_metadata_contributions(data, rule_module) do
     new_effects =
       Enum.flat_map(rule_module.metadata_contributions, fn contribution ->
-        expand_contribution(data.concept_metadata, contribution)
+        expand_contribution(data.concept_metadata, contribution, rule_module.class_concept_type)
       end)
 
     %{data | effects: data.effects ++ new_effects}
   end
 
-  defp expand_contribution(concept_metadata, contribution) do
+  defp expand_contribution(concept_metadata, contribution, class_type) do
     concept_metadata
     |> Enum.filter(fn {{type, _id}, _meta} -> type == contribution.from_type end)
-    |> Enum.flat_map(fn {{_type, source_id}, meta} ->
-      expand_source_values(concept_metadata, contribution, source_id, meta)
+    |> Enum.flat_map(fn {{type, source_id}, meta} ->
+      multiclass = if type == class_type, do: meta[Vocabulary.multiclass_key()]
+
+      if is_map(multiclass) do
+        # A class with a multiclass table grants its own list only as a
+        # first class, and the table's (possibly absent, so empty) list as
+        # an additional one.
+        expand_source_values(concept_metadata, contribution, {source_id, meta, :first}) ++
+          expand_source_values(
+            concept_metadata,
+            contribution,
+            {source_id, multiclass, :additional}
+          )
+      else
+        expand_source_values(concept_metadata, contribution, {source_id, meta, nil})
+      end
     end)
   end
 
-  defp expand_source_values(concept_metadata, contribution, source_id, meta) do
+  defp expand_source_values(concept_metadata, contribution, {source_id, meta, class_role}) do
     # List.wrap: a scalar value (`languages = "Common"`) is treated as a
     # single-element list instead of crashing the flat_map.
     values = meta |> Map.get(contribution.from_field) |> List.wrap()
@@ -579,7 +601,8 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
           source: {contribution.from_type, source_id},
           target: {contribution.to_type, target_id, contribution.to_field},
           value: contribution.value,
-          when: nil
+          when: nil,
+          class_role: class_role
         }
       end)
     end)
