@@ -7,6 +7,7 @@ family = "dungeons_and_dragons"
 series = "dungeons_and_dragons_5e"
 publisher = "Wizards of the Coast, Inc."
 level_node = "character_trait('character_level').level"
+class_concept_type = "class"
 custom_metadata_keys = [
   # ability / skill display
   "abbreviation", "description",

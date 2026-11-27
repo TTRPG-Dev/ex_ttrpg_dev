@@ -13,6 +13,10 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
     {:ok, system: Fixture.system!()}
   end
 
+  # dnd_5e_srd with class levels switched off: a realistic system without them.
+  defp without_class_levels(system),
+    do: %{system | module: %{system.module | class_concept_type: nil}}
+
   defp resolved(system, character) do
     {_effects, resolved} = Characters.resolved_state(system, character)
     resolved
@@ -70,7 +74,7 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
     end
 
     test "errors for a system without class levels" do
-      system = RuleSystems.load_system!("dnd_5e_srd")
+      system = without_class_levels(RuleSystems.load_system!("dnd_5e_srd"))
 
       assert {:error, :class_levels_not_enabled} =
                Characters.class_levels(system, %Character{effects: []})
@@ -149,7 +153,7 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
     end
 
     test "levels a character in a system without class levels" do
-      system = RuleSystems.load_system!("dnd_5e_srd")
+      system = without_class_levels(RuleSystems.load_system!("dnd_5e_srd"))
       character = Character.gen_character!(system)
 
       assert {:ok, leveled} = Characters.level_up(system, character)
@@ -158,7 +162,7 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
     end
 
     test "rejects :class in a system without class levels" do
-      system = RuleSystems.load_system!("dnd_5e_srd")
+      system = without_class_levels(RuleSystems.load_system!("dnd_5e_srd"))
       character = %Character{effects: [], decisions: [], generated_values: %{}}
 
       assert {:error, :class_levels_not_enabled} =
