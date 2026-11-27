@@ -224,4 +224,41 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
                Characters.concept_metadata(system, character, {"class", "fighter"})
     end
   end
+
+  describe "sub-choices of additional classes" do
+    defp class_choices(system, character, class_id) do
+      {_effects, resolved} = Characters.resolved_state(system, character)
+      {:ok, %{choices: choices}} = Characters.pending_choices(system, character, resolved)
+      Enum.filter(choices, &(Map.get(&1, :scope_id) == class_id))
+    end
+
+    test "are pending for the choices the multiclass table lists", %{system: system} do
+      character = Fixture.character("wizard", xp: xp_for(2), level_classes: ["fighter"])
+
+      assert [%{id: "skill_1", scope_type: "class", options: ["athletics", "history"]}] =
+               class_choices(system, character, "fighter")
+    end
+
+    test "are no longer pending once decided", %{system: system} do
+      decision = %ExTTRPGDev.Characters.Decision{
+        scope: {"class", "fighter"},
+        choice: "skill_1",
+        selection: "history"
+      }
+
+      character =
+        Fixture.character("wizard",
+          xp: xp_for(2),
+          level_classes: ["fighter"],
+          decisions: [decision]
+        )
+
+      assert class_choices(system, character, "fighter") == []
+    end
+
+    test "aren't pending for a class without multiclass choices", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(2), level_classes: ["wizard"])
+      assert class_choices(system, character, "wizard") == []
+    end
+  end
 end

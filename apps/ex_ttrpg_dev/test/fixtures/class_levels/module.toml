@@ -41,3 +41,7 @@ from_field = "weapon_proficiencies"
 to_type = "equipment"
 to_field = "is_proficient"
 value = 1
+
+[[concept_type]]
+id = "skill"
+name = "Skill"

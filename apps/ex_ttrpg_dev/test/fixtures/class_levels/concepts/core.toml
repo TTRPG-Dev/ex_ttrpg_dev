@@ -45,3 +45,12 @@ is_proficient.base = "0"
 name = "Dagger"
 is_proficient.type = "accumulator"
 is_proficient.base = "0"
+
+[skill.athletics]
+name = "Athletics"
+
+[skill.arcana]
+name = "Arcana"
+
+[skill.history]
+name = "History"

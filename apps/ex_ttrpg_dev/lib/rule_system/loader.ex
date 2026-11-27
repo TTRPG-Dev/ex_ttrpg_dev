@@ -145,6 +145,11 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     for a character to take the class as an additional class, and for a
     character who has the class to take any other.
 
+  - `"choices"` *(list of choice IDs, optional)* — which of the class's own
+    `choices` a character makes on taking it as an additional class (e.g.
+    one skill where a first class picks two). They surface as pending
+    sub-choices. Choices with `grants_to = "inventory"` are never made for
+    an additional class. Defaults to none.
   - granted lists *(optional)* — a class taken as an additional class grants
     a reduced set of what it grants as a first class. Every metadata key a
     `character_list` collects, or a `metadata_contributions` entry expands

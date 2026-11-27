@@ -17,6 +17,7 @@ defmodule ExTTRPGDev.Characters.Progression do
   """
 
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.ClassLevels
   alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.Effects
   alias ExTTRPGDev.Characters.Leveling
@@ -63,9 +64,10 @@ defmodule ExTTRPGDev.Characters.Progression do
       end)
 
     sub_choices = pending_sub_choices(character.decisions, system.concept_metadata)
+    class_choices = pending_additional_class_choices(system, character)
 
     choices =
-      (progression_choices ++ sub_choices)
+      (progression_choices ++ sub_choices ++ class_choices)
       |> Enum.sort_by(& &1.id)
 
     {:ok, %{choices: choices, errors: errors}}
@@ -259,6 +261,28 @@ defmodule ExTTRPGDev.Characters.Progression do
       Enum.flat_map(
         choices,
         &pending_choice_entry(&1, decisions, concept_metadata, type, id, selected_count)
+      )
+    end)
+  end
+
+  # A class taken after the first makes only the sub-choices its multiclass
+  # table lists under `choices` (e.g. one skill instead of a first class's
+  # two), each once. Choices granting inventory are starting equipment,
+  # which a multiclassed class doesn't get.
+  defp pending_additional_class_choices(system, character) do
+    system
+    |> ClassLevels.additional_classes(character)
+    |> Enum.flat_map(fn {type, id} ->
+      meta = Map.get(system.concept_metadata, {type, id}, %{})
+      allowed = get_in(meta, [Vocabulary.multiclass_key(), "choices"]) || []
+
+      meta
+      |> Map.get("choices", %{})
+      |> Enum.filter(fn {choice_id, choice_def} ->
+        choice_id in allowed and choice_def["grants_to"] != "inventory"
+      end)
+      |> Enum.flat_map(
+        &pending_choice_entry(&1, character.decisions, system.concept_metadata, type, id, 1)
       )
     end)
   end
