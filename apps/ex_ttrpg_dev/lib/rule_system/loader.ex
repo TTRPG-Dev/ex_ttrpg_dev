@@ -239,13 +239,27 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   # choices), without its concepts, so a caller can read a system's
   # metadata even when the rest of it doesn't load.
   def build_module(%Source{module: module_map, character_building: building}) do
-    case RuleModule.from_map(module_map) do
-      {:ok, rule_module} ->
-        {:ok, %{rule_module | character_building_choices: parse_character_choices(building)}}
-
-      {:error, reason} ->
-        {:error, {:module_parse_error, reason}}
+    with {:ok, rule_module} <- RuleModule.from_map(module_map),
+         rule_module = %{
+           rule_module
+           | character_building_choices: parse_character_choices(building)
+         },
+         :ok <- validate_class_choice(rule_module) do
+      {:ok, rule_module}
+    else
+      {:error, reason} -> {:error, {:module_parse_error, reason}}
     end
+  end
+
+  # A character's first class is its root decision for the class concept
+  # type, so class levels only work when that type is chosen at creation.
+  # Otherwise every class level would silently resolve to 0.
+  defp validate_class_choice(%RuleModule{class_concept_type: nil}), do: :ok
+
+  defp validate_class_choice(%RuleModule{class_concept_type: type} = rule_module) do
+    if Enum.any?(rule_module.character_building_choices, &(&1.concept_type == type)),
+      do: :ok,
+      else: {:error, {:class_concept_type_not_a_character_choice, type}}
   end
 
   # Each class gets a level accumulator, base 0. A character's level record

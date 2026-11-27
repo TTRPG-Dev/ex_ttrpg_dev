@@ -52,6 +52,18 @@ defmodule ExTTRPGDev.RuleSystem.ClassLevelNodesTest do
     refute Map.has_key?(data.nodes, {"class", "fighter", "level"})
   end
 
+  test "a class_concept_type that isn't a character choice is rejected" do
+    assert {:error, {:module_parse_error, {:class_concept_type_not_a_character_choice, "class"}}} =
+             load_modified_fixture(fn dir ->
+               ClassLevelsFixture.replace_in(
+                 dir,
+                 "character_building.toml",
+                 ~s(concept_type = "class"),
+                 ~s(concept_type = "skill")
+               )
+             end)
+  end
+
   test "a class that authors its own level field is rejected" do
     assert {:error, {:reserved_class_level_field, "class('wizard').level"}} =
              load_modified_fixture(fn dir ->

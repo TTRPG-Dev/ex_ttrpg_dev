@@ -23,8 +23,10 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     concepts are classes a character levels in. Setting it enables class
     levels: each concept of the type gets a `level` node (e.g.
     `class('fighter').level`), and a character's total level is split among
-    its classes. Must name a declared concept type, and requires
-    `"level_node"`, which stays the character's total level.
+    its classes. Must name a declared concept type that is also a
+    `character_choice` in `character_building.toml` (a character's first
+    class is its creation choice), and requires `"level_node"`, which stays
+    the character's total level.
   """
 
   defmodule ConceptType do
