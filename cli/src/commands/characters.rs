@@ -52,6 +52,10 @@ pub(crate) fn handle_characters(
             display_mode,
             engine,
         ),
+        ["level-up", slug] => handle_characters_level_up(slug, None, display_mode, engine),
+        ["level-up", slug, class] => {
+            handle_characters_level_up(slug, Some(class), display_mode, engine)
+        }
         ["copy", slug] => handle_characters_copy(slug, None, engine),
         ["copy", slug, new_slug] => handle_characters_copy(slug, Some(new_slug), engine),
         ["copy", ..] => Err(fail(
@@ -371,6 +375,25 @@ fn handle_characters_award_no_value(
     if let Some(xp) = c.awarded_xp {
         println!("Awarded {award_id}: +{xp} XP");
     }
+    if !c.pending_choices.is_empty() {
+        display::print_pending_choices(&c.pending_choices);
+    }
+    Ok(())
+}
+
+fn handle_characters_level_up(
+    slug: &str,
+    class: Option<&str>,
+    display_mode: DisplayMode,
+    engine: &mut Engine,
+) -> CmdResult {
+    let req = Request::CharactersLevelUp {
+        character: slug,
+        class,
+        display_mode: display_mode.as_str(),
+    };
+    let c = call_or_report::<CharacterData>(engine, &req)?;
+    display::print_character(&c);
     if !c.pending_choices.is_empty() {
         display::print_pending_choices(&c.pending_choices);
     }
