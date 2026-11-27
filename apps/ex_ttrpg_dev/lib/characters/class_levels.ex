@@ -142,6 +142,40 @@ defmodule ExTTRPGDev.Characters.ClassLevels do
   end
 
   @doc false
+  # The `{class_type, id}` keys of the classes the character took after its
+  # first. Every recorded class counts, even one recorded for a level above
+  # the current one, which can only happen if XP was taken away.
+  def additional_classes(%LoadedSystem{} = system, %Character{} = character) do
+    case first_class(system, character) do
+      nil ->
+        []
+
+      first ->
+        character.level_classes
+        |> Enum.uniq()
+        |> Enum.reject(&(&1 == first))
+        |> Enum.map(&{class_type(system), &1})
+    end
+  end
+
+  @doc false
+  # A predicate for whether an effect's `class_role` lets it apply. A
+  # `:first` effect applies only when its source is the first class; an
+  # `:additional` one only when its source class was taken after the
+  # first. Roles mean nothing on effects from other concept types, and
+  # without class levels there's only ever one class, so those always pass.
+  def class_role_filter(%LoadedSystem{} = system, %Character{} = character) do
+    class_type = class_type(system)
+    first = first_class(system, character)
+
+    fn
+      %Effect{class_role: :first, source: {^class_type, id}} -> id == first
+      %Effect{class_role: :additional, source: {^class_type, id}} -> id != first
+      %Effect{} -> true
+    end
+  end
+
+  @doc false
   # The system's class concept type, or `nil` when class levels aren't
   # enabled. Tolerates the partial module maps hand-built systems carry.
   def class_type(%LoadedSystem{module: %{class_concept_type: class_type}}), do: class_type

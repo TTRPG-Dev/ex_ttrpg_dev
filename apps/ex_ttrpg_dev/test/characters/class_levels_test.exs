@@ -165,4 +165,31 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
                Characters.level_up(system, character, class: "fighter")
     end
   end
+
+  describe "additional classes" do
+    defp max_hp(system, character),
+      do: resolved(system, character)[{"character_trait", "max_hit_points", "points"}]
+
+    test "are active", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(2), level_classes: ["wizard"])
+
+      assert MapSet.member?(Characters.active_concepts(system, character), {"class", "wizard"})
+    end
+
+    test "don't apply first_class_only contributes", %{system: system} do
+      # fighter: 10 (first class only) + 1; wizard's 6 is first class only
+      character = Fixture.character("fighter", xp: xp_for(2), level_classes: ["wizard"])
+      assert max_hp(system, character) == 11
+    end
+
+    test "apply their other contributes", %{system: system} do
+      # wizard first: 6; fighter's 1 applies, its 10 doesn't
+      character = Fixture.character("wizard", xp: xp_for(2), level_classes: ["fighter"])
+      assert max_hp(system, character) == 7
+    end
+
+    test "a first class applies its first_class_only contributes", %{system: system} do
+      assert max_hp(system, Fixture.character("wizard")) == 6
+    end
+  end
 end

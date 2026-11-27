@@ -10,9 +10,23 @@ prerequisite = "ability('strength').score >= 13"
 type = "class"
 options = ["champion"]
 
+[[class.fighter.contributes]]
+target = "character_trait('max_hit_points').points"
+value = 10
+first_class_only = true
+
+[[class.fighter.contributes]]
+target = "character_trait('max_hit_points').points"
+value = 1
+
 [class.wizard]
 name = "Wizard"
 hit_die = "d6"
+
+[[class.wizard.contributes]]
+target = "character_trait('max_hit_points').points"
+value = 6
+first_class_only = true
 
 [class.wizard.multiclass]
 prerequisite = "ability('intelligence').score >= 13"

@@ -35,7 +35,7 @@ defmodule ExTTRPGDev.Characters.Progression do
   See `ExTTRPGDev.Characters.pending_choices/3` for documentation.
   """
   def pending_choices(%LoadedSystem{} = system, %Character{} = character, resolved) do
-    active = Effects.active_concepts(character.decisions, system.concept_metadata)
+    active = Effects.active_concepts(system, character)
 
     {progression_choices, errors} =
       system.concept_metadata

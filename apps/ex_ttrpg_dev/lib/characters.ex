@@ -395,12 +395,18 @@ defmodule ExTTRPGDev.Characters do
     to: Preparation
 
   @doc """
-  Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
+  Returns the set of active `{type_id, concept_id}` pairs for a character.
 
-  Walks the decisions tree starting from root decisions (scope: nil), adding each selected
-  concept and recursing into any sub-choices that concept declares.
+  Called as `active_concepts(system, character)`: walks the decisions tree
+  starting from root decisions (scope: nil), adding each selected concept and
+  recursing into any sub-choices that concept declares. In a system with class
+  levels, classes the character took after its first (see `level_up/3`) are
+  active too, along with their decided sub-choices.
+
+  Called as `active_concepts(decisions, concept_metadata)`: the same walk
+  from decisions alone, which can't see classes taken by multiclassing.
   """
-  defdelegate active_concepts(decisions, concept_metadata), to: Effects
+  defdelegate active_concepts(system_or_decisions, character_or_concept_metadata), to: Effects
 
   @doc """
   Returns the combined effects list for a character against a system.

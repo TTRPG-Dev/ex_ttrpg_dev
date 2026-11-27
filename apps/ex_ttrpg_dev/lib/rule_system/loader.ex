@@ -145,6 +145,12 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     for a character to take the class as an additional class, and for a
     character who has the class to take any other.
 
+  A class taken as an additional class is active like the first: its
+  `contributes` apply and its decided sub-choices are followed. An entry in
+  a class's `contributes` may set `first_class_only = true` to apply only
+  when the class is the character's first (e.g. saving throw proficiencies,
+  or first-level hit points).
+
   ### Note: CLI-only keys
 
   The following keys are consumed by `ttrpg_dev_cli`, not by this library:
@@ -664,7 +670,8 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
           source: source,
           target: ref,
           value: value,
-          when: Map.get(entry, "when")
+          when: Map.get(entry, "when"),
+          class_role: if(Map.get(entry, "first_class_only") == true, do: :first)
         }
 
       :error ->
