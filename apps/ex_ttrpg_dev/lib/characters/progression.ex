@@ -101,7 +101,7 @@ defmodule ExTTRPGDev.Characters.Progression do
   end
 
   defp slots_from_level_node(system, character, level_node_key) do
-    {all_effects, resolved} = Effects.resolved_state(system, character)
+    {_effects, resolved} = Effects.resolved_state(system, character)
     current_level = trunc(resolved[level_node_key] || 1)
 
     thresholds = Leveling.level_xp_thresholds(system)
@@ -116,14 +116,18 @@ defmodule ExTTRPGDev.Characters.Progression do
 
     level_resolved =
       Map.new(1..current_level, fn level ->
+        # A class taken later isn't held yet at this level, so its effects
+        # mustn't count towards slots earned here.
+        at_level = ClassLevels.as_of_level(character, level)
+
         {level,
          Leveling.evaluate_at_level(
            system,
-           character,
+           at_level,
            level,
            thresholds,
            xp_target,
-           all_effects
+           Effects.active_effects(system, at_level)
          )}
       end)
 

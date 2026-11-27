@@ -60,3 +60,17 @@ name = "Hit Points"
 required_count = "character_trait('character_level').level - 1"
 effect_target = "character_trait('max_hit_points').points"
 roll_reference = "class.hit_die"
+
+[character_trait.bonus_skills]
+name = "Bonus Skills"
+count.type = "accumulator"
+count.base = "0"
+
+[character_progression.bonus_skill]
+name = "Bonus Skill"
+type = "skill"
+required_count = "character_trait('bonus_skills').count"
+
+[character_progression.bonus_skill.filter]
+min_level = 0
+max_level_node = "character_trait('bonus_skills').count"

@@ -188,6 +188,15 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
       assert max_hp(system, character) == 7
     end
 
+    test "don't count towards slots at levels before they were taken", %{system: system} do
+      # wizard gained level 3, and grants a bonus skill slot
+      character =
+        Fixture.character("fighter", xp: xp_for(3), level_classes: ["fighter", "wizard"])
+
+      assert {:ok, %{slots: [%{progression_id: "bonus_skill", earned_at_level: 3}], errors: []}} =
+               Characters.compute_pending_choice_slots(system, character)
+    end
+
     test "a first class applies its first_class_only contributes", %{system: system} do
       assert max_hp(system, Fixture.character("wizard")) == 6
     end

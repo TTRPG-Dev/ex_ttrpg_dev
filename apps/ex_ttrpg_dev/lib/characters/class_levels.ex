@@ -142,6 +142,14 @@ defmodule ExTTRPGDev.Characters.ClassLevels do
   end
 
   @doc false
+  # The character as it was at `level`, as far as class levels go: its
+  # record cut to the levels it had reached, so classes taken later aren't
+  # held (or active) yet.
+  def as_of_level(%Character{} = character, level) do
+    %{character | level_classes: Enum.take(character.level_classes, max(level - 1, 0))}
+  end
+
+  @doc false
   # The class that gained `level`: the first class for level 1 and for
   # levels past the end of the record. `nil` without a first class.
   def class_at_level(%LoadedSystem{} = system, %Character{} = character, level) do
