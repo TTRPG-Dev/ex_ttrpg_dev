@@ -90,12 +90,12 @@ defmodule ExTTRPGDev.Characters.Rolls do
   # bonus beyond what its dice already carry.
   defp roll_bonus!(%{"bonus_field" => field}, roll_id, node) do
     case node.(field) do
-      bonus when is_integer(bonus) ->
+      bonus when is_number(bonus) ->
         bonus
 
       other ->
         raise "Roll #{inspect(roll_id)} reads its bonus from field #{inspect(field)}, " <>
-                "which resolved to #{inspect(other)} rather than an integer"
+                "which resolved to #{inspect(other)} rather than a number"
     end
   end
 

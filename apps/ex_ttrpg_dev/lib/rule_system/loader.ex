@@ -91,7 +91,7 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     whose resolved value is the dice to roll: a dice value (from `dice(...)` or a
     dice-valued mapping) or dice notation. Exclusive with `"dice"`.
   - `"bonus_field"` *(string: node field name, optional)* — the field on the target
-    concept that holds an integer roll bonus. Without it the bonus is 0.
+    concept that holds a numeric roll bonus. Without it the bonus is 0.
 
   ### Keys on selectable concepts (any type eligible for selection)
 

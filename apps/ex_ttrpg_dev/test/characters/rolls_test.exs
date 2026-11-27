@@ -146,6 +146,27 @@ defmodule ExTTRPGDevTest.Characters.Rolls do
       assert result.total == Enum.sum(result.rolls) + 2
     end
 
+    test "a non-integer bonus is added as before", %{system: system, character: character} do
+      nodes =
+        Map.put(system.nodes, {"feature", "martial_arts", "bonus"}, %Node{
+          type: :formula,
+          formula: "5 / 2"
+        })
+
+      system =
+        %{system | nodes: nodes}
+        |> put_roll(%{
+          "target_type" => "feature",
+          "dice" => "1d1",
+          "bonus_field" => "bonus"
+        })
+
+      result = Characters.concept_roll!(system, character, "feature", "martial_arts")
+
+      assert result.bonus == 2.5
+      assert result.total == 3.5
+    end
+
     test "static dice accept full notation", %{system: system, character: character} do
       system = put_roll(system, %{"target_type" => "feature", "dice" => "2d1+3"})
 
@@ -164,7 +185,7 @@ defmodule ExTTRPGDevTest.Characters.Rolls do
         {%{"target_type" => "feature", "dice" => "lots"}, ~r/invalid dice notation/},
         {%{"target_type" => "feature", "dice_field" => "missing"}, ~r/does not have/},
         {%{"target_type" => "feature", "dice_field" => "damage", "bonus_field" => "damage"},
-         ~r/rather than an integer/}
+         ~r/rather than a number/}
       ]
 
       for {roll_meta, message} <- cases do
