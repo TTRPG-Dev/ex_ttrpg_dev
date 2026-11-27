@@ -6,11 +6,11 @@ preparation_mode = "prepared"
 preparation_pool = "spellbook"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('wizard').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Arcane Recovery: combined spell slot levels recoverable (no slot of 6th level or higher).
-arcane_recovery_levels.formula = "ceil(character_trait('character_level').level / 2)"
+arcane_recovery_levels.formula = "ceil(class('wizard').level / 2)"
 
 [class.wizard.choices.subclass]
 required = true
@@ -101,18 +101,18 @@ value = "class('wizard').max_spell_level"
 
 [class.wizard.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 6], [2, 8], [3, 10], [4, 12], [5, 14], [6, 16], [7, 18], [8, 20], [9, 22], [10, 24], [11, 26], [12, 28], [13, 30], [14, 32], [15, 34], [16, 36], [17, 38], [18, 40], [19, 42], [20, 44]]
+input = "class('wizard').level"
+steps = [[0, 0], [1, 6], [2, 8], [3, 10], [4, 12], [5, 14], [6, 16], [7, 18], [8, 20], [9, 22], [10, 24], [11, 26], [12, 28], [13, 30], [14, 32], [15, 34], [16, 36], [17, 38], [18, 40], [19, 42], [20, 44]]
 
 [class.wizard.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 3], [4, 4], [10, 5]]
+input = "class('wizard').level"
+steps = [[0, 0], [1, 3], [4, 4], [10, 5]]
 
 [class.wizard.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+input = "class('wizard').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [[class.wizard.contributes]]
 target = "character_trait('asi_count').count"
@@ -120,7 +120,7 @@ value = "class('wizard').asi_slots"
 
 [class.wizard.preparation_cap]
 type = "formula"
-formula = "ability('intelligence').modifier + character_trait('character_level').level"
+formula = "ability('intelligence').modifier + class('wizard').level"
 
 [class.school_of_evocation]
 name = "School of Evocation"

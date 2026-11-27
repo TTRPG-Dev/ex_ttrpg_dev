@@ -4,25 +4,25 @@ hit_die = "d8"
 weapon_proficiencies = ["Simple Weapons", "Shortsword"]
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('monk').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Class table: Martial Arts die size.
 martial_arts_die.type = "mapping"
-martial_arts_die.input = "character_trait('character_level').level"
-martial_arts_die.steps = [[1, 4], [5, 6], [11, 8], [17, 10]]
+martial_arts_die.input = "class('monk').level"
+martial_arts_die.steps = [[0, 0], [1, 4], [5, 6], [11, 8], [17, 10]]
 # Ki points equal monk level, from 2nd level.
-ki_points.formula = "character_trait('character_level').level * min(1, max(0, character_trait('character_level').level - 1))"
+ki_points.formula = "class('monk').level * min(1, max(0, class('monk').level - 1))"
 # Ki save DC.
 ki_save_dc.formula = "8 + character_trait('proficiency_bonus').bonus + ability('wisdom').modifier"
 # Class table: Unarmored Movement bonus (feet).
 unarmored_movement.type = "mapping"
-unarmored_movement.input = "character_trait('character_level').level"
-unarmored_movement.steps = [[1, 0], [2, 10], [6, 15], [10, 20], [14, 25], [18, 30]]
+unarmored_movement.input = "class('monk').level"
+unarmored_movement.steps = [[0, 0], [1, 0], [2, 10], [6, 15], [10, 20], [14, 25], [18, 30]]
 # Extra Attack: attacks per Attack action.
 attacks_per_action.type = "mapping"
-attacks_per_action.input = "character_trait('character_level').level"
-attacks_per_action.steps = [[1, 1], [5, 2]]
+attacks_per_action.input = "class('monk').level"
+attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
 
 [class.monk.choices.subclass]
 required = true

@@ -6,21 +6,21 @@ weapon_proficiencies = ["Simple Weapons", "Martial Weapons"]
 preparation_mode = "all"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('ranger').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Favored Enemy: number of favored enemy types.
 favored_enemies.type = "mapping"
-favored_enemies.input = "character_trait('character_level').level"
-favored_enemies.steps = [[1, 1], [6, 2], [14, 3]]
+favored_enemies.input = "class('ranger').level"
+favored_enemies.steps = [[0, 0], [1, 1], [6, 2], [14, 3]]
 # Natural Explorer: number of favored terrains.
 favored_terrains.type = "mapping"
-favored_terrains.input = "character_trait('character_level').level"
-favored_terrains.steps = [[1, 1], [6, 2], [10, 3]]
+favored_terrains.input = "class('ranger').level"
+favored_terrains.steps = [[0, 0], [1, 1], [6, 2], [10, 3]]
 # Extra Attack: attacks per Attack action.
 attacks_per_action.type = "mapping"
-attacks_per_action.input = "character_trait('character_level').level"
-attacks_per_action.steps = [[1, 1], [5, 2]]
+attacks_per_action.input = "class('ranger').level"
+attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
 
 [class.ranger.choices.subclass]
 required = true
@@ -125,13 +125,13 @@ value = "class('ranger').max_spell_level"
 
 [class.ranger.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 2], [3, 3], [5, 4], [7, 5], [9, 6], [11, 7], [13, 8], [15, 9], [17, 10], [19, 11]]
+input = "class('ranger').level"
+steps = [[0, 0], [1, 0], [2, 2], [3, 3], [5, 4], [7, 5], [9, 6], [11, 7], [13, 8], [15, 9], [17, 10], [19, 11]]
 
 [class.ranger.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+input = "class('ranger').level"
+steps = [[0, 0], [1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
 
 [[class.ranger.contributes]]
 target = "character_trait('asi_count').count"

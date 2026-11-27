@@ -6,17 +6,17 @@ weapon_proficiencies = ["Simple Weapons"]
 preparation_mode = "all"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('warlock').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Class table: Invocations Known.
 invocations_known.type = "mapping"
-invocations_known.input = "character_trait('character_level').level"
-invocations_known.steps = [[1, 0], [2, 2], [5, 3], [7, 4], [9, 5], [12, 6], [15, 7], [18, 8]]
+invocations_known.input = "class('warlock').level"
+invocations_known.steps = [[0, 0], [1, 0], [2, 2], [5, 3], [7, 4], [9, 5], [12, 6], [15, 7], [18, 8]]
 # Mystic Arcanum: highest arcanum spell level.
 mystic_arcanum_level.type = "mapping"
-mystic_arcanum_level.input = "character_trait('character_level').level"
-mystic_arcanum_level.steps = [[1, 0], [11, 6], [13, 7], [15, 8], [17, 9]]
+mystic_arcanum_level.input = "class('warlock').level"
+mystic_arcanum_level.steps = [[0, 0], [1, 0], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [class.warlock.choices.subclass]
 required = true
@@ -95,23 +95,23 @@ value = "class('warlock').pact_slot_level"
 
 [class.warlock.pact_slot_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [2, 2], [11, 3], [17, 4]]
+input = "class('warlock').level"
+steps = [[0, 0], [1, 1], [2, 2], [11, 3], [17, 4]]
 
 [class.warlock.pact_slot_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5]]
+input = "class('warlock').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5]]
 
 [class.warlock.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 2], [4, 3], [10, 4]]
+input = "class('warlock').level"
+steps = [[0, 0], [1, 2], [4, 3], [10, 4]]
 
 [class.warlock.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [11, 11], [13, 12], [15, 13], [17, 14], [19, 15]]
+input = "class('warlock').level"
+steps = [[0, 0], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [11, 11], [13, 12], [15, 13], [17, 14], [19, 15]]
 
 [[class.warlock.contributes]]
 target = "character_trait('asi_count').count"

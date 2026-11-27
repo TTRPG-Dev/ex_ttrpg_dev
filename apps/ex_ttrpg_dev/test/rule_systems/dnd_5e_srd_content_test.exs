@@ -70,7 +70,8 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       | generated_values: Map.merge(base.generated_values, generated),
         decisions: Keyword.get(opts, :decisions, []),
         inventory: inventory,
-        effects: [xp]
+        effects: [xp],
+        level_classes: Keyword.get(opts, :level_classes, [])
     }
   end
 
@@ -396,6 +397,38 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(values, "skill", "insight", "modifier") == 2
       assert node(values, "skill", "religion", "modifier") == 2
       assert node(values, "skill", "arcana", "modifier") == 0
+    end
+  end
+
+  describe "multiclassing" do
+    # fighter 1, barbarian 2, fighter 3: fighter 3 / barbarian 2
+    defp fighter_barbarian(system) do
+      resolve(system,
+        decisions: [root("class", "fighter")],
+        level: 5,
+        level_classes: ["barbarian", "barbarian", "fighter", "fighter"]
+      )
+    end
+
+    test "class features follow each class's own level", %{system: system} do
+      values = fighter_barbarian(system)
+
+      assert node(values, "class", "fighter", "level") == 3
+      assert node(values, "class", "barbarian", "level") == 2
+      assert node(values, "class", "fighter", "second_wind_bonus") == 3
+      assert node(values, "class", "fighter", "attacks_per_action") == 1
+      assert node(values, "class", "barbarian", "rages") == 2
+    end
+
+    test "proficiency bonus follows the total level", %{system: system} do
+      assert node(fighter_barbarian(system), "character_trait", "proficiency_bonus", "bonus") == 3
+    end
+
+    test "a class the character doesn't have resolves its table at level 0", %{system: system} do
+      values = fighter_barbarian(system)
+
+      assert node(values, "class", "wizard", "level") == 0
+      assert node(values, "class", "wizard", "asi_slots") == 0
     end
   end
 

@@ -7,27 +7,27 @@ preparation_mode = "prepared"
 preparation_pool = "class_spells"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('paladin').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Lay on Hands: healing pool equal to paladin level x 5.
-lay_on_hands_pool.formula = "5 * character_trait('character_level').level"
+lay_on_hands_pool.formula = "5 * class('paladin').level"
 # Divine Sense uses per long rest.
 divine_sense_uses.formula = "1 + ability('charisma').modifier"
 # Channel Divinity uses per short or long rest.
 channel_divinity_uses.type = "mapping"
-channel_divinity_uses.input = "character_trait('character_level').level"
-channel_divinity_uses.steps = [[1, 0], [3, 1]]
+channel_divinity_uses.input = "class('paladin').level"
+channel_divinity_uses.steps = [[0, 0], [1, 0], [3, 1]]
 # Extra Attack: attacks per Attack action.
 attacks_per_action.type = "mapping"
-attacks_per_action.input = "character_trait('character_level').level"
-attacks_per_action.steps = [[1, 1], [5, 2]]
+attacks_per_action.input = "class('paladin').level"
+attacks_per_action.steps = [[0, 0], [1, 1], [5, 2]]
 # Aura of Protection / Courage range (feet).
 aura_range.type = "mapping"
-aura_range.input = "character_trait('character_level').level"
-aura_range.steps = [[1, 0], [6, 10], [18, 30]]
+aura_range.input = "class('paladin').level"
+aura_range.steps = [[0, 0], [1, 0], [6, 10], [18, 30]]
 # Aura of Protection: saving throw bonus (Cha modifier, minimum +1) from 6th level.
-aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, character_trait('character_level').level - 5))"
+aura_of_protection.formula = "max(1, ability('charisma').modifier) * min(1, max(0, class('paladin').level - 5))"
 
 [class.paladin.choices.subclass]
 required = true
@@ -94,8 +94,8 @@ value = "class('paladin').max_spell_level"
 
 [class.paladin.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
+input = "class('paladin').level"
+steps = [[0, 0], [1, 0], [2, 1], [5, 2], [9, 3], [13, 4], [17, 5]]
 
 [[class.paladin.contributes]]
 target = "character_trait('asi_count').count"
@@ -103,8 +103,8 @@ value = "class('paladin').asi_slots"
 
 [class.paladin.half_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
+input = "class('paladin').level"
+steps = [[0, 0], [1, 0], [2, 1], [4, 2], [6, 3], [8, 4], [10, 5], [12, 6], [14, 7], [16, 8], [18, 9], [20, 10]]
 
 [class.paladin.preparation_cap]
 type = "formula"

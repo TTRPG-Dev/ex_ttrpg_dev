@@ -5,15 +5,15 @@ weapon_proficiencies = ["Dagger", "Dart", "Sling", "Quarterstaff", "Light Crossb
 preparation_mode = "all"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('sorcerer').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Sorcery points equal sorcerer level, from 2nd level.
-sorcery_points.formula = "character_trait('character_level').level * min(1, max(0, character_trait('character_level').level - 1))"
+sorcery_points.formula = "class('sorcerer').level * min(1, max(0, class('sorcerer').level - 1))"
 # Metamagic options known.
 metamagic_known.type = "mapping"
-metamagic_known.input = "character_trait('character_level').level"
-metamagic_known.steps = [[1, 0], [3, 2], [10, 3], [17, 4]]
+metamagic_known.input = "class('sorcerer').level"
+metamagic_known.steps = [[0, 0], [1, 0], [3, 2], [10, 3], [17, 4]]
 
 [class.sorcerer.choices.subclass]
 required = true
@@ -104,18 +104,18 @@ value = "class('sorcerer').max_spell_level"
 
 [class.sorcerer.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 4], [4, 5], [10, 6]]
+input = "class('sorcerer').level"
+steps = [[0, 0], [1, 4], [4, 5], [10, 6]]
 
 [class.sorcerer.spells_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [13, 13], [15, 14], [17, 15]]
+input = "class('sorcerer').level"
+steps = [[0, 0], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [13, 13], [15, 14], [17, 15]]
 
 [class.sorcerer.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+input = "class('sorcerer').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [[class.sorcerer.contributes]]
 target = "character_trait('asi_count').count"
@@ -127,7 +127,7 @@ name = "Draconic Bloodline"
 [[class.draconic_bloodline.contributes]]
 # Draconic Resilience: +1 hit point per sorcerer level.
 target = "character_trait('max_hit_points').points"
-value = "character_trait('character_level').level"
+value = "class('sorcerer').level"
 
 [[class.draconic_bloodline.contributes]]
 # Draconic Resilience: AC = 13 + Dex while wearing no armor.

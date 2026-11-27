@@ -8,27 +8,27 @@ preparation_mode = "prepared"
 preparation_pool = "class_spells"
 
 asi_slots.type = "mapping"
-asi_slots.input = "character_trait('character_level').level"
-asi_slots.steps = [[1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
+asi_slots.input = "class('druid').level"
+asi_slots.steps = [[0, 0], [1, 0], [4, 1], [8, 2], [12, 3], [16, 4], [19, 5]]
 
 # Wild Shape uses per short or long rest.
 wild_shape_uses.type = "mapping"
-wild_shape_uses.input = "character_trait('character_level').level"
-wild_shape_uses.steps = [[1, 0], [2, 2]]
+wild_shape_uses.input = "class('druid').level"
+wild_shape_uses.steps = [[0, 0], [1, 0], [2, 2]]
 # Archdruid: unlimited Wild Shape at 20th level.
-wild_shape_unlimited.formula = "character_trait('character_level').level >= 20"
+wild_shape_unlimited.formula = "class('druid').level >= 20"
 # Beast Shapes table: highest challenge rating.
 wild_shape_max_cr.type = "mapping"
-wild_shape_max_cr.input = "character_trait('character_level').level"
-wild_shape_max_cr.steps = [[1, 0], [2, 0.25], [4, 0.5], [8, 1]]
+wild_shape_max_cr.input = "class('druid').level"
+wild_shape_max_cr.steps = [[0, 0], [1, 0], [2, 0.25], [4, 0.5], [8, 1]]
 # Beast Shapes table: swimming speed allowed (1) from 4th level.
 wild_shape_swim.type = "mapping"
-wild_shape_swim.input = "character_trait('character_level').level"
-wild_shape_swim.steps = [[1, 0], [4, 1]]
+wild_shape_swim.input = "class('druid').level"
+wild_shape_swim.steps = [[0, 0], [1, 0], [4, 1]]
 # Beast Shapes table: flying speed allowed (1) from 8th level.
 wild_shape_fly.type = "mapping"
-wild_shape_fly.input = "character_trait('character_level').level"
-wild_shape_fly.steps = [[1, 0], [8, 1]]
+wild_shape_fly.input = "class('druid').level"
+wild_shape_fly.steps = [[0, 0], [1, 0], [8, 1]]
 
 [class.druid.choices.subclass]
 required = true
@@ -133,13 +133,13 @@ value = "class('druid').max_spell_level"
 
 [class.druid.cantrips_known_count]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 2], [4, 3], [10, 4]]
+input = "class('druid').level"
+steps = [[0, 0], [1, 2], [4, 3], [10, 4]]
 
 [class.druid.max_spell_level]
 type = "mapping"
-input = "character_trait('character_level').level"
-steps = [[1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
+input = "class('druid').level"
+steps = [[0, 0], [1, 1], [3, 2], [5, 3], [7, 4], [9, 5], [11, 6], [13, 7], [15, 8], [17, 9]]
 
 [[class.druid.contributes]]
 target = "character_trait('asi_count').count"
@@ -147,7 +147,7 @@ value = "class('druid').asi_slots"
 
 [class.druid.preparation_cap]
 type = "formula"
-formula = "ability('wisdom').modifier + character_trait('character_level').level"
+formula = "ability('wisdom').modifier + class('druid').level"
 
 [class.circle_of_the_land]
 name = "Circle of the Land"

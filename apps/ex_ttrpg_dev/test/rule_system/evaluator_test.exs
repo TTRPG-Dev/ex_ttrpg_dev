@@ -672,6 +672,11 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
   end
 
   describe "pact magic integration" do
+    # Class features key off the class's own level, which a character's
+    # level record contributes; these tests contribute it directly.
+    defp class_level_effect(class_id, level),
+      do: %Effect{target: {"class", class_id, "level"}, value: level}
+
     setup do
       {:ok, loader_data} = Loader.load(dnd_path())
       {:ok, system} = Graph.build(loader_data)
@@ -689,14 +694,16 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     end
 
     test "warlock level 1: 1 slot at spell level 1", %{system: system, generated: generated} do
-      effects = class_effects(system, "warlock")
+      effects = class_effects(system, "warlock") ++ [class_level_effect("warlock", 1)]
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 1
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 1
     end
 
     test "warlock level 5: 2 slots at spell level 3", %{system: system, generated: generated} do
-      effects = class_effects(system, "warlock") ++ [xp_effect(6500)]
+      effects =
+        class_effects(system, "warlock") ++ [xp_effect(6500), class_level_effect("warlock", 5)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 2
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 3
@@ -704,7 +711,10 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
 
     test "warlock level 11: slot count drops to 3, slot level stays 5",
          %{system: system, generated: generated} do
-      effects = class_effects(system, "warlock") ++ [xp_effect(85_000)]
+      effects =
+        class_effects(system, "warlock") ++
+          [xp_effect(85_000), class_level_effect("warlock", 11)]
+
       assert {:ok, resolved} = Evaluator.evaluate(system, generated, effects)
       assert resolved[{"character_trait", "pact_magic", "slot_count"}] == 3
       assert resolved[{"character_trait", "pact_magic", "slot_level"}] == 5
