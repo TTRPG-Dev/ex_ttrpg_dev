@@ -482,6 +482,10 @@ defmodule ExTTRPGDev.RuleSystem.Expression do
 
   defp apply_function("dice", [count, sides]), do: dice_result(Dice.new(count, sides))
 
+  defp apply_function("dice", args) do
+    {:error, {:eval_error, "dice/#{length(args)} is not defined; use dice(count, sides)"}}
+  end
+
   defp apply_function(name, args) when name in ~w[floor ceil trunc abs min max] do
     {:error,
      {:eval_error, "#{name}/#{length(args)} expects numeric arguments, got: #{inspect(args)}"}}

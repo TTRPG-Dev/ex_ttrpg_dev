@@ -181,6 +181,11 @@ defmodule ExTTRPGDev.RuleSystem.ExpressionTest do
       assert {:ok, %Dice{count: 0, sides: 6}} = Expression.evaluate("dice(0, 6)", %{})
     end
 
+    test "dice with the wrong arity names the expected call" do
+      assert {:error, {:eval_error, message, "dice(6)"}} = Expression.evaluate("dice(6)", %{})
+      assert message =~ "use dice(count, sides)"
+    end
+
     test "dice/2 rejects non-integer arguments" do
       assert {:error, {:eval_error, message, _}} = Expression.evaluate("dice(5 / 2, 6)", %{})
       assert message =~ "non-negative integer"
