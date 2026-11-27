@@ -77,6 +77,31 @@ dice value like `dice(count, sides)` does in a formula.
 calculations (e.g. `full_caster_slots`, `half_caster_slots`) and should not appear on
 the character sheet.
 
+### Class Levels (multiclassing)
+
+`class_concept_type = "class"` in `[module]` (requires `level_node`) enables class
+levels. The loader adds a `level` accumulator to every concept of that type, so
+formulas use `class('fighter').level`. `level_node` stays the total level.
+`Character.level_classes` records the class that gained each level after the
+first, and unrecorded levels go to the class chosen at creation.
+`Characters.level_up(system, character, class: id)` writes that record.
+
+```toml
+[class.rogue.multiclass]                  # required to take rogue as a non-first class
+prerequisite = "ability('dexterity').total_score >= 13"   # this class's own requirement
+armor_proficiencies = ["Light Armor"]     # granted lists replace the class's own; absent = none
+choices = ["skill_proficiency_1"]         # which of the class's choices a multiclass entry makes
+
+[[class.rogue.contributes]]
+target = "saving_throw('dexterity').modifier"
+value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true                   # applies only when rogue is the first class
+```
+
+A non-first class has to meet its own prerequisite and the prerequisite of every class
+the character already has. "Granted lists" are the metadata keys that a
+`character_list` or a class `metadata_contributions` entry reads.
+
 ## Library vs. System Configuration Boundary
 
 `apps/ex_ttrpg_dev/` is a generic TTRPG library. It owns two categories of names:
