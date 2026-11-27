@@ -226,6 +226,28 @@ defmodule ExTTRPGDevTest.Characters.Character do
     assert restored.metadata.slug == original.metadata.slug
   end
 
+  test "from_json/1 round-trips level_classes" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+    original = %{Character.gen_character!(system) | level_classes: ["fighter", "wizard"]}
+
+    json = original |> Character.to_json_map() |> Jason.encode!()
+
+    assert {:ok, %Character{level_classes: ["fighter", "wizard"]}} = Character.from_json(json)
+  end
+
+  test "from_json/1 defaults level_classes to [] for characters saved without it" do
+    system = RuleSystems.load_system!("dnd_5e_srd")
+
+    json =
+      system
+      |> Character.gen_character!()
+      |> Character.to_json_map()
+      |> Map.delete("level_classes")
+      |> Jason.encode!()
+
+    assert {:ok, %Character{level_classes: []}} = Character.from_json(json)
+  end
+
   test "from_json/1 returns {:error, {:invalid_character_data, _}} for malformed JSON" do
     assert {:error, {:invalid_character_data, _message}} = Character.from_json("not valid json")
   end

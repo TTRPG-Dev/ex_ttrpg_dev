@@ -1,0 +1,76 @@
+[rolling_method.flat]
+dice = "3d6"
+default = true
+
+[ability.strength]
+name = "Strength"
+score.type = "generated"
+
+[ability.intelligence]
+name = "Intelligence"
+score.type = "generated"
+
+[character_trait.experience_points]
+name = "Experience Points"
+total.type = "accumulator"
+total.base = "0"
+
+[character_trait.character_level]
+name = "Character Level"
+level.type = "mapping"
+level.input = "character_trait('experience_points').total"
+level.steps = [[0, 1], [100, 2], [200, 3], [300, 4], [400, 5]]
+
+[character_trait.max_hit_points]
+name = "Max Hit Points"
+points.type = "accumulator"
+points.base = "0"
+
+[award.experience_points]
+name = "Experience Points"
+value_type = "integer"
+effect_target = "character_trait('experience_points').total"
+
+[award.level_up]
+name = "Level Up"
+value_type = "next_level_xp"
+effect_target = "character_trait('experience_points').total"
+
+[equipment.longsword]
+name = "Longsword"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+
+[equipment.dagger]
+name = "Dagger"
+is_proficient.type = "accumulator"
+is_proficient.base = "0"
+
+[skill.athletics]
+name = "Athletics"
+
+[skill.arcana]
+name = "Arcana"
+
+[skill.history]
+name = "History"
+
+[character_progression.hp_per_level]
+name = "Hit Points"
+required_count = "character_trait('character_level').level - 1"
+effect_target = "character_trait('max_hit_points').points"
+roll_reference = "class.hit_die"
+
+[character_trait.bonus_skills]
+name = "Bonus Skills"
+count.type = "accumulator"
+count.base = "0"
+
+[character_progression.bonus_skill]
+name = "Bonus Skill"
+type = "skill"
+required_count = "character_trait('bonus_skills').count"
+
+[character_progression.bonus_skill.filter]
+min_level = 0
+max_level_node = "character_trait('bonus_skills').count"

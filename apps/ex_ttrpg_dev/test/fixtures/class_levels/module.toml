@@ -1,0 +1,51 @@
+# A minimal system with class levels enabled, for tests of multiclassing.
+[module]
+name = "Class Levels Test System"
+slug = "class_levels_test"
+version = "0.0.1"
+level_node = "character_trait('character_level').level"
+class_concept_type = "class"
+custom_metadata_keys = ["hit_die", "armor_proficiencies", "weapon_proficiencies"]
+
+[[concept_type]]
+id = "rolling_method"
+name = "Rolling Method"
+
+[[concept_type]]
+id = "ability"
+name = "Ability"
+
+[[concept_type]]
+id = "character_trait"
+name = "Character Trait"
+
+[[concept_type]]
+id = "class"
+name = "Class"
+
+[[concept_type]]
+id = "award"
+name = "Award"
+
+[[concept_type]]
+id = "equipment"
+name = "Equipment"
+
+[[character_list]]
+label = "Armor Proficiencies"
+metadata_key = "armor_proficiencies"
+
+[[metadata_contributions]]
+from_type = "class"
+from_field = "weapon_proficiencies"
+to_type = "equipment"
+to_field = "is_proficient"
+value = 1
+
+[[concept_type]]
+id = "skill"
+name = "Skill"
+
+[[concept_type]]
+id = "character_progression"
+name = "Character Progression"

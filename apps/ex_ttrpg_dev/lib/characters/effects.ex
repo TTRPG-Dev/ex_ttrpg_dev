@@ -11,6 +11,7 @@ defmodule ExTTRPGDev.Characters.Effects do
   """
 
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.ClassLevels
   alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.InventoryItem
   alias ExTTRPGDev.RuleSystem.Effect
@@ -18,10 +19,20 @@ defmodule ExTTRPGDev.Characters.Effects do
   alias ExTTRPGDev.RuleSystems.LoadedSystem
 
   @doc """
-  Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
+  Returns the set of active `{type_id, concept_id}` pairs for a character.
 
   See `ExTTRPGDev.Characters.active_concepts/2` for documentation.
   """
+  def active_concepts(%LoadedSystem{} = system, %Character{} = character) do
+    base = active_concepts(character.decisions, system.concept_metadata)
+
+    system
+    |> ClassLevels.additional_classes(character)
+    |> Enum.reduce(base, fn key, acc ->
+      collect_active_concepts(key, character.decisions, system.concept_metadata, acc)
+    end)
+  end
+
   def active_concepts(decisions, concept_metadata) do
     decisions
     |> Enum.filter(fn d -> d.scope == nil end)
@@ -36,17 +47,19 @@ defmodule ExTTRPGDev.Characters.Effects do
   See `ExTTRPGDev.Characters.active_effects/2` for documentation.
   """
   def active_effects(%LoadedSystem{} = system, %Character{} = character) do
-    active = active_concepts(character.decisions, system.concept_metadata)
+    active = active_concepts(system, character)
     decision_effects = effects_from_decisions(character.decisions, system.concept_metadata)
+    applies? = ClassLevels.class_role_filter(system, character)
 
     system.effects
     |> Enum.filter(fn
-      %Effect{source: {type, id}} -> MapSet.member?(active, {type, id})
-      %Effect{source: {type, id, _}} -> MapSet.member?(active, {type, id})
+      %Effect{source: {type, id}} = e -> MapSet.member?(active, {type, id}) and applies?.(e)
+      %Effect{source: {type, id, _}} = e -> MapSet.member?(active, {type, id}) and applies?.(e)
       _ -> false
     end)
     |> Kernel.++(decision_effects)
     |> Kernel.++(inventory_effects(system, character.inventory))
+    |> Kernel.++(ClassLevels.level_effects(system, character))
     |> Kernel.++(character.effects)
   end
 

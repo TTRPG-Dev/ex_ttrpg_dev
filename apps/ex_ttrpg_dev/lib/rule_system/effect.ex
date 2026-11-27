@@ -12,6 +12,10 @@ defmodule ExTTRPGDev.RuleSystem.Effect do
     `:item_fields`).
   - `:when` — optional condition formula; the effect applies only when it
     evaluates truthy.
+  - `:class_role` — `nil`, or which class position the source class must
+    hold for the effect to apply in a system with class levels: `:first`
+    (the class chosen at creation; authored as `first_class_only = true`)
+    or `:additional` (a class taken later by multiclassing).
   - `:item_fields` — field map of the inventory item that granted this
     effect (`%{}` otherwise); the substitution source for `item.<field>`
     references in `:value` and `:when`.
@@ -24,8 +28,9 @@ defmodule ExTTRPGDev.RuleSystem.Effect do
           target: node_key(),
           value: number() | String.t(),
           when: String.t() | nil,
+          class_role: :first | :additional | nil,
           item_fields: %{optional(String.t()) => term()}
         }
 
-  defstruct [:source, :target, :value, :when, item_fields: %{}]
+  defstruct [:source, :target, :value, :when, :class_role, item_fields: %{}]
 end

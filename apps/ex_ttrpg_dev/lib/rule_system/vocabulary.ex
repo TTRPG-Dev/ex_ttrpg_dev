@@ -17,6 +17,8 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
   @progression_type "character_progression"
   @roll_type "roll"
   @rolling_method_type "rolling_method"
+  @class_level_field "level"
+  @multiclass_key "multiclass"
 
   # All concept metadata keys read by the library at runtime. Keys not in
   # this set and not otherwise declared trigger a Logger.warning at load
@@ -26,7 +28,7 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
   @structural_metadata_keys ~w(
     name type required_count available_when effect_target roll_reference roll
     filter choices level requires starting_equipment target_type dice dice_field bonus_field
-    contributes hidden value_type
+    contributes hidden value_type multiclass
   )
 
   @doc "Reserved type ID for award concepts (XP grants, level-ups)."
@@ -40,6 +42,18 @@ defmodule ExTTRPGDev.RuleSystem.Vocabulary do
 
   @doc "Reserved type ID for rolling-method concepts."
   def rolling_method_type, do: @rolling_method_type
+
+  @doc """
+  The field name of the level node the library synthesizes on each concept
+  of a system's `class_concept_type` (e.g. `class('fighter').level`).
+  """
+  def class_level_field, do: @class_level_field
+
+  @doc """
+  The metadata key of the table on a class concept that governs taking the
+  class as a character's second or later class.
+  """
+  def multiclass_key, do: @multiclass_key
 
   @doc "The set of concept metadata keys the library reads at runtime."
   def structural_metadata_keys, do: MapSet.new(@structural_metadata_keys)

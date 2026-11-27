@@ -12,4 +12,6 @@ test_systems_root =
 Application.put_env(:ex_ttrpg_dev, :local_system_configs_path, test_systems_root)
 ExUnit.after_suite(fn _ -> File.rm_rf(Path.dirname(test_systems_root)) end)
 
+Code.require_file("support/class_levels_fixture.exs", __DIR__)
+
 ExUnit.start()

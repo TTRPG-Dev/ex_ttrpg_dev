@@ -16,6 +16,17 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     is compatible with. Only canonical content maintained alongside the
     library declares it. When present, `"version"` must be valid SemVer so
     that releases can be compared.
+
+  ## Class levels
+
+  - `"class_concept_type"` *(string, optional)* — the concept type whose
+    concepts are classes a character levels in. Setting it enables class
+    levels: each concept of the type gets a `level` node (e.g.
+    `class('fighter').level`), and a character's total level is split among
+    its classes. Must name a declared concept type that is also a
+    `character_choice` in `character_building.toml` (a character's first
+    class is its creation choice), and requires `"level_node"`, which stays
+    the character's total level.
   """
 
   defmodule ConceptType do
@@ -82,6 +93,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     :publisher,
     :concept_types,
     :level_node,
+    :class_concept_type,
     character_building_choices: [],
     character_lists: [],
     display_config: nil,
@@ -99,6 +111,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
           publisher: String.t() | nil,
           concept_types: [%ConceptType{}],
           level_node: String.t() | nil,
+          class_concept_type: String.t() | nil,
           character_building_choices: [%CharacterChoice{}],
           character_lists: [%CharacterListCategory{}],
           display_config: %DisplayConfig{} | nil,
@@ -120,6 +133,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
     with :ok <- validate_required_keys(module_map),
          :ok <- validate_versioning(module_map),
          :ok <- validate_concept_types(concept_types_raw),
+         :ok <- validate_class_concept_type(module_map, concept_types_raw),
          :ok <- validate_metadata_contributions(metadata_contributions_raw) do
       {:ok,
        %__MODULE__{
@@ -131,6 +145,7 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
          series: module_map["series"],
          publisher: module_map["publisher"],
          level_node: module_map["level_node"],
+         class_concept_type: module_map["class_concept_type"],
          concept_types: parse_concept_types(concept_types_raw),
          character_lists: parse_character_lists(map),
          display_config: parse_display_config(map),
@@ -222,6 +237,25 @@ defmodule ExTTRPGDev.RuleSystem.RuleModule do
       idx -> {:error, {:concept_type_missing_id, idx}}
     end
   end
+
+  # Class levels split the total level among classes, so a system enabling
+  # them must say where the total level comes from.
+  defp validate_class_concept_type(%{"class_concept_type" => nil}, _concept_types), do: :ok
+
+  defp validate_class_concept_type(%{"class_concept_type" => type_id} = module_map, concept_types) do
+    cond do
+      not Enum.any?(concept_types, &(&1["id"] == type_id)) ->
+        {:error, {:unknown_class_concept_type, type_id}}
+
+      is_nil(module_map["level_node"]) ->
+        {:error, {:class_concept_type_requires_level_node, type_id}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_class_concept_type(_module_map, _concept_types), do: :ok
 
   defp validate_metadata_contributions(list) do
     list

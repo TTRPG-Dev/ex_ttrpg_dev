@@ -9,6 +9,7 @@ defmodule ExTTRPGDev.Characters do
   - `ExTTRPGDev.Characters.Generation` — random character-building decisions
   - `ExTTRPGDev.Characters.Effects` — active concepts, effect aggregation, resolved state
   - `ExTTRPGDev.Characters.Leveling` — XP and level math
+  - `ExTTRPGDev.Characters.ClassLevels` — splitting the total level among classes
   - `ExTTRPGDev.Characters.Advancement` — awards and progression-choice resolution
   - `ExTTRPGDev.Characters.Progression` — pending-choice computation and slots
   - `ExTTRPGDev.Characters.Resolution` — random resolution of pending choices
@@ -16,6 +17,7 @@ defmodule ExTTRPGDev.Characters do
   - `ExTTRPGDev.Characters.Rolls` — concept rolls
   """
   alias ExTTRPGDev.Characters.Advancement
+  alias ExTTRPGDev.Characters.ClassLevels
   alias ExTTRPGDev.Characters.Effects
   alias ExTTRPGDev.Characters.Generation
   alias ExTTRPGDev.Characters.Leveling
@@ -219,6 +221,62 @@ defmodule ExTTRPGDev.Characters do
   defdelegate xp_to_next_level(system, character), to: Leveling
 
   @doc """
+  Returns each class the character has levels in, with its level, in a
+  system that declares a `class_concept_type`.
+
+  The character's first level belongs to the class chosen at creation.
+  Each later level belongs to the class its `level_classes` entry names,
+  and levels beyond that record belong to the first class. Formulas see the
+  same split through each class's `level` node (`class('fighter').level`).
+
+  Returns `{:ok, %{class_id => level}}` (classes without levels are left
+  out), or `{:error, :class_levels_not_enabled}` for a system without a
+  `class_concept_type`.
+
+      Characters.class_levels(system, character)
+      #=> {:ok, %{"barbarian" => 3, "fighter" => 1}}
+  """
+  defdelegate class_levels(system, character), to: ClassLevels
+
+  @doc """
+  Raises a character to its next level: adds the XP that level needs and,
+  in a system with a `class_concept_type`, records which class gained it.
+
+  Options:
+
+  - `:class` — the class concept ID gaining the level. Defaults to the class
+    chosen at creation. Must be given only in a system with class levels.
+
+  A class the character already has can always gain a level. Taking a new
+  class (multiclassing) needs the class to declare a `multiclass` table, and
+  the `prerequisite` in the multiclass tables of the new class and of every
+  class the character already has to be met.
+
+  Levels the character reached without a record (e.g. through XP awards)
+  are written down as the first class's, so the new entry lands at the level
+  it's for. Record entries for levels above the current one are dropped.
+
+  Returns `{:ok, updated_character}`, with freshly recomputed
+  `pending_choice_slots`, or `{:error, reason}`:
+
+  - `:max_level` / `:no_level_thresholds` — from `xp_to_next_level/2`
+  - `:class_levels_not_enabled` — `:class` given in a system without class levels
+  - `:no_class` — the character has no class to level
+  - `{:unknown_class, id}` — no concept of the class type has that ID
+  - `{:first_level_is_first_class, id}` — reaching level 1 (in a system whose
+    levels start at 0) with a class other than the one chosen at creation
+  - `{:not_multiclassable, id}` — a new class without a `multiclass` table
+  - `{:multiclass_prerequisite_not_met, id}` — `id`'s prerequisite isn't met
+  - `{:invalid_multiclass_prerequisite, id, reason}` — `id`'s prerequisite
+    failed to evaluate
+
+  ```elixir
+  {:ok, character} = Characters.level_up(system, character, class: "fighter")
+  ```
+  """
+  def level_up(system, character, opts \\ []), do: ClassLevels.level_up(system, character, opts)
+
+  @doc """
   Applies an award concept to a character.
 
   Awards are concepts of the reserved `award` type whose metadata declares a
@@ -339,18 +397,40 @@ defmodule ExTTRPGDev.Characters do
     to: Preparation
 
   @doc """
-  Returns the set of active `{type_id, concept_id}` pairs derived from a character's decisions.
+  Returns the set of active `{type_id, concept_id}` pairs for a character.
 
-  Walks the decisions tree starting from root decisions (scope: nil), adding each selected
-  concept and recursing into any sub-choices that concept declares.
+  Called as `active_concepts(system, character)`: walks the decisions tree
+  starting from root decisions (scope: nil), adding each selected concept and
+  recursing into any sub-choices that concept declares. In a system with class
+  levels, classes the character took after its first (see `level_up/3`) are
+  active too, along with their decided sub-choices.
+
+  Called as `active_concepts(decisions, concept_metadata)`: the same walk
+  from decisions alone, which can't see classes taken by multiclassing.
   """
-  defdelegate active_concepts(decisions, concept_metadata), to: Effects
+  defdelegate active_concepts(system_or_decisions, character_or_concept_metadata), to: Effects
+
+  @doc """
+  Returns a concept's metadata as it applies to a character.
+
+  For most concepts this is the concept's metadata unchanged. For a class
+  the character took after its first (see `level_up/3`), the lists the class
+  grants (every metadata key a `character_list` collects, or a
+  `metadata_contributions` entry expands from the class type) are those of
+  its `multiclass` table, and are absent when the table leaves them out.
+  Frontends displaying what a character's concepts grant should read
+  metadata through this.
+
+  `key` is `{type_id, concept_id}`; an unknown key yields `%{}`.
+  """
+  defdelegate concept_metadata(system, character, key), to: ClassLevels
 
   @doc """
   Returns the combined effects list for a character against a system.
 
   Filters system-defined effects to only those whose source concept is active
-  (per the character's decisions), then appends the character's own effects.
+  (per the character's decisions), then appends the effects of the character's
+  decisions, inventory and class levels, and the character's own effects.
   """
   defdelegate active_effects(system, character), to: Effects
 

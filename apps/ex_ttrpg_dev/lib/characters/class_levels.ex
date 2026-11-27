@@ -1,0 +1,308 @@
+defmodule ExTTRPGDev.Characters.ClassLevels do
+  @moduledoc """
+  Class levels: splitting a character's total level among the classes of
+  the system's `class_concept_type`, from the class chosen at creation and
+  the character's `level_classes` record.
+
+  Callers should use the delegating functions on `ExTTRPGDev.Characters`
+  (e.g. `ExTTRPGDev.Characters.class_levels/2`); this module hosts the
+  implementation.
+  """
+
+  alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.Decision
+  alias ExTTRPGDev.Characters.Effects
+  alias ExTTRPGDev.Characters.Leveling
+  alias ExTTRPGDev.Characters.Progression
+  alias ExTTRPGDev.RuleSystem.Effect
+  alias ExTTRPGDev.RuleSystem.Expression
+  alias ExTTRPGDev.RuleSystem.Vocabulary
+  alias ExTTRPGDev.RuleSystems.LoadedSystem
+
+  @doc """
+  Returns each class the character has levels in, with its level.
+
+  See `ExTTRPGDev.Characters.class_levels/2` for documentation.
+  """
+  def class_levels(%LoadedSystem{} = system, %Character{} = character) do
+    case class_type(system) do
+      nil -> {:error, :class_levels_not_enabled}
+      class_type -> {:ok, resolved_class_levels(system, character, class_type)}
+    end
+  end
+
+  defp resolved_class_levels(system, character, class_type) do
+    {_effects, resolved} = Effects.resolved_state(system, character)
+    level_field = Vocabulary.class_level_field()
+
+    for {{^class_type, id, ^level_field}, level} <- resolved, level > 0, into: %{} do
+      {id, trunc(level)}
+    end
+  end
+
+  @doc """
+  Raises a character to its next level, recording which class gained it.
+
+  See `ExTTRPGDev.Characters.level_up/3` for documentation.
+  """
+  def level_up(%LoadedSystem{} = system, %Character{} = character, opts \\ []) do
+    with {:ok, xp_needed, next_level} <- Leveling.xp_to_next_level(system, character),
+         {:ok, level_classes} <- record_level(system, character, next_level, opts[:class]) do
+      xp_effect = %Effect{target: Leveling.xp_effect_target(system), value: xp_needed}
+
+      updated = %{
+        character
+        | effects: character.effects ++ [xp_effect],
+          level_classes: level_classes
+      }
+
+      {:ok, %{slots: slots}} = Progression.compute_pending_choice_slots(system, updated)
+      {:ok, %{updated | pending_choice_slots: slots}}
+    end
+  end
+
+  defp record_level(system, character, next_level, class_id) do
+    case {class_type(system), class_id} do
+      {nil, nil} -> {:ok, character.level_classes}
+      {nil, _class_id} -> {:error, :class_levels_not_enabled}
+      _ -> record_class_level(system, character, next_level, class_id)
+    end
+  end
+
+  defp record_class_level(system, character, next_level, class_id) do
+    with first when not is_nil(first) <- first_class(system, character),
+         class_id = class_id || first,
+         :ok <- check_class_exists(system, class_id),
+         :ok <- check_first_level(class_id, first, next_level),
+         held = held_classes(character, first, next_level - 1),
+         :ok <- check_can_take(system, character, class_id, held) do
+      {:ok, append_level(character.level_classes, first, next_level, class_id)}
+    else
+      nil -> {:error, :no_class}
+      {:error, _} = error -> error
+    end
+  end
+
+  # Level 1 belongs to the class chosen at creation. It's reached by
+  # level-up only in a system whose levels start at 0.
+  defp check_first_level(class_id, first, next_level) when next_level <= 1 and class_id != first,
+    do: {:error, {:first_level_is_first_class, class_id}}
+
+  defp check_first_level(_class_id, _first, _next_level), do: :ok
+
+  # Level 1 isn't recorded, so reaching it leaves the record as it is.
+  defp append_level(level_classes, _first, next_level, _class_id) when next_level <= 1,
+    do: level_classes
+
+  # Levels reached without a record (e.g. through XP awards) went to the
+  # first class; writing that down keeps the new entry at the level it's
+  # for.
+  defp append_level(level_classes, first, next_level, class_id) do
+    reached = next_level - 2
+    recorded = Enum.take(level_classes, reached)
+    padding = List.duplicate(first, reached - length(recorded))
+
+    recorded ++ padding ++ [class_id]
+  end
+
+  defp check_class_exists(system, class_id) do
+    if Map.has_key?(system.concept_metadata, {class_type(system), class_id}),
+      do: :ok,
+      else: {:error, {:unknown_class, class_id}}
+  end
+
+  # The classes the character has levels in at `level`.
+  defp held_classes(character, first, level) do
+    [first | Enum.take(character.level_classes, max(level - 1, 0))] |> Enum.uniq()
+  end
+
+  # Gaining a level in a class the character already has is always allowed.
+  # Taking a new class needs that class to declare a multiclass table, and
+  # the prerequisites of the new class and of every class already held
+  # (each declared in its multiclass table) to be met.
+  defp check_can_take(system, character, class_id, held) do
+    cond do
+      class_id in held ->
+        :ok
+
+      multiclass_table(system, class_id) == nil ->
+        {:error, {:not_multiclassable, class_id}}
+
+      true ->
+        {_effects, resolved} = Effects.resolved_state(system, character)
+
+        Enum.find_value([class_id | held], :ok, fn id ->
+          check_prerequisite(system, id, resolved)
+        end)
+    end
+  end
+
+  # nil when met (or undeclared), so it can drive Enum.find_value/3.
+  defp check_prerequisite(system, class_id, resolved) do
+    case multiclass_table(system, class_id) do
+      %{"prerequisite" => expr} when is_binary(expr) ->
+        case Expression.evaluate(expr, resolved) do
+          {:ok, true} -> nil
+          {:ok, n} when is_number(n) and n != 0 -> nil
+          {:ok, _} -> {:error, {:multiclass_prerequisite_not_met, class_id}}
+          {:error, reason} -> {:error, {:invalid_multiclass_prerequisite, class_id, reason}}
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp multiclass_table(system, class_id) do
+    get_in(system.concept_metadata, [{class_type(system), class_id}, Vocabulary.multiclass_key()])
+  end
+
+  @doc false
+  # The character as it was at `level`, as far as class levels go: its
+  # record cut to the levels it had reached, so classes taken later aren't
+  # held (or active) yet.
+  def as_of_level(%Character{} = character, level) do
+    %{character | level_classes: Enum.take(character.level_classes, max(level - 1, 0))}
+  end
+
+  @doc false
+  # The class that gained `level`: the first class for level 1 and for
+  # levels past the end of the record. `nil` without a first class.
+  def class_at_level(%LoadedSystem{} = system, %Character{} = character, level) do
+    first = first_class(system, character)
+
+    if first && level >= 2,
+      do: Enum.at(character.level_classes, level - 2, first),
+      else: first
+  end
+
+  @doc false
+  # The `{class_type, id}` keys of the classes the character took after its
+  # first. Every recorded class counts, even one recorded for a level above
+  # the current one, which can only happen if XP was taken away.
+  def additional_classes(%LoadedSystem{} = system, %Character{} = character) do
+    case first_class(system, character) do
+      nil ->
+        []
+
+      first ->
+        character.level_classes
+        |> Enum.uniq()
+        |> Enum.reject(&(&1 == first))
+        |> Enum.map(&{class_type(system), &1})
+    end
+  end
+
+  @doc """
+  Returns a concept's metadata as it applies to a character.
+
+  See `ExTTRPGDev.Characters.concept_metadata/3` for documentation.
+  """
+  def concept_metadata(%LoadedSystem{} = system, %Character{} = character, {type, _id} = key) do
+    meta = Map.get(system.concept_metadata, key, %{})
+
+    if key in additional_classes(system, character) do
+      granted = granted_keys(system.module, type)
+      multiclass = Map.get(meta, Vocabulary.multiclass_key(), %{})
+
+      meta
+      |> Map.drop(granted)
+      |> Map.merge(Map.take(multiclass, granted))
+    else
+      meta
+    end
+  end
+
+  # The metadata keys a concept of `type` grants a character: those a
+  # character list collects, or a metadata contribution expands from it.
+  defp granted_keys(module, type) do
+    list_keys = Enum.map(module.character_lists, & &1.metadata_key)
+
+    contribution_keys =
+      for %{from_type: ^type, from_field: field} <- module.metadata_contributions, do: field
+
+    Enum.uniq(list_keys ++ contribution_keys)
+  end
+
+  @doc false
+  # A predicate for whether an effect's `class_role` lets it apply. A
+  # `:first` effect applies only when its source is the first class; an
+  # `:additional` one only when its source class was taken after the
+  # first. Roles mean nothing on effects from other concept types, and
+  # without class levels there's only ever one class, so those always pass.
+  def class_role_filter(%LoadedSystem{} = system, %Character{} = character) do
+    class_type = class_type(system)
+    first = first_class(system, character)
+
+    fn
+      %Effect{class_role: :first, source: {^class_type, id}} -> id == first
+      %Effect{class_role: :additional, source: {^class_type, id}} -> id != first
+      %Effect{} -> true
+    end
+  end
+
+  @doc false
+  # The system's class concept type, or `nil` when class levels aren't
+  # enabled. Tolerates the partial module maps hand-built systems carry.
+  def class_type(%LoadedSystem{module: %{class_concept_type: class_type}}), do: class_type
+  def class_type(_system), do: nil
+
+  @doc false
+  # The class chosen at creation: the root decision for the class concept
+  # type. `nil` when the system has no class levels or the character has
+  # no class yet.
+  def first_class(%LoadedSystem{} = system, %Character{} = character) do
+    case class_type(system) do
+      nil -> nil
+      class_type -> first_class_of_type(character.decisions, class_type)
+    end
+  end
+
+  defp first_class_of_type(decisions, class_type) do
+    Enum.find_value(decisions, fn
+      %Decision{scope: nil, choice: ^class_type, selection: id} -> id
+      _ -> nil
+    end)
+  end
+
+  @doc false
+  # The effects that split the total level among the character's classes.
+  #
+  # Each is conditioned on the total level rather than fixed, so evaluating
+  # at a past level (Leveling.evaluate_at_level/6) counts only the levels
+  # gained by then. Levels past the end of `level_classes` went to the
+  # first class.
+  def level_effects(%LoadedSystem{} = system, %Character{} = character) do
+    case first_class(system, character) do
+      nil -> []
+      first -> level_effects(system, character, first)
+    end
+  end
+
+  defp level_effects(system, character, first) do
+    class_type = system.module.class_concept_type
+    level_field = Vocabulary.class_level_field()
+    total = "(#{system.module.level_node})"
+    recorded = length(character.level_classes)
+    target = fn id -> {class_type, id, level_field} end
+
+    recorded_effects =
+      character.level_classes
+      |> Enum.with_index(2)
+      |> Enum.map(fn {id, level} ->
+        %Effect{target: target.(id), value: 1, when: "#{total} >= #{level}"}
+      end)
+
+    unrecorded = %Effect{
+      target: target.(first),
+      value: "#{total} - #{recorded + 1}",
+      when: "#{total} > #{recorded + 1}"
+    }
+
+    # Conditioned too: in a system whose levels start at 0, a level-0
+    # character has no class levels yet.
+    first_level = %Effect{target: target.(first), value: 1, when: "#{total} >= 1"}
+
+    [first_level | recorded_effects] ++ [unrecorded]
+  end
+end

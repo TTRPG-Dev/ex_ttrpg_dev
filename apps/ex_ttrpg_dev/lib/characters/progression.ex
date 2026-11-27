@@ -17,6 +17,7 @@ defmodule ExTTRPGDev.Characters.Progression do
   """
 
   alias ExTTRPGDev.Characters.Character
+  alias ExTTRPGDev.Characters.ClassLevels
   alias ExTTRPGDev.Characters.Decision
   alias ExTTRPGDev.Characters.Effects
   alias ExTTRPGDev.Characters.Leveling
@@ -35,13 +36,13 @@ defmodule ExTTRPGDev.Characters.Progression do
   See `ExTTRPGDev.Characters.pending_choices/3` for documentation.
   """
   def pending_choices(%LoadedSystem{} = system, %Character{} = character, resolved) do
-    active = Effects.active_concepts(character.decisions, system.concept_metadata)
+    active = Effects.active_concepts(system, character)
 
     {progression_choices, errors} =
       system.concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == @progression_type end)
       |> Enum.reduce({[], []}, fn {{_type, id}, meta}, {choices_acc, errors_acc} ->
-        roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
+        roll = resolve_roll_reference(meta["roll_reference"], id, character, system)
         meta_with_roll = Map.put(meta, "roll", roll)
 
         {choices, choice_errors} =
@@ -63,9 +64,10 @@ defmodule ExTTRPGDev.Characters.Progression do
       end)
 
     sub_choices = pending_sub_choices(character.decisions, system.concept_metadata)
+    class_choices = pending_additional_class_choices(system, character)
 
     choices =
-      (progression_choices ++ sub_choices)
+      (progression_choices ++ sub_choices ++ class_choices)
       |> Enum.sort_by(& &1.id)
 
     {:ok, %{choices: choices, errors: errors}}
@@ -99,7 +101,7 @@ defmodule ExTTRPGDev.Characters.Progression do
   end
 
   defp slots_from_level_node(system, character, level_node_key) do
-    {all_effects, resolved} = Effects.resolved_state(system, character)
+    {_effects, resolved} = Effects.resolved_state(system, character)
     current_level = trunc(resolved[level_node_key] || 1)
 
     thresholds = Leveling.level_xp_thresholds(system)
@@ -114,14 +116,18 @@ defmodule ExTTRPGDev.Characters.Progression do
 
     level_resolved =
       Map.new(1..current_level, fn level ->
+        # A class taken later isn't held yet at this level, so its effects
+        # mustn't count towards slots earned here.
+        at_level = ClassLevels.as_of_level(character, level)
+
         {level,
          Leveling.evaluate_at_level(
            system,
-           character,
+           at_level,
            level,
            thresholds,
            xp_target,
-           all_effects
+           Effects.active_effects(system, at_level)
          )}
       end)
 
@@ -263,6 +269,28 @@ defmodule ExTTRPGDev.Characters.Progression do
     end)
   end
 
+  # A class taken after the first makes only the sub-choices its multiclass
+  # table lists under `choices` (e.g. one skill instead of a first class's
+  # two), each once. Choices granting inventory are starting equipment,
+  # which a multiclassed class doesn't get.
+  defp pending_additional_class_choices(system, character) do
+    system
+    |> ClassLevels.additional_classes(character)
+    |> Enum.flat_map(fn {type, id} ->
+      meta = Map.get(system.concept_metadata, {type, id}, %{})
+      allowed = get_in(meta, [Vocabulary.multiclass_key(), "choices"]) || []
+
+      meta
+      |> Map.get("choices", %{})
+      |> Enum.filter(fn {choice_id, choice_def} ->
+        choice_id in allowed and choice_def["grants_to"] != "inventory"
+      end)
+      |> Enum.flat_map(
+        &pending_choice_entry(&1, character.decisions, system.concept_metadata, type, id, 1)
+      )
+    end)
+  end
+
   defp pending_choice_entry(
          {choice_id, choice_def},
          decisions,
@@ -275,11 +303,7 @@ defmodule ExTTRPGDev.Characters.Progression do
     pending_count = max(0, selected_count - resolved_count)
 
     if pending_count > 0 do
-      options =
-        concept_metadata
-        |> Enum.filter(fn {{t, _cid}, _} -> t == choice_def["type"] end)
-        |> Enum.map(fn {{_t, cid}, _} -> cid end)
-        |> Enum.sort()
+      options = sub_choice_options(choice_def, concept_metadata)
 
       [
         %{
@@ -296,6 +320,19 @@ defmodule ExTTRPGDev.Characters.Progression do
     else
       []
     end
+  end
+
+  # A choice's explicit `options` list wins; without one, every concept of
+  # the choice's type is eligible. Mirrors Advancement.sub_choice_options/2,
+  # which resolving the choice validates against.
+  defp sub_choice_options(%{"options" => options}, _concept_metadata) when is_list(options),
+    do: options
+
+  defp sub_choice_options(choice_def, concept_metadata) do
+    concept_metadata
+    |> Enum.filter(fn {{t, _cid}, _} -> t == choice_def["type"] end)
+    |> Enum.map(fn {{_t, cid}, _} -> cid end)
+    |> Enum.sort()
   end
 
   defp selection_progression_choices(
@@ -482,18 +519,35 @@ defmodule ExTTRPGDev.Characters.Progression do
     end)
   end
 
-  defp resolve_roll_reference(nil, _character, _concept_metadata), do: nil
+  defp resolve_roll_reference(nil, _progression_id, _character, _system), do: nil
 
-  defp resolve_roll_reference(roll_reference, character, concept_metadata) do
+  defp resolve_roll_reference(roll_reference, progression_id, character, system) do
     case String.split(roll_reference, ".", parts: 2) do
       [type_id, field] ->
-        case Enum.find(character.decisions, &(&1.scope == nil and &1.choice == type_id)) do
+        case referenced_concept(type_id, progression_id, character, system) do
           nil -> nil
-          %{selection: concept_id} -> get_in(concept_metadata, [{type_id, concept_id}, field])
+          concept_id -> get_in(system.concept_metadata, [{type_id, concept_id}, field])
         end
 
       _ ->
         nil
+    end
+  end
+
+  # The concept of `type_id` a roll reference reads: the root decision of
+  # that type. For the class concept type with class levels, it's the class
+  # that gained the level the next decision is for, taking the
+  # progression's decisions as one per level after the first (decision n is
+  # for level n + 1), as a per-level hit point roll is.
+  defp referenced_concept(type_id, progression_id, character, system) do
+    if type_id == ClassLevels.class_type(system) do
+      level = count_progression_decisions(character.decisions, progression_id) + 2
+      ClassLevels.class_at_level(system, character, level)
+    else
+      Enum.find_value(character.decisions, fn
+        %Decision{scope: nil, choice: ^type_id, selection: concept_id} -> concept_id
+        _ -> nil
+      end)
     end
   end
 end

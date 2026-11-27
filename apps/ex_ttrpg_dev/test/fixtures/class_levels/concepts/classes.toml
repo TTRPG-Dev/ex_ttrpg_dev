@@ -1,0 +1,60 @@
+[class.fighter]
+name = "Fighter"
+hit_die = "d10"
+armor_proficiencies = ["Heavy Armor", "Shield"]
+weapon_proficiencies = ["Longsword", "Dagger"]
+second_wind_bonus.formula = "class('fighter').level"
+
+[class.fighter.multiclass]
+prerequisite = "ability('strength').score >= 13"
+armor_proficiencies = ["Shield"]
+weapon_proficiencies = ["Longsword"]
+choices = ["skill_1", "starting_weapon"]
+
+[class.fighter.choices.subclass]
+type = "class"
+options = ["champion"]
+
+[class.fighter.choices.skill_1]
+type = "skill"
+options = ["athletics", "history"]
+
+[class.fighter.choices.skill_2]
+type = "skill"
+options = ["athletics", "history"]
+
+[class.fighter.choices.starting_weapon]
+type = "equipment"
+grants_to = "inventory"
+options = ["longsword"]
+
+[[class.fighter.contributes]]
+target = "character_trait('max_hit_points').points"
+value = 10
+first_class_only = true
+
+[[class.fighter.contributes]]
+target = "character_trait('max_hit_points').points"
+value = 1
+
+[class.wizard]
+name = "Wizard"
+hit_die = "d6"
+armor_proficiencies = ["Robes"]
+
+[[class.wizard.contributes]]
+target = "character_trait('max_hit_points').points"
+value = 6
+first_class_only = true
+
+[[class.wizard.contributes]]
+target = "character_trait('bonus_skills').count"
+value = 1
+
+[class.wizard.multiclass]
+prerequisite = "ability('intelligence').score >= 13"
+
+# A subclass: a concept of the class type, chosen through a sub-choice
+# rather than levelled in directly.
+[class.champion]
+name = "Champion"

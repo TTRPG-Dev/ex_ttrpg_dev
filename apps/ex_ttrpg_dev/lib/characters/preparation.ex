@@ -187,7 +187,7 @@ defmodule ExTTRPGDev.Characters.Preparation do
     with key when not is_nil(key) <- prep.always_prepared_metadata_key,
          true <- max_level > 0 do
       level_ctx = %{type_id: type_id, level_field: prep.level_field, max_level: max_level}
-      active = Effects.active_concepts(character.decisions, system.concept_metadata)
+      active = Effects.active_concepts(system, character)
 
       active
       |> Enum.flat_map(fn {concept_type, concept_id} ->

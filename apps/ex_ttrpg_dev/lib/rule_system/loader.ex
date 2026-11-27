@@ -69,7 +69,12 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     contributes. Used for progressions whose selection directly modifies a node.
   - `"roll_reference"` *(string `"type_id.concept_id"`, optional)* — pointer to a
     `roll` concept. Resolved at evaluation time and injected as `"roll"` on the
-    metadata map. Not authored directly in TOML as `"roll"`.
+    metadata map. Not authored directly in TOML as `"roll"`. When `type_id`
+    is the module's `class_concept_type`, the class read is the one that
+    gained the level the next decision is for, taking the progression's
+    decisions as one per level after the first (as per-level hit point
+    rolls are): a fighter/wizard rolls the wizard's hit die for a wizard
+    level.
   - `"filter"` *(map, optional)* — filters applied when presenting options from this
     progression. All subkeys are optional:
     - `"level"` *(integer)* — exact level match; mutually exclusive with
@@ -126,6 +131,44 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
       by `Graph.build/1` with `{:error, {:invalid_contributes_value, message}}`.
       Required when `"contributes_field"` is present.
 
+  ### Class levels
+
+  When `module.toml` declares a `class_concept_type` (see
+  `ExTTRPGDev.RuleSystem.RuleModule`), the loader adds a `level` accumulator
+  node, base `0`, to every concept of that type, e.g.
+  `class('fighter').level`. Formulas reference a class's level through it.
+  A character's level record (`ExTTRPGDev.Characters.Character`'s
+  `level_classes`) contributes to it, so a class the character doesn't have
+  resolves to `0`. `level` is reserved on those concepts: authoring a
+  `level` node there fails the load with `{:reserved_class_level_field, ref}`.
+
+  A class concept may declare a `"multiclass"` table governing taking it as
+  a character's second or later class (see `ExTTRPGDev.Characters.level_up/3`).
+  A class without one can only be a character's first class. Keys:
+
+  - `"prerequisite"` *(formula string, optional)* — must evaluate truthy
+    for a character to take the class as an additional class, and for a
+    character who has the class to take any other.
+
+  - `"choices"` *(list of choice IDs, optional)* — which of the class's own
+    `choices` a character makes on taking it as an additional class (e.g.
+    one skill where a first class picks two). They surface as pending
+    sub-choices. Choices with `grants_to = "inventory"` are never made for
+    an additional class. Defaults to none.
+  - granted lists *(optional)* — a class taken as an additional class grants
+    a reduced set of what it grants as a first class. Every metadata key a
+    `character_list` collects, or a `metadata_contributions` entry expands
+    from this type, is read from the multiclass table instead of the class
+    for an additional class, and is empty when the table leaves it out
+    (e.g. `armor_proficiencies = ["Light Armor"]`). See
+    `ExTTRPGDev.Characters.concept_metadata/3`.
+
+  A class taken as an additional class is active like the first: its
+  `contributes` apply and its decided sub-choices are followed. An entry in
+  a class's `contributes` may set `first_class_only = true` to apply only
+  when the class is the character's first (e.g. saving throw proficiencies,
+  or first-level hit points).
+
   ### Note: CLI-only keys
 
   The following keys are consumed by `ttrpg_dev_cli`, not by this library:
@@ -181,9 +224,11 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   def load_source(%Source{} = source) do
     with {:ok, rule_module} <- build_module(source),
          {:ok, data} <- build_concepts(source.concepts, rule_module),
+         {:ok, data} <- add_class_level_nodes(data, rule_module),
          {:ok, inventory_rules} <- build_inventory_rules(source.inventory_rules) do
       data = expand_metadata_contributions(data, rule_module)
       warn_unknown_metadata_keys(data.concept_metadata, rule_module, inventory_rules)
+      warn_misplaced_multiclass_tables(data.concept_metadata, rule_module)
       warn_rolling_method_issues(data)
       warn_roll_definition_issues(data.concept_metadata)
       {:ok, data |> Map.put(:module, rule_module) |> Map.put(:inventory_rules, inventory_rules)}
@@ -195,12 +240,47 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   # choices), without its concepts, so a caller can read a system's
   # metadata even when the rest of it doesn't load.
   def build_module(%Source{module: module_map, character_building: building}) do
-    case RuleModule.from_map(module_map) do
-      {:ok, rule_module} ->
-        {:ok, %{rule_module | character_building_choices: parse_character_choices(building)}}
+    with {:ok, rule_module} <- RuleModule.from_map(module_map),
+         rule_module = %{
+           rule_module
+           | character_building_choices: parse_character_choices(building)
+         },
+         :ok <- validate_class_choice(rule_module) do
+      {:ok, rule_module}
+    else
+      {:error, reason} -> {:error, {:module_parse_error, reason}}
+    end
+  end
 
-      {:error, reason} ->
-        {:error, {:module_parse_error, reason}}
+  # A character's first class is its root decision for the class concept
+  # type, so class levels only work when that type is chosen at creation.
+  # Otherwise every class level would silently resolve to 0.
+  defp validate_class_choice(%RuleModule{class_concept_type: nil}), do: :ok
+
+  defp validate_class_choice(%RuleModule{class_concept_type: type} = rule_module) do
+    if Enum.any?(rule_module.character_building_choices, &(&1.concept_type == type)),
+      do: :ok,
+      else: {:error, {:class_concept_type_not_a_character_choice, type}}
+  end
+
+  # Each class gets a level accumulator, base 0. A character's level record
+  # contributes to it (see Characters.Effects), so a class the character
+  # doesn't have resolves to 0. Graph.build/1 adds the edges from the level
+  # node those contributions read.
+  defp add_class_level_nodes(data, %RuleModule{class_concept_type: nil}), do: {:ok, data}
+
+  defp add_class_level_nodes(data, %RuleModule{class_concept_type: class_type}) do
+    level_keys =
+      for {{^class_type, id}, _meta} <- data.concept_metadata,
+          do: {class_type, id, Vocabulary.class_level_field()}
+
+    case Enum.find(level_keys, &Map.has_key?(data.nodes, &1)) do
+      nil ->
+        nodes = Map.new(level_keys, &{&1, %Node{type: :accumulator, base: "0"}})
+        {:ok, %{data | nodes: Map.merge(data.nodes, nodes)}}
+
+      {type_id, concept_id, field} ->
+        {:error, {:reserved_class_level_field, "#{type_id}('#{concept_id}').#{field}"}}
     end
   end
 
@@ -505,21 +585,35 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
   defp expand_metadata_contributions(data, rule_module) do
     new_effects =
       Enum.flat_map(rule_module.metadata_contributions, fn contribution ->
-        expand_contribution(data.concept_metadata, contribution)
+        expand_contribution(data.concept_metadata, contribution, rule_module.class_concept_type)
       end)
 
     %{data | effects: data.effects ++ new_effects}
   end
 
-  defp expand_contribution(concept_metadata, contribution) do
+  defp expand_contribution(concept_metadata, contribution, class_type) do
     concept_metadata
     |> Enum.filter(fn {{type, _id}, _meta} -> type == contribution.from_type end)
-    |> Enum.flat_map(fn {{_type, source_id}, meta} ->
-      expand_source_values(concept_metadata, contribution, source_id, meta)
+    |> Enum.flat_map(fn {{type, source_id}, meta} ->
+      multiclass = if type == class_type, do: meta[Vocabulary.multiclass_key()]
+
+      if is_map(multiclass) do
+        # A class with a multiclass table grants its own list only as a
+        # first class, and the table's (possibly absent, so empty) list as
+        # an additional one.
+        expand_source_values(concept_metadata, contribution, {source_id, meta, :first}) ++
+          expand_source_values(
+            concept_metadata,
+            contribution,
+            {source_id, multiclass, :additional}
+          )
+      else
+        expand_source_values(concept_metadata, contribution, {source_id, meta, nil})
+      end
     end)
   end
 
-  defp expand_source_values(concept_metadata, contribution, source_id, meta) do
+  defp expand_source_values(concept_metadata, contribution, {source_id, meta, class_role}) do
     # List.wrap: a scalar value (`languages = "Common"`) is treated as a
     # single-element list instead of crashing the flat_map.
     values = meta |> Map.get(contribution.from_field) |> List.wrap()
@@ -532,7 +626,8 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
           source: {contribution.from_type, source_id},
           target: {contribution.to_type, target_id, contribution.to_field},
           value: contribution.value,
-          when: nil
+          when: nil,
+          class_role: class_role
         }
       end)
     end)
@@ -584,6 +679,33 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     end)
   end
 
+  # `multiclass` is structural vocabulary, so the unknown-key warning lets
+  # it through anywhere. It only means something on the class concept type,
+  # though, and on any other concept it's silently ignored.
+  defp warn_misplaced_multiclass_tables(concept_metadata, rule_module) do
+    key = Vocabulary.multiclass_key()
+    class_type = rule_module.class_concept_type
+
+    concept_metadata
+    |> Enum.filter(fn {{type_id, _id}, meta} ->
+      type_id != class_type and Map.has_key?(meta, key)
+    end)
+    |> Enum.group_by(fn {{type_id, _id}, _meta} -> type_id end, fn {{_, id}, _} -> id end)
+    |> Enum.sort()
+    |> Enum.each(fn {type_id, ids} ->
+      reason =
+        if class_type,
+          do: "only concepts of the class_concept_type #{inspect(class_type)} take one",
+          else: "the system declares no class_concept_type"
+
+      Logger.warning(
+        "#{inspect(key)} table on #{inspect(type_id)} concept(s) in system " <>
+          "#{inspect(rule_module.slug)}: #{ids |> Enum.sort() |> Enum.join(", ")}. " <>
+          "It's ignored: #{reason}."
+      )
+    end)
+  end
+
   defp build_allowed_keys(rule_module, inventory_rules) do
     from_contributions =
       Enum.flat_map(rule_module.metadata_contributions, fn mc ->
@@ -623,7 +745,8 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
           source: source,
           target: ref,
           value: value,
-          when: Map.get(entry, "when")
+          when: Map.get(entry, "when"),
+          class_role: if(Map.get(entry, "first_class_only") == true, do: :first)
         }
 
       :error ->
