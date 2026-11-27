@@ -113,6 +113,8 @@ pub(crate) struct CharacterData {
     pub(crate) name: String,
     pub(crate) rule_system: String,
     #[serde(default)]
+    pub(crate) class_levels: Vec<ClassLevelEntry>,
+    #[serde(default)]
     pub(crate) choices: Vec<ChoiceEntry>,
     #[serde(default)]
     pub(crate) character_lists: Vec<CharacterListCategory>,
@@ -124,6 +126,15 @@ pub(crate) struct CharacterData {
     pub(crate) pending_choices: Vec<PendingChoice>,
     #[serde(default)]
     pub(crate) awarded_xp: Option<i64>,
+}
+
+/// One class a character has levels in; the engine lists the first class first.
+#[derive(Deserialize)]
+pub(crate) struct ClassLevelEntry {
+    #[allow(dead_code)]
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) level: i64,
 }
 
 #[derive(Deserialize)]
