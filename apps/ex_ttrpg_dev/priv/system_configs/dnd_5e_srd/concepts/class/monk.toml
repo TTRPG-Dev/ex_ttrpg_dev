@@ -79,18 +79,22 @@ options = ["acrobatics", "athletics", "history", "insight", "religion", "stealth
 [[class.monk.contributes]]
 target = "saving_throw('strength').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "saving_throw('dexterity').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.monk.contributes]]
 target = "character_trait('asi_count').count"

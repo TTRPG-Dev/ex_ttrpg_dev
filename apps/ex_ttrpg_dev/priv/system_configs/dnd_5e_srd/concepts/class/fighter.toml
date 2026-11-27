@@ -84,18 +84,22 @@ options = [
 [[class.fighter.contributes]]
 target = "saving_throw('strength').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.fighter.contributes]]
 target = "saving_throw('constitution').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.fighter.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 10"
+first_class_only = true
 
 [[class.fighter.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.fighter.contributes]]
 target = "character_trait('asi_count').count"

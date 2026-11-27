@@ -424,6 +424,38 @@ defmodule ExTTRPGDevTest.RuleSystems.DnD5eSRDContent do
       assert node(fighter_barbarian(system), "character_trait", "proficiency_bonus", "bonus") == 3
     end
 
+    test "only the first class grants saving throw proficiencies", %{system: system} do
+      values =
+        resolve(system,
+          decisions: [root("class", "fighter")],
+          level: 5,
+          level_classes: ["wizard", "wizard", "fighter", "fighter"]
+        )
+
+      saves =
+        Map.new(~w(strength constitution intelligence wisdom), fn ability ->
+          {ability, node(values, "saving_throw", ability, "modifier")}
+        end)
+
+      # proficiency bonus +3 at level 5; every ability modifier is 0
+      assert saves == %{"strength" => 3, "constitution" => 3, "intelligence" => 0, "wisdom" => 0}
+    end
+
+    test "only the first class grants first-level hit points; Con counts every level",
+         %{system: system} do
+      values =
+        resolve(system,
+          decisions: [root("class", "fighter")],
+          scores: %{"constitution" => 14},
+          level: 5,
+          level_classes: ["wizard", "wizard", "fighter", "fighter"]
+        )
+
+      # fighter 1st level: 10 + 2; Con +2 for each of the 4 later levels.
+      # Hit dice rolled for later levels are progression decisions (none here).
+      assert node(values, "character_trait", "max_hit_points", "points") == 20
+    end
+
     test "a class the character doesn't have resolves its table at level 0", %{system: system} do
       values = fighter_barbarian(system)
 

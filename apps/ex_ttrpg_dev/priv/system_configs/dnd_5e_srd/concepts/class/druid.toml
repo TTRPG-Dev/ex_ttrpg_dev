@@ -70,18 +70,22 @@ options = [
 [[class.druid.contributes]]
 target = "saving_throw('intelligence').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.druid.contributes]]
 target = "saving_throw('wisdom').modifier"
 value = "character_trait('proficiency_bonus').bonus"
+first_class_only = true
 
 [[class.druid.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier + 8"
+first_class_only = true
 
 [[class.druid.contributes]]
 target = "character_trait('max_hit_points').points"
 value = "ability('constitution').modifier * (character_trait('character_level').level - 1)"
+first_class_only = true
 
 [[class.druid.contributes]]
 target = "character_trait('spellcasting_ability_modifier').value"
