@@ -153,8 +153,14 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
   computing a character's current level from accumulated XP) can reuse this
   instead of re-implementing the same threshold-matching rule.
 
-  Returns `{:ok, value}` or `{:error, {:mapping_no_match, input_value}}`.
+  Returns `{:ok, value}`, `{:error, {:mapping_no_match, input_value}}`, or
+  `{:error, {:mapping_non_numeric_input, input_value}}` when the input isn't a
+  number (e.g. dice) — Erlang orders every struct above every number, so
+  comparing one against thresholds would silently pick the last step.
   """
+  def resolve_mapping_step(_steps, input_value) when not is_number(input_value),
+    do: {:error, {:mapping_non_numeric_input, input_value}}
+
   def resolve_mapping_step(steps, input_value) do
     steps
     |> Enum.filter(fn [threshold, _] -> input_value >= threshold end)

@@ -738,6 +738,26 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
              ])
   end
 
+  test "a mapping whose input resolves to dice is an error, not the last step" do
+    {:ok, system} =
+      Graph.build(%{
+        nodes: %{
+          {"feature", "sneak_attack", "damage"} => %Node{type: :formula, formula: "dice(1, 6)"},
+          {"feature", "sneak_attack", "tier"} => %Node{
+            type: :mapping,
+            input: "feature('sneak_attack').damage",
+            steps: [[0, 1], [10, 2], [20, 3]]
+          }
+        },
+        rolling_methods: %{},
+        concept_metadata: %{},
+        effects: []
+      })
+
+    assert {:error, {:mapping_non_numeric_input, %Dice{count: 1, sides: 6}}} =
+             Evaluator.evaluate(system, %{})
+  end
+
   describe "dice-valued accumulators" do
     defp dice_accumulator_system do
       {:ok, system} =
