@@ -237,8 +237,9 @@ all dice, and could only be encoded as two numbers (count and size) and
 re-assembled by the reader.
 
 **Now.** `ExTTRPGDev.RuleSystem.Dice` is a node value: formulas build it with
-`dice(count, sides)` and combine it with `+`/`-` (integers, same-sized dice)
-and `*` (positive integers); mapping steps may output dice notation
+`dice(count, sides)` and combine it with `+`/`-` (integers, or dice of any
+size, pooled as e.g. `2d6+1d8`) and `*` (positive integers); mapping steps
+may output dice notation
 (`[[1, "1d4"], [5, "1d6"]]`); accumulators accept dice bases; and a roll
 definition rolls a dice-valued field with `dice_field`. Dice show as notation
 (`2d6+3`) on the sheet and in JSON. This system's content still encodes these
