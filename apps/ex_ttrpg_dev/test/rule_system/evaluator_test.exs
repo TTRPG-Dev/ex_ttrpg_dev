@@ -64,6 +64,17 @@ defmodule ExTTRPGDev.RuleSystem.EvaluatorTest do
     assert resolved[{"attr", "strength", "modifier"}] == 4
   end
 
+  test "a dice-valued when condition is an eval error, not false" do
+    generated = %{{"attr", "strength", "base_score"} => 16}
+    effect = %Effect{target: {"attr", "strength", "total_score"}, value: 2}
+    effect = Map.put(effect, :when, "dice(1, 6)")
+
+    assert {:error, {:eval_error, message, "dice(1, 6)"}} =
+             Evaluator.evaluate(minimal_system(), generated, [effect])
+
+    assert message =~ "boolean or number"
+  end
+
   test "evaluate/3 resolves mapping node from input value" do
     loader_data = %{
       nodes: %{

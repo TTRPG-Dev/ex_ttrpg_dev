@@ -109,15 +109,20 @@ defmodule ExTTRPGDev.RuleSystem.Evaluator do
 
   defp evaluate_condition(formula, resolved, item_fields) when is_binary(formula) do
     case formula |> substitute_item_fields(item_fields) |> Expression.evaluate(resolved) do
-      {:ok, result} -> {:ok, truthy?(result)}
+      {:ok, result} -> truthy(result, formula)
       error -> error
     end
   end
 
-  defp truthy?(true), do: true
-  defp truthy?(false), do: false
-  defp truthy?(n) when is_number(n), do: n != 0
-  defp truthy?(_), do: false
+  defp truthy(b, _formula) when is_boolean(b), do: {:ok, b}
+  defp truthy(n, _formula) when is_number(n), do: {:ok, n != 0}
+
+  # Dice (or any future non-scalar value) have no truth value; treating them
+  # as false would silently drop the effect.
+  defp truthy(value, formula) do
+    {:error,
+     {:eval_error, "condition must be a boolean or number, got: #{inspect(value)}", formula}}
+  end
 
   defp resolve_effect_value(value, _resolved, _item_fields) when is_number(value),
     do: {:ok, value}
