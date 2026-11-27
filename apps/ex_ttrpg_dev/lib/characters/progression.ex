@@ -42,7 +42,7 @@ defmodule ExTTRPGDev.Characters.Progression do
       system.concept_metadata
       |> Enum.filter(fn {{type, _id}, _} -> type == @progression_type end)
       |> Enum.reduce({[], []}, fn {{_type, id}, meta}, {choices_acc, errors_acc} ->
-        roll = resolve_roll_reference(meta["roll_reference"], character, system.concept_metadata)
+        roll = resolve_roll_reference(meta["roll_reference"], id, character, system)
         meta_with_roll = Map.put(meta, "roll", roll)
 
         {choices, choice_errors} =
@@ -515,18 +515,35 @@ defmodule ExTTRPGDev.Characters.Progression do
     end)
   end
 
-  defp resolve_roll_reference(nil, _character, _concept_metadata), do: nil
+  defp resolve_roll_reference(nil, _progression_id, _character, _system), do: nil
 
-  defp resolve_roll_reference(roll_reference, character, concept_metadata) do
+  defp resolve_roll_reference(roll_reference, progression_id, character, system) do
     case String.split(roll_reference, ".", parts: 2) do
       [type_id, field] ->
-        case Enum.find(character.decisions, &(&1.scope == nil and &1.choice == type_id)) do
+        case referenced_concept(type_id, progression_id, character, system) do
           nil -> nil
-          %{selection: concept_id} -> get_in(concept_metadata, [{type_id, concept_id}, field])
+          concept_id -> get_in(system.concept_metadata, [{type_id, concept_id}, field])
         end
 
       _ ->
         nil
+    end
+  end
+
+  # The concept of `type_id` a roll reference reads: the root decision of
+  # that type. For the class concept type with class levels, it's the class
+  # that gained the level the next decision is for, taking the
+  # progression's decisions as one per level after the first (decision n is
+  # for level n + 1), as a per-level hit point roll is.
+  defp referenced_concept(type_id, progression_id, character, system) do
+    if type_id == ClassLevels.class_type(system) do
+      level = count_progression_decisions(character.decisions, progression_id) + 2
+      ClassLevels.class_at_level(system, character, level)
+    else
+      Enum.find_value(character.decisions, fn
+        %Decision{scope: nil, choice: ^type_id, selection: concept_id} -> concept_id
+        _ -> nil
+      end)
     end
   end
 end

@@ -142,6 +142,17 @@ defmodule ExTTRPGDev.Characters.ClassLevels do
   end
 
   @doc false
+  # The class that gained `level`: the first class for level 1 and for
+  # levels past the end of the record. `nil` without a first class.
+  def class_at_level(%LoadedSystem{} = system, %Character{} = character, level) do
+    first = first_class(system, character)
+
+    if first && level >= 2,
+      do: Enum.at(character.level_classes, level - 2, first),
+      else: first
+  end
+
+  @doc false
   # The `{class_type, id}` keys of the classes the character took after its
   # first. Every recorded class counts, even one recorded for a level above
   # the current one, which can only happen if XP was taken away.

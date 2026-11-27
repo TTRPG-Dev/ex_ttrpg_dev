@@ -45,3 +45,7 @@ value = 1
 [[concept_type]]
 id = "skill"
 name = "Skill"
+
+[[concept_type]]
+id = "character_progression"
+name = "Character Progression"

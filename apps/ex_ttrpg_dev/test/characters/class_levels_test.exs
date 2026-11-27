@@ -261,4 +261,33 @@ defmodule ExTTRPGDevTest.Characters.ClassLevels do
       assert class_choices(system, character, "wizard") == []
     end
   end
+
+  describe "per-level hit point rolls" do
+    defp hp_roll(system, character) do
+      {_effects, resolved} = Characters.resolved_state(system, character)
+      {:ok, %{choices: choices}} = Characters.pending_choices(system, character, resolved)
+      Enum.find_value(choices, &(&1.id == "hp_per_level" && &1.roll))
+    end
+
+    defp hp_decisions(n) do
+      for i <- 1..n//1 do
+        %ExTTRPGDev.Characters.Decision{
+          scope: {"character_progression", "hp_per_level"},
+          choice: "choice_#{i}",
+          selection: "rolled"
+        }
+      end
+    end
+
+    test "use the hit die of the class that gained the level", %{system: system} do
+      character = Fixture.character("fighter", xp: xp_for(3), level_classes: ["wizard"])
+
+      # level 2 went to wizard
+      assert hp_roll(system, character) == "d6"
+
+      # level 3 is past the record, so fighter's
+      character = %{character | decisions: character.decisions ++ hp_decisions(1)}
+      assert hp_roll(system, character) == "d10"
+    end
+  end
 end

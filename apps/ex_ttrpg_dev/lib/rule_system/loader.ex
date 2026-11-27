@@ -69,7 +69,12 @@ defmodule ExTTRPGDev.RuleSystem.Loader do
     contributes. Used for progressions whose selection directly modifies a node.
   - `"roll_reference"` *(string `"type_id.concept_id"`, optional)* — pointer to a
     `roll` concept. Resolved at evaluation time and injected as `"roll"` on the
-    metadata map. Not authored directly in TOML as `"roll"`.
+    metadata map. Not authored directly in TOML as `"roll"`. When `type_id`
+    is the module's `class_concept_type`, the class read is the one that
+    gained the level the next decision is for, taking the progression's
+    decisions as one per level after the first (as per-level hit point
+    rolls are): a fighter/wizard rolls the wizard's hit die for a wizard
+    level.
   - `"filter"` *(map, optional)* — filters applied when presenting options from this
     progression. All subkeys are optional:
     - `"level"` *(integer)* — exact level match; mutually exclusive with
