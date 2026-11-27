@@ -1190,6 +1190,45 @@ defmodule ExTTRPGDev.CLI.ServerTest do
 
   # ── error handling ────────────────────────────────────────────────────────────
 
+  describe "multiclassed characters" do
+    alias ExTTRPGDev.Characters.{Character, Decision}
+    alias ExTTRPGDev.CLI.Serializer
+    alias ExTTRPGDev.RuleSystem.Effect
+
+    # wizard 1 / rogue 1
+    defp wizard_rogue(system) do
+      wizard = %Decision{scope: nil, choice: "class", selection: "wizard"}
+      xp = %Effect{target: {"character_trait", "experience_points", "total"}, value: 300}
+
+      %{Character.gen_character!(system, [wizard]) | effects: [xp], level_classes: ["rogue"]}
+    end
+
+    defp list_items(data, label),
+      do: Enum.find_value(data.character_lists, [], &(&1.label == label && &1.items))
+
+    test "the sheet shows a multiclassed class's reduced proficiencies" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
+
+      assert "Light Armor" in list_items(data, "Armor Proficiencies")
+      assert "Thieves' Tools" in list_items(data, "Tool Proficiencies")
+      refute "Rapier" in list_items(data, "Weapon Proficiencies")
+    end
+
+    test "the sheet shows a multiclassed class's values" do
+      system = RuleSystems.load_system!("dnd_5e_srd")
+      data = Serializer.serialize_character(system, wizard_rogue(system), "x", :default)
+
+      class_concepts =
+        data.concept_types
+        |> Enum.filter(&(&1.id == "class"))
+        |> Enum.flat_map(& &1.concepts)
+        |> Enum.map(& &1.id)
+
+      assert "rogue" in class_concepts
+    end
+  end
+
   describe "error handling" do
     test "unknown command returns error" do
       assert run(%{"command" => "nonexistent"}).status == "error"

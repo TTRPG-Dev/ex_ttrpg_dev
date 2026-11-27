@@ -44,7 +44,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
         display_mode,
         resolved \\ nil
       ) do
-    active = Characters.active_concepts(character.decisions, system.concept_metadata)
+    active = Characters.active_concepts(system, character)
     resolved = resolved || elem(Characters.resolved_state(system, character), 1)
     resolved_by_concept = Enum.group_by(resolved, fn {{type, id, _field}, _} -> {type, id} end)
     inventory_ids = MapSet.new(character.inventory, &{&1.concept_type, &1.concept_id})
@@ -273,7 +273,7 @@ defmodule ExTTRPGDev.CLI.Serializer do
 
   defp serialize_character_list_category(cat, {system, display_mode}, character, active) do
     template = find_display_template(system, cat.concept_type)
-    ids = collect_from_active(active, system.concept_metadata, cat.metadata_key)
+    ids = collect_from_active(active, {system, character}, cat.metadata_key)
 
     items =
       case cat.concept_type do
@@ -306,10 +306,12 @@ defmodule ExTTRPGDev.CLI.Serializer do
     %{label: cat.label, items: (items ++ choice_items) |> Enum.uniq() |> Enum.sort()}
   end
 
-  defp collect_from_active(active, concept_metadata, key) do
+  # Read through Characters.concept_metadata/3 so a multiclassed class
+  # contributes the reduced lists of its multiclass table, not its own.
+  defp collect_from_active(active, {system, character}, key) do
     active
-    |> Enum.flat_map(fn {type, id} ->
-      Map.get(concept_metadata[{type, id}] || %{}, key, [])
+    |> Enum.flat_map(fn concept_key ->
+      system |> Characters.concept_metadata(character, concept_key) |> Map.get(key, [])
     end)
     |> Enum.uniq()
     |> Enum.sort()
